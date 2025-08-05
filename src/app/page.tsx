@@ -26,13 +26,7 @@ const Home = () => {
         onClick={() => router.push("/register")}
         className="mt-12 bg-[#E7C4BB] text-white px-6 py-3 rounded shadow-md hover:bg-[#d9b3a9] transition"
       >
-        Sign Up as a user
-      </Button>
-      <Button
-        onClick={() => router.push("/specialist-Signup")}
-        className="mt-12 bg-[#E7C4BB] text-white px-6 py-3 rounded shadow-md hover:bg-[#d9b3a9] transition"
-      >
-        Sign Up as a Specialist
+        Start
       </Button>
     </div>
   );

@@ -3,26 +3,46 @@ import { NextResponse } from "next/server";
 
 export default withAuth(
   function middleware(req) {
-    // You can add additional logic here if needed
+    const { token } = req.nextauth;
+    const { pathname } = req.nextUrl; // Correctly access pathname from req.nextUrl
+
+    console.log("Middleware triggered:", { pathname, token: !!token });
+
+    // Redirect authenticated users away from /login and /register
+    if (
+      token &&
+      (pathname === "/login" || pathname === "/register" || pathname === "/")
+    ) {
+      console.log("Redirecting authenticated user to dashboard");
+      return NextResponse.redirect(new URL("/dashboard/homePage", req.url));
+    }
+
+    // Allow all other requests to proceed
     return NextResponse.next();
   },
   {
     callbacks: {
-      authorized({ token }) {
-        // Allow access only if token exists (user is authenticated)
+      // Only apply middleware to check auth for protected routes
+      authorized({ token, req }) {
+        const { pathname } = req.nextUrl; // Correctly access pathname here too
+        // Allow unauthenticated users to access /login and /register
+        if (
+          pathname === "/login" ||
+          pathname === "/register" ||
+          pathname === "/"
+        ) {
+          return true; // No auth required for these pages
+        }
+        // Require auth for all other matched routes
         return !!token;
       },
     },
     pages: {
-      signIn: "/login", // Redirect unauthenticated users to /login
+      signIn: "/dashboard/homePage", // Redirect unauthenticated users to root for protected routes
     },
   }
 );
 
-// Middleware config: only run on these routes
 export const config = {
-  matcher: [
-    // Match all routes except static files, auth routes, login and register
-    "/((?!_next/static|_next/image|favicon.ico|login|register|api/auth|public).*)",
-  ],
+  matcher: ["/((?!_next/static|_next/image|favicon.ico|api/auth|public).*)"],
 };
