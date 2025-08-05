@@ -14,7 +14,7 @@ export default withAuth(
       (pathname === "/login" || pathname === "/register" || pathname === "/")
     ) {
       console.log("Redirecting authenticated user to dashboard");
-      return NextResponse.redirect(new URL("/dashboard/homePage", req.url));
+      return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
     // Allow all other requests to proceed

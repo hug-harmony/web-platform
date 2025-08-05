@@ -62,7 +62,7 @@ export default function LoginPage() {
         setError(result.error);
       } else {
         toast.success("Logged in successfully!");
-        router.push("/dashboard/homePage");
+        router.push("/dashboard");
       }
     } catch (error) {
       toast.error("An unexpected error occurred");
@@ -223,13 +223,9 @@ export default function LoginPage() {
             <Button
               type="button"
               className="bg-white text-red-600 border border-gray-300 rounded-full h-10 w-full text-xs hover:bg-gray-50 flex items-center justify-center space-x-2"
-              onClick={() => {
-                if (process.env.NEXT_PUBLIC_GOOGLE_CLIENT_ID) {
-                  signIn("google", { callbackUrl: "/dashboard/homePage" });
-                } else {
-                  toast.error("Google login is not configured");
-                }
-              }}
+              onClick={() =>
+                signIn("google", { callbackUrl: "/dashboard/homePage" })
+              }
               disabled={isLoading}
             >
               <svg
