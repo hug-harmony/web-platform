@@ -53,6 +53,7 @@ export default function ResetPasswordPage() {
     if (!token) {
       setError("Invalid or missing reset token");
       toast.error("Invalid or missing reset token");
+      console.log(error);
       return;
     }
     try {

@@ -67,6 +67,8 @@ export default function LoginPage() {
     } catch (error) {
       toast.error("An unexpected error occurred");
       setError("An unexpected error occurred");
+      console.log(error);
+      console.log(resetMessage);
     } finally {
       setIsLoading(false);
     }
