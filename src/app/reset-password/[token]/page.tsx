@@ -30,6 +30,7 @@ const formSchema = z
 export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
   const [message, setMessage] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
   const { token } = useParams();
 
@@ -44,17 +45,18 @@ export default function ResetPasswordPage() {
   useEffect(() => {
     if (!token) {
       setError("Invalid or missing reset token");
-      toast("Something went wrong");
+      toast.error("Invalid or missing reset token");
     }
   }, [token]);
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     if (!token) {
       setError("Invalid or missing reset token");
-      toast("Something went wrong");
+      toast.error("Invalid or missing reset token");
       return;
     }
     try {
+      setIsLoading(true);
       const response = await fetch("/api/auth/reset-password", {
         method: "PUT",
         headers: { "Content-Type": "application/json" },
@@ -65,11 +67,13 @@ export default function ResetPasswordPage() {
         throw new Error(data.error || "Failed to reset password");
       }
       setMessage("Password reset successfully. Redirecting to login...");
-      toast("Password reset successful!");
+      toast.success("Password reset successfully!");
       setTimeout(() => router.push("/login"), 3000);
     } catch (err: any) {
       setError(err.message);
-      toast("Something went wrong");
+      toast.error(err.message || "Failed to reset password");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -82,7 +86,7 @@ export default function ResetPasswordPage() {
         <p className="text-gray-600 text-sm mb-6">
           Enter your new password to reset your account.
         </p>
-        {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+        {/* {error && <p className="text-red-600 text-sm mb-4">{error}</p>} */}
         {message && <p className="text-green-600 text-sm mb-4">{message}</p>}
         <Form {...form}>
           <form
@@ -132,9 +136,9 @@ export default function ResetPasswordPage() {
             <Button
               type="submit"
               className="w-full bg-[#E7C4BB] text-black h-10 text-sm hover:bg-[#d4a8a0] transition-colors"
-              disabled={!token}
+              disabled={!token || isLoading}
             >
-              Reset Password
+              {isLoading ? "Resetting..." : "Reset Password"}
             </Button>
           </form>
         </Form>

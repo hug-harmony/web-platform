@@ -25,6 +25,7 @@ import {
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
 import Image from "next/image";
+import Link from "next/link";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -36,6 +37,7 @@ export default function LoginPage() {
   const [resetEmail, setResetEmail] = useState("");
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -48,6 +50,7 @@ export default function LoginPage() {
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      setIsLoading(true);
       const result = await signIn("credentials", {
         email: values.email,
         password: values.password,
@@ -55,21 +58,24 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
-        toast("Something went wrong");
+        toast.error(result.error || "Invalid email or password");
         setError(result.error);
       } else {
-        toast("Login successful!");
+        toast.success("Logged in successfully!");
         router.push("/dashboard/homePage");
       }
     } catch (error) {
-      toast("Something went wrong");
+      toast.error("An unexpected error occurred");
       setError("An unexpected error occurred");
+    } finally {
+      setIsLoading(false);
     }
   };
 
   const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     try {
+      setIsLoading(true);
       const res = await fetch("/api/auth/reset-password", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -79,17 +85,27 @@ export default function LoginPage() {
       const result = await res.json();
 
       if (!res.ok) {
-        toast("Something went wrong");
+        if (result.error === "This account uses Google login") {
+          toast.error("Please use Google login for this account");
+          setResetMessage(
+            "This account uses Google login. Try logging in with Google."
+          );
+          setIsDialogOpen(false);
+          return;
+        }
+        toast.error(result.error || "Failed to send reset email");
         throw new Error(result.error || "Failed to send reset email");
-      } else {
-        toast("Reset email sent successfully!");
-        setResetMessage("Check your email for reset instructions");
-        setIsDialogOpen(false);
       }
+
+      toast.success("Password reset email sent!");
+      setResetMessage("Check your email for reset instructions");
+      setIsDialogOpen(false);
     } catch (err: any) {
       console.log(err);
-      toast("Something went wrong");
+      toast.error(err.message || "Failed to send reset email");
       setResetMessage(err.message || "Failed to send reset email");
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -155,17 +171,18 @@ export default function LoginPage() {
               <Button
                 type="submit"
                 className="w-full bg-[#E7C4BB] text-black h-10 text-sm hover:bg-[#d4a8a0] transition-colors"
+                disabled={isLoading}
               >
-                Login
+                {isLoading ? "Logging in..." : "Login"}
               </Button>
             </form>
           </Form>
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <div className="text-right text-xs mt-2">
               <DialogTrigger asChild>
-                <a href="#" className="text-red-600 hover:underline">
+                <Link href="#" className="text-red-600 hover:underline">
                   Forgot Password
-                </a>
+                </Link>
               </DialogTrigger>
             </div>
             <DialogContent>
@@ -179,41 +196,35 @@ export default function LoginPage() {
                   onChange={(e) => setResetEmail(e.target.value)}
                   placeholder="Enter your email"
                   required
+                  disabled={isLoading}
                 />
-                {resetMessage && (
-                  <p className="text-sm text-red-600">{resetMessage}</p>
-                )}
-                <Button type="submit" className="w-full h-10 text-sm">
-                  Send Reset Email
+                <Button
+                  type="submit"
+                  className="w-full h-10 text-sm"
+                  disabled={isLoading}
+                >
+                  {isLoading ? "Sending..." : "Send Reset Email"}
                 </Button>
               </form>
             </DialogContent>
           </Dialog>
           <div className="text-center text-xs text-gray-600 mt-4">
             Don’t have an account?{" "}
-            <a href="/register" className="text-blue-600 hover:underline">
+            <Link href="/register" className="text-blue-600 hover:underline">
               Register
-            </a>
+            </Link>
           </div>
           <div className="text-center text-xs text-gray-600 mt-4">
             Or login with
           </div>
           <div className="flex justify-center space-x-3 mt-3">
-            {/* <Button
-              type="button"
-              className="bg-white text-blue-600 border border-gray-300 rounded-full h-10 w-24 text-xs hover:bg-gray-50"
-              onClick={() =>
-                signIn("facebook", { callbackUrl: "/dashboard/homePage" })
-              }
-            >
-              Facebook
-            </Button> */}
             <Button
               type="button"
               className="bg-white text-red-600 border border-gray-300 rounded-full h-10 w-full text-xs hover:bg-gray-50 flex items-center justify-center space-x-2"
               onClick={() =>
                 signIn("google", { callbackUrl: "/dashboard/homePage" })
               }
+              disabled={isLoading}
             >
               <Image
                 src="/google_logo.svg"
@@ -224,15 +235,6 @@ export default function LoginPage() {
               />
               <span>Google</span>
             </Button>
-            {/* <Button
-              type="button"
-              className="bg-white text-black border border-gray-300 rounded-full h-10 w-24 text-xs hover:bg-gray-50"
-              onClick={() =>
-                signIn("apple", { callbackUrl: "/dashboard/homePage" })
-              }
-            >
-              Apple
-            </Button> */}
           </div>
         </div>
         <div

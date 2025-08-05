@@ -37,9 +37,11 @@ export async function POST(request: NextRequest) {
         email,
         password,
         name: `${firstName} ${lastName}`,
+        firstName,
+        lastName,
         phoneNumber,
         createdAt: new Date(),
-      } as any, // Temporary workaround to bypass type checking
+      },
     });
 
     return NextResponse.json(

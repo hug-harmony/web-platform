@@ -19,10 +19,21 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Email is required" }, { status: 400 });
   }
   try {
-    const user = await prisma.user.findUnique({ where: { email } });
+    const user = await prisma.user.findUnique({
+      where: { email },
+      select: { id: true, googleId: true, password: true },
+    });
     if (!user) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
+
+    if (user.googleId && !user.password) {
+      return NextResponse.json(
+        { error: "This account uses Google login" },
+        { status: 400 }
+      );
+    }
+
     const token = crypto.randomBytes(32).toString("hex");
     const expiresAt = new Date(Date.now() + 1000 * 60 * 60);
     await prisma.passwordResetToken.upsert({

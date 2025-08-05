@@ -17,6 +17,7 @@ import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
+import Image from "next/image";
 
 const formSchema = z
   .object({
@@ -35,6 +36,7 @@ const formSchema = z
 export default function RegisterPage() {
   const router = useRouter();
   const [error, setError] = useState<string | null>(null);
+  const [isLoading, setIsLoading] = useState(false);
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -50,6 +52,7 @@ export default function RegisterPage() {
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
+      setIsLoading(true);
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -73,11 +76,13 @@ export default function RegisterPage() {
 
       if (signInResult?.error) throw new Error(signInResult.error);
 
-      toast("You have been registered");
+      toast.success("Account created successfully!");
       router.push("/dashboard/homePage");
     } catch (error: any) {
-      toast("Something went wrong");
+      toast.error(error.message || "Registration failed");
       setError(error.message);
+    } finally {
+      setIsLoading(false);
     }
   };
 
@@ -229,8 +234,9 @@ export default function RegisterPage() {
               <Button
                 type="submit"
                 className="w-full bg-[#E7C4BB] text-black h-10 text-sm hover:bg-[#d4a8a0] transition-colors"
+                disabled={isLoading}
               >
-                Create Account
+                {isLoading ? "Creating Account..." : "Create Account"}
               </Button>
               <div className="text-center text-xs text-gray-600">
                 Already have an account?{" "}
@@ -244,26 +250,20 @@ export default function RegisterPage() {
               <div className="flex justify-center space-x-3 mt-3">
                 <Button
                   type="button"
-                  className="bg-white text-blue-600 border border-gray-300 rounded-full h-10 w-24 text-xs hover:bg-gray-50"
-                  onClick={() => signIn("facebook", { redirect: false })}
-                >
-                  Facebook
-                </Button>
-                <Button
-                  type="button"
-                  className="bg-white text-red-600 border border-gray-300 rounded-full h-10 w-24 text-xs hover:bg-gray-50"
+                  className="bg-white text-red-600 border border-gray-300 rounded-full h-10 w-full text-xs hover:bg-gray-50 flex items-center justify-center space-x-2"
                   onClick={() =>
                     signIn("google", { callbackUrl: "/dashboard/homePage" })
                   }
+                  disabled={isLoading}
                 >
-                  Google
-                </Button>
-                <Button
-                  type="button"
-                  className="bg-white text-black border border-gray-300 rounded-full h-10 w-24 text-xs hover:bg-gray-50"
-                  onClick={() => signIn("apple", { redirect: false })}
-                >
-                  Apple
+                  <Image
+                    src="/google_logo.svg"
+                    alt="Google logo"
+                    width={20}
+                    height={20}
+                    className="h-5 w-5"
+                  />
+                  <span>Google</span>
                 </Button>
               </div>
             </form>
