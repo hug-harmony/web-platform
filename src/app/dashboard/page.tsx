@@ -122,7 +122,7 @@ export default function HomePage() {
       animate="visible"
     >
       {/* Hero Section */}
-      <Card className="bg-gradient-to-r from-blue-50 to-indigo-50">
+      <Card className="bg-[#E4C1B8]">
         <CardHeader>
           <motion.div
             variants={itemVariants}

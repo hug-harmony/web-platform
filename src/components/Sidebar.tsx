@@ -39,16 +39,6 @@ const user = {
 };
 
 // Animation variants
-const sidebarVariants = {
-  open: {
-    width: "240px",
-    transition: { duration: 0.3, ease: "easeInOut" },
-  },
-  closed: {
-    width: "60px",
-    transition: { duration: 0.3, ease: "easeInOut" },
-  },
-};
 
 const itemVariants = {
   open: { opacity: 1, x: 0, transition: { duration: 0.2 } },
@@ -117,10 +107,9 @@ export default function Sidebar() {
   return (
     <SidebarProvider>
       <motion.div
-        className="h-full bg-background border-r"
+        className="h-full bg-[#FCF0ED] border-r"
         initial="open"
         animate={isOpen ? "open" : "closed"}
-        variants={sidebarVariants}
       >
         <ShadcnSidebar className="h-full">
           <SidebarHeader className="p-4">
