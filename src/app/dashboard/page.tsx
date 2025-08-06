@@ -17,6 +17,8 @@ import {
   DollarSign,
 } from "lucide-react";
 import Link from "next/link";
+import { useSession } from "next-auth/react";
+import { useRouter } from "next/navigation";
 
 // Type definitions
 interface User {
@@ -41,13 +43,7 @@ interface Appointment {
   type: string;
 }
 
-// Dummy data
-const user: User = {
-  name: "Jane Doe",
-  email: "jane.doe@example.com",
-  avatar: "/assets/images/avatar-placeholder.png",
-};
-
+// Dummy data (for messages and appointments, unchanged)
 const recentMessages: Message[] = [
   {
     id: 1,
@@ -113,16 +109,33 @@ const itemVariants = {
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
+  const { data: session, status } = useSession();
+  const router = useRouter();
+
+  if (status === "loading") {
+    return <div className="p-4">Loading...</div>;
+  }
+
+  if (status === "unauthenticated") {
+    router.push("/login");
+    return null;
+  }
+
+  const user: User = {
+    name: session?.user?.name || "User",
+    email: session?.user?.email || "user@example.com",
+    avatar: session?.user?.image || "/assets/images/avatar-placeholder.png",
+  };
 
   return (
     <motion.div
-      className="p-4 space-y-6 max-w-7xl mx-auto"
+      className="p-4 space-y-6 max-w-7xl mx-auto "
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
       {/* Hero Section */}
-      <Card className="bg-[#E4C1B8]">
+      <Card>
         <CardHeader>
           <motion.div
             variants={itemVariants}
@@ -141,7 +154,7 @@ export default function HomePage() {
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <motion.div variants={itemVariants}>
             <Button asChild variant="outline" className="w-full">
-              <Link href="/therapists">
+              <Link href="/dashboard/therapists">
                 <User className="mr-2 h-4 w-4" />
                 Find a Therapist
               </Link>

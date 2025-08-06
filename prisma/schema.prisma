@@ -1,13 +1,12 @@
-generator client {
-  provider = "prisma-client-js"
-  output   = "../node_modules/.prisma/client"
-}
+  generator client {
+    provider = "prisma-client-js"
+    output   = "../node_modules/.prisma/client"
+  }
 
-datasource db {
-  provider = "mongodb"
-  url      = env("DATABASE_URL")
-}
-
+  datasource db {
+    provider = "mongodb"
+    url      = env("DATABASE_URL")
+  }
 model User {
   id               String         @id @default(auto()) @map("_id") @db.ObjectId
   email            String         @unique
@@ -18,6 +17,10 @@ model User {
   phoneNumber      String?
   googleId         String?        @unique
   profileImage     String?
+  location         String?        // Added for profile display
+  rating           Float?         // Added for profile display
+  reviewCount      Int?           // Added for profile display
+  rate             Float?         // Added for profile display
   createdAt        DateTime       @default(now())
   PasswordResetToken PasswordResetToken[]
   appointments     Appointment[]  @relation("UserAppointments")
@@ -26,65 +29,64 @@ model User {
   conversations1   Conversation[] @relation("User1Conversations")
   conversations2   Conversation[] @relation("User2Conversations")
 }
+  model PasswordResetToken {
+    id               String    @id @default(auto()) @map("_id") @db.ObjectId
+    userId           String    @unique @db.ObjectId
+    token            String    @unique
+    expiresAt        DateTime
+    user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+    createdAt        DateTime  @default(now())
+  }
 
-model PasswordResetToken {
-  id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId           String    @unique @db.ObjectId
-  token            String    @unique
-  expiresAt        DateTime
-  user             User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  createdAt        DateTime  @default(now())
-}
+  model Specialist {
+    id               String    @id @default(auto()) @map("_id") @db.ObjectId
+    name             String
+    image            String?
+    location         String
+    rating           Float?
+    reviewCount      Int?
+    rate             Float?
+    role             String?
+    tags             String?
+    biography        String?
+    education        String?
+    license          String?
+    createdAt        DateTime  @default(now())
+    appointments     Appointment[]  @relation("SpecialistAppointments")
+  }
 
-model Specialist {
-  id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  name             String
-  image            String?
-  location         String
-  rating           Float?
-  reviewCount      Int?
-  rate             Float?
-  role             String?
-  tags             String?
-  biography        String?
-  education        String?
-  license          String?
-  createdAt        DateTime  @default(now())
-  appointments     Appointment[]  @relation("SpecialistAppointments")
-}
+  model Appointment {
+    id               String    @id @default(auto()) @map("_id") @db.ObjectId
+    userId           String    @db.ObjectId
+    specialistId     String    @db.ObjectId
+    date             DateTime
+    time             String
+    status           String    @default("upcoming")
+    createdAt        DateTime  @default(now())
+    user             User      @relation("UserAppointments", fields: [userId], references: [id], onDelete: Cascade)
+    specialist       Specialist @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)
+  }
 
-model Appointment {
-  id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId           String    @db.ObjectId
-  specialistId     String    @db.ObjectId
-  date             DateTime
-  time             String
-  status           String    @default("upcoming")
-  createdAt        DateTime  @default(now())
-  user             User      @relation("UserAppointments", fields: [userId], references: [id], onDelete: Cascade)
-  specialist       Specialist @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)
-}
+  model Conversation {
+    id               String    @id @default(auto()) @map("_id") @db.ObjectId
+    userId1          String    @db.ObjectId
+    userId2          String    @db.ObjectId
+    createdAt        DateTime  @default(now())
+    updatedAt        DateTime  @updatedAt
+    user1            User      @relation("User1Conversations", fields: [userId1], references: [id], onDelete: Cascade)
+    user2            User      @relation("User2Conversations", fields: [userId2], references: [id], onDelete: Cascade)
+    messages         Message[] @relation("ConversationMessages")
+  }
 
-model Conversation {
-  id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId1          String    @db.ObjectId
-  userId2          String    @db.ObjectId
-  createdAt        DateTime  @default(now())
-  updatedAt        DateTime  @updatedAt
-  user1            User      @relation("User1Conversations", fields: [userId1], references: [id], onDelete: Cascade)
-  user2            User      @relation("User2Conversations", fields: [userId2], references: [id], onDelete: Cascade)
-  messages         Message[] @relation("ConversationMessages")
-}
-
-model Message {
-  id               String       @id @default(auto()) @map("_id") @db.ObjectId
-  text             String
-  isAudio          Boolean      @default(false)
-  userId           String       @db.ObjectId
-  recipientId      String       @db.ObjectId
-  conversationId   String       @db.ObjectId
-  createdAt        DateTime     @default(now())
-  sender           User         @relation("SentMessages", fields: [userId], references: [id], onDelete: Cascade)
-  recipient        User         @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
-  conversation     Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
-}
+      model Message {
+        id               String       @id @default(auto()) @map("_id") @db.ObjectId
+        text             String
+        isAudio          Boolean      @default(false)
+        userId           String       @db.ObjectId
+        recipientId      String       @db.ObjectId
+        conversationId   String       @db.ObjectId
+        createdAt        DateTime     @default(now())
+        sender           User         @relation("SentMessages", fields: [userId], references: [id], onDelete: Cascade)
+        recipient        User         @relation("ReceivedMessages", fields: [recipientId], references: [id], onDelete: Cascade)
+        conversation     Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
+      }

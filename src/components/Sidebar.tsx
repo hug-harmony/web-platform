@@ -26,18 +26,11 @@ import {
   LogOut,
   Menu,
 } from "lucide-react";
-import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
-import { Button } from "./ui/button";
+import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Button } from "@/components/ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
-import { signOut } from "next-auth/react"; // Import NextAuth signOut
-
-// Dummy user data
-const user = {
-  name: "Jane Doe",
-  email: "jane.doe@example.com",
-  avatar: "/assets/images/avatar-placeholder.png",
-};
+import { useSession, signOut } from "next-auth/react";
 
 // Animation variants
 const itemVariants = {
@@ -48,6 +41,7 @@ const itemVariants = {
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
   const router = useRouter();
+  const { data: session, status } = useSession();
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
@@ -58,17 +52,13 @@ export default function Sidebar() {
       icon: <User className="h-5 w-5" />,
     },
     {
-      href: "dashboard/therapists",
+      href: "/dashboard/therapists",
       label: "Therapists",
       icon: <User className="h-5 w-5" />,
     },
+
     {
-      href: "/booking",
-      label: "Book Appointment",
-      icon: <Calendar className="h-5 w-5" />,
-    },
-    {
-      href: "/appointments",
+      href: "/dashboard/appointments",
       label: "Appointments",
       icon: <Clock className="h-5 w-5" />,
     },
@@ -101,17 +91,32 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try {
-      await signOut({ redirect: false }); // Sign out without immediate redirect
-      router.push("/login"); // Manually redirect to login page
+      await signOut({ redirect: false });
+      router.push("/login");
     } catch (error) {
       console.error("Logout failed:", error);
     }
   };
 
+  if (status === "loading") {
+    return <div className="p-4">Loading...</div>;
+  }
+
+  if (status === "unauthenticated") {
+    router.push("/login");
+    return null;
+  }
+
+  const user = {
+    name: session?.user?.name || "User",
+    email: session?.user?.email || "user@example.com",
+    avatar: session?.user?.image || "/assets/images/avatar-placeholder.png",
+  };
+
   return (
     <SidebarProvider>
       <motion.div
-        className="h-full bg-[#FCF0ED] border-r"
+        className="h-full border-r"
         initial="open"
         animate={isOpen ? "open" : "closed"}
       >
@@ -130,7 +135,7 @@ export default function Sidebar() {
                 {isOpen && (
                   <div>
                     <p className="font-semibold">{user.name}</p>
-                    <p className="text-sm text-muted-foreground">
+                    <p className="text-xs text-muted-foreground">
                       {user.email}
                     </p>
                   </div>

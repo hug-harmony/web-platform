@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
@@ -16,19 +17,23 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import SpecialistCard from "@/components/Specialist_Cards";
+import AddTherapistDialog from "@/components/add-specialist";
+import UserCard from "@/components/User_cards";
 
 interface Therapist {
   _id: string;
-  userId: string;
   name: string;
-  date?: string;
-  time?: string;
-  imageSrc?: string;
-  createdAt?: string;
+  image?: string;
   location?: string;
   rating?: number;
   reviewCount?: number;
-  rate?: number; // Added rate field
+  rate?: number;
+  role?: string;
+  tags?: string;
+  biography?: string;
+  education?: string;
+  license?: string;
+  createdAt?: string;
 }
 
 const containerVariants = {
@@ -42,8 +47,10 @@ const cardVariants = {
 };
 
 export default function TherapistsPage() {
-  const [therapists, setTherapists] = useState<Therapist[]>([]);
+  const [users, setUsers] = useState<Therapist[]>([]);
+  const [specialists, setSpecialists] = useState<Therapist[]>([]);
   const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState({
     location: "",
     minRating: 0,
@@ -51,154 +58,145 @@ export default function TherapistsPage() {
   });
 
   useEffect(() => {
-    const fetchTherapists = async () => {
+    const fetchData = async () => {
       try {
-        const res = await fetch("/api/therapists/list", {
+        const usersRes = await fetch("/api/users", {
           cache: "no-store",
           credentials: "include",
         });
-        if (!res.ok) {
-          if (res.status === 401) {
-            redirect("/login");
-          }
+        if (!usersRes.ok) {
+          console.error(
+            "Users API error:",
+            usersRes.status,
+            await usersRes.text()
+          );
+          if (usersRes.status === 401) redirect("/login");
+          throw new Error(`Failed to fetch users: ${usersRes.status}`);
+        }
+        const usersData = await usersRes.json();
+        setUsers(
+          Array.isArray(usersData)
+            ? usersData
+                .filter((user) => user._id) // Ensure _id exists
+                .map((user) => ({
+                  _id: user._id,
+                  name:
+                    user.firstName && user.lastName
+                      ? `${user.firstName} ${user.lastName}`
+                      : user.name || "Unknown User",
+                  image: user.image || "",
+                  location: user.location || "",
+                  rating: user.rating || 0,
+                  reviewCount: user.reviewCount || 0,
+                  rate: user.rate || 0,
+                  createdAt: user.createdAt,
+                }))
+            : usersData._id
+              ? [
+                  {
+                    _id: usersData._id,
+                    name:
+                      usersData.firstName && usersData.lastName
+                        ? `${usersData.firstName} ${usersData.lastName}`
+                        : usersData.name || "Unknown User",
+                    image: usersData.image || "",
+                    location: usersData.location || "",
+                    rating: usersData.rating || 0,
+                    reviewCount: usersData.reviewCount || 0,
+                    rate: usersData.rate || 0,
+                    createdAt: usersData.createdAt,
+                  },
+                ]
+              : []
+        );
+
+        const therapistsRes = await fetch("/api/specialists", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        if (!therapistsRes.ok) {
+          console.error(
+            "Specialists API error:",
+            therapistsRes.status,
+            await therapistsRes.text()
+          );
+          if (therapistsRes.status === 401) redirect("/login");
           throw new Error(
-            `Failed to fetch therapists: ${res.status} ${res.statusText}`
+            `Failed to fetch specialists: ${therapistsRes.status}`
           );
         }
-        const data = await res.json();
-        setTherapists(data);
+        const { specialists } = await therapistsRes.json();
+        setSpecialists(
+          specialists
+            .filter((s: any) => s.id) // Ensure id exists
+            .map((s: any) => ({
+              _id: s.id,
+              name: s.name,
+              image: s.image || "",
+              location: s.location || "",
+              rating: s.rating || 0,
+              reviewCount: s.reviewCount || 0,
+              rate: s.rate || 0,
+              role: s.role || "",
+              tags: s.tags || "",
+              biography: s.biography || "",
+              education: s.education || "",
+              license: s.license || "",
+              createdAt: s.createdAt,
+            }))
+        );
       } catch (error) {
-        console.error("Error fetching therapists:", error);
+        console.error("Error fetching data:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchTherapists();
+    fetchData();
   }, []);
 
   const handleFilterChange = (key: string, value: string | number) => {
     setFilters((prev) => ({ ...prev, [key]: value }));
   };
 
-  const filteredTherapists = therapists
-    .filter((therapist) =>
-      filters.location ? therapist.location === filters.location : true
-    )
-    .filter((therapist) =>
-      filters.minRating ? (therapist.rating || 0) >= filters.minRating : true
-    )
-    .sort((a, b) => {
-      if (filters.sortBy === "rating") {
-        return (b.rating || 0) - (a.rating || 0);
-      }
-      if (filters.sortBy === "name") {
-        return a.name.localeCompare(b.name);
-      }
-      return 0;
-    });
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
 
-  const exampleTherapists: Therapist[] = [
-    {
-      _id: "1",
-      userId: "u1",
-      name: "Alex Smith",
-      date: "2025-08-10",
-      time: "10:00 AM",
-      imageSrc: "/register.jpg",
-      location: "New York, NY",
-      rating: 4.8,
-      reviewCount: 120,
-      rate: 50,
-    },
-    {
-      _id: "8",
-      userId: "u1",
-      name: "Alex Smith",
-      date: "2025-08-10",
-      time: "10:00 AM",
-      imageSrc: "/images/alex.jpg",
-      location: "New York, NY",
-      rating: 4.8,
-      reviewCount: 120,
-      rate: 50,
-    },
-    {
-      _id: "7",
-      userId: "u1",
-      name: "Alex Smith",
-      date: "2025-08-10",
-      time: "10:00 AM",
-      imageSrc: "/images/alex.jpg",
-      location: "New York, NY",
-      rating: 4.8,
-      reviewCount: 120,
-      rate: 50,
-    },
-    {
-      _id: "2",
-      userId: "u2",
-      name: "Jamie Lee",
-      date: "2025-08-11",
-      time: "2:00 PM",
-      imageSrc: "/images/jamie.jpg",
-      location: "Los Angeles, CA",
-      rating: 4.9,
-      reviewCount: 95,
-      rate: 60,
-    },
-    {
-      _id: "3",
-      userId: "u3",
-      name: "Taylor Brown",
-      date: "2025-08-12",
-      time: "3:00 PM",
-      location: "Chicago, IL",
-      rating: 4.7,
-      reviewCount: 80,
-      rate: 45,
-    },
-  ];
+  const handleAddTherapist = (newTherapist: Therapist) => {
+    setSpecialists((prev) => [...prev, newTherapist]);
+  };
 
-  const exampleSpecialists: Therapist[] = [
-    {
-      _id: "4",
-      userId: "u4",
-      name: "Sam Carter",
-      imageSrc: "/images/sam.jpg",
-      location: "Boston, MA",
-      rating: 4.6,
-      reviewCount: 110,
-      rate: 55,
-    },
-    {
-      _id: "5",
-      userId: "u5",
-      name: "Robin White",
-      location: "Seattle, WA",
-      rating: 4.8,
-      reviewCount: 130,
-      rate: 65,
-    },
-    {
-      _id: "6",
-      userId: "u6",
-      name: "Casey Green",
-      imageSrc: "/images/casey.jpg",
-      location: "Austin, TX",
-      rating: 4.9,
-      reviewCount: 100,
-      rate: 70,
-    },
-  ];
+  const locations = Array.from(
+    new Set(specialists.map((t) => t.location).filter(Boolean))
+  ) as string[];
 
-  const locations = [
-    "New York, NY",
-    "Los Angeles, CA",
-    "Chicago, IL",
-    "Boston, MA",
-    "Seattle, WA",
-    "Austin, TX",
-  ];
+  const filterAndSort = (data: Therapist[]) =>
+    data
+      .filter((item) => item._id) // Ensure _id is valid
+      .filter((item) =>
+        searchQuery
+          ? item.name.toLowerCase().includes(searchQuery.toLowerCase())
+          : true
+      )
+      .filter((item) =>
+        filters.location ? item.location === filters.location : true
+      )
+      .filter((item) =>
+        filters.minRating ? (item.rating || 0) >= filters.minRating : true
+      )
+      .sort((a, b) => {
+        if (filters.sortBy === "rating") {
+          return (b.rating || 0) - (a.rating || 0);
+        }
+        if (filters.sortBy === "name") {
+          return a.name.localeCompare(b.name);
+        }
+        return 0;
+      });
+
+  const filteredUsers = filterAndSort(users);
+  const filteredSpecialists = filterAndSort(specialists);
+
   const ratings = [4.5, 4.0, 3.5, 3.0];
   const sortOptions = ["rating", "name"];
 
@@ -215,7 +213,9 @@ export default function TherapistsPage() {
             <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
             <Input
               type="text"
-              placeholder="Search therapists..."
+              placeholder="Search..."
+              value={searchQuery}
+              onChange={handleSearchChange}
               className="p-2 pl-10 rounded border border-gray-300 w-full"
             />
           </div>
@@ -293,116 +293,73 @@ export default function TherapistsPage() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          <AddTherapistDialog onAddTherapist={handleAddTherapist} />
         </div>
 
         <section className="mb-6">
-          <div>
-            <h2 className="text-lg font-semibold text-center mb-4">
-              Cuddler Directory
-            </h2>
-            {loading ? (
-              <p className="text-center">Loading...</p>
-            ) : filteredTherapists.length > 0 ? (
-              <motion.div
-                className="flex flex-wrap gap-4"
-                variants={containerVariants}
-              >
-                <AnimatePresence>
-                  {filteredTherapists.map((therapist) => (
-                    <motion.div key={therapist._id} variants={cardVariants}>
-                      <Link href={`/dashboard/therapists/${therapist._id}`}>
-                        <SpecialistCard
-                          name={therapist.name}
-                          imageSrc={therapist.imageSrc || ""}
-                          location={therapist.location || ""}
-                          rating={therapist.rating || 0}
-                          reviewCount={therapist.reviewCount || 0}
-                          rate={therapist.rate || 0}
-                        />
-                      </Link>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </motion.div>
-            ) : (
-              <motion.div
-                className="grid grid-cols-4 gap-4"
-                variants={containerVariants}
-              >
-                <AnimatePresence>
-                  {exampleTherapists.map((therapist) => (
-                    <motion.div key={therapist._id} variants={cardVariants}>
-                      <Link href={`/dashboard/therapists/${therapist._id}`}>
-                        <SpecialistCard
-                          name={therapist.name}
-                          imageSrc={therapist.imageSrc || ""}
-                          location={therapist.location || ""}
-                          rating={therapist.rating || 0}
-                          reviewCount={therapist.reviewCount || 0}
-                          rate={therapist.rate || 0}
-                        />
-                      </Link>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </motion.div>
-            )}
-          </div>
+          <h2 className="text-lg font-semibold text-center mb-4">
+            Cuddler Directory
+          </h2>
+          {loading ? (
+            <p className="text-center">Loading...</p>
+          ) : filteredUsers.length > 0 ? (
+            <motion.div
+              className="flex flex-wrap gap-4"
+              variants={containerVariants}
+            >
+              <AnimatePresence>
+                {filteredUsers.map((user) => (
+                  <motion.div key={user._id} variants={cardVariants}>
+                    <Link href={`/dashboard/users/${user._id}`}>
+                      <UserCard
+                        name={user.name}
+                        imageSrc={user.image || ""}
+                        location={user.location || ""}
+                        rating={user.rating || 0}
+                        reviewCount={user.reviewCount || 0}
+                        rate={user.rate || 0}
+                      />
+                    </Link>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          ) : (
+            <p className="text-center">No users found.</p>
+          )}
         </section>
 
         <section className="mb-6">
-          <div>
-            <h2 className="text-lg font-semibold text-center mb-4">
-              Specialists
-            </h2>
-            {loading ? (
-              <p className="text-center">Loading...</p>
-            ) : filteredTherapists.length > 0 ? (
-              <motion.div
-                className="flex flex-wrap justify-center gap-4"
-                variants={containerVariants}
-              >
-                <AnimatePresence>
-                  {filteredTherapists.slice(0, 3).map((therapist) => (
-                    <motion.div key={therapist._id} variants={cardVariants}>
-                      <Link href={`/dashboard/therapists/${therapist._id}`}>
-                        <SpecialistCard
-                          name={therapist.name}
-                          imageSrc={therapist.imageSrc || ""}
-                          location={therapist.location || ""}
-                          rating={therapist.rating || 0}
-                          reviewCount={therapist.reviewCount || 0}
-                          rate={therapist.rate || 0}
-                        />
-                      </Link>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </motion.div>
-            ) : (
-              <motion.div
-                className="grid grid-cols-4 justify-center gap-4"
-                variants={containerVariants}
-              >
-                <AnimatePresence>
-                  {exampleSpecialists.map((therapist) => (
-                    <motion.div key={therapist._id} variants={cardVariants}>
-                      <Link href={`/dashboard/therapists/${therapist._id}`}>
-                        <SpecialistCard
-                          name={therapist.name}
-                          imageSrc={therapist.imageSrc || ""}
-                          location={therapist.location || ""}
-                          rating={therapist.rating || 0}
-                          reviewCount={therapist.reviewCount || 0}
-                          rate={therapist.rate || 0}
-                        />
-                      </Link>
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </motion.div>
-            )}
-          </div>
+          <h2 className="text-lg font-semibold text-center mb-4">
+            Specialists
+          </h2>
+          {loading ? (
+            <p className="text-center">Loading...</p>
+          ) : filteredSpecialists.length > 0 ? (
+            <motion.div
+              className="flex flex-wrap gap-4"
+              variants={containerVariants}
+            >
+              <AnimatePresence>
+                {filteredSpecialists.map((therapist) => (
+                  <motion.div key={therapist._id} variants={cardVariants}>
+                    <Link href={`/dashboard/specialists/${therapist._id}`}>
+                      <SpecialistCard
+                        name={therapist.name}
+                        imageSrc={therapist.image || ""}
+                        location={therapist.location || ""}
+                        rating={therapist.rating || 0}
+                        reviewCount={therapist.reviewCount || 0}
+                        rate={therapist.rate || 0}
+                      />
+                    </Link>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          ) : (
+            <p className="text-center">No specialists found.</p>
+          )}
         </section>
       </div>
     </motion.div>

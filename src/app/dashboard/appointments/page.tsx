@@ -93,7 +93,7 @@ const AppointmentsPage: React.FC = () => {
   );
 
   const handleViewDetails = (id: string) => {
-    router.push(`/dashboard/appointments/${id}`);
+    router.push(`/dashboard/messaging/${id}`);
   };
 
   return (

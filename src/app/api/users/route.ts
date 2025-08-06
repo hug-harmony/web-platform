@@ -12,14 +12,68 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Fetch all users
+    const { searchParams } = new URL(req.url);
+    const id = searchParams.get("id");
+
+    if (id) {
+      if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+        console.log("Invalid user ID:", id);
+        return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+      }
+      const user = await prisma.user.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          email: true,
+          firstName: true,
+          lastName: true,
+          name: true,
+          phoneNumber: true,
+          profileImage: true,
+          location: true,
+          rating: true,
+          reviewCount: true,
+          rate: true,
+          createdAt: true,
+        },
+      });
+      if (!user) {
+        console.log("User not found for ID:", id);
+        return NextResponse.json({ error: "User not found" }, { status: 404 });
+      }
+      return NextResponse.json({
+        _id: user.id,
+        email: user.email,
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        name:
+          user.name ||
+          (user.firstName && user.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : "Unknown User"),
+        phoneNumber: user.phoneNumber || "",
+        image: user.profileImage || "",
+        location: user.location || "",
+        rating: user.rating || 0,
+        reviewCount: user.reviewCount || 0,
+        rate: user.rate || 0,
+        createdAt: user.createdAt,
+      });
+    }
+
     const users = await prisma.user.findMany({
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
+        name: true,
         phoneNumber: true,
+        profileImage: true,
+        location: true,
+        rating: true,
+        reviewCount: true,
+        rate: true,
         createdAt: true,
       },
     });
@@ -32,9 +86,19 @@ export async function GET(req: Request) {
       users.map((user) => ({
         _id: user.id,
         email: user.email,
-        firstName: user.firstName,
-        lastName: user.lastName,
-        phoneNumber: user.phoneNumber,
+        firstName: user.firstName || "",
+        lastName: user.lastName || "",
+        name:
+          user.name ||
+          (user.firstName && user.lastName
+            ? `${user.firstName} ${user.lastName}`
+            : "Unknown User"),
+        phoneNumber: user.phoneNumber || "",
+        image: user.profileImage || "",
+        location: user.location || "",
+        rating: user.rating || 0,
+        reviewCount: user.reviewCount || 0,
+        rate: user.rate || 0,
         createdAt: user.createdAt,
       }))
     );
@@ -53,7 +117,17 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { firstName, lastName, phoneNumber } = await req.json();
+    const {
+      firstName,
+      lastName,
+      name,
+      phoneNumber,
+      profileImage,
+      location,
+      rating,
+      reviewCount,
+      rate,
+    } = await req.json();
 
     if (
       !firstName ||
@@ -64,20 +138,40 @@ export async function PUT(req: Request) {
       typeof phoneNumber !== "string"
     ) {
       return NextResponse.json(
-        { error: "All fields are required and must be strings" },
+        {
+          error:
+            "Required fields (firstName, lastName, phoneNumber) are missing or invalid",
+        },
         { status: 400 }
       );
     }
 
     const user = await prisma.user.update({
       where: { email: session.user.email! },
-      data: { firstName, lastName, phoneNumber },
+      data: {
+        firstName,
+        lastName,
+        name,
+        phoneNumber,
+        profileImage,
+        location,
+        rating: rating !== undefined ? parseFloat(rating) : undefined,
+        reviewCount:
+          reviewCount !== undefined ? parseInt(reviewCount) : undefined,
+        rate: rate !== undefined ? parseFloat(rate) : undefined,
+      },
       select: {
         id: true,
         email: true,
         firstName: true,
         lastName: true,
+        name: true,
         phoneNumber: true,
+        profileImage: true,
+        location: true,
+        rating: true,
+        reviewCount: true,
+        rate: true,
         createdAt: true,
       },
     });
