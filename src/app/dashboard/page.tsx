@@ -1,345 +1,410 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import {
-  Calendar,
-  MessageSquare,
-  Clock,
-  User,
-  Video,
-  DollarSign,
-} from "lucide-react";
+import { Search, Star, MapPin } from "lucide-react";
 import Link from "next/link";
+import { redirect } from "next/navigation";
+import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import SpecialistCard from "@/components/Specialist_Cards";
 
-// Type definitions
-interface User {
+interface Therapist {
+  _id: string;
+  userId: string;
   name: string;
-  email: string;
-  avatar: string;
+  date?: string;
+  time?: string;
+  imageSrc?: string;
+  createdAt?: string;
+  location?: string;
+  rating?: number;
+  reviewCount?: number;
+  rate?: number; // Added rate field
 }
 
-interface Message {
-  id: number;
-  therapist: string;
-  message: string;
-  time: string;
-  unread: boolean;
-}
-
-interface Appointment {
-  id: number;
-  therapist: string;
-  date: string;
-  time: string;
-  type: string;
-}
-
-// Dummy data
-const user: User = {
-  name: "Jane Doe",
-  email: "jane.doe@example.com",
-  avatar: "/assets/images/avatar-placeholder.png",
-};
-
-const recentMessages: Message[] = [
-  {
-    id: 1,
-    therapist: "Dr. Sarah Johnson",
-    message: "Looking forward to our session tomorrow!",
-    time: "2025-08-04 14:30",
-    unread: true,
-  },
-  {
-    id: 2,
-    therapist: "Dr. Michael Brown",
-    message: "Please review the notes from our last session.",
-    time: "2025-08-03 09:15",
-    unread: false,
-  },
-];
-
-const appointments = {
-  upcoming: [
-    {
-      id: 1,
-      therapist: "Dr. Sarah Johnson",
-      date: "2025-08-06",
-      time: "10:00 AM",
-      type: "Video Session",
-    },
-    {
-      id: 2,
-      therapist: "Dr. Emily Carter",
-      date: "2025-08-08",
-      time: "2:00 PM",
-      type: "In-Person",
-    },
-  ],
-  past: [
-    {
-      id: 3,
-      therapist: "Dr. Michael Brown",
-      date: "2025-07-30",
-      time: "11:00 AM",
-      type: "Video Session",
-    },
-  ],
-};
-
-// Animation variants
 const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
+};
+
+const cardVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: {
-      duration: 0.5,
-      staggerChildren: 0.2,
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+};
+
+export default function TherapistsPage() {
+  const [therapists, setTherapists] = useState<Therapist[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [filters, setFilters] = useState({
+    location: "",
+    minRating: 0,
+    sortBy: "",
+  });
+
+  useEffect(() => {
+    const fetchTherapists = async () => {
+      try {
+        const res = await fetch("/api/therapists/list", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        if (!res.ok) {
+          if (res.status === 401) {
+            redirect("/login");
+          }
+          throw new Error(
+            `Failed to fetch therapists: ${res.status} ${res.statusText}`
+          );
+        }
+        const data = await res.json();
+        setTherapists(data);
+      } catch (error) {
+        console.error("Error fetching therapists:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchTherapists();
+  }, []);
+
+  const handleFilterChange = (key: string, value: string | number) => {
+    setFilters((prev) => ({ ...prev, [key]: value }));
+  };
+
+  const filteredTherapists = therapists
+    .filter((therapist) =>
+      filters.location ? therapist.location === filters.location : true
+    )
+    .filter((therapist) =>
+      filters.minRating ? (therapist.rating || 0) >= filters.minRating : true
+    )
+    .sort((a, b) => {
+      if (filters.sortBy === "rating") {
+        return (b.rating || 0) - (a.rating || 0);
+      }
+      if (filters.sortBy === "name") {
+        return a.name.localeCompare(b.name);
+      }
+      return 0;
+    });
+
+  const exampleTherapists: Therapist[] = [
+    {
+      _id: "1",
+      userId: "u1",
+      name: "Alex Smith",
+      date: "2025-08-10",
+      time: "10:00 AM",
+      imageSrc: "/register.jpg",
+      location: "New York, NY",
+      rating: 4.8,
+      reviewCount: 120,
+      rate: 50,
     },
-  },
-};
+    {
+      _id: "8",
+      userId: "u1",
+      name: "Alex Smith",
+      date: "2025-08-10",
+      time: "10:00 AM",
+      imageSrc: "/images/alex.jpg",
+      location: "New York, NY",
+      rating: 4.8,
+      reviewCount: 120,
+      rate: 50,
+    },
+    {
+      _id: "7",
+      userId: "u1",
+      name: "Alex Smith",
+      date: "2025-08-10",
+      time: "10:00 AM",
+      imageSrc: "/images/alex.jpg",
+      location: "New York, NY",
+      rating: 4.8,
+      reviewCount: 120,
+      rate: 50,
+    },
+    {
+      _id: "2",
+      userId: "u2",
+      name: "Jamie Lee",
+      date: "2025-08-11",
+      time: "2:00 PM",
+      imageSrc: "/images/jamie.jpg",
+      location: "Los Angeles, CA",
+      rating: 4.9,
+      reviewCount: 95,
+      rate: 60,
+    },
+    {
+      _id: "3",
+      userId: "u3",
+      name: "Taylor Brown",
+      date: "2025-08-12",
+      time: "3:00 PM",
+      location: "Chicago, IL",
+      rating: 4.7,
+      reviewCount: 80,
+      rate: 45,
+    },
+  ];
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0 },
-};
+  const exampleSpecialists: Therapist[] = [
+    {
+      _id: "4",
+      userId: "u4",
+      name: "Sam Carter",
+      imageSrc: "/images/sam.jpg",
+      location: "Boston, MA",
+      rating: 4.6,
+      reviewCount: 110,
+      rate: 55,
+    },
+    {
+      _id: "5",
+      userId: "u5",
+      name: "Robin White",
+      location: "Seattle, WA",
+      rating: 4.8,
+      reviewCount: 130,
+      rate: 65,
+    },
+    {
+      _id: "6",
+      userId: "u6",
+      name: "Casey Green",
+      imageSrc: "/images/casey.jpg",
+      location: "Austin, TX",
+      rating: 4.9,
+      reviewCount: 100,
+      rate: 70,
+    },
+  ];
 
-export default function HomePage() {
-  const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
+  const locations = [
+    "New York, NY",
+    "Los Angeles, CA",
+    "Chicago, IL",
+    "Boston, MA",
+    "Seattle, WA",
+    "Austin, TX",
+  ];
+  const ratings = [4.5, 4.0, 3.5, 3.0];
+  const sortOptions = ["rating", "name"];
 
   return (
     <motion.div
-      className="p-4 space-y-6 max-w-7xl mx-auto"
+      className="flex min-h-screen items-start p-4"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      {/* Hero Section */}
-      <Card className="bg-[#E4C1B8]">
-        <CardHeader>
-          <motion.div
-            variants={itemVariants}
-            className="flex items-center space-x-4"
-          >
-            <Avatar className="h-16 w-16">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>{user.name[0]}</AvatarFallback>
-            </Avatar>
-            <div>
-              <CardTitle className="text-2xl">Welcome, {user.name}!</CardTitle>
-              <p className="text-muted-foreground">{user.email}</p>
-            </div>
-          </motion.div>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/therapists">
-                <User className="mr-2 h-4 w-4" />
-                Find a Therapist
-              </Link>
-            </Button>
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/booking">
-                <Calendar className="mr-2 h-4 w-4" />
-                Book Appointment
-              </Link>
-            </Button>
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/video">
-                <Video className="mr-2 h-4 w-4" />
-                Join Video Session
-              </Link>
-            </Button>
-          </motion.div>
-        </CardContent>
-      </Card>
+      <div className="w-full max-w-6xl">
+        <div className="flex items-center mb-6 w-full space-x-2">
+          <div className="relative flex-grow">
+            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <Input
+              type="text"
+              placeholder="Search therapists..."
+              className="p-2 pl-10 rounded border border-gray-300 w-full"
+            />
+          </div>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center space-x-2">
+                <MapPin className="h-5 w-5" />
+                <span>Location</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56">
+              <DropdownMenuLabel>Location</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleFilterChange("location", "")}
+              >
+                All
+              </DropdownMenuItem>
+              {locations.map((location) => (
+                <DropdownMenuItem
+                  key={location}
+                  onClick={() => handleFilterChange("location", location)}
+                >
+                  {location}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center space-x-2">
+                <Star className="h-5 w-5" />
+                <span>Rating</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56">
+              <DropdownMenuLabel>Minimum Rating</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleFilterChange("minRating", 0)}
+              >
+                All
+              </DropdownMenuItem>
+              {ratings.map((rating) => (
+                <DropdownMenuItem
+                  key={rating}
+                  onClick={() => handleFilterChange("minRating", rating)}
+                >
+                  {rating}+
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+          <DropdownMenu>
+            <DropdownMenuTrigger asChild>
+              <Button variant="outline" className="flex items-center space-x-2">
+                <span>Sort By</span>
+              </Button>
+            </DropdownMenuTrigger>
+            <DropdownMenuContent className="w-56">
+              <DropdownMenuLabel>Sort By</DropdownMenuLabel>
+              <DropdownMenuSeparator />
+              <DropdownMenuItem
+                onClick={() => handleFilterChange("sortBy", "")}
+              >
+                None
+              </DropdownMenuItem>
+              {sortOptions.map((option) => (
+                <DropdownMenuItem
+                  key={option}
+                  onClick={() => handleFilterChange("sortBy", option)}
+                >
+                  {option.charAt(0).toUpperCase() + option.slice(1)}
+                </DropdownMenuItem>
+              ))}
+            </DropdownMenuContent>
+          </DropdownMenu>
+        </div>
 
-      {/* Recent Messages */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <MessageSquare className="mr-2 h-5 w-5" />
-            Recent Messages
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <ScrollArea className="h-[200px]">
-            <motion.div className="space-y-4" variants={containerVariants}>
-              <AnimatePresence>
-                {recentMessages.length ? (
-                  recentMessages.map((msg) => (
-                    <motion.div
-                      key={msg.id}
-                      variants={itemVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit={{ opacity: 0, x: -20 }}
-                      className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-md"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback>
-                            {msg.therapist.split(" ")[1]?.[0] || "T"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-semibold">{msg.therapist}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {msg.message}
-                          </p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-muted-foreground">
-                          {msg.time}
-                        </p>
-                        {msg.unread && (
-                          <Badge variant="destructive">Unread</Badge>
-                        )}
-                      </div>
+        <section className="mb-6">
+          <div>
+            <h2 className="text-lg font-semibold text-center mb-4">
+              Cuddler Directory
+            </h2>
+            {loading ? (
+              <p className="text-center">Loading...</p>
+            ) : filteredTherapists.length > 0 ? (
+              <motion.div
+                className="flex flex-wrap gap-4"
+                variants={containerVariants}
+              >
+                <AnimatePresence>
+                  {filteredTherapists.map((therapist) => (
+                    <motion.div key={therapist._id} variants={cardVariants}>
+                      <Link href={`/dashboard/therapists/${therapist._id}`}>
+                        <SpecialistCard
+                          name={therapist.name}
+                          imageSrc={therapist.imageSrc || ""}
+                          location={therapist.location || ""}
+                          rating={therapist.rating || 0}
+                          reviewCount={therapist.reviewCount || 0}
+                          rate={therapist.rate || 0}
+                        />
+                      </Link>
                     </motion.div>
-                  ))
-                ) : (
-                  <p className="text-muted-foreground">
-                    No messages available.
-                  </p>
-                )}
-              </AnimatePresence>
-            </motion.div>
-          </ScrollArea>
-          <Button asChild variant="link" className="mt-4">
-            <Link href="/messaging">View All Messages</Link>
-          </Button>
-        </CardContent>
-      </Card>
-
-      {/* Appointments */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="flex items-center">
-            <Clock className="mr-2 h-5 w-5" />
-            Your Appointments
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) =>
-              setActiveTab(value as "upcoming" | "past")
-            }
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-2">
-              <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
-              <TabsTrigger value="past">Past</TabsTrigger>
-            </TabsList>
-            <TabsContent value="upcoming">
-              <motion.div className="space-y-4" variants={containerVariants}>
-                <AnimatePresence>
-                  {appointments.upcoming.length ? (
-                    appointments.upcoming.map((appt) => (
-                      <motion.div
-                        key={appt.id}
-                        variants={itemVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit={{ opacity: 0, x: -20 }}
-                        className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-md"
-                      >
-                        <div>
-                          <p className="font-semibold">{appt.therapist}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {appt.date} at {appt.time} - {appt.type}
-                          </p>
-                        </div>
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/appointments/${appt.id}`}>Details</Link>
-                        </Button>
-                      </motion.div>
-                    ))
-                  ) : (
-                    <p className="text-muted-foreground">
-                      No upcoming appointments.
-                    </p>
-                  )}
+                  ))}
                 </AnimatePresence>
               </motion.div>
-            </TabsContent>
-            <TabsContent value="past">
-              <motion.div className="space-y-4" variants={containerVariants}>
+            ) : (
+              <motion.div
+                className="grid grid-cols-4 gap-4"
+                variants={containerVariants}
+              >
                 <AnimatePresence>
-                  {appointments.past.length ? (
-                    appointments.past.map((appt) => (
-                      <motion.div
-                        key={appt.id}
-                        variants={itemVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit={{ opacity: 0, x: -20 }}
-                        className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-md"
-                      >
-                        <div>
-                          <p className="font-semibold">{appt.therapist}</p>
-                          <p className="text-sm text-muted-foreground">
-                            {appt.date} at {appt.time} - {appt.type}
-                          </p>
-                        </div>
-                        <Button asChild variant="outline" size="sm">
-                          <Link href={`/appointments/${appt.id}`}>Details</Link>
-                        </Button>
-                      </motion.div>
-                    ))
-                  ) : (
-                    <p className="text-muted-foreground">
-                      No past appointments.
-                    </p>
-                  )}
+                  {exampleTherapists.map((therapist) => (
+                    <motion.div key={therapist._id} variants={cardVariants}>
+                      <Link href={`/dashboard/therapists/${therapist._id}`}>
+                        <SpecialistCard
+                          name={therapist.name}
+                          imageSrc={therapist.imageSrc || ""}
+                          location={therapist.location || ""}
+                          rating={therapist.rating || 0}
+                          reviewCount={therapist.reviewCount || 0}
+                          rate={therapist.rate || 0}
+                        />
+                      </Link>
+                    </motion.div>
+                  ))}
                 </AnimatePresence>
               </motion.div>
-            </TabsContent>
-          </Tabs>
-          <Button asChild variant="link" className="mt-4">
-            <Link href="/appointments">View All Appointments</Link>
-          </Button>
-        </CardContent>
-      </Card>
+            )}
+          </div>
+        </section>
 
-      {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/payment">
-                <DollarSign className="mr-2 h-4 w-4" />
-                View Payments
-              </Link>
-            </Button>
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/notes-history">
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Notes & Journal
-              </Link>
-            </Button>
-          </motion.div>
-        </CardContent>
-      </Card>
+        <section className="mb-6">
+          <div>
+            <h2 className="text-lg font-semibold text-center mb-4">
+              Specialists
+            </h2>
+            {loading ? (
+              <p className="text-center">Loading...</p>
+            ) : filteredTherapists.length > 0 ? (
+              <motion.div
+                className="flex flex-wrap justify-center gap-4"
+                variants={containerVariants}
+              >
+                <AnimatePresence>
+                  {filteredTherapists.slice(0, 3).map((therapist) => (
+                    <motion.div key={therapist._id} variants={cardVariants}>
+                      <Link href={`/dashboard/therapists/${therapist._id}`}>
+                        <SpecialistCard
+                          name={therapist.name}
+                          imageSrc={therapist.imageSrc || ""}
+                          location={therapist.location || ""}
+                          rating={therapist.rating || 0}
+                          reviewCount={therapist.reviewCount || 0}
+                          rate={therapist.rate || 0}
+                        />
+                      </Link>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            ) : (
+              <motion.div
+                className="grid grid-cols-4 justify-center gap-4"
+                variants={containerVariants}
+              >
+                <AnimatePresence>
+                  {exampleSpecialists.map((therapist) => (
+                    <motion.div key={therapist._id} variants={cardVariants}>
+                      <Link href={`/dashboard/therapists/${therapist._id}`}>
+                        <SpecialistCard
+                          name={therapist.name}
+                          imageSrc={therapist.imageSrc || ""}
+                          location={therapist.location || ""}
+                          rating={therapist.rating || 0}
+                          reviewCount={therapist.reviewCount || 0}
+                          rate={therapist.rate || 0}
+                        />
+                      </Link>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            )}
+          </div>
+        </section>
+      </div>
     </motion.div>
   );
 }
