@@ -33,7 +33,6 @@ export default withAuth(
         if (
           pathname === "/login" ||
           pathname === "/register" ||
-          pathname === "/" ||
           pathname.startsWith("/reset-password")
         ) {
           return true; // No auth required for these pages
