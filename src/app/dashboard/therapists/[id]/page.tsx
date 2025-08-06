@@ -37,16 +37,15 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
-type Props = {
+interface ProfilePageProps {
   id: string;
-};
+}
 
-const ProfilePage: React.FC<Props> = ({ id }: Props) => {
+const ProfilePage: React.FC<ProfilePageProps> = ({ id }) => {
   // Simulate not found for invalid ID
   if (!id || id !== dummySpecialist._id) {
     return notFound();
   }
-  // ... rest of the code remains unchanged
 
   const specialist = dummySpecialist;
   const validImageSrc = specialist.imageSrc || "/register.jpg";
