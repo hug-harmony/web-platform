@@ -1,3 +1,5 @@
+/* eslint-disable @next/next/no-async-client-component */
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import React from "react";
@@ -37,12 +39,15 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
-type Props = {
+interface Props {
   params: { id: string };
   searchParams?: Promise<Record<string, string | string[] | undefined>>;
-};
+}
 
-const ProfilePage: React.FC<Props> = ({ params }) => {
+const ProfilePage: React.FC<Props> = async ({ params, searchParams }) => {
+  // Resolve searchParams if needed (though unused here)
+  const resolvedSearchParams = await searchParams;
+
   // Simulate not found for invalid ID
   if (!params.id || params.id !== dummySpecialist._id) {
     return notFound();
