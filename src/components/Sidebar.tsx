@@ -12,7 +12,7 @@ import {
   SidebarMenuItem,
   SidebarGroup,
   SidebarGroupLabel,
-  SidebarProvider, // Import SidebarProvider
+  SidebarProvider,
 } from "@/components/ui/sidebar";
 import {
   Calendar,
@@ -30,6 +30,7 @@ import { Avatar, AvatarImage, AvatarFallback } from "./ui/avatar";
 import { Button } from "./ui/button";
 import Link from "next/link";
 import { useRouter } from "next/navigation";
+import { signOut } from "next-auth/react"; // Import NextAuth signOut
 
 // Dummy user data
 const user = {
@@ -39,7 +40,6 @@ const user = {
 };
 
 // Animation variants
-
 const itemVariants = {
   open: { opacity: 1, x: 0, transition: { duration: 0.2 } },
   closed: { opacity: 0, x: -20, transition: { duration: 0.2 } },
@@ -53,7 +53,7 @@ export default function Sidebar() {
 
   const navItems = [
     {
-      href: "/dashboard/client",
+      href: "/dashboard",
       label: "Dashboard",
       icon: <User className="h-5 w-5" />,
     },
@@ -99,9 +99,13 @@ export default function Sidebar() {
     },
   ];
 
-  const handleLogout = () => {
-    // Implement logout logic (e.g., call /api/auth/signout)
-    router.push("/login");
+  const handleLogout = async () => {
+    try {
+      await signOut({ redirect: false }); // Sign out without immediate redirect
+      router.push("/login"); // Manually redirect to login page
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
   };
 
   return (

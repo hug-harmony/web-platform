@@ -4,11 +4,16 @@ import { NextResponse } from "next/server";
 export default withAuth(
   function middleware(req) {
     const { token } = req.nextauth;
-    const { pathname } = req.nextUrl; // Correctly access pathname from req.nextUrl
+    const { pathname } = req.nextUrl;
 
     console.log("Middleware triggered:", { pathname, token: !!token });
 
-    // Redirect authenticated users away from /login and /register
+    // Allow /reset-password routes to bypass authentication
+    if (pathname.startsWith("/reset-password")) {
+      return NextResponse.next(); // Skip auth checks and proceed
+    }
+
+    // Redirect authenticated users away from /login, /register, and /
     if (
       token &&
       (pathname === "/login" || pathname === "/register" || pathname === "/")
@@ -22,14 +27,14 @@ export default withAuth(
   },
   {
     callbacks: {
-      // Only apply middleware to check auth for protected routes
       authorized({ token, req }) {
-        const { pathname } = req.nextUrl; // Correctly access pathname here too
-        // Allow unauthenticated users to access /login and /register
+        const { pathname } = req.nextUrl;
+        // Allow unauthenticated access to /login, /register, /, and /reset-password
         if (
           pathname === "/login" ||
           pathname === "/register" ||
-          pathname === "/"
+          pathname === "/" ||
+          pathname.startsWith("/reset-password")
         ) {
           return true; // No auth required for these pages
         }
@@ -38,7 +43,7 @@ export default withAuth(
       },
     },
     pages: {
-      signIn: "/dashboard/homePage", // Redirect unauthenticated users to root for protected routes
+      signIn: "/", // Redirect unauthenticated users to root for protected routes
     },
   }
 );

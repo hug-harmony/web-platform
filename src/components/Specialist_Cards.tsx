@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { MessageCircle, Phone, Star, MapPin } from "lucide-react";
+import { MessageCircle, Star, MapPin } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -14,7 +14,6 @@ interface SpecialistCardProps {
   reviewCount: number;
   rate: number;
   onMessage?: () => void;
-  onCall?: () => void;
 }
 
 const SpecialistCard: React.FC<SpecialistCardProps> = ({
@@ -25,10 +24,9 @@ const SpecialistCard: React.FC<SpecialistCardProps> = ({
   reviewCount,
   rate,
   onMessage,
-  onCall,
 }) => {
   return (
-    <Card className="bg-white border border-pink-200 shadow-md ">
+    <Card className="bg-white border border-pink-200 shadow-md">
       <CardContent className="p-1.5 flex items-center space-x-3">
         <Avatar className="h-10 w-10">
           <AvatarImage src={imageSrc} alt={name} className="rounded-full" />
@@ -51,28 +49,16 @@ const SpecialistCard: React.FC<SpecialistCardProps> = ({
           </div>
         </div>
       </CardContent>
-      {(onMessage || onCall) && (
-        <CardFooter className="p-1.5 pt-0 flex space-x-1.5">
-          {onMessage && (
-            <Button
-              onClick={onMessage}
-              size="sm"
-              className="bg-blue-500 hover:bg-blue-600 text-white text-xs px-2 py-1"
-            >
-              <MessageCircle className="w-3.5 h-3.5 mr-1" />
-              Msg
-            </Button>
-          )}
-          {onCall && (
-            <Button
-              onClick={onCall}
-              size="sm"
-              className="bg-green-500 hover:bg-blue-600 text-white text-xs px-2 py-1"
-            >
-              <Phone className="w-3.5 h-3.5 mr-1" />
-              Call
-            </Button>
-          )}
+      {onMessage && (
+        <CardFooter className="p-1.5 pt-0">
+          <Button
+            onClick={onMessage}
+            size="sm"
+            className="bg-[#E8C5BC] hover:bg-[#ddb0a3] text-black text-xs px-2 py-1 w-full"
+          >
+            <MessageCircle className="w-3.5 h-3.5 mr-1" />
+            Msg
+          </Button>
         </CardFooter>
       )}
     </Card>

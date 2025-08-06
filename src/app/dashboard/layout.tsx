@@ -1,6 +1,6 @@
 "use client";
 import React from "react";
-import ClientSessionProvider from "@/components/ui/ClientSessionProvider";
+import ClientSessionProvider from "@/components/ClientSessionProvider";
 import Sidebar from "@/components/Sidebar";
 
 export default function Layout({

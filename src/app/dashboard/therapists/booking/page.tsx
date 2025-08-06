@@ -54,7 +54,7 @@ const BookingPage: React.FC = () => {
     setSelectedTime(time);
     setError("");
   };
-
+  // In src/app/dashboard/therapists/booking/page.tsx
   const handleBookSession = async () => {
     if (!session) {
       setError("Please log in to book a session.");
@@ -64,7 +64,6 @@ const BookingPage: React.FC = () => {
       setError("Please select a date and time.");
       return;
     }
-    router.push("/dashboard");
     setLoading(true);
     setError("");
     setSuccess("");
@@ -77,6 +76,7 @@ const BookingPage: React.FC = () => {
       setIsDialogOpen(false);
       setSelectedTime(null);
       toast.success("success");
+      router.push("/dashboard/booking-confirmation"); // Redirect to new confirmation page
     } catch {
       setError("Booking failed. Try again.");
       toast.error("failed");
