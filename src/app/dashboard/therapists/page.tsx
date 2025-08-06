@@ -1,8 +1,8 @@
 "use client";
 
-import { JSX, useEffect, useState } from "react";
+import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Video, Users, Package, Star, MapPin } from "lucide-react";
+import { Search, Star, MapPin } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -40,16 +40,6 @@ const cardVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
-
-const ServiceButton: React.FC<{ icon: JSX.Element; label: string }> = ({
-  icon,
-  label,
-}) => (
-  <Button variant="outline" className="flex items-center space-x-2">
-    {icon}
-    <span>{label}</span>
-  </Button>
-);
 
 export default function TherapistsPage() {
   const [therapists, setTherapists] = useState<Therapist[]>([]);

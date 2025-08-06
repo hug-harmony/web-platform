@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { ChevronRight, MessageCircle, Phone, Star, MapPin } from "lucide-react";
+import { MessageCircle, Phone, Star, MapPin } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";

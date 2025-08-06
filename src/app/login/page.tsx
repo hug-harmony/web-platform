@@ -24,7 +24,7 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-import Image from "next/image";
+
 import Link from "next/link";
 
 const formSchema = z.object({

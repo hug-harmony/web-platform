@@ -15,6 +15,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
+import { useRouter } from "next/navigation";
 
 type CalendarValue = Date | undefined;
 
@@ -26,6 +27,7 @@ const BookingPage: React.FC = () => {
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
+  const router = useRouter();
 
   const times: string[] = [
     "7:00 AM",
@@ -62,7 +64,7 @@ const BookingPage: React.FC = () => {
       setError("Please select a date and time.");
       return;
     }
-
+    router.push("/dashboard");
     setLoading(true);
     setError("");
     setSuccess("");

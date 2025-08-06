@@ -37,11 +37,11 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
-interface Props {
+type Props = {
   params: { id: string };
-}
+};
 
-const ProfilePage: React.FC<Props> = ({ params }) => {
+const ProfilePage: React.FC<Props> = ({ params }: Props) => {
   // Simulate not found for invalid ID
   if (!params.id || params.id !== dummySpecialist._id) {
     return notFound();
