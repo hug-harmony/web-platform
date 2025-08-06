@@ -1,5 +1,4 @@
 /* eslint-disable @next/next/no-async-client-component */
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import React from "react";
@@ -39,18 +38,20 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
+// Align with Next.js PageProps for dynamic routes
 interface Props {
-  params: { id: string };
-  searchParams?: Promise<Record<string, string | string[] | undefined>>;
+  params: Promise<{ id: string }>;
+  searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
 const ProfilePage: React.FC<Props> = async ({ params, searchParams }) => {
-  // Resolve searchParams if needed (though unused here)
-  const resolvedSearchParams = await searchParams;
+  // Resolve params and searchParams
+  const { id } = await params;
+  await searchParams;
 
   // Simulate not found for invalid ID
-  if (!params.id || params.id !== dummySpecialist._id) {
-    return notFound();
+  if (!id || id !== dummySpecialist._id) {
+    notFound();
   }
 
   const specialist = dummySpecialist;
