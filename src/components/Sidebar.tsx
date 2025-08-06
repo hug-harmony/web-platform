@@ -58,7 +58,7 @@ export default function Sidebar() {
       icon: <User className="h-5 w-5" />,
     },
     {
-      href: "/therapists",
+      href: "dashboard/therapists",
       label: "Therapists",
       icon: <User className="h-5 w-5" />,
     },
