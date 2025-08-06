@@ -37,13 +37,13 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
-type Props = {
-  params: { id: string };
+type ProfilePageProps = {
+  searchParams: { id: string };
 };
 
-const ProfilePage: React.FC<Props> = ({ params }: Props) => {
+const ProfilePage: React.FC<ProfilePageProps> = ({ searchParams }) => {
   // Simulate not found for invalid ID
-  if (!params.id || params.id !== dummySpecialist._id) {
+  if (!searchParams.id || searchParams.id !== dummySpecialist._id) {
     return notFound();
   }
 
