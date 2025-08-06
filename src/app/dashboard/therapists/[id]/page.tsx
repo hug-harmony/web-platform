@@ -1,4 +1,3 @@
-// src/app/dashboard/therapists/[id]/page.tsx
 "use client";
 
 import React from "react";
@@ -38,12 +37,7 @@ const itemVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
-type ProfilePageProps = {
-  params: { id: string };
-  searchParams: Promise<{ [key: string]: string | string[] | undefined }>;
-};
-
-const ProfilePage: React.FC<ProfilePageProps> = ({ params }) => {
+const ProfilePage = ({ params }: { params: { id: string } }) => {
   // Simulate not found for invalid ID
   if (!params.id || params.id !== dummySpecialist._id) {
     return notFound();
