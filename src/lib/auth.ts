@@ -2,7 +2,6 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import prisma from "@/lib/prisma";
-import { User } from "@/lib/types";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -58,16 +57,23 @@ export const authOptions: NextAuthOptions = {
           picture?: string;
         };
 
-        // Check for existing user by googleId
-        const existingUserByGoogleId = await prisma.user.findUnique({
+        console.log("Google sign-in:", {
+          email: user.email,
+          googleId: account.providerAccountId,
+        });
+
+        const existingUserByGoogleId = await prisma.user.findFirst({
           where: { googleId: account.providerAccountId },
         });
 
         if (existingUserByGoogleId) {
-          // User with this googleId exists; update email if different
+          console.log(
+            "Existing user by googleId:",
+            existingUserByGoogleId.email
+          );
           if (existingUserByGoogleId.email !== user.email) {
             await prisma.user.update({
-              where: { googleId: account.providerAccountId },
+              where: { id: existingUserByGoogleId.id },
               data: {
                 email: user.email!,
                 firstName:
@@ -79,16 +85,37 @@ export const authOptions: NextAuthOptions = {
               },
             });
           }
-          return true; // Allow sign-in
+          return true;
         }
 
-        // Check for existing user by email
         const existingUserByEmail = await prisma.user.findUnique({
           where: { email: user.email! },
         });
 
-        if (!existingUserByEmail) {
-          // Create new user if no user exists with this googleId or email
+        if (existingUserByEmail) {
+          console.log("Existing user by email:", existingUserByEmail.email);
+          if (!existingUserByEmail.googleId) {
+            await prisma.user.update({
+              where: { email: user.email! },
+              data: {
+                googleId: account.providerAccountId,
+                firstName:
+                  googleProfile.given_name || existingUserByEmail.firstName,
+                lastName:
+                  googleProfile.family_name || existingUserByEmail.lastName,
+                profileImage:
+                  googleProfile.picture || existingUserByEmail.profileImage,
+              },
+            });
+          }
+          return true;
+        }
+
+        console.log("Creating Google user:", {
+          email: user.email,
+          googleId: account.providerAccountId,
+        });
+        try {
           await prisma.user.create({
             data: {
               email: user.email!,
@@ -100,22 +127,15 @@ export const authOptions: NextAuthOptions = {
               googleId: account.providerAccountId,
               profileImage: googleProfile.picture || "",
               createdAt: new Date(),
-            } as User,
+            },
           });
-        } else if (!existingUserByEmail.googleId) {
-          // Link Google account to existing user if no googleId is set
-          await prisma.user.update({
-            where: { email: user.email! },
-            data: {
-              googleId: account.providerAccountId,
-              firstName:
-                googleProfile.given_name || existingUserByEmail.firstName,
-              lastName:
-                googleProfile.family_name || existingUserByEmail.lastName,
-              profileImage:
-                googleProfile.picture || existingUserByEmail.profileImage,
-            } as User,
-          });
+        } catch (error: unknown) {
+          if (error instanceof Error) {
+            console.error("Google sign-in error:", error.message);
+          } else {
+            console.error("Google sign-in error:", error);
+          }
+          return false;
         }
       }
       return true;

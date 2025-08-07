@@ -1,11 +1,12 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
 export async function POST(request: NextRequest) {
   try {
-    const { email, password, firstName, lastName, phoneNumber } =
-      await request.json();
+    const body = await request.json();
+    console.log("Register request body:", body);
+    const { email, password, firstName, lastName, phoneNumber } = body;
+
     if (
       !firstName ||
       !email ||
@@ -32,6 +33,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    if (body.googleId) {
+      console.warn("Unexpected googleId:", body.googleId);
+      return NextResponse.json(
+        { error: "Google ID not allowed" },
+        { status: 400 }
+      );
+    }
+
     await prisma.user.create({
       data: {
         email,
@@ -48,11 +57,15 @@ export async function POST(request: NextRequest) {
       { message: "User registered successfully" },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Registration error:", error);
-    return NextResponse.json(
-      { error: error.message || "Internal server error" },
-      { status: 500 }
-    );
+
+    let message = "Internal server error";
+
+    if (error instanceof Error) {
+      message = error.message;
+    }
+
+    return NextResponse.json({ error: message }, { status: 500 });
   }
 }
