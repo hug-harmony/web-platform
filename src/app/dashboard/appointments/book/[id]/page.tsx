@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { Calendar } from "@/components/ui/calendar";
 import {
@@ -15,34 +15,83 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
 import { format } from "date-fns";
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
+import { useRouter, useParams } from "next/navigation";
+
+interface Therapist {
+  _id: string;
+  name: string;
+  rate?: number;
+}
+
+interface TimeSlot {
+  time: string;
+  available: boolean;
+}
 
 type CalendarValue = Date | undefined;
 
 const BookingPage: React.FC = () => {
   const { data: session, status } = useSession();
+  const router = useRouter();
+  const { id: therapistId } = useParams();
+  const [therapist, setTherapist] = useState<Therapist | null>(null);
   const [selectedDate, setSelectedDate] = useState<CalendarValue>(new Date());
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
+  const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState<boolean>(false);
   const [error, setError] = useState<string>("");
   const [success, setSuccess] = useState<string>("");
   const [isDialogOpen, setIsDialogOpen] = useState<boolean>(false);
-  const router = useRouter();
 
-  const times: string[] = [
-    "7:00 AM",
-    "8:00 AM",
-    "9:00 AM",
-    "10:00 AM",
-    "11:00 AM",
-    "12:00 PM",
-    "1:00 PM",
-    "2:00 PM",
-    "3:00 PM",
-    "4:00 PM",
-    "5:00 PM",
-    "6:00 PM",
-  ];
+  useEffect(() => {
+    const fetchTherapistAndSlots = async () => {
+      if (!therapistId) {
+        setError("No therapist selected.");
+        return;
+      }
+
+      try {
+        // Fetch therapist data
+        const therapistRes = await fetch(
+          `/api/specialists?therapistId=${therapistId}`,
+          {
+            cache: "no-store",
+            credentials: "include",
+          }
+        );
+        if (!therapistRes.ok) {
+          if (therapistRes.status === 401) router.push("/login");
+          throw new Error(`Failed to fetch therapist: ${therapistRes.status}`);
+        }
+        const therapistData = await therapistRes.json();
+        setTherapist({
+          _id: therapistData.id,
+          name: therapistData.name,
+          rate: therapistData.rate || 50,
+        });
+
+        // Fetch available time slots
+        const slotsRes = await fetch(
+          `/api/specialists/booking?therapistId=${therapistId}&date=${selectedDate?.toISOString()}`,
+          {
+            method: "GET",
+            cache: "no-store",
+            credentials: "include",
+          }
+        );
+        if (!slotsRes.ok) {
+          throw new Error(`Failed to fetch time slots: ${slotsRes.status}`);
+        }
+        const { slots } = await slotsRes.json();
+        setTimeSlots(slots || []);
+      } catch (err) {
+        setError("Failed to load therapist or time slots.");
+        console.error(err);
+      }
+    };
+
+    fetchTherapistAndSlots();
+  }, [therapistId, selectedDate, router]);
 
   const handleDateChange = (value: CalendarValue) => {
     setSelectedDate(value);
@@ -54,14 +103,14 @@ const BookingPage: React.FC = () => {
     setSelectedTime(time);
     setError("");
   };
-  // In src/app/dashboard/therapists/booking/page.tsx
+
   const handleBookSession = async () => {
     if (!session) {
       setError("Please log in to book a session.");
       return;
     }
-    if (!selectedDate || !selectedTime) {
-      setError("Please select a date and time.");
+    if (!selectedDate || !selectedTime || !therapist) {
+      setError("Please select a therapist, date, and time.");
       return;
     }
     setLoading(true);
@@ -69,14 +118,29 @@ const BookingPage: React.FC = () => {
     setSuccess("");
 
     try {
-      await new Promise((resolve) => setTimeout(resolve, 1000)); // Mock delay
+      const response = await fetch("/api/specialists/booking", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          therapistId: therapist._id,
+          date: selectedDate.toISOString(),
+          time: selectedTime,
+          userId: session.user.id,
+        }),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        throw new Error(`Booking failed: ${response.status}`);
+      }
+
       setSuccess(
         `✅ Booked for ${format(selectedDate, "MMMM d, yyyy")} at ${selectedTime}`
       );
       setIsDialogOpen(false);
       setSelectedTime(null);
       toast.success("success");
-      router.push("/dashboard/booking-confirmation"); // Redirect to new confirmation page
+      router.push("/dashboard/booking-confirmation");
     } catch {
       setError("Booking failed. Try again.");
       toast.error("failed");
@@ -94,12 +158,18 @@ const BookingPage: React.FC = () => {
     return <div>Loading...</div>;
   }
 
+  if (!therapist) {
+    return (
+      <div className="text-center text-red-600">No therapist selected.</div>
+    );
+  }
+
   return (
     <div className="h-screen w-full  flex items-center justify-center">
       <Card className="w-full max-w-4xl rounded-3xl p-2 border border-gray-200 gap-4">
         <CardHeader>
           <CardTitle className="text-center text-3xl font-extrabold text-[#333] mt-4">
-            Book Your Therapy Session
+            Book Your Session with {therapist.name}
           </CardTitle>
         </CardHeader>
         <CardContent className="p-2 sm:p-6">
@@ -128,21 +198,32 @@ const BookingPage: React.FC = () => {
               </h3>
 
               <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 mb-10">
-                {times.map((time) => (
-                  <button
-                    key={time}
-                    onClick={() => handleTimeSelect(time)}
-                    aria-label={`Select time slot ${time}`}
-                    className={cn(
-                      "py-4  rounded-xl border text-center font-medium transition",
-                      selectedTime === time
-                        ? "bg-[#E8C5BC] text-white"
-                        : "bg-gray-100 hover:bg-gray-200"
-                    )}
-                  >
-                    {time}
-                  </button>
-                ))}
+                {timeSlots.length > 0 ? (
+                  timeSlots.map((slot) => (
+                    <button
+                      key={slot.time}
+                      onClick={() =>
+                        slot.available && handleTimeSelect(slot.time)
+                      }
+                      disabled={!slot.available}
+                      aria-label={`Select time slot ${slot.time}`}
+                      className={cn(
+                        "py-4  rounded-xl border text-center font-medium transition",
+                        selectedTime === slot.time
+                          ? "bg-[#E8C5BC] text-white"
+                          : slot.available
+                            ? "bg-gray-100 hover:bg-gray-200"
+                            : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                      )}
+                    >
+                      {slot.time}
+                    </button>
+                  ))
+                ) : (
+                  <p className="text-center col-span-full text-gray-600">
+                    No available time slots for this date.
+                  </p>
+                )}
               </div>
 
               <button
@@ -186,7 +267,7 @@ const BookingPage: React.FC = () => {
               <strong>Time:</strong> {selectedTime || "N/A"}
             </p>
             <p>
-              <strong>Amount:</strong> $50.00
+              <strong>Amount:</strong> ${therapist.rate?.toFixed(2) || "50.00"}
             </p>
           </div>
           <DialogFooter>

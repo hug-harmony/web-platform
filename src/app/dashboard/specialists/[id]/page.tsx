@@ -276,7 +276,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
               <p className="text-lg font-semibold text-gray-800">
                 ${profile.rate}/session
               </p>
-              <Link href={`/dashboard/therapists/booking?id=${profile._id}`}>
+              <Link href={`/dashboard/appointments/book/${profile._id}`}>
                 <Button className="mt-4 bg-[#E8C5BC] hover:bg-[#D9B1A4] text-black px-6 py-2 rounded-full">
                   Book a Session with {profile.name}
                 </Button>
