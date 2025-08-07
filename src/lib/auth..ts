@@ -57,11 +57,38 @@ export const authOptions: NextAuthOptions = {
           family_name?: string;
           picture?: string;
         };
-        const existingUser = await prisma.user.findUnique({
+
+        // Check for existing user by googleId
+        const existingUserByGoogleId = await prisma.user.findUnique({
+          where: { googleId: account.providerAccountId },
+        });
+
+        if (existingUserByGoogleId) {
+          // User with this googleId exists; update email if different
+          if (existingUserByGoogleId.email !== user.email) {
+            await prisma.user.update({
+              where: { googleId: account.providerAccountId },
+              data: {
+                email: user.email!,
+                firstName:
+                  googleProfile.given_name || existingUserByGoogleId.firstName,
+                lastName:
+                  googleProfile.family_name || existingUserByGoogleId.lastName,
+                profileImage:
+                  googleProfile.picture || existingUserByGoogleId.profileImage,
+              },
+            });
+          }
+          return true; // Allow sign-in
+        }
+
+        // Check for existing user by email
+        const existingUserByEmail = await prisma.user.findUnique({
           where: { email: user.email! },
         });
 
-        if (!existingUser) {
+        if (!existingUserByEmail) {
+          // Create new user if no user exists with this googleId or email
           await prisma.user.create({
             data: {
               email: user.email!,
@@ -75,14 +102,18 @@ export const authOptions: NextAuthOptions = {
               createdAt: new Date(),
             } as User,
           });
-        } else if (!existingUser.googleId) {
+        } else if (!existingUserByEmail.googleId) {
+          // Link Google account to existing user if no googleId is set
           await prisma.user.update({
             where: { email: user.email! },
             data: {
               googleId: account.providerAccountId,
-              firstName: googleProfile.given_name || existingUser.firstName,
-              lastName: googleProfile.family_name || existingUser.lastName,
-              profileImage: googleProfile.picture || existingUser.profileImage,
+              firstName:
+                googleProfile.given_name || existingUserByEmail.firstName,
+              lastName:
+                googleProfile.family_name || existingUserByEmail.lastName,
+              profileImage:
+                googleProfile.picture || existingUserByEmail.profileImage,
             } as User,
           });
         }

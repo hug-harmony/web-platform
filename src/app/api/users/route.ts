@@ -31,9 +31,7 @@ export async function GET(req: Request) {
           phoneNumber: true,
           profileImage: true,
           location: true,
-          rating: true,
-          reviewCount: true,
-          rate: true,
+
           createdAt: true,
         },
       });
@@ -54,9 +52,7 @@ export async function GET(req: Request) {
         phoneNumber: user.phoneNumber || "",
         image: user.profileImage || "",
         location: user.location || "",
-        rating: user.rating || 0,
-        reviewCount: user.reviewCount || 0,
-        rate: user.rate || 0,
+
         createdAt: user.createdAt,
       });
     }
@@ -71,9 +67,7 @@ export async function GET(req: Request) {
         phoneNumber: true,
         profileImage: true,
         location: true,
-        rating: true,
-        reviewCount: true,
-        rate: true,
+
         createdAt: true,
       },
     });
@@ -96,9 +90,7 @@ export async function GET(req: Request) {
         phoneNumber: user.phoneNumber || "",
         image: user.profileImage || "",
         location: user.location || "",
-        rating: user.rating || 0,
-        reviewCount: user.reviewCount || 0,
-        rate: user.rate || 0,
+
         createdAt: user.createdAt,
       }))
     );
@@ -155,10 +147,6 @@ export async function PUT(req: Request) {
         phoneNumber,
         profileImage,
         location,
-        rating: rating !== undefined ? parseFloat(rating) : undefined,
-        reviewCount:
-          reviewCount !== undefined ? parseInt(reviewCount) : undefined,
-        rate: rate !== undefined ? parseFloat(rate) : undefined,
       },
       select: {
         id: true,
@@ -169,9 +157,7 @@ export async function PUT(req: Request) {
         phoneNumber: true,
         profileImage: true,
         location: true,
-        rating: true,
-        reviewCount: true,
-        rate: true,
+
         createdAt: true,
       },
     });
