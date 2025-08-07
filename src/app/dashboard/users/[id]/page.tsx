@@ -1,16 +1,16 @@
-/* eslint-disable @next/next/no-async-client-component */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
-import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { MapPin, Star, BookOpen, FileText } from "lucide-react";
+import { MapPin, BookOpen, FileText } from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
+import { toast } from "sonner";
 
-// Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
@@ -47,6 +47,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { data: session, status } = useSession();
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -57,7 +58,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           notFound();
         }
 
-        // Try fetching from specialists API
         let res = await fetch(`/api/specialists?id=${id}`, {
           cache: "no-store",
           credentials: "include",
@@ -84,7 +84,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           return;
         }
 
-        // Try fetching from users API
         res = await fetch(`/api/users?id=${id}`, {
           cache: "no-store",
           credentials: "include",
@@ -112,7 +111,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           if (res.status === 404) notFound();
           throw new Error(`Failed to fetch user: ${res.status}`);
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         console.error("Fetch Profile Error:", err.message, err.stack);
         setError("Failed to load profile. Please try again.");
@@ -123,6 +121,58 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
 
     fetchProfile();
   }, [params, router]);
+
+  const handleStartChat = async () => {
+    if (status === "loading") {
+      toast.error("Please wait while we check your session");
+      return;
+    }
+
+    if (!session?.user?.id) {
+      toast.error("Please log in to start a chat");
+      router.push("/login");
+      return;
+    }
+
+    if (!profile) {
+      toast.error("Profile not loaded");
+      return;
+    }
+
+    if (!/^[0-9a-fA-F]{24}$/.test(profile._id)) {
+      toast.error("Invalid recipient ID");
+      console.error("Invalid recipient ID:", profile._id);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId: profile._id }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(
+          errorData.error || `Failed to create conversation: ${res.status}`
+        );
+      }
+
+      const conversation = await res.json();
+      if (!conversation.id || !/^[0-9a-fA-F]{24}$/.test(conversation.id)) {
+        throw new Error("Invalid conversation ID returned");
+      }
+
+      router.push(`/dashboard/messaging/${conversation.id}`);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to start chat";
+      console.error("Start chat error:", errorMessage);
+      toast.error(errorMessage);
+    }
+  };
 
   if (loading) {
     return <div className="text-center p-6">Loading...</div>;
@@ -263,15 +313,14 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
               </motion.div>
             )}
 
-          {profile.rate !== undefined && (
-            <motion.div className="mt-6" variants={itemVariants}>
-              <Link href={`/dashboard/messaging/${profile._id}`}>
-                <Button className="mt-4 bg-[#E8C5BC] hover:bg-[#D9B1A4] text-black px-6 py-2 rounded-full">
-                  Start Chat with {profile.name}
-                </Button>
-              </Link>
-            </motion.div>
-          )}
+          <motion.div className="mt-6" variants={itemVariants}>
+            <Button
+              onClick={handleStartChat}
+              className="mt-4 bg-[#E8C5BC] hover:bg-[#D9B1A4] text-black px-6 py-2 rounded-full"
+            >
+              Start Chat with {profile.name}
+            </Button>
+          </motion.div>
         </div>
       </motion.div>
     </motion.div>

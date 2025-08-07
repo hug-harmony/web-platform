@@ -15,9 +15,10 @@ model User {
   lastName         String?
   password         String?
   phoneNumber      String?
-  googleId         String?        
+  googleId         String?        @unique
   profileImage     String?
-  location         String?       
+  location         String?        // Added for profile display
+
   createdAt        DateTime       @default(now())
   PasswordResetToken PasswordResetToken[]
   appointments     Appointment[]  @relation("UserAppointments")

@@ -109,17 +109,8 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const {
-      firstName,
-      lastName,
-      name,
-      phoneNumber,
-      profileImage,
-      location,
-      rating,
-      reviewCount,
-      rate,
-    } = await req.json();
+    const { firstName, lastName, name, phoneNumber, profileImage, location } =
+      await req.json();
 
     if (
       !firstName ||

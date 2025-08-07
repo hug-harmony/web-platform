@@ -14,22 +14,18 @@ import {
   SidebarGroupLabel,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import {
-  MessageSquare,
-  Clock,
-  User,
-  Video,
-  DollarSign,
-  BookOpen,
-  Bell,
-  LogOut,
-  Menu,
-} from "lucide-react";
-import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { MessageSquare, Clock, User, LogOut, Menu } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
-import { useRouter } from "next/navigation";
+import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+}
 
 // Animation variants
 const itemVariants = {
@@ -40,11 +36,12 @@ const itemVariants = {
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
   const router = useRouter();
+  const pathname = usePathname();
   const { data: session, status } = useSession();
 
   const toggleSidebar = () => setIsOpen(!isOpen);
 
-  const navItems = [
+  const navItems: NavItem[] = [
     {
       href: "/dashboard",
       label: "Dashboard",
@@ -55,54 +52,41 @@ export default function Sidebar() {
       label: "Therapists",
       icon: <User className="h-5 w-5" />,
     },
-
     {
       href: "/dashboard/appointments",
       label: "Appointments",
       icon: <Clock className="h-5 w-5" />,
     },
     {
-      href: "/messaging",
+      href: "/dashboard/messaging",
       label: "Messages",
       icon: <MessageSquare className="h-5 w-5" />,
-    },
-    {
-      href: "/video",
-      label: "Video Sessions",
-      icon: <Video className="h-5 w-5" />,
-    },
-    {
-      href: "/payment",
-      label: "Payments",
-      icon: <DollarSign className="h-5 w-5" />,
-    },
-    {
-      href: "/notes-history",
-      label: "Notes & Journal",
-      icon: <BookOpen className="h-5 w-5" />,
-    },
-    {
-      href: "/notifications",
-      label: "Notifications",
-      icon: <Bell className="h-5 w-5" />,
     },
   ];
 
   const handleLogout = async () => {
     try {
-      signOut({ callbackUrl: "/login" });
+      await signOut({ callbackUrl: "/login" });
     } catch (error) {
       console.error("Logout failed:", error);
     }
   };
 
   if (status === "loading") {
-    return <div className="p-4">Loading...</div>;
+    return (
+      <div className="p-4 flex items-center justify-center h-screen">
+        Loading...
+      </div>
+    );
   }
 
   if (status === "unauthenticated") {
     router.push("/login");
-    return null;
+    return (
+      <div className="p-4 flex items-center justify-center h-screen">
+        Redirecting to login...
+      </div>
+    );
   }
 
   const user = {
@@ -114,7 +98,7 @@ export default function Sidebar() {
   return (
     <SidebarProvider>
       <motion.div
-        className="h-full border-r"
+        className="h-screen border-r bg-white"
         initial="open"
         animate={isOpen ? "open" : "closed"}
       >
@@ -159,7 +143,13 @@ export default function Sidebar() {
                     <SidebarMenuButton asChild>
                       <Link
                         href={item.href}
-                        className="flex items-center space-x-2"
+                        className={`flex items-center space-x-2 ${
+                          pathname === item.href ||
+                          (item.href === "/dashboard/messaging" &&
+                            pathname.startsWith("/dashboard/messaging/"))
+                            ? "bg-[#F5E6E8] text-black"
+                            : "hover:bg-gray-100"
+                        }`}
                       >
                         {item.icon}
                         {isOpen && <span>{item.label}</span>}
