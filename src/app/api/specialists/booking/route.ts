@@ -10,7 +10,7 @@ export async function GET(request: Request) {
 
   if (!therapistId || !date) {
     return NextResponse.json(
-      { error: "Missing required fields" },
+      { error: "Missing therapistId or date" },
       { status: 400 }
     );
   }
@@ -19,7 +19,6 @@ export async function GET(request: Request) {
     const therapist = await prisma.specialist.findUnique({
       where: { id: therapistId },
     });
-
     if (!therapist) {
       return NextResponse.json(
         { error: "Therapist not found" },
@@ -38,40 +37,12 @@ export async function GET(request: Request) {
       select: { time: true },
     });
 
-    const standardSlots = [
-      "00:00",
-      "01:00",
-      "02:00",
-      "03:00",
-      "04:00",
-      "05:00",
-      "06:00",
-      "07:00",
-      "08:00",
-      "09:00",
-      "10:00",
-      "11:00",
-      "12:00",
-      "13:00",
-      "14:00",
-      "15:00",
-      "16:00",
-      "17:00",
-      "18:00",
-      "19:00",
-      "20:00",
-      "21:00",
-      "22:00",
-      "23:00",
-      "24:00",
-    ];
-
-    const slots = standardSlots.map((time) => ({
-      time,
-      available: !appointments.some(
-        (appt: { time: string }) => appt.time === time
-      ),
-    }));
+    const slots = Array.from({ length: 13 }, (_, i) => `${i + 8}:00`).map(
+      (time) => ({
+        time,
+        available: !appointments.some((appt) => appt.time === time),
+      })
+    );
 
     return NextResponse.json({ slots }, { status: 200 });
   } catch (error) {
@@ -93,7 +64,7 @@ export async function POST(request: Request) {
 
   if (!therapistId || !date || !time || !userId) {
     return NextResponse.json(
-      { error: "Missing required fields" },
+      { error: "Missing therapistId, date, time, or userId" },
       { status: 400 }
     );
   }
@@ -106,7 +77,6 @@ export async function POST(request: Request) {
     const therapist = await prisma.specialist.findUnique({
       where: { id: therapistId },
     });
-
     if (!therapist) {
       return NextResponse.json(
         { error: "Therapist not found" },
@@ -115,11 +85,7 @@ export async function POST(request: Request) {
     }
 
     const existingAppointment = await prisma.appointment.findFirst({
-      where: {
-        specialistId: therapistId,
-        date: new Date(date),
-        time,
-      },
+      where: { specialistId: therapistId, date: new Date(date), time },
     });
 
     if (existingAppointment) {
