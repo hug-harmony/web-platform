@@ -16,9 +16,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import SpecialistCard from "@/components/Specialist_Cards";
+import SpecialistCard from "@/components/SpecialistCard";
 import AddTherapistDialog from "@/components/add-specialist";
-import UserCard from "@/components/User_cards";
+import UserCard from "@/components/UserCard";
 
 interface Therapist {
   _id: string;
@@ -202,7 +202,7 @@ export default function TherapistsPage() {
 
   return (
     <motion.div
-      className="flex min-h-screen items-start p-4"
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -304,7 +304,7 @@ export default function TherapistsPage() {
             <p className="text-center">Loading...</p>
           ) : filteredUsers.length > 0 ? (
             <motion.div
-              className="flex flex-wrap gap-4"
+              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
               variants={containerVariants}
             >
               <AnimatePresence>
@@ -337,7 +337,7 @@ export default function TherapistsPage() {
             <p className="text-center">Loading...</p>
           ) : filteredSpecialists.length > 0 ? (
             <motion.div
-              className="flex flex-wrap gap-4"
+              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
               variants={containerVariants}
             >
               <AnimatePresence>

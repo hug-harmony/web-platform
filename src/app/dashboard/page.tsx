@@ -35,14 +35,6 @@ interface Message {
   unread: boolean;
 }
 
-interface Appointment {
-  id: number;
-  therapist: string;
-  date: string;
-  time: string;
-  type: string;
-}
-
 // Dummy data (for messages and appointments, unchanged)
 const recentMessages: Message[] = [
   {

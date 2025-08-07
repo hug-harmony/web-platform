@@ -1,11 +1,12 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState } from "react";
+import React, { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
+import { Input } from "@/components/ui/input";
+import { Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
-import SpecialistCard from "@/components/Specialist_Cards";
+import AppointmentCard from "@/components/AppointmentCard";
 
 interface Appointment {
   _id: string;
@@ -25,155 +26,186 @@ const containerVariants = {
   visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
 };
 
-const cardVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
-};
-
-const AppointmentsPage: React.FC = () => {
+export default function AppointmentsPage() {
   const router = useRouter();
-  const [showAll, setShowAll] = useState(false);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [dateRange, setDateRange] = useState({ start: "", end: "" });
 
-  const appointments: Appointment[] = [
-    {
-      _id: "1",
-      name: "John Doe",
-      specialistName: "Dr. Jane Smith",
-      date: "2025-10-15",
-      time: "10:00 AM",
-      location: "New York, NY",
-      status: "upcoming",
-      rating: 4.8,
-      reviewCount: 120,
-      rate: 50,
-    },
-    {
-      _id: "2",
-      name: "John Doe",
-      specialistName: "Dr. Alex Brown",
-      date: "2025-10-20",
-      time: "2:00 PM",
-      location: "Los Angeles, CA",
-      status: "upcoming",
-      rating: 4.7,
-      reviewCount: 95,
-      rate: 60,
-    },
-    {
-      _id: "3",
-      name: "John Doe",
-      specialistName: "Dr. Sam Carter",
-      date: "2025-08-10",
-      time: "3:00 PM",
-      location: "Chicago, IL",
-      status: "completed",
-      rating: 4.6,
-      reviewCount: 110,
-      rate: 55,
-    },
-    {
-      _id: "4",
-      name: "John Doe",
-      specialistName: "Dr. Robin White",
-      date: "2025-07-05",
-      time: "11:00 AM",
-      location: "Seattle, WA",
-      status: "cancelled",
-      rating: 4.8,
-      reviewCount: 130,
-      rate: 65,
-    },
-  ];
+  useEffect(() => {
+    const fetchAppointments = async () => {
+      try {
+        const res = await fetch("/api/appointments", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        if (!res.ok) {
+          console.error(
+            "Appointments API error:",
+            res.status,
+            await res.text()
+          );
+          if (res.status === 401) router.push("/login");
+          throw new Error(`Failed to fetch appointments: ${res.status}`);
+        }
+        const data = await res.json();
+        setAppointments(
+          Array.isArray(data)
+            ? data.map((appt: any) => ({
+                _id: appt._id,
+                name: appt.name || "Unknown",
+                specialistName: appt.specialistName || "Unknown Specialist",
+                date: appt.date || "",
+                time: appt.time || "",
+                location: appt.location || "",
+                status: appt.status || "upcoming",
+                rating: appt.rating || 0,
+                reviewCount: appt.reviewCount || 0,
+                rate: appt.rate || 0,
+              }))
+            : []
+        );
+      } catch (error) {
+        console.error("Error fetching appointments:", error);
+        setAppointments([
+          {
+            _id: "1",
+            name: "John Doe",
+            specialistName: "Dr. Jane Smith",
+            date: "2025-10-15",
+            time: "10:00 AM",
+            location: "New York, NY",
+            status: "upcoming",
+            rating: 4.8,
+            reviewCount: 120,
+            rate: 50,
+          },
+          {
+            _id: "2",
+            name: "John Doe",
+            specialistName: "Dr. Alex Brown",
+            date: "2025-10-20",
+            time: "2:00 PM",
+            location: "Los Angeles, CA",
+            status: "upcoming",
+            rating: 4.7,
+            reviewCount: 95,
+            rate: 60,
+          },
+          {
+            _id: "3",
+            name: "John Doe",
+            specialistName: "Dr. Sam Carter",
+            date: "2025-08-10",
+            time: "3:00 PM",
+            location: "Chicago, IL",
+            status: "completed",
+            rating: 4.6,
+            reviewCount: 110,
+            rate: 55,
+          },
+          {
+            _id: "4",
+            name: "John Doe",
+            specialistName: "Dr. Robin White",
+            date: "2025-07-05",
+            time: "11:00 AM",
+            location: "Seattle, WA",
+            status: "cancelled",
+            rating: 4.8,
+            reviewCount: 130,
+            rate: 65,
+          },
+        ]);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchAppointments();
+  }, [router]);
 
-  const upcomingAppointments = appointments.filter(
-    (appointment) => appointment.status === "upcoming"
-  );
-  const otherAppointments = appointments.filter(
-    (appointment) => appointment.status !== "upcoming"
-  );
-
-  const handleViewDetails = (id: string) => {
-    router.push(`/dashboard/messaging/${id}`);
+  const handleDateRangeChange = (key: "start" | "end", value: string) => {
+    setDateRange((prev) => ({ ...prev, [key]: value }));
   };
+
+  const filterByDateRange = (data: Appointment[]) =>
+    data.filter((item) => {
+      if (!item.date) return true;
+      const apptDate = new Date(item.date);
+      const start = dateRange.start ? new Date(dateRange.start) : null;
+      const end = dateRange.end ? new Date(dateRange.end) : null;
+      return (!start || apptDate >= start) && (!end || apptDate <= end);
+    });
+
+  const filteredAppointments = filterByDateRange(appointments);
 
   return (
     <motion.div
-      className="flex min-h-screen items-start p-4"
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      <Card className="w-full max-w-6xl rounded-3xl border border-gray-200">
-        <CardHeader>
-          <CardTitle className="text-center text-4xl font-extrabold text-[#333]">
+      <div className="w-full max-w-6xl">
+        <div className="flex items-center mb-6 w-full space-x-2">
+          <div className="relative flex-grow">
+            <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <Input
+              type="date"
+              placeholder="Start Date"
+              value={dateRange.start}
+              onChange={(e) => handleDateRangeChange("start", e.target.value)}
+              className="p-2 pl-10 rounded border border-gray-300 w-full"
+            />
+          </div>
+          <div className="relative flex-grow">
+            <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <Input
+              type="date"
+              placeholder="End Date"
+              value={dateRange.end}
+              onChange={(e) => handleDateRangeChange("end", e.target.value)}
+              className="p-2 pl-10 rounded border border-gray-300 w-full"
+            />
+          </div>
+        </div>
+
+        <section className="mb-6">
+          <h2 className="text-lg font-semibold text-center mb-4">
             My Appointments
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="p-4 sm:p-8">
-          <section className="mb-6">
-            <h2 className="text-lg font-semibold text-center mb-4">Upcoming</h2>
+          </h2>
+          {loading ? (
+            <p className="text-center">Loading...</p>
+          ) : filteredAppointments.length > 0 ? (
             <motion.div
-              className="flex flex-wrap gap-4"
+              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
               variants={containerVariants}
             >
               <AnimatePresence>
-                {upcomingAppointments.map((appointment) => (
-                  <motion.div key={appointment._id} variants={cardVariants}>
-                    <SpecialistCard
-                      name={appointment.specialistName}
-                      imageSrc={`/images/${appointment.specialistName.toLowerCase().replace("dr. ", "")}.jpg`}
+                {filteredAppointments.map((appointment) => (
+                  <motion.div key={appointment._id}>
+                    <AppointmentCard
+                      specialistName={appointment.specialistName}
+                      date={appointment.date}
+                      time={appointment.time}
                       location={appointment.location}
                       rating={appointment.rating || 0}
                       reviewCount={appointment.reviewCount || 0}
                       rate={appointment.rate || 0}
-                      onMessage={() => handleViewDetails(appointment._id)}
+                      status={appointment.status}
+                      onMessage={() =>
+                        router.push(`/dashboard/messaging/${appointment._id}`)
+                      }
                     />
                   </motion.div>
                 ))}
               </AnimatePresence>
             </motion.div>
-          </section>
-
-          {showAll && (
-            <section className="mb-6">
-              <h2 className="text-lg font-semibold text-center mb-4">
-                Previous, Cancelled & Completed
-              </h2>
-              <motion.div
-                className="flex flex-wrap gap-4"
-                variants={containerVariants}
-              >
-                <AnimatePresence>
-                  {otherAppointments.map((appointment) => (
-                    <motion.div key={appointment._id} variants={cardVariants}>
-                      <SpecialistCard
-                        name={appointment.specialistName}
-                        imageSrc={`/images/${appointment.specialistName.toLowerCase().replace("dr. ", "")}.jpg`}
-                        location={appointment.location}
-                        rating={appointment.rating || 0}
-                        reviewCount={appointment.reviewCount || 0}
-                        rate={appointment.rate || 0}
-                        onMessage={() => handleViewDetails(appointment._id)}
-                      />
-                    </motion.div>
-                  ))}
-                </AnimatePresence>
-              </motion.div>
-            </section>
+          ) : (
+            <p className="text-center">No appointments found.</p>
           )}
-
-          <div className="flex justify-center">
-            <Button
-              onClick={() => setShowAll(!showAll)}
-              className="py-5 px-8 text-2xl rounded-xl font-bold bg-[#E8C5BC] text-black hover:bg-[#ddb0a3]"
-            >
-              {showAll ? "Hide" : "View All"}
-            </Button>
-          </div>
-        </CardContent>
-      </Card>
+        </section>
+      </div>
     </motion.div>
   );
-};
-
-export default AppointmentsPage;
+}

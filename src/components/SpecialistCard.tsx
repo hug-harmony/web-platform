@@ -27,7 +27,7 @@ const SpecialistCard: React.FC<SpecialistCardProps> = ({
 }) => {
   return (
     <Card className="bg-white border border-pink-200 shadow-md">
-      <CardContent className="p-1.5 flex items-center space-x-3">
+      <CardContent className="px-4 py-2 flex items-center gap-2">
         <Avatar className="h-10 w-10">
           <AvatarImage src={imageSrc} alt={name} className="rounded-full" />
           <AvatarFallback className="rounded-full">
