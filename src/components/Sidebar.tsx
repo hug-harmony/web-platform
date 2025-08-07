@@ -15,7 +15,6 @@ import {
   SidebarProvider,
 } from "@/components/ui/sidebar";
 import {
-  Calendar,
   MessageSquare,
   Clock,
   User,
@@ -91,8 +90,7 @@ export default function Sidebar() {
 
   const handleLogout = async () => {
     try {
-      await signOut({ redirect: false });
-      router.push("/login");
+      signOut({ callbackUrl: "/login" });
     } catch (error) {
       console.error("Logout failed:", error);
     }

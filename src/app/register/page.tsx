@@ -17,7 +17,6 @@ import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
-import Image from "next/image";
 
 const formSchema = z
   .object({
