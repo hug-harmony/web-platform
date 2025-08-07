@@ -3,17 +3,14 @@ import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function GET(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = context.params;
-  if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+  const id = request.nextUrl.pathname.split("/").pop();
+  if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
     return NextResponse.json(
       { error: "Invalid conversation ID" },
       { status: 400 }
