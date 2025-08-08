@@ -29,17 +29,23 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (
-      conversation.userId1 !== session.user.id &&
-      conversation.userId2 !== session.user.id
-    ) {
+    const isUserParticipant =
+      conversation.userId1 === session.user.id ||
+      conversation.userId2 === session.user.id;
+    const isSpecialistParticipant =
+      conversation.specialistId1 === session.user.id ||
+      conversation.specialistId2 === session.user.id;
+    if (!isUserParticipant && !isSpecialistParticipant) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const messages = await prisma.message.findMany({
       where: { conversationId: id },
       orderBy: { createdAt: "asc" },
-      include: { sender: { select: { firstName: true, lastName: true } } },
+      include: {
+        senderUser: { select: { firstName: true, lastName: true } },
+        senderSpecialist: { select: { name: true } },
+      },
     });
 
     return NextResponse.json(messages);

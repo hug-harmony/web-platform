@@ -75,12 +75,12 @@ export default function Sidebar() {
       icon: <Clock className="h-5 w-5" />,
     },
     {
-      href: "/dashboard/video-sessions",
+      href: "/dashboard/video-session",
       label: "Video Sessions",
       icon: <Video className="h-5 w-5" />,
     },
     {
-      href: "/dashboard/payments",
+      href: "/dashboard/payment",
       label: "Payments",
       icon: <CreditCard className="h-5 w-5" />,
     },

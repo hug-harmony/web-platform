@@ -6,19 +6,21 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Input } from "@/components/ui/input";
 import { Calendar } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { toast } from "sonner";
 import AppointmentCard from "@/components/AppointmentCard";
 
 interface Appointment {
   _id: string;
   name: string;
+  specialistId: string;
   specialistName: string;
   date: string;
   time: string;
   location: string;
   status: "upcoming" | "completed" | "cancelled";
-  rating?: number;
-  reviewCount?: number;
-  rate?: number;
+  rating?: number | null;
+  reviewCount?: number | null;
+  rate?: number | null;
 }
 
 const containerVariants = {
@@ -56,22 +58,24 @@ export default function AppointmentsPage() {
         setAppointments(
           Array.isArray(data)
             ? data.map((appt: any) => ({
-                _id: appt._id,
+                _id: appt._id || "",
                 name: appt.name || "Unknown",
+                specialistId: appt.specialistId || "",
                 specialistName: appt.specialistName || "Unknown Specialist",
                 date: appt.date || "",
                 time: appt.time || "",
                 location: appt.location || "",
                 status: appt.status || "upcoming",
-                rating: appt.rating || 0,
-                reviewCount: appt.reviewCount || 0,
-                rate: appt.rate || 0,
+                rating: appt.rating ?? 0,
+                reviewCount: appt.reviewCount ?? 0,
+                rate: appt.rate ?? 0,
               }))
             : []
         );
       } catch (error) {
         console.error("Error fetching appointments:", error);
         setError("Failed to load appointments. Please try again later.");
+        toast.error("Failed to load appointments");
       } finally {
         setLoading(false);
       }
@@ -91,6 +95,39 @@ export default function AppointmentsPage() {
       const end = dateRange.end ? new Date(dateRange.end) : null;
       return (!start || apptDate >= start) && (!end || apptDate <= end);
     });
+
+  const handleMessageClick = async (specialistId: string) => {
+    if (!specialistId || !/^[0-9a-fA-F]{24}$/.test(specialistId)) {
+      toast.error("Invalid specialist ID");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          recipientId: specialistId,
+          isSpecialistRecipient: true,
+        }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to create conversation: ${res.status}`);
+      }
+
+      const conversation = await res.json();
+      if (conversation.id) {
+        router.push(`/dashboard/messaging/${conversation.id}`);
+      } else {
+        throw new Error("No conversation ID returned");
+      }
+    } catch (error) {
+      console.error("Error creating conversation:", error);
+      toast.error("Failed to start conversation");
+    }
+  };
 
   const filteredAppointments = filterByDateRange(appointments);
 
@@ -151,7 +188,7 @@ export default function AppointmentsPage() {
                       rate={appointment.rate || 0}
                       status={appointment.status}
                       onMessage={() =>
-                        router.push(`/dashboard/messaging/${appointment._id}`)
+                        handleMessageClick(appointment.specialistId)
                       }
                     />
                   </motion.div>

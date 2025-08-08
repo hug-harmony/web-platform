@@ -36,22 +36,26 @@ export async function POST(request: Request) {
       );
     }
 
-    if (
-      conversation.userId1 !== session.user.id &&
-      conversation.userId2 !== session.user.id
-    ) {
+    const isUserParticipant =
+      conversation.userId1 === session.user.id ||
+      conversation.userId2 === session.user.id;
+    const isSpecialistParticipant =
+      conversation.specialistId1 === session.user.id ||
+      conversation.specialistId2 === session.user.id;
+    if (!isUserParticipant && !isSpecialistParticipant) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const message = await prisma.message.create({
       data: {
         text,
-        userId: session.user.id,
+        senderId: session.user.id,
         recipientId,
         conversationId,
       },
       include: {
-        sender: { select: { firstName: true, lastName: true } },
+        senderUser: { select: { firstName: true, lastName: true } },
+        senderSpecialist: { select: { name: true } },
       },
     });
 

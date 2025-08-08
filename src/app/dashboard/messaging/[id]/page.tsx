@@ -17,26 +17,26 @@ interface Message {
   isAudio: boolean;
   createdAt: string;
   sender: {
-    firstName?: string;
-    lastName?: string;
+    name?: string; // Unified name field
   };
   userId: string;
 }
 
+interface Participant {
+  id: string;
+  name?: string; // For specialists or derived from user
+  firstName?: string; // For users
+  lastName?: string; // For users
+  profileImage?: string; // For users
+  image?: string; // For specialists
+}
+
 interface Conversation {
   id: string;
-  user1: {
-    id: string;
-    firstName?: string;
-    lastName?: string;
-    profileImage?: string;
-  };
-  user2: {
-    id: string;
-    firstName?: string;
-    lastName?: string;
-    profileImage?: string;
-  };
+  user1?: Participant;
+  user2?: Participant;
+  specialist1?: Participant;
+  specialist2?: Participant;
 }
 
 const MessageInterface: React.FC = () => {
@@ -139,9 +139,9 @@ const MessageInterface: React.FC = () => {
 
     setSending(true);
     const recipientId =
-      conversation.user1.id === session.user.id
-        ? conversation.user2.id
-        : conversation.user1.id;
+      (conversation.user1?.id === session.user.id
+        ? conversation.user2?.id || conversation.specialist2?.id
+        : conversation.user1?.id || conversation.specialist1?.id) || "";
 
     try {
       const res = await fetch("/api/messages", {
@@ -224,12 +224,17 @@ const MessageInterface: React.FC = () => {
   }
 
   const otherUser =
-    conversation.user1.id === session.user.id
-      ? conversation.user2
-      : conversation.user1;
-  const otherUserName =
-    `${otherUser.firstName || ""} ${otherUser.lastName || ""}`.trim() ||
-    "Unknown User";
+    conversation.user1?.id === session.user.id
+      ? conversation.user2 || conversation.specialist2
+      : conversation.user1 || conversation.specialist1;
+
+  // Derive name from firstName/lastName for users or use name for specialists
+  const otherUserName = otherUser
+    ? otherUser.name ||
+      `${otherUser.firstName || ""} ${otherUser.lastName || ""}`.trim() ||
+      "Unknown User"
+    : "Unknown User";
+  const profileImage = otherUser?.profileImage || otherUser?.image; // Handle both user and specialist image
   const initials = otherUserName
     .split(" ")
     .map((n) => n.charAt(0))
@@ -242,7 +247,7 @@ const MessageInterface: React.FC = () => {
       <CardHeader className="p-4 border-b">
         <div className="flex items-center space-x-2">
           <Avatar className="w-10 h-10">
-            <AvatarImage src={otherUser.profileImage} alt={otherUserName} />
+            <AvatarImage src={profileImage} alt={otherUserName} />
             <AvatarFallback className="bg-purple-500 text-white">
               {initials}
             </AvatarFallback>

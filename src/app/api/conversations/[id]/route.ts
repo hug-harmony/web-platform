@@ -37,6 +37,12 @@ export async function GET(request: NextRequest) {
             profileImage: true,
           },
         },
+        specialist1: {
+          select: { id: true, name: true, image: true },
+        },
+        specialist2: {
+          select: { id: true, name: true, image: true },
+        },
       },
     });
 
@@ -47,10 +53,13 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    if (
-      conversation.userId1 !== session.user.id &&
-      conversation.userId2 !== session.user.id
-    ) {
+    const isUserParticipant =
+      conversation.userId1 === session.user.id ||
+      conversation.userId2 === session.user.id;
+    const isSpecialistParticipant =
+      conversation.specialistId1 === session.user.id ||
+      conversation.specialistId2 === session.user.id;
+    if (!isUserParticipant && !isSpecialistParticipant) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

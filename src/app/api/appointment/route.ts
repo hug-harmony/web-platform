@@ -22,14 +22,15 @@ export async function GET() {
     const formatted = appointments.map((appt) => ({
       _id: appt.id,
       name: appt.user?.name || "Unknown",
-      specialistName: appt.specialist?.name || "Unknown",
+      specialistId: appt.specialistId, // Added
+      specialistName: appt.specialist?.name || "Unknown Specialist",
       date: appt.date.toISOString().split("T")[0],
       time: appt.time,
       location: appt.specialist?.location || "Unknown",
       status: appt.status as "upcoming" | "completed" | "cancelled",
-      rating: appt.specialist?.rating || 0,
-      reviewCount: appt.specialist?.reviewCount || 0,
-      rate: appt.specialist?.rate || 0,
+      rating: appt.specialist?.rating ?? 0,
+      reviewCount: appt.specialist?.reviewCount ?? 0,
+      rate: appt.specialist?.rate ?? 0,
     }));
 
     return NextResponse.json(formatted);
