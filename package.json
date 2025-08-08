@@ -11,6 +11,7 @@
   },
   "dependencies": {
     "@auth/prisma-adapter": "^2.10.0",
+    "@azure/storage-blob": "^12.28.0",
     "@hookform/resolvers": "^5.2.1",
     "@prisma/client": "^6.13.0",
     "@radix-ui/react-avatar": "^1.1.10",
@@ -22,6 +23,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-tooltip": "^1.2.7",
+    "@vercel/blob": "^1.1.1",
     "add": "^2.0.6",
     "button": "^1.1.1",
     "class-variance-authority": "^0.7.1",
@@ -47,10 +49,11 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
-    "@types/node": "^20",
+    "@types/node": "^20.19.10",
     "@types/nodemailer": "^6.4.17",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@types/uuid": "^10.0.0",
     "eslint": "^9",
     "eslint-config-next": "15.4.5",
     "prisma": "^6.13.0",

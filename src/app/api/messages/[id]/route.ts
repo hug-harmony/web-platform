@@ -48,7 +48,18 @@ export async function GET(request: NextRequest) {
       },
     });
 
-    return NextResponse.json(messages);
+    // Normalize sender name
+    return NextResponse.json(
+      messages.map((msg) => ({
+        ...msg,
+        sender: {
+          name:
+            msg.senderSpecialist?.name ||
+            `${msg.senderUser?.firstName || ""} ${msg.senderUser?.lastName || ""}`.trim() ||
+            "Unknown User",
+        },
+      }))
+    );
   } catch (error) {
     console.error("Fetch messages error:", error);
     return NextResponse.json(

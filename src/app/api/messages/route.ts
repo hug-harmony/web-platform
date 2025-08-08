@@ -1,17 +1,18 @@
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-export async function POST(request: Request) {
+export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   try {
-    const { conversationId, text, recipientId } = await request.json();
-    if (!conversationId || !text || !recipientId) {
+    const { conversationId, text, recipientId, imageUrl } =
+      await request.json();
+    if (!conversationId || (!text && !imageUrl) || !recipientId) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -48,13 +49,15 @@ export async function POST(request: Request) {
 
     const message = await prisma.message.create({
       data: {
-        text,
+        text: text || "", // Allow empty text if imageUrl is provided
         senderId: session.user.id,
         recipientId,
         conversationId,
+        imageUrl, // Store image URL
+        isAudio: false,
       },
       include: {
-        senderUser: { select: { firstName: true, lastName: true } },
+        senderUser: { select: { firstName: true, lastName: true, name: true } },
         senderSpecialist: { select: { name: true } },
       },
     });
@@ -64,7 +67,16 @@ export async function POST(request: Request) {
       data: { updatedAt: new Date() },
     });
 
-    return NextResponse.json(message);
+    return NextResponse.json({
+      ...message,
+      sender: {
+        name:
+          message.senderSpecialist?.name ||
+          message.senderUser?.name ||
+          `${message.senderUser?.firstName || ""} ${message.senderUser?.lastName || ""}`.trim() ||
+          "Unknown User",
+      },
+    });
   } catch (error) {
     console.error("Send message error:", error);
     return NextResponse.json(

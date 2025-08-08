@@ -10,25 +10,25 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { format } from "date-fns";
+import Image from "next/image";
 
 interface Message {
   id: string;
   text: string;
   isAudio: boolean;
+  imageUrl?: string;
   createdAt: string;
-  sender: {
-    name?: string; // Unified name field
-  };
+  sender: { name?: string };
   userId: string;
 }
 
 interface Participant {
   id: string;
-  name?: string; // For specialists or derived from user
-  firstName?: string; // For users
-  lastName?: string; // For users
-  profileImage?: string; // For users
-  image?: string; // For specialists
+  name?: string;
+  firstName?: string;
+  lastName?: string;
+  profileImage?: string;
+  image?: string;
 }
 
 interface Conversation {
@@ -50,6 +50,7 @@ const MessageInterface: React.FC = () => {
   const [sending, setSending] = useState(false);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -132,7 +133,11 @@ const MessageInterface: React.FC = () => {
   }, [status, conversationId, router]);
 
   const handleSend = async () => {
-    if (!input.trim() || !session?.user?.id || !conversation) {
+    if (!input.trim() && !fileInputRef.current?.files?.[0]) {
+      toast.error("Please enter a message or select an image");
+      return;
+    }
+    if (!session?.user?.id || !conversation) {
       toast.error("Please log in and enter a message");
       return;
     }
@@ -144,6 +149,35 @@ const MessageInterface: React.FC = () => {
         : conversation.user1?.id || conversation.specialist1?.id) || "";
 
     try {
+      let imageUrl: string | undefined;
+      if (fileInputRef.current?.files?.[0]) {
+        const file = fileInputRef.current.files[0];
+        if (!file.type.startsWith("image/")) {
+          throw new Error("Only image files are allowed");
+        }
+        const maxSize = 5 * 1024 * 1024; // 5MB
+        if (file.size > maxSize) {
+          throw new Error("File size exceeds 5MB limit");
+        }
+
+        const formData = new FormData();
+        formData.append("file", file);
+
+        const uploadRes = await fetch("/api/messages/blob-upload", {
+          method: "POST",
+          body: formData,
+          credentials: "include",
+        });
+
+        if (!uploadRes.ok) {
+          const errorData = await uploadRes.json();
+          throw new Error(errorData.error || "Failed to upload image");
+        }
+
+        const uploadData = await uploadRes.json();
+        imageUrl = uploadData.url;
+      }
+
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -151,6 +185,7 @@ const MessageInterface: React.FC = () => {
           conversationId,
           text: input,
           recipientId,
+          imageUrl,
         }),
         credentials: "include",
       });
@@ -163,6 +198,7 @@ const MessageInterface: React.FC = () => {
       const newMessage = await res.json();
       setMessages((prevMessages) => [...prevMessages, newMessage]);
       setInput("");
+      if (fileInputRef.current) fileInputRef.current.value = "";
       await fetchMessages();
     } catch (error: unknown) {
       const errorMessage =
@@ -228,13 +264,12 @@ const MessageInterface: React.FC = () => {
       ? conversation.user2 || conversation.specialist2
       : conversation.user1 || conversation.specialist1;
 
-  // Derive name from firstName/lastName for users or use name for specialists
   const otherUserName = otherUser
     ? otherUser.name ||
       `${otherUser.firstName || ""} ${otherUser.lastName || ""}`.trim() ||
       "Unknown User"
     : "Unknown User";
-  const profileImage = otherUser?.profileImage || otherUser?.image; // Handle both user and specialist image
+  const profileImage = otherUser?.profileImage || otherUser?.image;
   const initials = otherUserName
     .split(" ")
     .map((n) => n.charAt(0))
@@ -265,15 +300,27 @@ const MessageInterface: React.FC = () => {
             className={`flex ${msg.userId === session.user.id ? "justify-end" : "justify-start"}`}
           >
             <div
-              className={`p-2 rounded-lg max-w-xs h-auto min-h-[3rem] flex flex-col ${
+              className={`p-2 rounded-lg max-w-xs h-auto min-h-[3rem] flex flex-col gap-4 ${
                 msg.userId === session.user.id
-                  ? "bg-[#F5E6E8] text-black"
-                  : "bg-[#D8A7B1] text-white"
+                  ? "bg-primary/10 text-foreground"
+                  : "bg-secondary text-background"
               }`}
             >
               {msg.isAudio ? (
                 <div className="flex items-center">
                   <span>🎵 Audio</span>
+                </div>
+              ) : msg.imageUrl ? (
+                <div className="relative w-full max-w-xs h-48">
+                  <Image
+                    src={msg.imageUrl}
+                    alt={`Image sent by ${msg.sender.name || "user"} at ${format(new Date(msg.createdAt), "HH:mm")}`}
+                    width={200}
+                    height={200}
+                    className="rounded-lg object-cover"
+                    priority={false}
+                    onError={() => toast.error("Failed to load image")}
+                  />
                 </div>
               ) : (
                 <span className="break-words">{msg.text}</span>
@@ -286,13 +333,20 @@ const MessageInterface: React.FC = () => {
         ))}
         <div ref={messagesEndRef} />
       </CardContent>
-      <div className="p-4 border-t flex items-center">
+      <div className="p-4 border-t flex items-center space-x-2">
         <Input
           type="text"
           value={input}
           onChange={(e) => setInput(e.target.value)}
           placeholder="Write a message..."
-          className="flex-1 h-10 mr-2"
+          className="flex-1 h-10"
+          disabled={sending}
+        />
+        <Input
+          type="file"
+          accept="image/*"
+          ref={fileInputRef}
+          className="h-10 w-20"
           disabled={sending}
         />
         <Button
