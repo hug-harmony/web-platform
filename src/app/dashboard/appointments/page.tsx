@@ -30,12 +30,13 @@ export default function AppointmentsPage() {
   const router = useRouter();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
 
   useEffect(() => {
     const fetchAppointments = async () => {
       try {
-        const res = await fetch("/api/appointments", {
+        const res = await fetch("/api/appointment", {
           cache: "no-store",
           credentials: "include",
         });
@@ -45,7 +46,10 @@ export default function AppointmentsPage() {
             res.status,
             await res.text()
           );
-          if (res.status === 401) router.push("/login");
+          if (res.status === 401) {
+            router.push("/login");
+            return;
+          }
           throw new Error(`Failed to fetch appointments: ${res.status}`);
         }
         const data = await res.json();
@@ -67,56 +71,7 @@ export default function AppointmentsPage() {
         );
       } catch (error) {
         console.error("Error fetching appointments:", error);
-        setAppointments([
-          {
-            _id: "1",
-            name: "John Doe",
-            specialistName: "Dr. Jane Smith",
-            date: "2025-10-15",
-            time: "10:00 AM",
-            location: "New York, NY",
-            status: "upcoming",
-            rating: 4.8,
-            reviewCount: 120,
-            rate: 50,
-          },
-          {
-            _id: "2",
-            name: "John Doe",
-            specialistName: "Dr. Alex Brown",
-            date: "2025-10-20",
-            time: "2:00 PM",
-            location: "Los Angeles, CA",
-            status: "upcoming",
-            rating: 4.7,
-            reviewCount: 95,
-            rate: 60,
-          },
-          {
-            _id: "3",
-            name: "John Doe",
-            specialistName: "Dr. Sam Carter",
-            date: "2025-08-10",
-            time: "3:00 PM",
-            location: "Chicago, IL",
-            status: "completed",
-            rating: 4.6,
-            reviewCount: 110,
-            rate: 55,
-          },
-          {
-            _id: "4",
-            name: "John Doe",
-            specialistName: "Dr. Robin White",
-            date: "2025-07-05",
-            time: "11:00 AM",
-            location: "Seattle, WA",
-            status: "cancelled",
-            rating: 4.8,
-            reviewCount: 130,
-            rate: 65,
-          },
-        ]);
+        setError("Failed to load appointments. Please try again later.");
       } finally {
         setLoading(false);
       }
@@ -176,6 +131,8 @@ export default function AppointmentsPage() {
           </h2>
           {loading ? (
             <p className="text-center">Loading...</p>
+          ) : error ? (
+            <p className="text-center text-red-500">{error}</p>
           ) : filteredAppointments.length > 0 ? (
             <motion.div
               className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"

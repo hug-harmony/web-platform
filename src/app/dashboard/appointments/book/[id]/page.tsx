@@ -117,8 +117,9 @@ const BookingPage: React.FC = () => {
         throw new Error(errorData.error || "Booking failed");
       }
 
+      const { bookingId } = await response.json(); // Expect bookingId in response
       toast.success("Booking confirmed");
-      router.push("/dashboard/booking-confirmation");
+      router.push(`/dashboard/appointments/confirm/${bookingId}`); // Updated redirect path
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : "Booking failed";
@@ -128,7 +129,6 @@ const BookingPage: React.FC = () => {
       setIsDialogOpen(false);
     }
   };
-
   if (status === "loading" || !therapist) {
     return <div>Loading...</div>;
   }
