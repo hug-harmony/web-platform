@@ -11,8 +11,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import Image from "next/image";
+import { ImageIcon } from "lucide-react";
 
 interface Message {
+  senderId: string;
   id: string;
   text: string;
   isAudio: boolean;
@@ -277,6 +279,8 @@ const MessageInterface: React.FC = () => {
     .slice(0, 2)
     .toUpperCase();
 
+  console.log(messages[0]);
+
   return (
     <Card className="w-full h-[calc(100vh-2rem)] flex flex-col">
       <CardHeader className="p-4 border-b">
@@ -297,13 +301,13 @@ const MessageInterface: React.FC = () => {
         {messages.map((msg) => (
           <div
             key={msg.id}
-            className={`flex ${msg.userId === session.user.id ? "justify-end" : "justify-start"}`}
+            className={`flex ${msg.senderId === session.user.id ? "justify-end " : "justify-start"}`}
           >
             <div
               className={`p-2 rounded-lg max-w-xs h-auto min-h-[3rem] flex flex-col gap-4 ${
-                msg.userId === session.user.id
+                msg.senderId === session.user.id
                   ? "bg-primary/10 text-foreground"
-                  : "bg-secondary text-background"
+                  : "bg-[#FCF0ED] text-black"
               }`}
             >
               {msg.isAudio ? (
@@ -342,13 +346,17 @@ const MessageInterface: React.FC = () => {
           className="flex-1 h-10"
           disabled={sending}
         />
-        <Input
-          type="file"
-          accept="image/*"
-          ref={fileInputRef}
-          className="h-10 w-20"
-          disabled={sending}
-        />
+        <label htmlFor="file-input" className="cursor-pointer">
+          <ImageIcon className="h-10 w-10 text-gray-500" />
+          <Input
+            id="file-input"
+            type="file"
+            accept="image/*"
+            ref={fileInputRef}
+            className="hidden"
+            disabled={sending}
+          />
+        </label>
         <Button
           onClick={handleSend}
           className="bg-[#D8A7B1] hover:bg-[#C68E9C] text-white h-10 w-20"
