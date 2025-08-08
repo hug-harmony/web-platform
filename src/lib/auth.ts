@@ -130,11 +130,7 @@ export const authOptions: NextAuthOptions = {
             },
           });
         } catch (error: unknown) {
-          if (error instanceof Error) {
-            console.error("Google sign-in error:", error.message);
-          } else {
-            console.error("Google sign-in error:", error);
-          }
+          console.error("Google sign-in error:", error);
           return false;
         }
       }

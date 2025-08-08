@@ -15,7 +15,7 @@ model User {
   lastName         String?
   password         String?
   phoneNumber      String?
-  googleId         String?        @unique
+  googleId         String?        
   profileImage     String?
   location         String?        // Added for profile display
 

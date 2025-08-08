@@ -20,7 +20,15 @@ export async function POST(request: NextRequest) {
       typeof phoneNumber !== "string"
     ) {
       return NextResponse.json(
-        { error: "All fields are required" },
+        { error: "All fields required" },
+        { status: 400 }
+      );
+    }
+
+    if ("googleId" in body) {
+      console.warn("Unexpected googleId:", body.googleId);
+      return NextResponse.json(
+        { error: "Google ID not allowed" },
         { status: 400 }
       );
     }
@@ -33,14 +41,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    if (body.googleId) {
-      console.warn("Unexpected googleId:", body.googleId);
-      return NextResponse.json(
-        { error: "Google ID not allowed" },
-        { status: 400 }
-      );
-    }
-
     await prisma.user.create({
       data: {
         email,
@@ -49,23 +49,17 @@ export async function POST(request: NextRequest) {
         firstName,
         lastName,
         phoneNumber,
+        googleId: null,
         createdAt: new Date(),
       },
     });
 
-    return NextResponse.json(
-      { message: "User registered successfully" },
-      { status: 201 }
-    );
+    return NextResponse.json({ message: "User registered" }, { status: 201 });
   } catch (error: unknown) {
     console.error("Registration error:", error);
-
-    let message = "Internal server error";
-
-    if (error instanceof Error) {
-      message = error.message;
-    }
-
-    return NextResponse.json({ error: message }, { status: 500 });
+    return NextResponse.json(
+      { error: error instanceof Error ? error.message : "Server error" },
+      { status: 500 }
+    );
   }
 }
