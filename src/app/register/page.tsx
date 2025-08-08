@@ -251,7 +251,7 @@ export default function RegisterPage() {
                   type="button"
                   className="bg-white text-red-600 border border-gray-300 rounded-full h-10 w-full text-xs hover:bg-gray-50 flex items-center justify-center space-x-2"
                   onClick={() =>
-                    signIn("google", { callbackUrl: "/dashboard/homePage" })
+                    signIn("google", { callbackUrl: "/dashboard" })
                   }
                   disabled={isLoading}
                 >
