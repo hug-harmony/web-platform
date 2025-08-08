@@ -328,39 +328,6 @@ export default function TherapistsPage() {
             <p className="text-center">No users found.</p>
           )}
         </section>
-
-        <section className="mb-6">
-          <h2 className="text-lg font-semibold text-center mb-4">
-            Specialists
-          </h2>
-          {loading ? (
-            <p className="text-center">Loading...</p>
-          ) : filteredSpecialists.length > 0 ? (
-            <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-              variants={containerVariants}
-            >
-              <AnimatePresence>
-                {filteredSpecialists.map((therapist) => (
-                  <motion.div key={therapist._id} variants={cardVariants}>
-                    <Link href={`/dashboard/specialists/${therapist._id}`}>
-                      <SpecialistCard
-                        name={therapist.name}
-                        imageSrc={therapist.image || ""}
-                        location={therapist.location || ""}
-                        rating={therapist.rating || 0}
-                        reviewCount={therapist.reviewCount || 0}
-                        rate={therapist.rate || 0}
-                      />
-                    </Link>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </motion.div>
-          ) : (
-            <p className="text-center">No specialists found.</p>
-          )}
-        </section>
       </div>
     </motion.div>
   );

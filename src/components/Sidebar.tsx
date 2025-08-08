@@ -14,7 +14,19 @@ import {
   SidebarGroupLabel,
   SidebarProvider,
 } from "@/components/ui/sidebar";
-import { MessageSquare, Clock, User, LogOut, Menu } from "lucide-react";
+import {
+  MessageSquare,
+  Clock,
+  User,
+  LogOut,
+  Menu,
+  Search,
+  Video,
+  CreditCard,
+  Bell,
+  Notebook,
+  Users,
+} from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import Link from "next/link";
@@ -48,9 +60,14 @@ export default function Sidebar() {
       icon: <User className="h-5 w-5" />,
     },
     {
-      href: "/dashboard/therapists",
-      label: "Therapists",
+      href: "/dashboard/specialists",
+      label: "Professionals",
       icon: <User className="h-5 w-5" />,
+    },
+    {
+      href: "/dashboard/users",
+      label: "Explore",
+      icon: <Search className="h-5 w-5" />,
     },
     {
       href: "/dashboard/appointments",
@@ -58,9 +75,34 @@ export default function Sidebar() {
       icon: <Clock className="h-5 w-5" />,
     },
     {
+      href: "/dashboard/video-sessions",
+      label: "Video Sessions",
+      icon: <Video className="h-5 w-5" />,
+    },
+    {
+      href: "/dashboard/payments",
+      label: "Payments",
+      icon: <CreditCard className="h-5 w-5" />,
+    },
+    {
+      href: "/dashboard/notifications",
+      label: "Notifications",
+      icon: <Bell className="h-5 w-5" />,
+    },
+    {
+      href: "/dashboard/session-notes",
+      label: "Session Notes",
+      icon: <Notebook className="h-5 w-5" />,
+    },
+    {
       href: "/dashboard/messaging",
       label: "Messages",
       icon: <MessageSquare className="h-5 w-5" />,
+    },
+    {
+      href: "/dashboard/forum",
+      label: "Forum",
+      icon: <Users className="h-5 w-5" />,
     },
   ];
 

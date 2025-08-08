@@ -50,6 +50,7 @@ model User {
     education        String?
     license          String?
     createdAt        DateTime  @default(now())
+    
     appointments     Appointment[]  @relation("SpecialistAppointments")
   }
 
