@@ -66,19 +66,29 @@ const BookingPage: React.FC = () => {
           if (therapistRes.status === 401 || slotsRes.status === 401) {
             router.push("/login");
           }
-          throw new Error("Failed to fetch data");
+          throw new Error(
+            `Failed to fetch data: Therapist(${therapistRes.status}), Slots(${slotsRes.status})`
+          );
         }
 
         const therapistData = await therapistRes.json();
-        const { slots } = await slotsRes.json();
+        const slotsData = await slotsRes.json();
+        console.log("Therapist Response:", therapistData);
+        console.log("Slots Response:", slotsData);
+
         setTherapist({
           _id: therapistData.id,
           name: therapistData.name,
           rate: therapistData.rate || 50,
         });
-        setTimeSlots(slots || []);
-      } catch {
-        toast.error("Failed to load therapist or time slots");
+        setTimeSlots(slotsData.slots || []);
+      } catch (error) {
+        const errorMessage =
+          error instanceof Error
+            ? error.message
+            : "Failed to load therapist or time slots";
+        console.error("Fetch error:", errorMessage);
+        toast.error(errorMessage);
       }
     };
 
@@ -100,6 +110,13 @@ const BookingPage: React.FC = () => {
 
     setLoading(true);
     try {
+      console.log("Sending booking request:", {
+        therapistId,
+        date: selectedDate.toISOString(),
+        time: selectedTime,
+        userId: session.user.id,
+      });
+
       const response = await fetch("/api/specialists/booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -112,23 +129,34 @@ const BookingPage: React.FC = () => {
         credentials: "include",
       });
 
+      const data = await response.json();
+      console.log("Booking API Response:", JSON.stringify(data, null, 2));
+
       if (!response.ok) {
-        const errorData = await response.json();
-        throw new Error(errorData.error || "Booking failed");
+        throw new Error(
+          data.error || `Booking failed with status ${response.status}`
+        );
       }
 
-      const { bookingId } = await response.json(); // Expect bookingId in response
+      const bookingId = data?.appointment?.id;
+      if (!bookingId) {
+        console.error("Booking ID missing in response:", data);
+        throw new Error("Booking ID not found in response");
+      }
+
       toast.success("Booking confirmed");
-      router.push(`/dashboard/appointments/confirm/${bookingId}`); // Updated redirect path
-    } catch (error: unknown) {
+      router.push(`/dashboard/appointments/confirm/${bookingId}`);
+    } catch (error) {
       const errorMessage =
         error instanceof Error ? error.message : "Booking failed";
+      console.error("Booking error:", errorMessage);
       toast.error(errorMessage);
     } finally {
       setLoading(false);
       setIsDialogOpen(false);
     }
   };
+
   if (status === "loading" || !therapist) {
     return <div>Loading...</div>;
   }
