@@ -15,24 +15,16 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.email || !credentials?.password) {
           throw new Error("Missing credentials");
         }
-
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
         });
-
         if (!user || !user.password) {
           throw new Error("No user found with this email");
         }
-
         if (credentials.password !== user.password) {
           throw new Error("Invalid password");
         }
-
-        return {
-          id: user.id,
-          email: user.email,
-          name: user.name,
-        };
+        return { id: user.id, email: user.email, name: user.name };
       },
     }),
     GoogleProvider({
@@ -51,21 +43,22 @@ export const authOptions: NextAuthOptions = {
   callbacks: {
     async signIn({ user, account, profile }) {
       if (account?.provider === "google") {
+        if (!account.providerAccountId) {
+          console.error("Missing providerAccountId for Google sign-in");
+          return false;
+        }
         const googleProfile = profile as {
           given_name?: string;
           family_name?: string;
           picture?: string;
         };
-
         console.log("Google sign-in:", {
           email: user.email,
           googleId: account.providerAccountId,
         });
-
         const existingUserByGoogleId = await prisma.user.findFirst({
           where: { googleId: account.providerAccountId },
         });
-
         if (existingUserByGoogleId) {
           console.log(
             "Existing user by googleId:",
@@ -85,13 +78,12 @@ export const authOptions: NextAuthOptions = {
               },
             });
           }
+          user.id = existingUserByGoogleId.id; // Ensure user.id is set
           return true;
         }
-
         const existingUserByEmail = await prisma.user.findUnique({
           where: { email: user.email! },
         });
-
         if (existingUserByEmail) {
           console.log("Existing user by email:", existingUserByEmail.email);
           if (!existingUserByEmail.googleId) {
@@ -108,43 +100,40 @@ export const authOptions: NextAuthOptions = {
               },
             });
           }
+          user.id = existingUserByEmail.id; // Ensure user.id is set
           return true;
         }
-
         console.log("Creating Google user:", {
           email: user.email,
           googleId: account.providerAccountId,
         });
-        try {
-          await prisma.user.create({
-            data: {
-              email: user.email!,
-              name:
-                user.name ||
-                `${googleProfile.given_name || "Google"} ${googleProfile.family_name || "User"}`,
-              firstName: googleProfile.given_name || "",
-              lastName: googleProfile.family_name || "",
-              googleId: account.providerAccountId,
-              profileImage: googleProfile.picture || "",
-              createdAt: new Date(),
-            },
-          });
-        } catch (error: unknown) {
-          console.error("Google sign-in error:", error);
-          return false;
-        }
+        const newUser = await prisma.user.create({
+          data: {
+            email: user.email!,
+            name:
+              user.name ||
+              `${googleProfile.given_name || "Google"} ${googleProfile.family_name || "User"}`,
+            firstName: googleProfile.given_name || "",
+            lastName: googleProfile.family_name || "",
+            googleId: account.providerAccountId,
+            profileImage: googleProfile.picture || "",
+            createdAt: new Date(),
+          },
+        });
+        user.id = newUser.id; // Set user.id for new user
+        return true;
       }
       return true;
     },
     async jwt({ token, user }) {
-      if (user) {
-        token.id = user.id || token.sub;
+      if (user && user.id) {
+        token.id = user.id; // Use database user.id (ObjectID)
       }
       return token;
     },
     async session({ session, token }) {
-      if (session.user) {
-        session.user.id = token.id as string;
+      if (session.user && token.id) {
+        session.user.id = token.id as string; // Ensure session.user.id is ObjectID
       }
       return session;
     },
