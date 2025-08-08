@@ -1,18 +1,20 @@
+// src/app/api/appointment/[id]/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const bookingId = params.id;
+  const bookingId = new URL(request.url).pathname.split("/").pop();
+
+  if (!bookingId || bookingId === "undefined") {
+    return NextResponse.json({ error: "Invalid booking ID" }, { status: 400 });
+  }
 
   try {
     const appointment = await prisma.appointment.findUnique({
