@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef, useCallback } from "react";
+import { useState, useEffect, useRef } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,13 +21,10 @@ import { usePathname } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 
-// Debounce utility (generic-safe)
-const debounce = <A extends unknown[]>(
-  func: (...args: A) => void,
-  wait: number
-) => {
-  let timeout: ReturnType<typeof setTimeout>;
-  return (...args: A) => {
+// New: Debounce utility
+const debounce = (func: (...args: any[]) => void, wait: number) => {
+  let timeout: NodeJS.Timeout;
+  return (...args: any[]) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
@@ -87,47 +84,35 @@ export default function PostPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const replyFormRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
+  const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map()); // New: Track textarea refs for focusing
 
   const pathname = usePathname();
   const id = pathname.split("/").pop() || "";
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  const fetchPost = useCallback(async () => {
-    const response = await fetch(`/api/posts/${id}`);
-    const data = await response.json();
-    if (response.ok) {
-      setPost(data);
-    } else {
-      console.error("Failed to fetch post:", data.error);
+  // Updated: Custom scroll function targeting window
+  const scrollToForm = (replyId: string) => {
+    const form = replyFormRefs.current.get(replyId);
+    if (!form) return;
+
+    const rect = form.getBoundingClientRect();
+    const isInView = rect.top >= 0 && rect.bottom <= window.innerHeight;
+
+    if (!isInView) {
+      window.scrollTo({
+        top: window.scrollY + rect.top - 100, // Offset for header/padding
+        behavior: "smooth",
+      });
     }
-  }, [id]);
 
-  // Inline scrollToForm in useCallback to avoid dependency issues
-  const debouncedScroll = useCallback(
-    debounce((replyId: string) => {
-      const form = replyFormRefs.current.get(replyId);
-      if (!form) return;
+    // Focus textarea
+    const textarea = textareaRefs.current.get(replyId);
+    if (textarea) textarea.focus();
+  };
 
-      // Ensure DOM is updated before scrolling
-      setTimeout(() => {
-        const rect = form.getBoundingClientRect();
-        const isInView = rect.top >= 0 && rect.bottom <= window.innerHeight;
-
-        if (!isInView) {
-          window.scrollTo({
-            top: window.scrollY + rect.top - 100,
-            behavior: "smooth",
-          });
-        }
-
-        const textarea = textareaRefs.current.get(replyId);
-        if (textarea) textarea.focus();
-      }, 100); // Small delay to ensure DOM is ready
-    }, 200),
-    []
-  );
+  // New: Debounced scroll effect
+  const debouncedScroll = debounce(scrollToForm, 200);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -135,13 +120,23 @@ export default function PostPage() {
     } else if (status === "authenticated") {
       fetchPost();
     }
-  }, [status, router, fetchPost]);
+  }, [status, router, id]);
 
   useEffect(() => {
     if (replyTo && replyFormRefs.current.has(replyTo)) {
       debouncedScroll(replyTo);
     }
-  }, [replyTo, debouncedScroll]);
+  }, [replyTo]);
+
+  const fetchPost = async () => {
+    const response = await fetch(`/api/posts/${id}`);
+    const data = await response.json();
+    if (response.ok) {
+      setPost(data);
+    } else {
+      console.error("Failed to fetch post:", data.error);
+    }
+  };
 
   const handleReplySubmit = async (
     e: React.FormEvent,
@@ -160,13 +155,12 @@ export default function PostPage() {
         name: session.user.name || "Unknown",
         avatar: session.user.image || "/assets/images/avatar-placeholder.png",
       },
-      timestamp: new Date().toISOString(),
+      timestamp: new Date().toLocaleString(),
       parentReplyId: parentReplyId || undefined,
       childReplies: [],
       isPending: true,
     };
 
-    // Add optimistic reply
     setPost((prev) => {
       if (!prev) return prev;
       if (!parentReplyId) {
@@ -190,16 +184,13 @@ export default function PostPage() {
     const response = await fetch(`/api/posts/${id}/replies`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: newReply, parentReplyId: replyTo }),
+      body: JSON.stringify({ content: newReply, parentReplyId }),
     });
 
-      if (!response.ok) {
-        throw new Error(`Failed to submit reply: ${response.statusText}`);
-      }
+    setIsSubmitting(false);
 
+    if (response.ok) {
       const newReplyData = await response.json();
-
-      // Update state with server response
       setPost((prev) => {
         if (!prev) return prev;
         if (!parentReplyId) {
@@ -229,6 +220,8 @@ export default function PostPage() {
       });
     } else {
       console.error("Failed to submit reply:", await response.json());
+      const errorData = await response.json();
+      setError(errorData.error || "Failed to submit reply. Please try again.");
       setPost((prev) => {
         if (!prev) return prev;
         if (!parentReplyId) {
@@ -250,8 +243,6 @@ export default function PostPage() {
           );
         return { ...prev, replies: updateReplies(prev.replies) };
       });
-    } finally {
-      setIsSubmitting(false);
     }
   };
 
@@ -415,8 +406,8 @@ export default function PostPage() {
   );
 
   const renderSkeleton = () => (
-    <div className="p-4 space-y-6 max-w-3xl mx-auto">
-      <Card>
+    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+      <Card className="shadow-sm">
         <CardHeader>
           <Skeleton className="h-8 w-24" />
           <Skeleton className="h-6 w-3/4" />
@@ -462,8 +453,8 @@ export default function PostPage() {
         <CardContent>
           <Skeleton className="h-24 w-full" />
           <div className="flex space-x-2 mt-4">
-            <Skeleton className="h-10 w-24" /> {/* Submit button */}
-            <Skeleton className="h-10 w-24" /> {/* Cancel button (optional) */}
+            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-8 w-20" />
           </div>
         </CardContent>
       </Card>
