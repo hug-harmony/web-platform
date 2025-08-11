@@ -18,7 +18,6 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import SpecialistCard from "@/components/SpecialistCard";
-import AddTherapistDialog from "@/components/add-specialist";
 
 interface Therapist {
   _id: string;
@@ -162,10 +161,6 @@ export default function TherapistsPage() {
     setSearchQuery(e.target.value);
   };
 
-  const handleAddTherapist = (newTherapist: Therapist) => {
-    setSpecialists((prev) => [...prev, newTherapist]);
-  };
-
   const locations = Array.from(
     new Set(specialists.map((t) => t.location).filter(Boolean))
   ) as string[];
@@ -194,7 +189,6 @@ export default function TherapistsPage() {
         return 0;
       });
 
-  const filteredUsers = filterAndSort(users);
   const filteredSpecialists = filterAndSort(specialists);
 
   const ratings = [4.5, 4.0, 3.5, 3.0];

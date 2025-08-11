@@ -17,7 +17,6 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 
-import AddTherapistDialog from "@/components/add-specialist";
 import UserCard from "@/components/UserCard";
 
 interface Therapist {
@@ -160,10 +159,6 @@ export default function TherapistsPage() {
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
-  };
-
-  const handleAddTherapist = (newTherapist: Therapist) => {
-    setSpecialists((prev) => [...prev, newTherapist]);
   };
 
   const locations = Array.from(
