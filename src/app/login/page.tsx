@@ -19,6 +19,7 @@ import { signIn } from "next-auth/react";
 import {
   Dialog,
   DialogContent,
+  DialogDescription,
   DialogHeader,
   DialogTitle,
   DialogTrigger,
@@ -26,6 +27,7 @@ import {
 import { toast } from "sonner";
 
 import Link from "next/link";
+import { Card } from "@/components/ui/card";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -38,6 +40,7 @@ export default function LoginPage() {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
   const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -112,8 +115,8 @@ export default function LoginPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-      <div className="flex flex-col md:flex-row w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden">
+    <div className="flex items-center justify-center min-h-screen p-4">
+      <Card className="flex flex-col md:flex-row w-full max-w-5xl p-0 overflow-hidden gap-0">
         <div className="w-full md:w-1/2 p-8">
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Login</h1>
           <p className="text-gray-600 text-sm mb-6">
@@ -190,6 +193,9 @@ export default function LoginPage() {
             <DialogContent>
               <DialogHeader>
                 <DialogTitle>Reset Password</DialogTitle>
+                <DialogDescription>
+                  You will recieve an email with a link to reset password
+                </DialogDescription>
               </DialogHeader>
               <form onSubmit={handleResetPassword} className="space-y-2">
                 <Input
@@ -254,10 +260,10 @@ export default function LoginPage() {
           </div>
         </div>
         <div
-          className="hidden md:flex w-1/2 items-center justify-center bg-cover bg-center p-8"
+          className="hidden md:flex w-1/2 items-center justify-center bg-cover bg-center bg-black"
           style={{ backgroundImage: "url('/login.png')" }}
         ></div>
-      </div>
+      </Card>
     </div>
   );
 }

@@ -17,6 +17,7 @@ import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
+import { Card } from "@/components/ui/card";
 
 const formSchema = z
   .object({
@@ -33,9 +34,10 @@ const formSchema = z
   });
 
 export default function RegisterPage() {
-  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+
+  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -86,8 +88,8 @@ export default function RegisterPage() {
   };
 
   return (
-    <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-      <div className="flex flex-col md:flex-row w-full max-w-5xl bg-white rounded-xl shadow-lg overflow-hidden">
+    <div className="flex items-center justify-center min-h-screen p-4">
+      <Card className="flex flex-col md:flex-row w-full max-w-5xl p-0 overflow-hidden gap-0">
         <div className="w-full md:w-1/2 p-8">
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Sign Up</h1>
           <p className="text-gray-600 text-sm mb-6">
@@ -285,10 +287,10 @@ export default function RegisterPage() {
           </Form>
         </div>
         <div
-          className="hidden md:flex w-1/2 items-center justify-center bg-cover bg-center p-8"
-          style={{ backgroundImage: "url('/register.jpg')" }}
+          className="hidden md:flex w-1/2 items-center justify-center bg-cover bg-center bg-black"
+          style={{ backgroundImage: `url("/register.jpg")` }}
         ></div>
-      </div>
+      </Card>
     </div>
   );
 }
