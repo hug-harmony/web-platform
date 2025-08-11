@@ -1,6 +1,7 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,12 +22,14 @@ import {
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { notFound } from "next/navigation";
 
 // Type definitions
 interface User {
+  id: string;
   name: string;
   email: string;
-  avatar: string;
+  profileImage?: string | null;
 }
 
 interface Message {
@@ -37,7 +40,7 @@ interface Message {
   unread: boolean;
 }
 
-// Dummy data (for messages and appointments, unchanged)
+// Dummy data (unchanged)
 const recentMessages: Message[] = [
   {
     id: 1,
@@ -103,10 +106,61 @@ const itemVariants = {
 
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
+  const [user, setUser] = useState<User | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  if (status === "loading") {
+  useEffect(() => {
+    const fetchUser = async () => {
+      if (status === "loading") return;
+      if (status === "unauthenticated") {
+        router.push("/login");
+        return;
+      }
+
+      try {
+        const id = session?.user?.id; // Assuming session.user.id is available
+        if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+          console.error("Invalid user ID format:", id);
+          notFound();
+        }
+
+        const res = await fetch(`/api/users/${id}`, {
+          cache: "no-store",
+          credentials: "include",
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setUser({
+            id: data.id,
+            name:
+              data.firstName && data.lastName
+                ? `${data.firstName} ${data.lastName}`
+                : data.name || "User",
+            email: data.email || "user@example.com",
+            profileImage: data.profileImage || null,
+          });
+        } else {
+          console.error("User API response:", res.status, await res.text());
+          if (res.status === 401) router.push("/login");
+          if (res.status === 404) notFound();
+          throw new Error(`Failed to fetch user: ${res.status}`);
+        }
+      } catch (err: any) {
+        console.error("Fetch User Error:", err.message, err.stack);
+        setError("Failed to load user data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchUser();
+  }, [status, session, router]);
+
+  if (status === "loading" || loading) {
     return <div className="p-4">Loading...</div>;
   }
 
@@ -115,15 +169,17 @@ export default function HomePage() {
     return null;
   }
 
-  const user: User = {
-    name: session?.user?.name || "User",
-    email: session?.user?.email || "user@example.com",
-    avatar: session?.user?.image || "/assets/images/avatar-placeholder.png",
-  };
+  if (error || !user) {
+    return (
+      <div className="text-center p-6 text-red-500">
+        {error || "User data not found."}
+      </div>
+    );
+  }
 
   return (
     <motion.div
-      className="p-4 space-y-6 max-w-7xl mx-auto "
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -136,8 +192,13 @@ export default function HomePage() {
             className="flex items-center space-x-4"
           >
             <Avatar className="h-16 w-16">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>{user.name[0]}</AvatarFallback>
+              {user.profileImage ? (
+                <AvatarImage src={user.profileImage} alt={user.name} />
+              ) : (
+                <AvatarFallback className="bg-gray-200 text-gray-600 flex items-center justify-center">
+                  <User className="h-10 w-10" />
+                </AvatarFallback>
+              )}
             </Avatar>
             <div>
               <CardTitle className="text-2xl">Welcome, {user.name}!</CardTitle>

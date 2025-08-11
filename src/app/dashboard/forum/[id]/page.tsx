@@ -103,6 +103,7 @@ export default function PostPage() {
       childReplies: [],
     };
 
+    // Add optimistic reply
     setPost((prev) => {
       if (!prev) return prev;
       if (!replyTo) {
@@ -120,19 +121,20 @@ export default function PostPage() {
       return { ...prev, replies: updateReplies(prev.replies) };
     });
 
-    setNewReply("");
-    setReplyTo(null);
+    try {
+      const response = await fetch(`/api/posts/${id}/replies`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ content: newReply, parentReplyId: replyTo }),
+      });
 
-    const response = await fetch(`/api/posts/${id}/replies`, {
-      method: "POST",
-      headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: newReply, parentReplyId: replyTo }),
-    });
+      if (!response.ok) {
+        throw new Error(`Failed to submit reply: ${response.statusText}`);
+      }
 
-    setIsSubmitting(false);
-
-    if (response.ok) {
       const newReplyData = await response.json();
+
+      // Update state with server response
       setPost((prev) => {
         if (!prev) return prev;
         if (!replyTo) {
@@ -156,8 +158,12 @@ export default function PostPage() {
           );
         return { ...prev, replies: updateReplies(prev.replies) };
       });
-    } else {
-      console.error("Failed to submit reply:", await response.json());
+
+      setNewReply("");
+      setReplyTo(null);
+    } catch (error) {
+      console.error("Failed to submit reply:", error);
+      // Revert optimistic update on failure
       setPost((prev) => {
         if (!prev) return prev;
         if (!replyTo) {
@@ -179,6 +185,8 @@ export default function PostPage() {
           );
         return { ...prev, replies: updateReplies(prev.replies) };
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -261,7 +269,7 @@ export default function PostPage() {
   );
 
   const renderSkeleton = () => (
-    <div className="p-4 space-y-6 max-w-3xl mx-auto">
+    <div className="p-4 space-y-6 max-w-7xl mx-auto">
       <Card>
         <CardHeader>
           <Skeleton className="h-8 w-24" /> {/* Back button */}
@@ -310,19 +318,20 @@ export default function PostPage() {
           <Skeleton className="h-24 w-full" /> {/* Textarea */}
           <div className="flex space-x-2 mt-4">
             <Skeleton className="h-10 w-24" /> {/* Submit button */}
-            <Skeleton className="h-10 w-24" /> {/* Cancel button (optional) */}
+            <Skeleton className="h-10 w-24" /> {/* Cancel button */}
           </div>
         </CardContent>
       </Card>
     </div>
   );
+
   if (status === "loading" || !post) {
     return renderSkeleton();
   }
 
   return (
     <motion.div
-      className="p-4 space-y-6 max-w-3xl mx-auto"
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"

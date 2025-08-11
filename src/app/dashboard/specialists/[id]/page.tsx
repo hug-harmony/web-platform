@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable @next/next/no-async-client-component */
 "use client";
 
@@ -14,6 +15,7 @@ import {
   MoreVertical,
   StarIcon,
   Book,
+  User,
 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
@@ -88,7 +90,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             biography: data.biography || "",
             education: data.education || "",
             license: data.license || "",
-            image: data.image || "/register.jpg",
+            image: data.image || "",
             location: data.location || "",
             rating: data.rating || 0,
             reviewCount: data.reviewCount || 0,
@@ -114,7 +116,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
               (data.firstName && data.lastName
                 ? `${data.firstName} ${data.lastName}`
                 : "Unknown User"),
-            image: data.image || "/register.jpg",
+            image: data.image || "",
             location: data.location || "",
             rating: data.rating || 0,
             reviewCount: data.reviewCount || 0,
@@ -127,7 +129,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           if (res.status === 404) notFound();
           throw new Error(`Failed to fetch user: ${res.status}`);
         }
-        // eslint-disable-next-line @typescript-eslint/no-explicit-any
       } catch (err: any) {
         console.error("Fetch Profile Error:", err.message, err.stack);
         setError("Failed to load profile. Please try again.");
@@ -188,7 +189,8 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           <div
             className="absolute inset-0"
             style={{
-              backgroundImage: `url(${validImageSrc})`,
+              backgroundImage: profile.image ? `url(${validImageSrc})` : "none",
+              backgroundColor: profile.image ? "transparent" : "gray",
               backgroundSize: "cover",
               backgroundPosition: "center",
               filter: "blur(8px)",
@@ -197,14 +199,20 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           <div className="absolute inset-0 bg-opacity-30" />
           <div className="relative flex justify-center items-center h-full">
             <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-white shadow-md z-10">
-              <Image
-                src={validImageSrc}
-                alt={profile.name}
-                width={160}
-                height={160}
-                className="object-cover w-full h-full"
-                unoptimized
-              />
+              {profile.image ? (
+                <Image
+                  src={validImageSrc}
+                  alt={profile.name}
+                  width={160}
+                  height={160}
+                  className="object-cover w-full h-full"
+                  unoptimized
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-gray-200">
+                  <User className="h-16 w-16 text-gray-500" />
+                </div>
+              )}
             </div>
           </div>
         </div>
