@@ -293,7 +293,6 @@ export default function TherapistsPage() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
-          <AddTherapistDialog onAddTherapist={handleAddTherapist} />
         </div>
 
         <section className="mb-6">

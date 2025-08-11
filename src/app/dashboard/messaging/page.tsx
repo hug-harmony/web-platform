@@ -1,4 +1,4 @@
-import ConversationsList from "@/components/conversation_list";
+import ConversationsList from "@/components/ConversationList";
 import React from "react";
 
 const messageList = () => {

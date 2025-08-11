@@ -204,7 +204,7 @@ const BookingPage: React.FC = () => {
               disabled={!selectedDate || !selectedTime || loading}
               className="w-full py-2 bg-[#E8C5BC] text-black hover:bg-[#ddb0a3]"
             >
-              {loading ? "Loading..." : "Continue"}
+              continue
             </Button>
           </div>
         </CardContent>
@@ -232,8 +232,9 @@ const BookingPage: React.FC = () => {
               <Button
                 onClick={handleBookSession}
                 className="bg-[#E8C5BC] text-black hover:bg-[#ddb0a3]"
+                disabled={loading}
               >
-                Confirm
+                {loading ? "Loading..." : "Confirm"}
               </Button>
             </DialogFooter>
           </DialogContent>

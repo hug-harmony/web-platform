@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Gem } from "lucide-react";
+import { Gem, Upload } from "lucide-react"; // Added Upload icon
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -119,7 +119,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     };
 
     try {
-      // Handle image upload if a file is selected
       let profileImageUrl = profile?.profileImage;
       if (selectedFile) {
         const imageFormData = new FormData();
@@ -135,7 +134,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         profileImageUrl = (await uploadRes.json()).url;
       }
 
-      // Update profile with form data and image URL (if uploaded)
       const res = await fetch(`/api/users/${profile?.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
@@ -163,7 +161,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         });
 
         setIsEditing(false);
-        setSelectedFile(null); // Clear selected file
+        setSelectedFile(null);
         toast.success("Profile updated successfully");
       } else {
         const errorData = await res.json();
@@ -227,16 +225,29 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           </motion.div>
           <motion.div variants={itemVariants} className="space-y-4">
             <form onSubmit={handleUpdateProfile} className="space-y-4">
-              <div className="space-y-2">
+              <div className="space-y-2 max-w-2xl">
                 <Label htmlFor="profileImage">Profile Picture</Label>
-                <Input
-                  id="profileImage"
-                  type="file"
-                  accept="image/*"
-                  ref={fileInputRef}
-                  disabled={!isEditing || updating}
-                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
-                />
+                <div className="flex items-center space-x-2">
+                  <Input
+                    id="profileImage"
+                    type="file"
+                    accept="image/*"
+                    ref={fileInputRef}
+                    className="hidden"
+                    disabled={!isEditing || updating}
+                    onChange={(e) =>
+                      setSelectedFile(e.target.files?.[0] || null)
+                    }
+                  />
+                  <Button
+                    type="button"
+                    variant="outline"
+                    disabled={!isEditing || updating}
+                    onClick={() => fileInputRef.current?.click()}
+                  >
+                    <Upload className="w-4 h-4 mr-2" /> Upload Image
+                  </Button>
+                </div>
               </div>
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>

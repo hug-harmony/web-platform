@@ -1,12 +1,14 @@
 "use client";
 
 import React, { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 
+// Type definitions
 interface BookingDetails {
   name: string;
   specialistName: string;
@@ -15,6 +17,21 @@ interface BookingDetails {
   paymentMethod: string;
   totalAmount: string;
 }
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, staggerChildren: 0.2 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
+};
 
 const BookingConfirmationPage: React.FC = () => {
   const router = useRouter();
@@ -79,53 +96,74 @@ const BookingConfirmationPage: React.FC = () => {
   };
 
   if (loading) {
-    return <div>Loading...</div>;
+    return <div className="p-4 text-center text-xl">Loading...</div>;
   }
 
   if (!bookingDetails) {
-    return <div>Error: Unable to load booking details</div>;
+    return (
+      <div className="p-4 text-center text-xl">
+        Error: Unable to load booking details
+      </div>
+    );
   }
 
   return (
-    <div className="h-screen w-full flex items-center justify-center">
-      <Card className="w-full max-w-4xl h-[500px] rounded-3xl p-4 border border-gray-200 flex flex-col">
+    <motion.div
+      className="p-4 space-y-6 max-w-7xl mx-auto"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <Card className="rounded-xl border border-gray-200">
         <CardHeader>
-          <CardTitle className="text-center text-4xl font-extrabold text-[#333] mt-6">
+          <CardTitle className="text-2xl font-semibold text-[#333] flex items-center">
             Booking Details
           </CardTitle>
         </CardHeader>
-        <CardContent className="p-4 sm:p-8 flex-1 flex flex-col justify-between">
-          <div className="space-y-6">
-            <p className="text-xl font-medium">
-              <strong>Name:</strong> {bookingDetails.name}
-            </p>
-            <p className="text-xl font-medium">
-              <strong>Specialist Name:</strong> {bookingDetails.specialistName}
-            </p>
-            <p className="text-xl font-medium">
-              <strong>Date:</strong> {bookingDetails.date}
-            </p>
-            <p className="text-xl font-medium">
-              <strong>Time:</strong> {bookingDetails.time}
-            </p>
-            <p className="text-xl font-medium">
-              <strong>Payment Method:</strong> {bookingDetails.paymentMethod}
-            </p>
-            <p className="text-xl font-medium">
-              <strong>Total Amount:</strong> {bookingDetails.totalAmount}
-            </p>
-          </div>
-          <div className="flex justify-end">
+        <CardContent className="p-4 sm:p-6 space-y-6">
+          <motion.div variants={itemVariants} className="space-y-4">
+            <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
+              <p className="text-lg font-medium">Name</p>
+              <p className="text-lg text-gray-500">{bookingDetails.name}</p>
+            </div>
+            <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
+              <p className="text-lg font-medium">Specialist Name</p>
+              <p className="text-lg text-gray-500">
+                {bookingDetails.specialistName}
+              </p>
+            </div>
+            <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
+              <p className="text-lg font-medium">Date</p>
+              <p className="text-lg text-gray-500">{bookingDetails.date}</p>
+            </div>
+            <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
+              <p className="text-lg font-medium">Time</p>
+              <p className="text-lg text-gray-500">{bookingDetails.time}</p>
+            </div>
+            <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
+              <p className="text-lg font-medium">Payment Method</p>
+              <p className="text-lg text-gray-500">
+                {bookingDetails.paymentMethod}
+              </p>
+            </div>
+            <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
+              <p className="text-lg font-medium">Total Amount</p>
+              <p className="text-lg text-gray-500">
+                {bookingDetails.totalAmount}
+              </p>
+            </div>
+          </motion.div>
+          <motion.div variants={itemVariants} className="flex justify-end">
             <Button
               onClick={handleBackToAppointments}
-              className="py-5 px-8 text-2xl rounded-xl font-bold bg-[#E8C5BC] text-black hover:bg-[#ddb0a3]"
+              className="py-4 px-6 text-lg rounded-xl font-bold bg-[#E8C5BC] text-black hover:bg-[#DDB0A3]"
             >
               View all appointments
             </Button>
-          </div>
+          </motion.div>
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
   );
 };
 

@@ -50,6 +50,7 @@ const MessageInterface: React.FC = () => {
   const [conversation, setConversation] = useState<Conversation | null>(null);
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
+  const [imagePreview, setImagePreview] = useState<string | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -134,6 +135,25 @@ const MessageInterface: React.FC = () => {
     };
   }, [status, conversationId, router]);
 
+  const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const file = e.target.files?.[0];
+    if (file && file.type.startsWith("image/")) {
+      const previewUrl = URL.createObjectURL(file);
+      setImagePreview(previewUrl);
+    } else {
+      setImagePreview(null);
+    }
+  };
+
+  useEffect(() => {
+    return () => {
+      if (imagePreview) {
+        URL.revokeObjectURL(imagePreview);
+        setImagePreview(null);
+      }
+    };
+  }, [imagePreview]);
+
   const handleSend = async () => {
     if (!input.trim() && !fileInputRef.current?.files?.[0]) {
       toast.error("Please enter a message or select an image");
@@ -201,6 +221,7 @@ const MessageInterface: React.FC = () => {
       setMessages((prevMessages) => [...prevMessages, newMessage]);
       setInput("");
       if (fileInputRef.current) fileInputRef.current.value = "";
+      setImagePreview(null);
       await fetchMessages();
     } catch (error: unknown) {
       const errorMessage =
@@ -279,93 +300,120 @@ const MessageInterface: React.FC = () => {
     .slice(0, 2)
     .toUpperCase();
 
-  console.log(messages[0]);
-
   return (
-    <Card className="w-full h-[calc(100vh-2rem)] flex flex-col">
-      <CardHeader className="p-4 border-b">
-        <div className="flex items-center space-x-2">
-          <Avatar className="w-10 h-10">
-            <AvatarImage src={profileImage} alt={otherUserName} />
-            <AvatarFallback className="bg-purple-500 text-white">
-              {initials}
-            </AvatarFallback>
-          </Avatar>
-          <div className="space-y-2">
-            <p className="font-semibold h-4">{otherUserName}</p>
-            <p className="text-xs text-gray-500 h-3">Online</p>
-          </div>
-        </div>
-      </CardHeader>
-      <CardContent className="p-4 flex-1 overflow-y-auto space-y-2">
-        {messages.map((msg) => (
-          <div
-            key={msg.id}
-            className={`flex ${msg.senderId === session.user.id ? "justify-end " : "justify-start"}`}
-          >
-            <div
-              className={`p-2 rounded-lg max-w-xs h-auto min-h-[3rem] flex flex-col gap-4 ${
-                msg.senderId === session.user.id
-                  ? "bg-primary/10 text-foreground"
-                  : "bg-[#FCF0ED] text-black"
-              }`}
-            >
-              {msg.isAudio ? (
-                <div className="flex items-center">
-                  <span>🎵 Audio</span>
-                </div>
-              ) : msg.imageUrl ? (
-                <div className="relative w-full max-w-xs h-48">
-                  <Image
-                    src={msg.imageUrl}
-                    alt={`Image sent by ${msg.sender.name || "user"} at ${format(new Date(msg.createdAt), "HH:mm")}`}
-                    width={200}
-                    height={200}
-                    className="rounded-lg object-cover"
-                    priority={false}
-                    onError={() => toast.error("Failed to load image")}
-                  />
-                </div>
-              ) : (
-                <span className="break-words">{msg.text}</span>
-              )}
-              <div className="text-xs text-gray-500 mt-1">
-                {format(new Date(msg.createdAt), "HH:mm")}
-              </div>
+    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+      <Card className="w-full h-[calc(100vh-2rem)] flex flex-col">
+        <CardHeader className="p-4 border-b">
+          <div className="flex items-center space-x-2">
+            <Avatar className="w-10 h-10">
+              <AvatarImage src={profileImage} alt={otherUserName} />
+              <AvatarFallback className="bg-purple-500 text-white">
+                {initials}
+              </AvatarFallback>
+            </Avatar>
+            <div className="space-y-2">
+              <p className="font-semibold h-4">{otherUserName}</p>
+              <p className="text-xs text-gray-500 h-3">Online</p>
             </div>
           </div>
-        ))}
-        <div ref={messagesEndRef} />
-      </CardContent>
-      <div className="p-4 border-t flex items-center space-x-2">
-        <Input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Write a message..."
-          className="flex-1 h-10"
-          disabled={sending}
-        />
-        <label htmlFor="file-input" className="cursor-pointer">
-          <ImageIcon className="h-10 w-10 text-gray-500" />
-          <Input
-            id="file-input"
-            type="file"
-            accept="image/*"
-            ref={fileInputRef}
-            className="hidden"
-            disabled={sending}
-          />
-        </label>
-        <Button
-          onClick={handleSend}
-          className="bg-[#D8A7B1] hover:bg-[#C68E9C] text-white h-10 w-20"
-          disabled={sending}
-        >
-          {sending ? <span className="animate-pulse">Sending...</span> : "Send"}
-        </Button>
-      </div>
-    </Card>
+        </CardHeader>
+        <CardContent className="p-4 flex-1 overflow-y-auto space-y-2">
+          {messages.map((msg) => (
+            <div
+              key={msg.id}
+              className={`flex ${msg.senderId === session.user.id ? "justify-end" : "justify-start"}`}
+            >
+              <div
+                className={`p-2 rounded-lg max-w-xs h-auto min-h-[3rem] flex flex-col gap-4 ${
+                  msg.senderId === session.user.id
+                    ? "bg-primary/10 text-foreground"
+                    : "bg-[#FCF0ED] text-black"
+                }`}
+              >
+                {msg.isAudio ? (
+                  <div className="flex items-center">
+                    <span>🎵 Audio</span>
+                  </div>
+                ) : msg.imageUrl ? (
+                  <div className="relative w-full max-w-xs h-48">
+                    <Image
+                      src={msg.imageUrl}
+                      alt={`Image sent by ${msg.sender.name || "user"} at ${format(new Date(msg.createdAt), "HH:mm")}`}
+                      width={200}
+                      height={200}
+                      className="rounded-lg object-cover"
+                      priority={false}
+                      onError={() => toast.error("Failed to load image")}
+                    />
+                  </div>
+                ) : (
+                  <span className="break-words">{msg.text}</span>
+                )}
+                <div className="text-xs text-gray-500 mt-1">
+                  {format(new Date(msg.createdAt), "HH:mm")}
+                </div>
+              </div>
+            </div>
+          ))}
+          <div ref={messagesEndRef} />
+        </CardContent>
+        <div className="p-4 border-t flex flex-col space-y-2">
+          {imagePreview && (
+            <div className="relative w-32 h-32">
+              <Image
+                src={imagePreview}
+                alt="Image preview"
+                width={128}
+                height={128}
+                className="rounded-lg object-cover"
+              />
+              <button
+                onClick={() => {
+                  setImagePreview(null);
+                  if (fileInputRef.current) fileInputRef.current.value = "";
+                }}
+                className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
+              >
+                X
+              </button>
+            </div>
+          )}
+          <div className="flex items-center space-x-2">
+            <Input
+              type="text"
+              value={input}
+              onChange={(e) => setInput(e.target.value)}
+              placeholder="Write a message..."
+              className="flex-1 h-10"
+              disabled={sending || !!imagePreview} // Convert imagePreview to boolean
+            />
+            <label htmlFor="file-input" className="cursor-pointer">
+              <ImageIcon className="h-10 w-10 text-gray-500" />
+              <Input
+                id="file-input"
+                type="file"
+                accept="image/*"
+                ref={fileInputRef}
+                className="hidden"
+                disabled={sending}
+                onChange={handleFileChange}
+              />
+            </label>
+            <Button
+              onClick={handleSend}
+              className="bg-[#D8A7B1] hover:bg-[#C68E9C] text-white h-10 w-20"
+              disabled={sending}
+            >
+              {sending ? (
+                <span className="animate-pulse">Sending...</span>
+              ) : (
+                "Send"
+              )}
+            </Button>
+          </div>
+        </div>
+      </Card>
+    </div>
   );
 };
 

@@ -10,6 +10,7 @@ import { MessageSquare, User } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+
 interface SpecialistApplication {
   name: string;
   location: string;
@@ -19,6 +20,7 @@ interface SpecialistApplication {
   role: string;
   tags: string;
 }
+
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
@@ -27,10 +29,12 @@ const containerVariants = {
     transition: { duration: 0.5, staggerChildren: 0.2 },
   },
 };
+
 const itemVariants = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0 },
 };
+
 export default function ProfessionalApplicationPage() {
   const [formData, setFormData] = useState<SpecialistApplication>({
     name: "",
@@ -43,15 +47,41 @@ export default function ProfessionalApplicationPage() {
   });
   const { data: session, status } = useSession();
   const router = useRouter();
+
   if (status === "loading") return <div className="p-4">Loading...</div>;
   if (status === "unauthenticated") {
     router.push("/login");
     return null;
   }
-  const handleSubmit = () => {
-    // Add submission logic here
-    console.log("Form submitted:", formData);
+
+  const handleSubmit = async () => {
+    try {
+      const response = await fetch("/api/specialists", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.text();
+        console.error("Specialist API error:", response.status, errorData);
+        if (response.status === 401) {
+          router.push("/login");
+        }
+        throw new Error(`Failed to submit application: ${response.status}`);
+      }
+
+      const result = await response.json();
+      console.log("Application submitted successfully:", result);
+      router.push("/dashboard");
+    } catch (error) {
+      console.error("Error submitting application:", error);
+    }
   };
+
   return (
     <motion.div
       className="p-4 space-y-6 max-w-7xl mx-auto"
