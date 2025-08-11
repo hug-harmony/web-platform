@@ -67,10 +67,12 @@ export async function POST(request: Request) {
 
     // Extract post ID from the URL
     const url = new URL(request.url);
-    const id = url.pathname.split("/").pop();
+    const segments = url.pathname.split("/");
+    const id = segments[segments.length - 2]; // Updated: Get segment before "replies"
 
-    if (!id) {
-      console.error("POST /api/posts/[id]/replies: Invalid post ID");
+    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+      // Updated: Validate ObjectID format
+      console.error("POST /api/posts/[id]/replies: Invalid post ID", { id });
       return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
     }
 
