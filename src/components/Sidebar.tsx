@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import {
   Sidebar as ShadcnSidebar,
@@ -39,14 +39,29 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
+interface Profile {
+  id: string;
+  name?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  email: string;
+  profileImage?: string | null;
+}
+
 // Animation variants
 const itemVariants = {
   open: { opacity: 1, x: 0, transition: { duration: 0.2 } },
   closed: { opacity: 0, x: -20, transition: { duration: 0.2 } },
 };
 
+const sidebarVariants = {
+  open: { width: "250px" },
+  closed: { width: "80px" },
+};
+
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
+  const [profile, setProfile] = useState<Profile | null>(null);
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
@@ -106,6 +121,39 @@ export default function Sidebar() {
     },
   ];
 
+  useEffect(() => {
+    const fetchProfile = async () => {
+      if (!session?.user?.id || !/^[0-9a-fA-F]{24}$/.test(session.user.id))
+        return;
+
+      try {
+        const res = await fetch(`/api/users/${session.user.id}`, {
+          cache: "no-store",
+          credentials: "include",
+        });
+
+        if (res.ok) {
+          const data = await res.json();
+          setProfile({
+            id: data.id,
+            name:
+              data.firstName && data.lastName
+                ? `${data.firstName} ${data.lastName}`
+                : null,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            profileImage: data.profileImage,
+          });
+        }
+      } catch (error) {
+        console.error("Fetch Profile Error:", error);
+      }
+    };
+
+    if (status === "authenticated") fetchProfile();
+  }, [session, status]);
+
   const handleLogout = async () => {
     try {
       await signOut({ callbackUrl: "/login" });
@@ -132,9 +180,13 @@ export default function Sidebar() {
   }
 
   const user = {
-    name: session?.user?.name || "User",
-    email: session?.user?.email || "user@example.com",
-    avatar: session?.user?.image || "/assets/images/avatar-placeholder.png",
+    name: profile?.name || session?.user?.name || "User",
+    email: profile?.email || session?.user?.email || "user@example.com",
+    avatar:
+      profile?.profileImage ||
+      session?.user?.image ||
+      "/assets/images/avatar-placeholder.png",
+    id: session?.user?.id || "default-id",
   };
 
   return (
@@ -143,6 +195,7 @@ export default function Sidebar() {
         className="h-screen border-r bg-white"
         initial="open"
         animate={isOpen ? "open" : "closed"}
+        variants={sidebarVariants}
       >
         <ShadcnSidebar className="h-full">
           <SidebarHeader className="p-4">
@@ -151,6 +204,7 @@ export default function Sidebar() {
                 className="flex items-center space-x-3"
                 variants={itemVariants}
                 animate={isOpen ? "open" : "closed"}
+                onClick={() => router.push(`/dashboard/profile/${user.id}`)}
               >
                 <Avatar className="h-10 w-10">
                   <AvatarImage src={user.avatar} alt={user.name} />
@@ -187,8 +241,7 @@ export default function Sidebar() {
                         href={item.href}
                         className={`flex items-center space-x-2 ${
                           pathname === item.href ||
-                          (item.href === "/dashboard/messaging" &&
-                            pathname.startsWith("/dashboard/messaging/"))
+                          pathname.startsWith(item.href + "/")
                             ? "bg-[#F5E6E8] text-black"
                             : "hover:bg-gray-100"
                         }`}
