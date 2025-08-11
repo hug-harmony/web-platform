@@ -166,6 +166,7 @@ export default function PostPage() {
       isPending: true,
     };
 
+    // Add optimistic reply
     setPost((prev) => {
       if (!prev) return prev;
       if (!parentReplyId) {
@@ -189,13 +190,16 @@ export default function PostPage() {
     const response = await fetch(`/api/posts/${id}/replies`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
-      body: JSON.stringify({ content: newReply, parentReplyId }),
+      body: JSON.stringify({ content: newReply, parentReplyId: replyTo }),
     });
 
-    setIsSubmitting(false);
+      if (!response.ok) {
+        throw new Error(`Failed to submit reply: ${response.statusText}`);
+      }
 
-    if (response.ok) {
       const newReplyData = await response.json();
+
+      // Update state with server response
       setPost((prev) => {
         if (!prev) return prev;
         if (!parentReplyId) {
@@ -225,8 +229,6 @@ export default function PostPage() {
       });
     } else {
       console.error("Failed to submit reply:", await response.json());
-      const errorData = await response.json();
-      setError(errorData.error || "Failed to submit reply. Please try again.");
       setPost((prev) => {
         if (!prev) return prev;
         if (!parentReplyId) {
@@ -248,6 +250,8 @@ export default function PostPage() {
           );
         return { ...prev, replies: updateReplies(prev.replies) };
       });
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -411,8 +415,8 @@ export default function PostPage() {
   );
 
   const renderSkeleton = () => (
-    <div className="p-4 space-y-6 max-w-7xl mx-auto">
-      <Card className="shadow-sm">
+    <div className="p-4 space-y-6 max-w-3xl mx-auto">
+      <Card>
         <CardHeader>
           <Skeleton className="h-8 w-24" />
           <Skeleton className="h-6 w-3/4" />
@@ -458,8 +462,8 @@ export default function PostPage() {
         <CardContent>
           <Skeleton className="h-24 w-full" />
           <div className="flex space-x-2 mt-4">
-            <Skeleton className="h-8 w-20" />
-            <Skeleton className="h-8 w-20" />
+            <Skeleton className="h-10 w-24" /> {/* Submit button */}
+            <Skeleton className="h-10 w-24" /> {/* Cancel button (optional) */}
           </div>
         </CardContent>
       </Card>

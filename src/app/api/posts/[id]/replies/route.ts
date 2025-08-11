@@ -4,18 +4,13 @@ import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(request: Request) {
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    // Extract post ID from the URL
-    const url = new URL(request.url);
-    const id = url.pathname.split("/").pop();
-
-    if (!id) {
-      return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
-    }
-
     const replies = await prisma.reply.findMany({
-      where: { postId: id, parentReplyId: null },
+      where: { postId: params.id, parentReplyId: null },
       include: {
         author: { select: { name: true, profileImage: true } },
         childReplies: {
@@ -57,7 +52,10 @@ export async function GET(request: Request) {
   }
 }
 
-export async function POST(request: Request) {
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -88,10 +86,10 @@ export async function POST(request: Request) {
       );
     }
 
-    const post = await prisma.post.findUnique({ where: { id } });
+    const post = await prisma.post.findUnique({ where: { id: params.id } });
     if (!post) {
       console.error("POST /api/posts/[id]/replies: Post not found", {
-        postId: id,
+        postId: params.id,
       });
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
@@ -114,7 +112,7 @@ export async function POST(request: Request) {
     const reply = await prisma.reply.create({
       data: {
         content,
-        postId: id,
+        postId: params.id,
         authorId: session.user.id,
         parentReplyId: parentReplyId || null,
       },

@@ -1,7 +1,7 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useEffect, useState } from "react";
+import React, { useEffect, useState, useRef } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -44,10 +44,12 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
   const [loading, setLoading] = useState(true);
-  const [updating, setUpdating] = useState(false); // New loading state for updates
+  const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
+  const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const router = useRouter();
   const { data: session, status, update } = useSession();
+  const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -106,7 +108,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
 
   const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
-    setUpdating(true); // Set updating state to true
+    setUpdating(true);
     const formData = new FormData(e.currentTarget);
     const data = {
       firstName: formData.get("firstName")?.toString(),
@@ -117,10 +119,27 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     };
 
     try {
+      // Handle image upload if a file is selected
+      let profileImageUrl = profile?.profileImage;
+      if (selectedFile) {
+        const imageFormData = new FormData();
+        imageFormData.append("file", selectedFile);
+        const uploadRes = await fetch("/api/users/upload", {
+          method: "POST",
+          body: imageFormData,
+        });
+        if (!uploadRes.ok) {
+          const errorData = await uploadRes.json();
+          throw new Error(errorData.error || "Failed to upload image");
+        }
+        profileImageUrl = (await uploadRes.json()).url;
+      }
+
+      // Update profile with form data and image URL (if uploaded)
       const res = await fetch(`/api/users/${profile?.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(data),
+        body: JSON.stringify({ ...data, profileImage: profileImageUrl }),
       });
 
       if (res.ok) {
@@ -144,6 +163,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         });
 
         setIsEditing(false);
+        setSelectedFile(null); // Clear selected file
         toast.success("Profile updated successfully");
       } else {
         const errorData = await res.json();
@@ -154,7 +174,8 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         error instanceof Error ? error.message : "Failed to update profile";
       toast.error(errorMessage);
     } finally {
-      setUpdating(false); // Reset updating state
+      setUpdating(false);
+      if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
 
@@ -206,6 +227,17 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           </motion.div>
           <motion.div variants={itemVariants} className="space-y-4">
             <form onSubmit={handleUpdateProfile} className="space-y-4">
+              <div className="space-y-2">
+                <Label htmlFor="profileImage">Profile Picture</Label>
+                <Input
+                  id="profileImage"
+                  type="file"
+                  accept="image/*"
+                  ref={fileInputRef}
+                  disabled={!isEditing || updating}
+                  onChange={(e) => setSelectedFile(e.target.files?.[0] || null)}
+                />
+              </div>
               <div className="space-y-2">
                 <Label htmlFor="firstName">First Name</Label>
                 <Input
