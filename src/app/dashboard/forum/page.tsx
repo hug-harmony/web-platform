@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -7,10 +8,11 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MessageSquare, Send } from "lucide-react";
+import { Search, MessageSquare, Send, User } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { notFound } from "next/navigation";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -24,9 +26,10 @@ import { Skeleton } from "@/components/ui/skeleton";
 
 // Type definitions
 interface User {
+  id: string;
   name: string;
   email: string;
-  avatar: string;
+  profileImage?: string | null;
 }
 
 interface ForumPost {
@@ -62,6 +65,7 @@ const itemVariants = {
 
 export default function ForumPage() {
   const [posts, setPosts] = useState<ForumPost[]>([]);
+  const [user, setUser] = useState<User | null>(null);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [newPost, setNewPost] = useState({
@@ -69,23 +73,81 @@ export default function ForumPage() {
     content: "",
     category: "",
   });
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Fetch posts
+  // Fetch user and posts
   useEffect(() => {
-    if (status === "unauthenticated") {
-      router.push("/login");
-    } else if (status === "authenticated") {
-      fetchPosts();
-    }
-  }, [status, router]);
+    const fetchData = async () => {
+      if (status === "loading") return;
+      if (status === "unauthenticated") {
+        router.push("/login");
+        return;
+      }
 
-  const fetchPosts = async () => {
-    const response = await fetch("/api/posts");
-    const data = await response.json();
-    setPosts(data);
-  };
+      try {
+        // Fetch user data
+        const id = session?.user?.id; // Adjust if ID is under a different field (e.g., sub)
+        if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+          console.error("Invalid user ID format:", id);
+          notFound();
+        }
+
+        const userRes = await fetch(`/api/users/${id}`, {
+          cache: "no-store",
+          credentials: "include",
+        });
+
+        if (userRes.ok) {
+          const userData = await userRes.json();
+          setUser({
+            id: userData.id,
+            name:
+              userData.firstName && userData.lastName
+                ? `${userData.firstName} ${userData.lastName}`
+                : userData.name || "User",
+            email: userData.email || "user@example.com",
+            profileImage: userData.profileImage || null,
+          });
+        } else {
+          console.error(
+            "User API response:",
+            userRes.status,
+            await userRes.text()
+          );
+          if (userRes.status === 401) router.push("/login");
+          if (userRes.status === 404) notFound();
+          throw new Error(`Failed to fetch user: ${userRes.status}`);
+        }
+
+        // Fetch posts
+        const postsRes = await fetch("/api/posts", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        if (postsRes.ok) {
+          const postsData = await postsRes.json();
+          setPosts(postsData);
+        } else {
+          console.error(
+            "Posts API response:",
+            postsRes.status,
+            await postsRes.text()
+          );
+          throw new Error(`Failed to fetch posts: ${postsRes.status}`);
+        }
+      } catch (err: any) {
+        console.error("Fetch Error:", err.message, err.stack);
+        setError("Failed to load forum data. Please try again.");
+      } finally {
+        setLoading(false);
+      }
+    };
+
+    fetchData();
+  }, [status, session, router]);
 
   // Skeleton UI
   const renderSkeleton = () => (
@@ -93,54 +155,54 @@ export default function ForumPage() {
       <Card>
         <CardHeader>
           <div className="flex items-center space-x-4">
-            <Skeleton className="h-16 w-16 rounded-full" /> {/* Avatar */}
+            <Skeleton className="h-16 w-16 rounded-full" />
             <div className="space-y-2">
-              <Skeleton className="h-6 w-48" /> {/* Title */}
-              <Skeleton className="h-4 w-32" /> {/* Subtitle */}
+              <Skeleton className="h-6 w-48" />
+              <Skeleton className="h-4 w-32" />
             </div>
           </div>
         </CardHeader>
         <CardContent>
           <div className="flex space-x-4">
-            <Skeleton className="h-10 w-full" /> {/* Search input */}
-            <Skeleton className="h-10 w-32" /> {/* Category dropdown */}
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-10 w-32" />
           </div>
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <Skeleton className="h-6 w-40" /> {/* Create post title */}
+          <Skeleton className="h-6 w-40" />
         </CardHeader>
         <CardContent>
           <div className="space-y-4">
-            <Skeleton className="h-10 w-full" /> {/* Title input */}
-            <Skeleton className="h-24 w-full" /> {/* Textarea */}
+            <Skeleton className="h-10 w-full" />
+            <Skeleton className="h-24 w-full" />
             <div className="flex space-x-4">
-              <Skeleton className="h-10 w-40" /> {/* Category dropdown */}
-              <Skeleton className="h-10 w-24" /> {/* Submit button */}
+              <Skeleton className="h-10 w-40" />
+              <Skeleton className="h-10 w-24" />
             </div>
           </div>
         </CardContent>
       </Card>
       <Card>
         <CardHeader>
-          <Skeleton className="h-6 w-32" /> {/* Forum posts title */}
+          <Skeleton className="h-6 w-32" />
         </CardHeader>
         <CardContent>
           <ScrollArea className="h-[400px]">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="p-4 border rounded-md mb-4">
                 <div className="flex items-start space-x-4">
-                  <Skeleton className="h-10 w-10 rounded-full" /> {/* Avatar */}
+                  <Skeleton className="h-10 w-10 rounded-full" />
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center justify-between">
-                      <Skeleton className="h-5 w-48" /> {/* Post title */}
-                      <Skeleton className="h-4 w-24" /> {/* Timestamp */}
+                      <Skeleton className="h-5 w-48" />
+                      <Skeleton className="h-4 w-24" />
                     </div>
-                    <Skeleton className="h-4 w-full" /> {/* Content */}
+                    <Skeleton className="h-4 w-full" />
                     <div className="flex space-x-2">
-                      <Skeleton className="h-4 w-20" /> {/* Category */}
-                      <Skeleton className="h-4 w-24" /> {/* Replies count */}
+                      <Skeleton className="h-4 w-20" />
+                      <Skeleton className="h-4 w-24" />
                     </div>
                   </div>
                 </div>
@@ -152,8 +214,8 @@ export default function ForumPage() {
     </div>
   );
 
-  // Authentication check
-  if (status === "loading" || !posts.length) {
+  // Authentication and error handling
+  if (status === "loading" || loading) {
     return renderSkeleton();
   }
 
@@ -162,11 +224,13 @@ export default function ForumPage() {
     return null;
   }
 
-  const user: User = {
-    name: session?.user?.name || "User",
-    email: session?.user?.email || "user@example.com",
-    avatar: session?.user?.image || "/assets/images/avatar-placeholder.png",
-  };
+  if (error || !user) {
+    return (
+      <div className="text-center p-6 text-red-500">
+        {error || "User data not found."}
+      </div>
+    );
+  }
 
   // Filter posts
   const categories = Array.from(new Set(posts.map((post) => post.category)));
@@ -185,15 +249,32 @@ export default function ForumPage() {
   const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
     if (newPost.title && newPost.content) {
-      const response = await fetch("/api/posts", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(newPost),
-      });
-      if (response.ok) {
-        const newForumPost = await response.json();
-        setPosts([newForumPost, ...posts]);
-        setNewPost({ title: "", content: "", category: "" });
+      try {
+        const response = await fetch("/api/posts", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            ...newPost,
+            user: {
+              name: user.name,
+              avatar: user.profileImage || "/register.jpg",
+            },
+          }),
+        });
+        if (response.ok) {
+          const newForumPost = await response.json();
+          setPosts([newForumPost, ...posts]);
+          setNewPost({ title: "", content: "", category: "" });
+        } else {
+          console.error(
+            "Post submission failed:",
+            response.status,
+            await response.text()
+          );
+          throw new Error("Failed to create post");
+        }
+      } catch (err: any) {
+        console.error("Post Submission Error:", err.message, err.stack);
       }
     }
   };
@@ -213,8 +294,13 @@ export default function ForumPage() {
             className="flex items-center space-x-4"
           >
             <Avatar className="h-16 w-16">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>{user.name[0]}</AvatarFallback>
+              {user.profileImage ? (
+                <AvatarImage src={user.profileImage} alt={user.name} />
+              ) : (
+                <AvatarFallback className="bg-gray-200 text-gray-600 flex items-center justify-center">
+                  <User className="h-10 w-10" />
+                </AvatarFallback>
+              )}
             </Avatar>
             <div>
               <CardTitle className="text-2xl">Community Forum</CardTitle>
@@ -355,7 +441,9 @@ export default function ForumPage() {
                               src={post.user.avatar}
                               alt={post.user.name}
                             />
-                            <AvatarFallback>{post.user.name[0]}</AvatarFallback>
+                            <AvatarFallback className="bg-gray-200 text-gray-600 flex items-center justify-center">
+                              <User className="h-6 w-6" />
+                            </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
