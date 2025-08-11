@@ -25,9 +25,9 @@ import {
   DialogTrigger,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
-
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
+import Image from "next/image";
 
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
@@ -259,10 +259,15 @@ export default function LoginPage() {
             </Button>
           </div>
         </div>
-        <div
-          className="hidden md:flex w-1/2 items-center justify-center bg-cover bg-center bg-black"
-          style={{ backgroundImage: "url('/login.png')" }}
-        ></div>
+        <div className="hidden md:flex w-1/2 relative">
+          <Image
+            src="/login.webp"
+            alt="bg-image"
+            fill
+            sizes="(max-width: 768px) 100vw, 50vw"
+            style={{ objectFit: "cover" }}
+          />
+        </div>
       </Card>
     </div>
   );

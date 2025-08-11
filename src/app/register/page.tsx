@@ -287,8 +287,8 @@ export default function RegisterPage() {
           </Form>
         </div>
         <div
-          className="hidden md:flex w-1/2 items-center justify-center bg-cover bg-center bg-black"
-          style={{ backgroundImage: `url("/register.jpg")` }}
+          className="hidden md:flex w-1/2 items-center justify-center bg-cover bg-center"
+          style={{ backgroundImage: `url("/register.webp")` }}
         ></div>
       </Card>
     </div>
