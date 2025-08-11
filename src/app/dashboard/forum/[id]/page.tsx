@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -21,10 +21,13 @@ import { usePathname } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 import { formatDistanceToNow } from "date-fns";
 
-// New: Debounce utility
-const debounce = (func: (...args: any[]) => void, wait: number) => {
+// Updated: Properly typed debounce utility
+const debounce = <T extends unknown[]>(
+  func: (...args: T) => void,
+  wait: number
+) => {
   let timeout: NodeJS.Timeout;
-  return (...args: any[]) => {
+  return (...args: T) => {
     clearTimeout(timeout);
     timeout = setTimeout(() => func(...args), wait);
   };
@@ -84,14 +87,27 @@ export default function PostPage() {
   const [isSubmitting, setIsSubmitting] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const replyFormRefs = useRef<Map<string, HTMLDivElement>>(new Map());
-  const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map()); // New: Track textarea refs for focusing
+  const textareaRefs = useRef<Map<string, HTMLTextAreaElement>>(new Map());
 
   const pathname = usePathname();
   const id = pathname.split("/").pop() || "";
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Updated: Custom scroll function targeting window
+  const fetchPost = useCallback(async () => {
+    const response = await fetch(`/api/posts/${id}`);
+    const data = await response.json();
+    if (response.ok) {
+      setPost(data);
+    } else {
+      console.error("Failed to fetch post:", data.error);
+    }
+  }, [id]);
+
+  useEffect(() => {
+    fetchPost();
+  }, [fetchPost]);
+
   const scrollToForm = (replyId: string) => {
     const form = replyFormRefs.current.get(replyId);
     if (!form) return;
@@ -101,18 +117,16 @@ export default function PostPage() {
 
     if (!isInView) {
       window.scrollTo({
-        top: window.scrollY + rect.top - 100, // Offset for header/padding
+        top: window.scrollY + rect.top - 100,
         behavior: "smooth",
       });
     }
 
-    // Focus textarea
     const textarea = textareaRefs.current.get(replyId);
     if (textarea) textarea.focus();
   };
 
-  // New: Debounced scroll effect
-  const debouncedScroll = debounce(scrollToForm, 200);
+  const debouncedScroll = debounce<[string]>(scrollToForm, 200);
 
   useEffect(() => {
     if (status === "unauthenticated") {
@@ -120,23 +134,13 @@ export default function PostPage() {
     } else if (status === "authenticated") {
       fetchPost();
     }
-  }, [status, router, id]);
+  }, [status, router, id, fetchPost]); // Added fetchPost to dependencies
 
   useEffect(() => {
     if (replyTo && replyFormRefs.current.has(replyTo)) {
       debouncedScroll(replyTo);
     }
-  }, [replyTo]);
-
-  const fetchPost = async () => {
-    const response = await fetch(`/api/posts/${id}`);
-    const data = await response.json();
-    if (response.ok) {
-      setPost(data);
-    } else {
-      console.error("Failed to fetch post:", data.error);
-    }
-  };
+  }, [replyTo, debouncedScroll]); // Added debouncedScroll to dependencies
 
   const handleReplySubmit = async (
     e: React.FormEvent,
