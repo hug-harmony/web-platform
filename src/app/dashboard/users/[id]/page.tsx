@@ -193,13 +193,13 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
 
   return (
     <motion.div
-      className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-start justify-center p-4 sm:p-6"
+      className="min-h-screen flex items-start justify-center p-4 sm:p-6"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
       <motion.div
-        className="w-full max-w-4xl bg-white rounded-2xl shadow-lg overflow-hidden"
+        className="w-full max-w-7xl rounded-2xl shadow-lg overflow-hidden"
         variants={itemVariants}
       >
         <div className="relative h-64 sm:h-80">

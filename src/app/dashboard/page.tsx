@@ -15,6 +15,8 @@ import {
   User,
   Video,
   DollarSign,
+  UserStar,
+  UserRoundSearch,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -146,23 +148,23 @@ export default function HomePage() {
         <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
           <motion.div variants={itemVariants}>
             <Button asChild variant="outline" className="w-full">
-              <Link href="/dashboard/therapists">
-                <User className="mr-2 h-4 w-4" />
-                Find a Therapist
+              <Link href="/dashboard/specialists">
+                <UserStar className="mr-2 h-4 w-4" />
+                Find a Professional
               </Link>
             </Button>
           </motion.div>
           <motion.div variants={itemVariants}>
             <Button asChild variant="outline" className="w-full">
-              <Link href="/booking">
-                <Calendar className="mr-2 h-4 w-4" />
-                Book Appointment
+              <Link href="/dashboard/explore">
+                <UserRoundSearch className="mr-2 h-4 w-4" />
+                Explore Users
               </Link>
             </Button>
           </motion.div>
           <motion.div variants={itemVariants}>
             <Button asChild variant="outline" className="w-full">
-              <Link href="/video">
+              <Link href="/dashboard/video-session">
                 <Video className="mr-2 h-4 w-4" />
                 Join Video Session
               </Link>
@@ -270,7 +272,7 @@ export default function HomePage() {
                           </p>
                         </div>
                         <Button asChild variant="outline" size="sm">
-                          <Link href={`/appointments/${appt.id}`}>Details</Link>
+                          <Link href={`/dashboard/appointments`}>Details</Link>
                         </Button>
                       </motion.div>
                     ))

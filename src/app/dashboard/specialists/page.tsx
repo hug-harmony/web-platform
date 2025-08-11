@@ -16,9 +16,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Skeleton } from "@/components/ui/skeleton";
 import SpecialistCard from "@/components/SpecialistCard";
 import AddTherapistDialog from "@/components/add-specialist";
-import UserCard from "@/components/UserCard";
 
 interface Therapist {
   _id: string;
@@ -77,7 +77,7 @@ export default function TherapistsPage() {
         setUsers(
           Array.isArray(usersData)
             ? usersData
-                .filter((user) => user._id) // Ensure _id exists
+                .filter((user) => user._id)
                 .map((user) => ({
                   _id: user._id,
                   name:
@@ -128,7 +128,7 @@ export default function TherapistsPage() {
         const { specialists } = await therapistsRes.json();
         setSpecialists(
           specialists
-            .filter((s: any) => s.id) // Ensure id exists
+            .filter((s: any) => s.id)
             .map((s: any) => ({
               _id: s.id,
               name: s.name,
@@ -172,7 +172,7 @@ export default function TherapistsPage() {
 
   const filterAndSort = (data: Therapist[]) =>
     data
-      .filter((item) => item._id) // Ensure _id is valid
+      .filter((item) => item._id)
       .filter((item) =>
         searchQuery
           ? item.name.toLowerCase().includes(searchQuery.toLowerCase())
@@ -301,7 +301,11 @@ export default function TherapistsPage() {
             Professionals
           </h2>
           {loading ? (
-            <p className="text-center">Loading...</p>
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, index) => (
+                <Skeleton key={index} className="h-64 w-full rounded-lg" />
+              ))}
+            </div>
           ) : filteredSpecialists.length > 0 ? (
             <motion.div
               className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"

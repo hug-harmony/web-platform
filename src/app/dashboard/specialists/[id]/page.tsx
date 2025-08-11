@@ -6,9 +6,24 @@ import { motion } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
-import { MapPin, Star, BookOpen, FileText } from "lucide-react";
+import {
+  MapPin,
+  Star,
+  BookOpen,
+  FileText,
+  MoreVertical,
+  StarIcon,
+  Book,
+} from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 
 // Animation variants
 const containerVariants = {
@@ -125,7 +140,24 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   }, [params, router]);
 
   if (loading) {
-    return <div className="text-center p-6">Loading...</div>;
+    return (
+      <div className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-start justify-center p-4 sm:p-6">
+        <div className="w-full max-w-4xl bg-white rounded-2xl shadow-lg overflow-hidden">
+          <Skeleton className="h-64 sm:h-80 w-full" />
+          <div className="p-6 sm:p-8 text-center space-y-4">
+            <Skeleton className="h-8 w-64 mx-auto" />
+            <Skeleton className="h-4 w-48 mx-auto" />
+            <Skeleton className="h-4 w-32 mx-auto" />
+            <Skeleton className="h-20 w-full max-w-2xl mx-auto" />
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Skeleton className="h-24 w-full" />
+              <Skeleton className="h-24 w-full" />
+            </div>
+            <Skeleton className="h-10 w-40 mx-auto" />
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error || !profile) {
@@ -143,7 +175,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
 
   return (
     <motion.div
-      className="min-h-screen bg-gradient-to-br from-gray-100 to-gray-200 flex items-start justify-center p-4 sm:p-6"
+      className="min-h-screen flex items-start justify-center p-4 sm:p-6"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -178,13 +210,14 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         </div>
 
         <div className="p-6 sm:p-8 text-center">
-          <motion.h2
-            className="text-2xl sm:text-3xl font-bold text-gray-800"
-            variants={itemVariants}
-          >
-            {profile.name}
-            {profile.role && `, ${profile.role}`}
-          </motion.h2>
+          <div className="flex items-center justify-center gap-2">
+            <motion.h2
+              className="text-2xl sm:text-3xl font-bold text-gray-800"
+              variants={itemVariants}
+            >
+              {profile.name}
+            </motion.h2>
+          </div>
           <motion.div
             className="flex items-center justify-center gap-2 mt-2 text-gray-600"
             variants={itemVariants}
@@ -272,15 +305,35 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             )}
 
           {profile.rate !== undefined && (
-            <motion.div className="mt-6" variants={itemVariants}>
+            <motion.div className="mt-6 space-y-4" variants={itemVariants}>
               <p className="text-lg font-semibold text-gray-800">
                 ${profile.rate}/session
               </p>
-              <Link href={`/dashboard/appointments/book/${profile._id}`}>
-                <Button className="mt-4 bg-[#E8C5BC] hover:bg-[#D9B1A4] text-black px-6 py-2 rounded-full">
-                  Book a Session with {profile.name}
+              <div className="flex flex-col sm:flex-row justify-center gap-4">
+                <Link href={`/dashboard/appointments/book/${profile._id}`}>
+                  <Button className="bg-[#E8C5BC] hover:bg-[#D9B1A4] text-black px-6 py-2 rounded-full">
+                    <Book /> Book a Session
+                  </Button>
+                </Link>
+
+                <Button className="bg-[#E8C5BC] hover:bg-[#D9B1A4] text-black px-6 py-2 rounded-full">
+                  <StarIcon /> Save to Favourites
                 </Button>
-              </Link>
+                <Button className="bg-[#E8C5BC] hover:bg-[#D9B1A4] text-black px-6 py-2 rounded-full">
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button variant="ghost" className="p-0 h-auto">
+                        <MoreVertical className="h-5 w-5 text-gray-600" />
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent align="end">
+                      <DropdownMenuItem>Block</DropdownMenuItem>
+                      <DropdownMenuItem>Report</DropdownMenuItem>
+                      <DropdownMenuItem>Make a Note</DropdownMenuItem>
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </Button>
+              </div>
             </motion.div>
           )}
         </div>

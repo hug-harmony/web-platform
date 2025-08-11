@@ -162,103 +162,104 @@ const BookingPage: React.FC = () => {
   }
 
   return (
-    <Card className="w-full max-w-4xl p-4">
-      <CardTitle className="text-center text-2xl font-bold">
-        Book with {therapist.name}
-      </CardTitle>
-      <CardContent className="flex flex-col lg:flex-row gap-4 p-4">
-        <Calendar
-          mode="single"
-          selected={selectedDate}
-          onSelect={setSelectedDate}
-          className="rounded-md border"
-          disabled={(date: Date) =>
-            new Date(date).setHours(0, 0, 0, 0) <
-            new Date().setHours(0, 0, 0, 0)
-          }
-        />
-        <div className="flex-1">
-          <h3 className="text-md font-semibold mb-4 text-center">
-            Select Time
-          </h3>
-          <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
-            {timeSlots.map((slot) => (
-              <button
-                key={slot.time}
-                onClick={() => slot.available && setSelectedTime(slot.time)}
-                disabled={!slot.available}
-                className={cn(
-                  "py-2 rounded border text-center",
-                  selectedTime === slot.time
-                    ? "bg-[#E8C5BC] text-white"
-                    : slot.available
-                      ? "bg-gray-100 hover:bg-gray-200"
-                      : "bg-gray-300 text-gray-500 cursor-not-allowed"
-                )}
-              >
-                {slot.time}
-              </button>
-            ))}
-          </div>
-          <Button
-            onClick={() => setIsDialogOpen(true)}
-            disabled={!selectedDate || !selectedTime || loading}
-            className="w-full py-2 bg-[#E8C5BC] text-black hover:bg-[#ddb0a3]"
-          >
-            {loading ? "Loading..." : "Continue"}
-          </Button>
-        </div>
-      </CardContent>
-
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent>
-          <DialogTitle>Confirm Booking</DialogTitle>
-          <div className="py-2">
-            <p>
-              <strong>Name:</strong> {session?.user?.name || "N/A"}
-            </p>
-            <p>
-              <strong>Date:</strong>{" "}
-              {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "N/A"}
-            </p>
-            <p>
-              <strong>Time:</strong> {selectedTime || "N/A"}
-            </p>
-            <p>
-              <strong>Amount:</strong> ${therapist.rate?.toFixed(2) || "50.00"}
-            </p>
-          </div>
-          <DialogFooter>
+    <div className="min-h-screen flex items-center justify-center p-4 sm:p-6 ">
+      <Card className="w-full max-w-7xl p-4">
+        <CardTitle className="text-center text-2xl font-bold">Book</CardTitle>
+        <CardContent className="flex flex-col lg:flex-row gap-4 p-4">
+          <Calendar
+            mode="single"
+            selected={selectedDate}
+            onSelect={setSelectedDate}
+            className="rounded-md border"
+            disabled={(date: Date) =>
+              new Date(date).setHours(0, 0, 0, 0) <
+              new Date().setHours(0, 0, 0, 0)
+            }
+          />
+          <div className="flex-1">
+            <h3 className="text-md font-semibold mb-4 text-center">
+              Select Time
+            </h3>
+            <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
+              {timeSlots.map((slot) => (
+                <button
+                  key={slot.time}
+                  onClick={() => slot.available && setSelectedTime(slot.time)}
+                  disabled={!slot.available}
+                  className={cn(
+                    "py-2 rounded border text-center",
+                    selectedTime === slot.time
+                      ? "bg-[#E8C5BC] text-white"
+                      : slot.available
+                        ? "bg-gray-100 hover:bg-gray-200"
+                        : "bg-gray-300 text-gray-500 cursor-not-allowed"
+                  )}
+                >
+                  {slot.time}
+                </button>
+              ))}
+            </div>
             <Button
-              onClick={handleBookSession}
-              className="bg-[#E8C5BC] text-black hover:bg-[#ddb0a3]"
+              onClick={() => setIsDialogOpen(true)}
+              disabled={!selectedDate || !selectedTime || loading}
+              className="w-full py-2 bg-[#E8C5BC] text-black hover:bg-[#ddb0a3]"
             >
-              Pay Now
+              {loading ? "Loading..." : "Continue"}
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+          </div>
+        </CardContent>
 
-      <style jsx global>{`
-        .rdp {
-          font-size: 1.1rem;
-          padding: 1rem;
-          max-width: 300px;
-        }
-        .rdp-day {
-          width: 2rem;
-          height: 2rem;
-          line-height: 2rem;
-        }
-        .rdp-day:not(.rdp-day_disabled):hover {
-          background-color: #f9e4e4;
-        }
-        .rdp-day_selected {
-          background-color: #ff0000 !important;
-          color: white !important;
-        }
-      `}</style>
-    </Card>
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent>
+            <DialogTitle>Confirm Booking</DialogTitle>
+            <div className="py-2">
+              <p>
+                <strong>Name:</strong> {session?.user?.name || "N/A"}
+              </p>
+              <p>
+                <strong>Date:</strong>{" "}
+                {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "N/A"}
+              </p>
+              <p>
+                <strong>Time:</strong> {selectedTime || "N/A"}
+              </p>
+              <p>
+                <strong>Amount:</strong> $
+                {therapist.rate?.toFixed(2) || "50.00"}
+              </p>
+            </div>
+            <DialogFooter>
+              <Button
+                onClick={handleBookSession}
+                className="bg-[#E8C5BC] text-black hover:bg-[#ddb0a3]"
+              >
+                Confirm
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+
+        <style jsx global>{`
+          .rdp {
+            font-size: 1.1rem;
+            padding: 1rem;
+            max-width: 300px;
+          }
+          .rdp-day {
+            width: 2rem;
+            height: 2rem;
+            line-height: 2rem;
+          }
+          .rdp-day:not(.rdp-day_disabled):hover {
+            background-color: #f9e4e4;
+          }
+          .rdp-day_selected {
+            background-color: #ff0000 !important;
+            color: white !important;
+          }
+        `}</style>
+      </Card>
+    </div>
   );
 };
 
