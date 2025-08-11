@@ -26,6 +26,8 @@ model User {
   receivedMessages Message[]      @relation("ReceivedMessagesUser")
   conversations1   Conversation[] @relation("User1Conversations")
   conversations2   Conversation[] @relation("User2Conversations")
+  posts            Post[]         @relation("UserPosts")
+  replies          Reply[]        @relation("UserReplies")
 }
 
 model PasswordResetToken {
@@ -68,7 +70,7 @@ model Message {
   id               String       @id @default(auto()) @map("_id") @db.ObjectId
   text             String
   isAudio          Boolean      @default(false)
-  imageUrl         String?      // Added for image messages
+  imageUrl         String?
   senderId         String       @db.ObjectId
   recipientId      String       @db.ObjectId
   conversationId   String       @db.ObjectId
@@ -99,4 +101,30 @@ model Specialist {
   receivedMessages Message[]    @relation("ReceivedMessagesSpecialist")
   conversations1   Conversation[] @relation("Specialist1Conversations")
   conversations2   Conversation[] @relation("Specialist2Conversations")
+}
+
+model Post {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  title     String
+  content   String
+  category  String
+  authorId  String   @db.ObjectId
+  author    User     @relation("UserPosts", fields: [authorId], references: [id], onDelete: Cascade)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+  replies   Reply[]  @relation("PostReplies")
+}
+
+model Reply {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  content      String
+  postId       String   @db.ObjectId
+  authorId     String   @db.ObjectId
+  parentReplyId String?  @db.ObjectId
+  post         Post     @relation("PostReplies", fields: [postId], references: [id], onDelete: Cascade)
+  author       User     @relation("UserReplies", fields: [authorId], references: [id], onDelete: Cascade)
+  parentReply  Reply?   @relation("ReplyReplies", fields: [parentReplyId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  childReplies Reply[]  @relation("ReplyReplies")
+  createdAt    DateTime @default(now())
+  updatedAt    DateTime @updatedAt
 }

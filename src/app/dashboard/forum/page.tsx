@@ -8,7 +8,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Search, MessageSquare, User, Send } from "lucide-react";
+import { Search, MessageSquare, Send } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -21,6 +21,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Textarea } from "@/components/ui/textarea";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Type definitions
 interface User {
@@ -42,49 +43,6 @@ interface ForumPost {
   replies: number;
 }
 
-// Dummy data
-const forumPosts: ForumPost[] = [
-  {
-    id: "1",
-    user: {
-      name: "John Doe",
-      avatar: "/assets/images/user1.png",
-    },
-    title: "Coping with Anxiety",
-    content:
-      "I've been feeling really overwhelmed lately. Does anyone have tips for managing anxiety during stressful times?",
-    category: "Mental Health",
-    timestamp: "2025-08-07 10:30 AM",
-    replies: 5,
-  },
-  {
-    id: "2",
-    user: {
-      name: "Jane Smith",
-      avatar: "/assets/images/user2.png",
-    },
-    title: "Therapy Session Experiences",
-    content:
-      "Just had my first therapy session. It was enlightening but also overwhelming. What were your first experiences like?",
-    category: "Therapy",
-    timestamp: "2025-08-06 3:15 PM",
-    replies: 3,
-  },
-  {
-    id: "3",
-    user: {
-      name: "Alex Brown",
-      avatar: "/assets/images/user3.png",
-    },
-    title: "Mindfulness Techniques",
-    content:
-      "Looking for recommendations on mindfulness apps or techniques that have worked for you. Any suggestions?",
-    category: "Wellness",
-    timestamp: "2025-08-05 9:00 AM",
-    replies: 8,
-  },
-];
-
 // Animation variants
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -104,7 +62,7 @@ const itemVariants = {
 };
 
 export default function ForumPage() {
-  const [posts, setPosts] = useState<ForumPost[]>(forumPosts);
+  const [posts, setPosts] = useState<ForumPost[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState("");
   const [newPost, setNewPost] = useState({
@@ -115,9 +73,89 @@ export default function ForumPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  // Fetch posts
+  useEffect(() => {
+    if (status === "unauthenticated") {
+      router.push("/login");
+    } else if (status === "authenticated") {
+      fetchPosts();
+    }
+  }, [status, router]);
+
+  const fetchPosts = async () => {
+    const response = await fetch("/api/posts");
+    const data = await response.json();
+    setPosts(data);
+  };
+
+  // Skeleton UI
+  const renderSkeleton = () => (
+    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+      <Card>
+        <CardHeader>
+          <div className="flex items-center space-x-4">
+            <Skeleton className="h-16 w-16 rounded-full" /> {/* Avatar */}
+            <div className="space-y-2">
+              <Skeleton className="h-6 w-48" /> {/* Title */}
+              <Skeleton className="h-4 w-32" /> {/* Subtitle */}
+            </div>
+          </div>
+        </CardHeader>
+        <CardContent>
+          <div className="flex space-x-4">
+            <Skeleton className="h-10 w-full" /> {/* Search input */}
+            <Skeleton className="h-10 w-32" /> {/* Category dropdown */}
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-40" /> {/* Create post title */}
+        </CardHeader>
+        <CardContent>
+          <div className="space-y-4">
+            <Skeleton className="h-10 w-full" /> {/* Title input */}
+            <Skeleton className="h-24 w-full" /> {/* Textarea */}
+            <div className="flex space-x-4">
+              <Skeleton className="h-10 w-40" /> {/* Category dropdown */}
+              <Skeleton className="h-10 w-24" /> {/* Submit button */}
+            </div>
+          </div>
+        </CardContent>
+      </Card>
+      <Card>
+        <CardHeader>
+          <Skeleton className="h-6 w-32" /> {/* Forum posts title */}
+        </CardHeader>
+        <CardContent>
+          <ScrollArea className="h-[400px]">
+            {[...Array(3)].map((_, i) => (
+              <div key={i} className="p-4 border rounded-md mb-4">
+                <div className="flex items-start space-x-4">
+                  <Skeleton className="h-10 w-10 rounded-full" /> {/* Avatar */}
+                  <div className="flex-1 space-y-2">
+                    <div className="flex items-center justify-between">
+                      <Skeleton className="h-5 w-48" /> {/* Post title */}
+                      <Skeleton className="h-4 w-24" /> {/* Timestamp */}
+                    </div>
+                    <Skeleton className="h-4 w-full" /> {/* Content */}
+                    <div className="flex space-x-2">
+                      <Skeleton className="h-4 w-20" /> {/* Category */}
+                      <Skeleton className="h-4 w-24" /> {/* Replies count */}
+                    </div>
+                  </div>
+                </div>
+              </div>
+            ))}
+          </ScrollArea>
+        </CardContent>
+      </Card>
+    </div>
+  );
+
   // Authentication check
-  if (status === "loading") {
-    return <div className="p-4">Loading...</div>;
+  if (status === "loading" || !posts.length) {
+    return renderSkeleton();
   }
 
   if (status === "unauthenticated") {
@@ -132,9 +170,7 @@ export default function ForumPage() {
   };
 
   // Filter posts
-  const categories = Array.from(
-    new Set(forumPosts.map((post) => post.category))
-  );
+  const categories = Array.from(new Set(posts.map((post) => post.category)));
   const filteredPosts = posts
     .filter((post) =>
       searchQuery
@@ -147,23 +183,19 @@ export default function ForumPage() {
     );
 
   // Handle new post submission
-  const handlePostSubmit = (e: React.FormEvent) => {
+  const handlePostSubmit = async (e: React.FormEvent) => {
     e.preventDefault();
-    if (newPost.title && newPost.content && newPost.category) {
-      const newForumPost: ForumPost = {
-        id: `${posts.length + 1}`,
-        user: {
-          name: user.name,
-          avatar: user.avatar,
-        },
-        title: newPost.title,
-        content: newPost.content,
-        category: newPost.category,
-        timestamp: new Date().toLocaleString(),
-        replies: 0,
-      };
-      setPosts([newForumPost, ...posts]);
-      setNewPost({ title: "", content: "", category: "" });
+    if (newPost.title && newPost.content) {
+      const response = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(newPost),
+      });
+      if (response.ok) {
+        const newForumPost = await response.json();
+        setPosts([newForumPost, ...posts]);
+        setNewPost({ title: "", content: "", category: "" });
+      }
     }
   };
 
@@ -238,8 +270,6 @@ export default function ForumPage() {
         </CardContent>
       </Card>
 
-      {/* Search and Filter */}
-
       {/* Create New Post */}
       <Card>
         <CardHeader>
@@ -263,7 +293,7 @@ export default function ForumPage() {
             <Textarea
               placeholder="Share your thoughts..."
               value={newPost.content}
-              onChange={(e: { target: { value: any } }) =>
+              onChange={(e) =>
                 setNewPost({ ...newPost, content: e.target.value })
               }
               className="w-full"
@@ -317,7 +347,7 @@ export default function ForumPage() {
                       exit={{ opacity: 0, x: -20 }}
                       className="p-4 hover:bg-gray-50 rounded-md border"
                     >
-                      <Link href={`/forum/${post.id}`}>
+                      <Link href={`/dashboard/forum/${post.id}`}>
                         <div className="flex items-start space-x-4">
                           <Avatar className="h-10 w-10">
                             <AvatarImage
