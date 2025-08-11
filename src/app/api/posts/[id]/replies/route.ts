@@ -4,13 +4,18 @@ import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(request: Request) {
   try {
+    // Extract post ID from the URL
+    const url = new URL(request.url);
+    const id = url.pathname.split("/").pop();
+
+    if (!id) {
+      return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
+    }
+
     const replies = await prisma.reply.findMany({
-      where: { postId: params.id, parentReplyId: null },
+      where: { postId: id, parentReplyId: null },
       include: {
         author: { select: { name: true, profileImage: true } },
         childReplies: {
@@ -52,15 +57,21 @@ export async function GET(
   }
 }
 
-export async function POST(
-  request: Request,
-  { params }: { params: { id: string } }
-) {
+export async function POST(request: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       console.error("POST /api/posts/[id]/replies: No session or user ID");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Extract post ID from the URL
+    const url = new URL(request.url);
+    const id = url.pathname.split("/").pop();
+
+    if (!id) {
+      console.error("POST /api/posts/[id]/replies: Invalid post ID");
+      return NextResponse.json({ error: "Invalid post ID" }, { status: 400 });
     }
 
     const { content, parentReplyId } = await request.json();
@@ -75,10 +86,10 @@ export async function POST(
       );
     }
 
-    const post = await prisma.post.findUnique({ where: { id: params.id } });
+    const post = await prisma.post.findUnique({ where: { id } });
     if (!post) {
       console.error("POST /api/posts/[id]/replies: Post not found", {
-        postId: params.id,
+        postId: id,
       });
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
@@ -101,7 +112,7 @@ export async function POST(
     const reply = await prisma.reply.create({
       data: {
         content,
-        postId: params.id,
+        postId: id,
         authorId: session.user.id,
         parentReplyId: parentReplyId || null,
       },
