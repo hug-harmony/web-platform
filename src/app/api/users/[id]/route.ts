@@ -14,13 +14,17 @@ const editableFields = [
   "location",
 ];
 
-export async function GET(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function GET(req: Request) {
   try {
+    const url = new URL(req.url);
+    const id = url.pathname.split("/").pop();
+
+    if (!id) {
+      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+    }
+
     const user = await prisma.user.findUnique({
-      where: { id: params.id },
+      where: { id },
       select: {
         id: true,
         name: true,
@@ -30,7 +34,6 @@ export async function GET(
         phoneNumber: true,
         profileImage: true,
         location: true,
-
         createdAt: true,
       },
     });
@@ -49,20 +52,24 @@ export async function GET(
   }
 }
 
-export async function PATCH(
-  req: Request,
-  { params }: { params: { id: string } }
-) {
+export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const url = new URL(req.url);
+    const id = url.pathname.split("/").pop();
+
+    if (!id) {
+      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+    }
+
     const currentUserId = session.user.id;
 
     // Prevent non-admins from editing others' accounts
-    if (currentUserId !== params.id) {
+    if (currentUserId !== id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
@@ -77,7 +84,7 @@ export async function PATCH(
     }
 
     const updatedUser = await prisma.user.update({
-      where: { id: params.id },
+      where: { id },
       data,
       select: {
         id: true,
