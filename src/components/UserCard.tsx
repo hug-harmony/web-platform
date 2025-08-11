@@ -1,7 +1,7 @@
 "use client";
 
 import React from "react";
-import { MessageCircle, MapPin } from "lucide-react";
+import { MessageCircle } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -9,17 +9,13 @@ import { Button } from "@/components/ui/button";
 interface UserCardProps {
   name: string;
   imageSrc: string;
-  location: string;
-  rating: number;
-  reviewCount: number;
-  rate: number;
+
   onMessage?: () => void;
 }
 
 const UserCard: React.FC<UserCardProps> = ({
   name,
   imageSrc,
-  location,
 
   onMessage,
 }) => {
@@ -34,12 +30,6 @@ const UserCard: React.FC<UserCardProps> = ({
         </Avatar>
         <div className="flex grow w-full">
           <h3 className="text-lg font-semibold">{name}</h3>
-          {location && (
-            <div className="flex items-center text-xs text-gray-500 mt-0.5">
-              <MapPin className="h-3 w-3 mr-1" />
-              {location}
-            </div>
-          )}
 
           <div className="flex items-center text-xs text-gray-500 mt-0.5"></div>
         </div>

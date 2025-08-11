@@ -205,7 +205,14 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                   )}
                   onClick={() => handleConversationClick(conv.id)}
                 >
-                  <Avatar className="h-10 w-10">
+                  <Avatar
+                    className="h-10 w-10"
+                    onClick={() => {
+                      if (otherParticipant?.id) {
+                        router.push(`/dashboard/users/${otherParticipant.id}`);
+                      }
+                    }}
+                  >
                     <AvatarImage src={profileImage || ""} alt={name} />
                     <AvatarFallback>{name.charAt(0)}</AvatarFallback>
                   </Avatar>

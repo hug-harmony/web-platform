@@ -16,7 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import SpecialistCard from "@/components/SpecialistCard";
+
 import AddTherapistDialog from "@/components/add-specialist";
 import UserCard from "@/components/UserCard";
 
@@ -195,7 +195,6 @@ export default function TherapistsPage() {
       });
 
   const filteredUsers = filterAndSort(users);
-  const filteredSpecialists = filterAndSort(specialists);
 
   const ratings = [4.5, 4.0, 3.5, 3.0];
   const sortOptions = ["rating", "name"];
@@ -311,14 +310,7 @@ export default function TherapistsPage() {
                 {filteredUsers.map((user) => (
                   <motion.div key={user._id} variants={cardVariants}>
                     <Link href={`/dashboard/users/${user._id}`}>
-                      <UserCard
-                        name={user.name}
-                        imageSrc={user.image || ""}
-                        location={user.location || ""}
-                        rating={user.rating || 0}
-                        reviewCount={user.reviewCount || 0}
-                        rate={user.rate || 0}
-                      />
+                      <UserCard name={user.name} imageSrc={user.image || ""} />
                     </Link>
                   </motion.div>
                 ))}
