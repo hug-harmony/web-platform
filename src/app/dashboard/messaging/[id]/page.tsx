@@ -234,7 +234,7 @@ const MessageInterface: React.FC = () => {
 
   if (status === "loading" || loading) {
     return (
-      <Card className="w-full h-[calc(100vh-2rem)] flex flex-col">
+      <Card className="px-4 max-w-7xl mx-auto h-[calc(100vh-2rem)] flex flex-col">
         <CardHeader className="p-4 border-b">
           <div className="flex items-center space-x-2">
             <Skeleton className="w-10 h-10 rounded-full" />
@@ -301,7 +301,7 @@ const MessageInterface: React.FC = () => {
     .toUpperCase();
 
   return (
-    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+    <div className="px-4 max-w-7xl mx-auto">
       <Card className="w-full h-[calc(100vh-2rem)] flex flex-col">
         <CardHeader className="p-4 border-b">
           <div className="flex items-center space-x-2">

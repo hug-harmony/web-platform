@@ -18,6 +18,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Skeleton } from "@/components/ui/skeleton";
 import SpecialistCard from "@/components/SpecialistCard";
+import AddSpecialist from "@/components/AddSpecialist";
 
 interface Therapist {
   _id: string;
@@ -55,6 +56,46 @@ export default function TherapistsPage() {
     minRating: 0,
     sortBy: "",
   });
+
+  const fetchSpecialists = async () => {
+    try {
+      const therapistsRes = await fetch("/api/specialists", {
+        cache: "no-store",
+        credentials: "include",
+      });
+      if (!therapistsRes.ok) {
+        console.error(
+          "Specialists API error:",
+          therapistsRes.status,
+          await therapistsRes.text()
+        );
+        if (therapistsRes.status === 401) redirect("/login");
+        throw new Error(`Failed to fetch specialists: ${therapistsRes.status}`);
+      }
+      const { specialists } = await therapistsRes.json();
+      setSpecialists(
+        specialists
+          .filter((s: any) => s.id)
+          .map((s: any) => ({
+            _id: s.id,
+            name: s.name,
+            image: s.image || "",
+            location: s.location || "",
+            rating: s.rating || 0,
+            reviewCount: s.reviewCount || 0,
+            rate: s.rate || 0,
+            role: s.role || "",
+            tags: s.tags || "",
+            biography: s.biography || "",
+            education: s.education || "",
+            license: s.license || "",
+            createdAt: s.createdAt,
+          }))
+      );
+    } catch (error) {
+      console.error("Error fetching specialists:", error);
+    }
+  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -287,6 +328,7 @@ export default function TherapistsPage() {
               ))}
             </DropdownMenuContent>
           </DropdownMenu>
+          <AddSpecialist onSpecialistAdded={fetchSpecialists} />
         </div>
 
         <section className="mb-6">
