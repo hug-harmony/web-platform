@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 import { useState } from "react";
 import { motion } from "framer-motion";
@@ -56,7 +57,7 @@ export default function ProfessionalApplicationPage() {
 
   const handleSubmit = async () => {
     try {
-      const response = await fetch("/api/specialists", {
+      const response = await fetch("/api/specialists/application", {
         method: "POST",
         headers: {
           "Content-Type": "application/json",

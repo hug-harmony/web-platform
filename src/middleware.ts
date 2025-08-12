@@ -6,12 +6,17 @@ export default withAuth(
     const { token } = req.nextauth;
     const { pathname } = req.nextUrl;
 
-    // 🚀 Skip auth entirely for /admin frontend routes
+    // Protect admin routes (except /admin login page)
     if (pathname.startsWith("/admin")) {
+      if (pathname === "/admin") {
+        return NextResponse.next(); // Allow access to admin login page
+      }
+      if (!token || !token.isAdmin) {
+        console.log("Unauthorized access to admin route:", { pathname });
+        return NextResponse.redirect(new URL("/admin", req.url));
+      }
       return NextResponse.next();
     }
-
-    console.log("Middleware triggered:", { pathname, token: !!token });
 
     // Allow /reset-password route to bypass authentication
     if (pathname.startsWith("/reset-password")) {
@@ -23,11 +28,11 @@ export default withAuth(
       token &&
       (pathname === "/login" || pathname === "/register" || pathname === "/")
     ) {
-      console.log("Redirecting authenticated user to dashboard");
+      console.log("Redirecting authenticated user to user dashboard");
       return NextResponse.redirect(new URL("/dashboard", req.url));
     }
 
-    // Allow all other requests to proceed
+    // Allow all other requests (e.g., /dashboard/* for authenticated users)
     return NextResponse.next();
   },
   {
@@ -35,25 +40,28 @@ export default withAuth(
       authorized({ token, req }) {
         const { pathname } = req.nextUrl;
 
-        // 🚀 Skip auth check for /admin frontend routes
-        if (pathname.startsWith("/admin")) return true;
-
-        // Allow unauthenticated access to public pages
+        // Allow public access to specific routes
         if (
           pathname === "/login" ||
           pathname === "/register" ||
           pathname === "/" ||
-          pathname.startsWith("/reset-password")
+          pathname.startsWith("/reset-password") ||
+          pathname === "/admin" // Admin login page is public
         ) {
           return true;
         }
 
-        // Require auth for all other matched routes
+        // Require auth and isAdmin for /admin/* routes (except /admin)
+        if (pathname.startsWith("/admin")) {
+          return !!token && token.isAdmin === true;
+        }
+
+        // Require auth for /dashboard/* and other protected routes
         return !!token;
       },
     },
     pages: {
-      signIn: "/login", // Keep this for functional routes
+      signIn: "/login",
     },
   }
 );

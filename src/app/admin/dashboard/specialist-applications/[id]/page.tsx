@@ -1,35 +1,26 @@
 "use client";
 
 import { useParams } from "next/navigation";
-import { motion, AnimatePresence } from "framer-motion";
+import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { FileText, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Application {
   id: string;
-  applicant: string;
-  details: string;
+  name: string;
+  location: string;
+  biography: string;
+  education: string;
+  license: string;
+  role: string;
+  tags: string;
   status: "pending" | "reviewed" | "approved" | "rejected";
+  createdAt: string;
 }
-
-const applications: Application[] = [
-  {
-    id: "app_1",
-    applicant: "Dr. Alice Green",
-    details: "Application for Therapist position with 5 years experience.",
-    status: "pending",
-  },
-  {
-    id: "app_2",
-    applicant: "Dr. Bob White",
-    details: "Application for Psychiatrist position with 8 years experience.",
-    status: "reviewed",
-  },
-];
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -40,16 +31,92 @@ const containerVariants = {
   },
 };
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0 },
-};
-
 export default function ApplicationDetailPage() {
   const { id } = useParams();
-  const application =
-    applications.find((app) => app.id === id) || applications[0]; // Fallback to first application if ID not found
-  const [status, setStatus] = useState(application.status);
+  const [application, setApplication] = useState<Application | null>(null);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
+
+  useEffect(() => {
+    async function fetchApplication() {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(`/api/specialists/application?id=${id}`, {
+          credentials: "include",
+        });
+        if (!response.ok) {
+          const errorData = await response.json();
+          if (response.status === 401) {
+            window.location.href = "/login";
+            return;
+          }
+          throw new Error(errorData.error || "Failed to fetch application");
+        }
+        const data = await response.json();
+        setApplication(data);
+      } catch (err) {
+        console.error("Error fetching application:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "An error occurred while fetching the application"
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchApplication();
+  }, [id]);
+
+  const updateStatus = async (
+    status: "pending" | "reviewed" | "approved" | "rejected"
+  ) => {
+    try {
+      const response = await fetch("/api/specialists/application", {
+        method: "PATCH",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify({ id, status }),
+        credentials: "include",
+      });
+      if (!response.ok) {
+        const errorData = await response.json();
+        if (response.status === 401) {
+          window.location.href = "/login";
+          return;
+        }
+        throw new Error(errorData.error || "Failed to update status");
+      }
+      const updatedApplication = await response.json();
+      setApplication(updatedApplication);
+    } catch (error) {
+      console.error("Error updating status:", error);
+      setError(
+        error instanceof Error
+          ? error.message
+          : "An error occurred while updating the status"
+      );
+    }
+  };
+
+  if (loading) {
+    return (
+      <div className="p-4 space-y-2">
+        <div className="h-16 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
+        <div className="h-64 bg-gray-200 dark:bg-gray-700 animate-pulse rounded" />
+      </div>
+    );
+  }
+
+  if (error) {
+    return <p className="p-4 text-center text-red-500">{error}</p>;
+  }
+
+  if (!application) {
+    return <p className="p-4 text-center">Application not found.</p>;
+  }
 
   return (
     <motion.div
@@ -58,7 +125,6 @@ export default function ApplicationDetailPage() {
       initial="hidden"
       animate="visible"
     >
-      {/* Breadcrumb */}
       <div className="flex items-center gap-2 text-sm text-[#C4C4C4]">
         <Link
           href="/admin/dashboard/specialist-applications"
@@ -67,26 +133,25 @@ export default function ApplicationDetailPage() {
           Specialist Applications
         </Link>
         <span>/</span>
-        <span>{application.applicant}</span>
+        <span>{application.name}</span>
       </div>
 
-      {/* Profile Summary */}
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black dark:text-white shadow-lg">
         <CardHeader>
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 border-2 border-white">
               <AvatarImage
                 src="/assets/images/avatar-placeholder.png"
-                alt={application.applicant}
+                alt={application.name}
               />
               <AvatarFallback className="bg-[#C4C4C4] text-black">
-                {application.applicant[0]}
+                {application.name[0]}
               </AvatarFallback>
             </Avatar>
             <div>
               <CardTitle className="text-2xl font-bold flex items-center">
                 <FileText className="mr-2 h-6 w-6" />
-                {application.applicant}
+                {application.name}
               </CardTitle>
               <p className="text-sm opacity-80">Specialist Application</p>
             </div>
@@ -94,21 +159,42 @@ export default function ApplicationDetailPage() {
         </CardHeader>
         <CardContent className="space-y-4">
           <div className="space-y-2">
-            <p className="text-black dark:text-white">{application.details}</p>
+            <p className="text-black dark:text-white">
+              <strong>Role:</strong> {application.role}
+            </p>
+            <p className="text-black dark:text-white">
+              <strong>Location:</strong> {application.location}
+            </p>
+            <p className="text-black dark:text-white">
+              <strong>Biography:</strong> {application.biography}
+            </p>
+            <p className="text-black dark:text-white">
+              <strong>Education:</strong> {application.education}
+            </p>
+            <p className="text-black dark:text-white">
+              <strong>License:</strong> {application.license}
+            </p>
+            <p className="text-black dark:text-white">
+              <strong>Tags:</strong> {application.tags}
+            </p>
+            <p className="text-black dark:text-white">
+              <strong>Submitted:</strong>{" "}
+              {new Date(application.createdAt).toLocaleDateString()}
+            </p>
             <p>
-              Status:{" "}
+              <strong>Status:</strong>{" "}
               <span
                 className={
-                  status === "pending"
+                  application.status === "pending"
                     ? "text-yellow-500"
-                    : status === "reviewed"
+                    : application.status === "reviewed"
                       ? "text-green-500"
-                      : status === "approved"
+                      : application.status === "approved"
                         ? "text-blue-500"
                         : "text-red-500"
                 }
               >
-                {status}
+                {application.status}
               </span>
             </p>
           </div>
@@ -116,8 +202,8 @@ export default function ApplicationDetailPage() {
             <Button
               variant="outline"
               className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-              onClick={() => setStatus("approved")}
-              disabled={status === "approved"}
+              onClick={() => updateStatus("approved")}
+              disabled={application.status === "approved"}
               aria-label="Approve application"
             >
               Approve
@@ -125,8 +211,8 @@ export default function ApplicationDetailPage() {
             <Button
               variant="outline"
               className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-              onClick={() => setStatus("rejected")}
-              disabled={status === "rejected"}
+              onClick={() => updateStatus("rejected")}
+              disabled={application.status === "rejected"}
               aria-label="Reject application"
             >
               Reject
@@ -134,27 +220,12 @@ export default function ApplicationDetailPage() {
             <Button
               variant="outline"
               className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-              onClick={() => setStatus("reviewed")}
-              disabled={status === "reviewed"}
+              onClick={() => updateStatus("reviewed")}
+              disabled={application.status === "reviewed"}
               aria-label="Mark as reviewed"
             >
               Mark as Reviewed
             </Button>
-          </div>
-        </CardContent>
-      </Card>
-
-      {/* Additional Details (Placeholder) */}
-      <Card>
-        <CardHeader>
-          <CardTitle className="text-black dark:text-white">
-            Additional Details
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          <div className="space-y-4 text-black dark:text-white">
-            <p>No additional documents or notes available.</p>
-            {/* Placeholder for future content like uploaded documents or comments */}
           </div>
         </CardContent>
       </Card>

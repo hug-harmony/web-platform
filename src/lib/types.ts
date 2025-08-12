@@ -9,6 +9,7 @@ export type User = {
   googleId?: string | null;
   profileImage?: string | null;
   createdAt?: Date;
+  isAdmin?: boolean;
 };
 
 export type Specialist = {

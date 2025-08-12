@@ -17,6 +17,13 @@ export const authOptions: NextAuthOptions = {
         }
         const user = await prisma.user.findUnique({
           where: { email: credentials.email },
+          select: {
+            id: true,
+            email: true,
+            name: true,
+            password: true,
+            isAdmin: true,
+          },
         });
         if (!user || !user.password) {
           throw new Error("No user found with this email");
@@ -24,7 +31,13 @@ export const authOptions: NextAuthOptions = {
         if (credentials.password !== user.password) {
           throw new Error("Invalid password");
         }
-        return { id: user.id, email: user.email, name: user.name };
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          isAdmin: user.isAdmin,
+        };
       },
     }),
     GoogleProvider({
@@ -78,7 +91,8 @@ export const authOptions: NextAuthOptions = {
               },
             });
           }
-          user.id = existingUserByGoogleId.id; // Ensure user.id is set
+          user.id = existingUserByGoogleId.id;
+          user.isAdmin = existingUserByGoogleId.isAdmin; // Ensure isAdmin is set
           return true;
         }
         const existingUserByEmail = await prisma.user.findUnique({
@@ -100,40 +114,42 @@ export const authOptions: NextAuthOptions = {
               },
             });
           }
-          user.id = existingUserByEmail.id; // Ensure user.id is set
+          user.id = existingUserByEmail.id;
+          user.isAdmin = existingUserByEmail.isAdmin; // Ensure isAdmin is set
           return true;
         }
-        console.log("Creating Google user:", {
-          email: user.email,
-          googleId: account.providerAccountId,
-        });
         const newUser = await prisma.user.create({
           data: {
             email: user.email!,
-            name:
-              user.name ||
-              `${googleProfile.given_name || "Google"} ${googleProfile.family_name || "User"}`,
+            googleId: account.providerAccountId,
             firstName: googleProfile.given_name || "",
             lastName: googleProfile.family_name || "",
-            googleId: account.providerAccountId,
             profileImage: googleProfile.picture || "",
-            createdAt: new Date(),
+            isAdmin: false, // default for new users
           },
         });
-        user.id = newUser.id; // Set user.id for new user
+
+        user.id = newUser.id;
+        user.isAdmin = newUser.isAdmin;
         return true;
       }
       return true;
     },
     async jwt({ token, user }) {
       if (user && user.id) {
-        token.id = user.id; // Use database user.id (ObjectID)
+        const dbUser = await prisma.user.findUnique({
+          where: { id: user.id },
+          select: { id: true, isAdmin: true },
+        });
+        token.id = dbUser?.id;
+        token.isAdmin = dbUser?.isAdmin ?? false;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.id) {
-        session.user.id = token.id as string; // Ensure session.user.id is ObjectID
+        session.user.id = token.id as string;
+        session.user.isAdmin = token.isAdmin as boolean;
       }
       return session;
     },

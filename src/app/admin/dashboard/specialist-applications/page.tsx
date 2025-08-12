@@ -14,18 +14,14 @@ import {
 } from "@/components/ui/select";
 import { FileText, Search } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface Application {
   id: string;
-  applicant: string;
-  status: "pending" | "reviewed";
+  name: string;
+  status: "pending" | "reviewed" | "approved" | "rejected";
+  createdAt: string;
 }
-
-const applications: Application[] = [
-  { id: "app_1", applicant: "Dr. Alice Green", status: "pending" },
-  { id: "app_2", applicant: "Dr. Bob White", status: "reviewed" },
-];
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -44,12 +40,42 @@ const itemVariants = {
 export default function SpecialistApplicationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState("all");
+  const [applications, setApplications] = useState<Application[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
 
-  const filteredApplications = applications.filter(
-    (app) =>
-      app.applicant.toLowerCase().includes(searchTerm.toLowerCase()) &&
-      (statusFilter === "all" || app.status === statusFilter)
-  );
+  useEffect(() => {
+    async function fetchApplications() {
+      setLoading(true);
+      setError(null);
+      try {
+        const response = await fetch(
+          `/api/specialists/application?status=${statusFilter}&search=${searchTerm}`,
+          { credentials: "include" }
+        );
+        if (!response.ok) {
+          const errorData = await response.json();
+          if (response.status === 401) {
+            window.location.href = "/login";
+            return;
+          }
+          throw new Error(errorData.error || "Failed to fetch applications");
+        }
+        const data = await response.json();
+        setApplications(data);
+      } catch (err) {
+        console.error("Error fetching applications:", err);
+        setError(
+          err instanceof Error
+            ? err.message
+            : "An error occurred while fetching applications"
+        );
+      } finally {
+        setLoading(false);
+      }
+    }
+    fetchApplications();
+  }, [searchTerm, statusFilter]);
 
   return (
     <motion.div
@@ -92,6 +118,8 @@ export default function SpecialistApplicationsPage() {
             <SelectItem value="all">All Statuses</SelectItem>
             <SelectItem value="pending">Pending</SelectItem>
             <SelectItem value="reviewed">Reviewed</SelectItem>
+            <SelectItem value="approved">Approved</SelectItem>
+            <SelectItem value="rejected">Rejected</SelectItem>
           </SelectContent>
         </Select>
       </div>
@@ -101,50 +129,72 @@ export default function SpecialistApplicationsPage() {
           <ScrollArea className="h-[500px]">
             <div className="divide-y divide-[#C4C4C4]">
               <AnimatePresence>
-                {filteredApplications.map((app) => (
-                  <motion.div
-                    key={app.id}
-                    variants={itemVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit={{ opacity: 0, x: -20 }}
-                    className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center text-black dark:text-white">
-                        {app.applicant[0]}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-black dark:text-white">
-                          {app.applicant}
-                        </p>
-                        <p className="text-sm text-[#C4C4C4]">
-                          <span
-                            className={
-                              app.status === "pending"
-                                ? "text-yellow-500"
-                                : "text-green-500"
-                            }
-                          >
-                            {app.status}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                {error ? (
+                  <p className="p-4 text-center text-red-500">{error}</p>
+                ) : loading ? (
+                  <div className="p-4 space-y-2">
+                    {[...Array(5)].map((_, i) => (
+                      <div
+                        key={i}
+                        className="h-16 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"
+                      />
+                    ))}
+                  </div>
+                ) : applications.length === 0 ? (
+                  <p className="p-4 text-center">No applications found.</p>
+                ) : (
+                  applications.map((app) => (
+                    <motion.div
+                      key={app.id}
+                      variants={itemVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit={{ opacity: 0, x: -20 }}
+                      className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
                     >
-                      <Link
-                        href={`/admin/dashboard/specialist-applications/${app.id}`}
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center text-black dark:text-white">
+                          {app.name[0]}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-black dark:text-white">
+                            {app.name}
+                          </p>
+                          <p className="text-sm text-[#C4C4C4]">
+                            <span
+                              className={
+                                app.status === "pending"
+                                  ? "text-yellow-500"
+                                  : app.status === "reviewed"
+                                    ? "text-green-500"
+                                    : app.status === "approved"
+                                      ? "text-blue-500"
+                                      : "text-red-500"
+                              }
+                            >
+                              {app.status}
+                            </span>
+                          </p>
+                          <p className="text-sm text-[#C4C4C4]">
+                            {new Date(app.createdAt).toLocaleDateString()}
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
                       >
-                        View
-                      </Link>
-                    </Button>
-                  </motion.div>
-                ))}
+                        <Link
+                          href={`/admin/dashboard/specialist-applications/${app.id}`}
+                        >
+                          View
+                        </Link>
+                      </Button>
+                    </motion.div>
+                  ))
+                )}
               </AnimatePresence>
             </div>
           </ScrollArea>
