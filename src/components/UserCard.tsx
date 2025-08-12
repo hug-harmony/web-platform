@@ -9,43 +9,34 @@ import { Button } from "@/components/ui/button";
 interface UserCardProps {
   name: string;
   imageSrc: string;
-
   onMessage?: () => void;
 }
 
-const UserCard: React.FC<UserCardProps> = ({
-  name,
-  imageSrc,
-
-  onMessage,
-}) => {
+const UserCard: React.FC<UserCardProps> = ({ name, imageSrc, onMessage }) => {
   return (
     <Card className="bg-white border border-pink-200 shadow-md">
-      <CardContent className="px-4 py-2 flex items-center gap-2">
-        <Avatar className="h-10 w-10">
+      <CardContent className="p-2 flex flex-col items-center justify-center text-center gap-2">
+        <Avatar className="h-20 w-20">
           <AvatarImage src={imageSrc} alt={name} className="rounded-full" />
           <AvatarFallback className="rounded-full">
             {name.charAt(0)}
           </AvatarFallback>
         </Avatar>
-        <div className="flex grow w-full">
+        <div className="flex flex-col items-center justify-center grow w-full">
           <h3 className="text-lg font-semibold">{name}</h3>
-
           <div className="flex items-center text-xs text-gray-500 mt-0.5"></div>
         </div>
       </CardContent>
-      {onMessage && (
-        <CardFooter className="p-1.5 pt-0">
-          <Button
-            onClick={onMessage}
-            size="sm"
-            className="bg-[#E8C5BC] hover:bg-[#ddb0a3] text-black text-xs px-2 py-1 w-full"
-          >
-            <MessageCircle className="w-3.5 h-3.5 mr-1" />
-            Msg
-          </Button>
-        </CardFooter>
-      )}
+      {/* <CardFooter className="p-1.5 pt-0">
+        <Button
+          onClick={onMessage}
+          size="sm"
+          className="bg-[#E8C5BC] hover:bg-[#ddb0a3] text-black text-xs px-2 py-1 w-full"
+        >
+          <MessageCircle className="w-3.5 h-3.5 mr-1" />
+          Msg
+        </Button>
+      </CardFooter> */}
     </Card>
   );
 };

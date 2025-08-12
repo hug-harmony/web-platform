@@ -42,18 +42,51 @@ export async function POST(request: Request) {
       create: { userId: user.id, token, expiresAt },
     });
     const resetUrl = `${process.env.NEXT_PUBLIC_APP_URL}/reset-password/${token}`;
+    // await transporter.sendMail({
+    //   from: `"Support" <${process.env.SMTP_USER}>`,
+    //   to: email,
+    //   subject: "Password Reset Request",
+    //   text: `You requested a password reset. Click the link below to set a new password:\n\n${resetUrl}`,
+    //   html: `
+    //     <h2>Password Reset Request</h2>
+    //     <p>You requested to reset your password.</p>
+    //     <p><a href="${resetUrl}">Click here to reset your password</a></p>
+    //     <p>If you did not request this, please ignore this email.</p>
+    //   `,
+    // });
+
     await transporter.sendMail({
-      from: `"Support" <${process.env.SMTP_USER}>`,
+      from: `"Hug Harmony Support" <${process.env.SMTP_USER}>`,
       to: email,
-      subject: "Password Reset Request",
-      text: `You requested a password reset. Click the link below to set a new password:\n\n${resetUrl}`,
+      subject: "Reset Your Password",
+      text: `Hello,
+
+We received a request to reset your Hug Harmony password.
+
+If this was you, click the link below to securely set a new password:
+${resetUrl}
+
+If you did not request this change, you can safely ignore this email — your password will remain the same.
+
+Stay safe and take care,
+The Hug Harmony Team
+`,
       html: `
-        <h2>Password Reset Request</h2>
-        <p>You requested to reset your password.</p>
-        <p><a href="${resetUrl}">Click here to reset your password</a></p>
-        <p>If you did not request this, please ignore this email.</p>
-      `,
+    <div style="font-family: Arial, sans-serif; color: #333;">
+      <h2 style="color: #E7C4BB;">Password Reset Request</h2>
+      <p>We received a request to reset your <strong>Hug Harmony</strong> password.</p>
+      <p style="margin: 20px 0;">
+        <a href="${resetUrl}" 
+           style="background-color: #E7C4BB; color: #000; padding: 10px 20px; border-radius: 8px; text-decoration: none;">
+          Reset My Password
+        </a>
+      </p>
+      <p>If you didn’t request this change, you can safely ignore this email — your password will stay the same.</p>
+      <p>Stay safe and take care,<br>The Hug Harmony Team</p>
+    </div>
+  `,
     });
+
     return NextResponse.json({ message: "Reset email sent successfully" });
   } catch (error) {
     console.error("Reset email error:", error);

@@ -1,5 +1,16 @@
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import nodemailer from "nodemailer";
+
+const transporter = nodemailer.createTransport({
+  host: process.env.SMTP_HOST,
+  port: parseInt(process.env.SMTP_PORT || "587"),
+  secure: false,
+  auth: {
+    user: process.env.SMTP_USER,
+    pass: process.env.SMTP_PASS,
+  },
+});
 
 export async function POST(request: NextRequest) {
   try {
@@ -52,6 +63,39 @@ export async function POST(request: NextRequest) {
         googleId: null,
         createdAt: new Date(),
       },
+    });
+
+    await transporter.sendMail({
+      from: `"Hug Harmony Support" <${process.env.SMTP_USER}>`,
+      to: email,
+      subject: `Welcome to Hug Harmony, ${firstName}!`,
+      text: `Hello ${firstName},
+
+Welcome to Hug Harmony! We're so happy you've joined our community.
+
+You can get started by visiting your dashboard here:
+${process.env.NEXT_PUBLIC_APP_URL}/dashboard
+
+We can't wait to see the harmony you'll create!
+
+Warm hugs,
+The Hug Harmony Team
+`,
+      html: `
+    <div style="font-family: Arial, sans-serif; color: #333;">
+      <h2 style="color: #E7C4BB;">Welcome, ${firstName}! 🎉</h2>
+      <p>We're thrilled to have you join the <strong>Hug Harmony</strong> family.</p>
+      <p>Your journey starts here:</p>
+      <p style="margin: 20px 0;">
+        <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" 
+           style="background-color: #E7C4BB; color: #000; padding: 10px 20px; border-radius: 8px; text-decoration: none;">
+          Explore Your Dashboard
+        </a>
+      </p>
+      <p>We can't wait to see the harmony you'll create!</p>
+      <p>Warm hugs,<br>The Hug Harmony Team</p>
+    </div>
+  `,
     });
 
     return NextResponse.json({ message: "User registered" }, { status: 201 });

@@ -27,8 +27,8 @@ const SpecialistCard: React.FC<SpecialistCardProps> = ({
 }) => {
   return (
     <Card className="bg-white border border-pink-200 shadow-md">
-      <CardContent className="px-4 py-2 flex items-center gap-2">
-        <Avatar className="h-10 w-10">
+      <CardContent className="p-2 flex flex-col items-center text-center gap-2">
+        <Avatar className="h-20 w-20">
           <AvatarImage src={imageSrc} alt={name} className="rounded-full" />
           <AvatarFallback className="rounded-full">
             {name.charAt(0)}
@@ -42,8 +42,8 @@ const SpecialistCard: React.FC<SpecialistCardProps> = ({
               {location}
             </div>
           )}
-          <div className="text-xs text-gray-500 mt-0.5">${rate}/hr</div>
-          <div className="flex items-center text-xs text-gray-500 mt-0.5">
+          <div className="text-md text-gray-500 mt-0.5">${rate}/hr</div>
+          <div className="flex items-center justify-center text-xs text-gray-500 mt-0.5">
             <Star className="h-3 w-3 text-yellow-400 mr-1" />
             {rating.toFixed(1)} ({reviewCount} reviews)
           </div>
