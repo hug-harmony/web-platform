@@ -103,10 +103,10 @@ export default function SpecialistsPage() {
         <CardHeader>
           <CardTitle className="flex items-center text-2xl font-bold">
             <Stethoscope className="mr-2 h-6 w-6" />
-            Hug Harmony Specialists
+            Hug Harmony Professionals
           </CardTitle>
           <p className="text-sm opacity-80">
-            Manage all registered specialists.
+            Manage all registered Professionals
           </p>
         </CardHeader>
       </Card>

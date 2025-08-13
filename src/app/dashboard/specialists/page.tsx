@@ -212,7 +212,7 @@ export default function TherapistsPage() {
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black dark:text-white shadow-lg">
         <CardHeader>
           <CardTitle className="text-2xl font-bold">
-            Specialist Directory
+            Professional Directory
           </CardTitle>
           <p className="text-sm opacity-80">
             Find and connect with certified professionals
@@ -224,7 +224,7 @@ export default function TherapistsPage() {
               <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#fff]" />
               <Input
                 type="text"
-                placeholder="Search specialists..."
+                placeholder="Search Professionals..."
                 value={searchQuery}
                 onChange={handleSearchChange}
                 className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
@@ -325,7 +325,6 @@ export default function TherapistsPage() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
-            <AddSpecialist onSpecialistAdded={fetchSpecialists} />
           </div>
         </CardContent>
       </Card>
@@ -333,7 +332,7 @@ export default function TherapistsPage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-black dark:text-white">
-            Available Specialists
+            Available Professionals
           </CardTitle>
         </CardHeader>
         <CardContent>

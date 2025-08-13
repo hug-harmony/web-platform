@@ -166,6 +166,7 @@ export default function UserDetailPage() {
                   user.profileImage || "/assets/images/avatar-placeholder.png"
                 }
                 alt={user.name}
+                className="object-cover"
               />
               <AvatarFallback className="bg-[#C4C4C4] text-black">
                 {user.name[0]}

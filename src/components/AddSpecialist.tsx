@@ -13,6 +13,7 @@ import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, Upload } from "lucide-react";
+import Image from "next/image";
 
 interface SpecialistFormData {
   name: string;
@@ -278,10 +279,12 @@ export default function AddSpecialist({
                     <span>{imageFile ? "Change Image" : "Upload Image"}</span>
                   </Button>
                   {imagePreview && (
-                    <img
+                    <Image
                       src={imagePreview}
                       alt="Preview"
                       className="h-12 w-12 object-cover rounded"
+                      width={900}
+                      height={900}
                     />
                   )}
                 </div>

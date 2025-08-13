@@ -266,7 +266,11 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           <div className="absolute inset-0 bg-gradient-to-b from-[#F3CFC6]/30 to-[#C4C4C4]/30" />
           <div className="relative flex justify-center items-center h-full">
             <Avatar className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-white shadow-md z-10">
-              <AvatarImage src={validImageSrc} alt={profile.name} />
+              <AvatarImage
+                src={validImageSrc}
+                alt={profile.name}
+                className="object-cover"
+              />
               <AvatarFallback className="bg-[#C4C4C4] text-black">
                 {profile.name.charAt(0)}
               </AvatarFallback>

@@ -39,7 +39,7 @@ export default function AdminDashboardPage() {
     },
     {
       href: "/admin/dashboard/specialists",
-      label: "Specialists",
+      label: "Professionals",
       icon: <UserCheck className="h-8 w-8 text-[#F3CFC6]" />,
       description: "View and edit specialist details.",
     },

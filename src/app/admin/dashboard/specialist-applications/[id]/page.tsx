@@ -130,7 +130,7 @@ export default function ApplicationDetailPage() {
           href="/admin/dashboard/specialist-applications"
           className="hover:text-[#F3CFC6]"
         >
-          Specialist Applications
+          Professional Applications
         </Link>
         <span>/</span>
         <span>{application.name}</span>
@@ -153,7 +153,7 @@ export default function ApplicationDetailPage() {
                 <FileText className="mr-2 h-6 w-6" />
                 {application.name}
               </CardTitle>
-              <p className="text-sm opacity-80">Specialist Application</p>
+              <p className="text-sm opacity-80">Professional Application</p>
             </div>
           </div>
         </CardHeader>

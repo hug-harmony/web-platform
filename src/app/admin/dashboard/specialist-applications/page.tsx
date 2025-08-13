@@ -88,10 +88,10 @@ export default function SpecialistApplicationsPage() {
         <CardHeader>
           <CardTitle className="flex items-center text-2xl font-bold">
             <FileText className="mr-2 h-6 w-6" />
-            Hug Harmony Specialist Applications
+            Hug Harmony Professional Applications
           </CardTitle>
           <p className="text-sm opacity-80">
-            Review and manage specialist applications.
+            Review and manage Professional applications.
           </p>
         </CardHeader>
       </Card>
