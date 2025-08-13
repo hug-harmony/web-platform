@@ -30,6 +30,7 @@ model User {
   replies          Reply[]        @relation("UserReplies")
   specialistApplication SpecialistApplication?
   isAdmin      Boolean  @default(false)
+  status       String      @default("active")
 }
 
 model PasswordResetToken {

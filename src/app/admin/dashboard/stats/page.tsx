@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -39,26 +40,6 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-const statsData = [
-  { name: "Users", value: 150 },
-  { name: "Specialists", value: 50 },
-  { name: "Appointments", value: 200 },
-  { name: "Reports", value: 10 },
-];
-
-const chartData = {
-  labels: statsData.map((stat) => stat.name),
-  datasets: [
-    {
-      label: "Hug Harmony Stats",
-      data: statsData.map((stat) => stat.value),
-      backgroundColor: "#F3CFC6",
-      borderColor: "#C4C4C4",
-      borderWidth: 1,
-    },
-  ],
-};
-
 const chartOptions = {
   responsive: true,
   maintainAspectRatio: false,
@@ -91,6 +72,96 @@ const chartOptions = {
 };
 
 export default function StatsPage() {
+  const [statsData, setStatsData] = useState([
+    { name: "Users", value: 0 },
+    { name: "Specialists", value: 0 },
+    { name: "Appointments", value: 0 },
+    { name: "Reports", value: 0 },
+  ]);
+  const [dateRange, setDateRange] = useState("");
+  const [loading, setLoading] = useState(true);
+
+  const fetchStats = async (startDate?: string, endDate?: string) => {
+    setLoading(true);
+    try {
+      // Fetch users
+      const usersRes = await fetch("/api/users");
+      if (!usersRes.ok) throw new Error("Failed to fetch users");
+      const users = await usersRes.json();
+      const userCount = Array.isArray(users) ? users.length : 0;
+
+      // Fetch specialists (approved applications)
+      const specialistsRes = await fetch(
+        "/api/specialists/application?status=approved"
+      );
+      if (!specialistsRes.ok) throw new Error("Failed to fetch specialists");
+      const applications = await specialistsRes.json();
+      const specialistCount = Array.isArray(applications)
+        ? applications.length
+        : 0;
+
+      // Fetch appointments with optional date range
+      const appointmentsUrl = new URL(
+        "/api/appointment",
+        window.location.origin
+      );
+      if (startDate && endDate) {
+        appointmentsUrl.searchParams.append("startDate", startDate);
+        appointmentsUrl.searchParams.append("endDate", endDate);
+      }
+      const appointmentsRes = await fetch(appointmentsUrl);
+      if (!appointmentsRes.ok) throw new Error("Failed to fetch appointments");
+      const appointments = await appointmentsRes.json();
+      const appointmentCount = Array.isArray(appointments)
+        ? appointments.length
+        : 0;
+
+      // Reports count (placeholder)
+      const reportsCount = 0;
+
+      setStatsData([
+        { name: "Users", value: userCount },
+        { name: "Specialists", value: specialistCount },
+        { name: "Appointments", value: appointmentCount },
+        { name: "Reports", value: reportsCount },
+      ]);
+    } catch (error) {
+      console.error("Fetch Stats Error:", error);
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  useEffect(() => {
+    fetchStats();
+  }, []);
+
+  const handleFilter = () => {
+    if (dateRange) {
+      const [start, end] = dateRange.split(" to ");
+      if (start && end) {
+        fetchStats(start, end);
+      } else {
+        fetchStats();
+      }
+    } else {
+      fetchStats();
+    }
+  };
+
+  const chartData = {
+    labels: statsData.map((stat) => stat.name),
+    datasets: [
+      {
+        label: "Hug Harmony Stats",
+        data: statsData.map((stat) => stat.value),
+        backgroundColor: "#F3CFC6",
+        borderColor: "#C4C4C4",
+        borderWidth: 1,
+      },
+    ],
+  };
+
   return (
     <motion.div
       className="space-y-6 max-w-7xl mx-auto"
@@ -98,7 +169,6 @@ export default function StatsPage() {
       initial="hidden"
       animate="visible"
     >
-      {/* Header Card */}
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black dark:text-white shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center text-2xl font-bold">
@@ -109,26 +179,27 @@ export default function StatsPage() {
         </CardHeader>
       </Card>
 
-      {/* Controls */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1">
           <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C4C4C4]" />
           <Input
-            placeholder="Select date range..."
+            placeholder="Select date range (e.g., 2025-01-01 to 2025-12-31)"
             className="pl-10 border-[#C4C4C4] focus:ring-[#F3CFC6] dark:bg-black dark:text-white dark:border-[#C4C4C4]"
             aria-label="Select date range"
-            disabled
+            value={dateRange}
+            onChange={(e) => setDateRange(e.target.value)}
           />
         </div>
         <Button
           variant="outline"
           className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+          onClick={handleFilter}
+          disabled={loading}
         >
-          Filter
+          {loading ? "Loading..." : "Filter"}
         </Button>
       </div>
 
-      {/* Stats Overview */}
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4">
         {statsData.map((stat) => (
           <motion.div key={stat.name} variants={itemVariants}>
@@ -138,7 +209,7 @@ export default function StatsPage() {
                   {stat.name}
                 </h3>
                 <p className="text-2xl font-bold text-[#F3CFC6]">
-                  {stat.value}
+                  {loading ? "..." : stat.value}
                 </p>
               </CardContent>
             </Card>
@@ -146,13 +217,16 @@ export default function StatsPage() {
         ))}
       </div>
 
-      {/* Chart */}
       <Card>
         <CardHeader>
           <CardTitle className="text-black dark:text-white">Overview</CardTitle>
         </CardHeader>
         <CardContent className="h-[360px]">
-          <Bar data={chartData} options={chartOptions} />
+          {loading ? (
+            <p>Loading chart...</p>
+          ) : (
+            <Bar data={chartData} options={chartOptions} />
+          )}
         </CardContent>
       </Card>
     </motion.div>

@@ -5,31 +5,23 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { Users, Search } from "lucide-react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 
 interface User {
-  id: string;
+  _id: string;
   name: string;
   email: string;
   status: "active" | "suspended";
 }
-
-const users: User[] = [
-  {
-    id: "user_1",
-    name: "John Doe",
-    email: "john@example.com",
-    status: "active",
-  },
-  {
-    id: "user_2",
-    name: "Jane Smith",
-    email: "jane@example.com",
-    status: "suspended",
-  },
-];
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -46,12 +38,35 @@ const itemVariants = {
 };
 
 export default function UsersPage() {
+  const [users, setUsers] = useState<User[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("all"); // Explicitly type as string
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUsers = async () => {
+      try {
+        setLoading(true);
+        const response = await fetch("/api/users");
+        if (!response.ok) {
+          throw new Error("Failed to fetch users");
+        }
+        const data = await response.json();
+        setUsers(data);
+      } catch (error) {
+        console.error("Error fetching users:", error);
+      } finally {
+        setLoading(false);
+      }
+    };
+    fetchUsers();
+  }, []);
 
   const filteredUsers = users.filter(
     (user) =>
-      user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
-      user.email.toLowerCase().includes(searchTerm.toLowerCase())
+      (user.name.toLowerCase().includes(searchTerm.toLowerCase()) ||
+        user.email.toLowerCase().includes(searchTerm.toLowerCase())) &&
+      (statusFilter === "all" || user.status === statusFilter)
   );
 
   return (
@@ -61,7 +76,6 @@ export default function UsersPage() {
       initial="hidden"
       animate="visible"
     >
-      {/* Header Card */}
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black dark:text-white shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center text-2xl font-bold">
@@ -72,7 +86,6 @@ export default function UsersPage() {
         </CardHeader>
       </Card>
 
-      {/* Search + Filter */}
       <div className="flex items-center gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C4C4C4]" />
@@ -84,65 +97,72 @@ export default function UsersPage() {
             aria-label="Search users"
           />
         </div>
-        <Button
-          variant="outline"
-          className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-        >
-          Filter by Status
-        </Button>
+        <Select value={statusFilter} onValueChange={setStatusFilter}>
+          <SelectTrigger className="w-[180px] border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20">
+            <SelectValue placeholder="Filter by Status" />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="all">All Statuses</SelectItem>
+            <SelectItem value="active">Active</SelectItem>
+            <SelectItem value="suspended">Suspended</SelectItem>
+          </SelectContent>
+        </Select>
       </div>
 
-      {/* User List */}
       <Card>
         <CardContent className="p-0">
           <ScrollArea className="h-[500px]">
-            <div className="divide-y divide-[#C4C4C4]">
-              <AnimatePresence>
-                {filteredUsers.map((user) => (
-                  <motion.div
-                    key={user.id}
-                    variants={itemVariants}
-                    initial="hidden"
-                    animate="visible"
-                    exit={{ opacity: 0, x: -20 }}
-                    className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
-                  >
-                    <div className="flex items-center gap-4">
-                      <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center text-black dark:text-white">
-                        {user.name[0]}
-                      </div>
-                      <div>
-                        <p className="font-semibold text-black dark:text-white">
-                          {user.name}
-                        </p>
-                        <p className="text-sm text-[#C4C4C4]">
-                          {user.email} •{" "}
-                          <span
-                            className={
-                              user.status === "active"
-                                ? "text-green-500"
-                                : "text-red-500"
-                            }
-                          >
-                            {user.status}
-                          </span>
-                        </p>
-                      </div>
-                    </div>
-                    <Button
-                      asChild
-                      variant="outline"
-                      size="sm"
-                      className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+            {loading ? (
+              <div className="p-4 text-center">Loading...</div>
+            ) : (
+              <div className="divide-y divide-[#C4C4C4]">
+                <AnimatePresence>
+                  {filteredUsers.map((user) => (
+                    <motion.div
+                      key={user._id}
+                      variants={itemVariants}
+                      initial="hidden"
+                      animate="visible"
+                      exit={{ opacity: 0, x: -20 }}
+                      className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
                     >
-                      <Link href={`/admin/dashboard/users/${user.id}`}>
-                        View
-                      </Link>
-                    </Button>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </div>
+                      <div className="flex items-center gap-4">
+                        <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center text-black dark:text-white">
+                          {user.name[0]}
+                        </div>
+                        <div>
+                          <p className="font-semibold text-black dark:text-white">
+                            {user.name}
+                          </p>
+                          <p className="text-sm text-[#C4C4C4]">
+                            {user.email} •{" "}
+                            <span
+                              className={
+                                user.status === "active"
+                                  ? "text-green-500"
+                                  : "text-red-500"
+                              }
+                            >
+                              {user.status}
+                            </span>
+                          </p>
+                        </div>
+                      </div>
+                      <Button
+                        asChild
+                        variant="outline"
+                        size="sm"
+                        className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                      >
+                        <Link href={`/admin/dashboard/users/${user._id}`}>
+                          View
+                        </Link>
+                      </Button>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </div>
+            )}
           </ScrollArea>
         </CardContent>
       </Card>

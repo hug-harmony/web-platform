@@ -201,7 +201,7 @@ export default function ApplicationDetailPage() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:bg-black/80 dark:hover:bg-gray-700"
               onClick={() => updateStatus("approved")}
               disabled={application.status === "approved"}
               aria-label="Approve application"
@@ -210,7 +210,7 @@ export default function ApplicationDetailPage() {
             </Button>
             <Button
               variant="outline"
-              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:bg-black/80 dark:hover:bg-gray-700"
               onClick={() => updateStatus("rejected")}
               disabled={application.status === "rejected"}
               aria-label="Reject application"
@@ -219,7 +219,7 @@ export default function ApplicationDetailPage() {
             </Button>
             <Button
               variant="outline"
-              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:bg-black/80 dark:hover:bg-gray-700"
               onClick={() => updateStatus("reviewed")}
               disabled={application.status === "reviewed"}
               aria-label="Mark as reviewed"
@@ -233,7 +233,7 @@ export default function ApplicationDetailPage() {
       <Button
         asChild
         variant="link"
-        className="text-[#F3CFC6] hover:text-[#F3CFC6]/80"
+        className="text-[#F3CFC6] hover:text-[#F3CFC6]/80 dark:bg-black/80 dark:hover:bg-gray-700"
       >
         <Link href="/admin/dashboard/specialist-applications">
           <ArrowLeft className="mr-2 h-4 w-4" />

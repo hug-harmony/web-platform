@@ -168,6 +168,10 @@ export async function PATCH(req: Request) {
         },
       });
       specialistId = specialist.id;
+    } else if (status === "rejected" && application.specialistId) {
+      await prisma.specialist.delete({
+        where: { id: application.specialistId },
+      });
     }
 
     const updatedApplication = await prisma.specialistApplication.update({
@@ -175,6 +179,7 @@ export async function PATCH(req: Request) {
       data: {
         status,
         ...(specialistId && { specialistId }),
+        ...(status === "rejected" && { specialistId: null }),
       },
     });
 

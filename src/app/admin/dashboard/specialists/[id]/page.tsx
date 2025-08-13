@@ -17,40 +17,52 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { useState } from "react";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 interface Specialist {
   id: string;
   name: string;
   specialty: string;
-  status: "active" | "pending";
+  location: string;
+  biography: string;
+  education: string;
+  license: string;
+  status: "pending" | "reviewed" | "approved" | "rejected";
 }
 
 interface Appointment {
   id: string;
-  user: string;
+  user: { name: string };
   date: string;
+  time: string;
+  status: "upcoming" | "completed" | "cancelled";
 }
 
 interface VideoSession {
   id: string;
   user: string;
   date: string;
+  time: string;
+  status: "upcoming" | "completed" | "cancelled";
 }
 
-const specialist: Specialist = {
-  id: "spec_1",
-  name: "Dr. Sarah Johnson",
-  specialty: "Therapist",
-  status: "active",
-};
-
-const appointments: Appointment[] = [
-  { id: "appt_1", user: "John Doe", date: "2025-08-15" },
-];
-
-const videoSessions: VideoSession[] = [
-  { id: "vid_1", user: "John Doe", date: "2025-08-10" },
+// Dummy video sessions data
+const dummyVideoSessions: VideoSession[] = [
+  {
+    id: "vid_1",
+    user: "John Doe",
+    date: "2025-08-10",
+    time: "14:00",
+    status: "completed",
+  },
+  {
+    id: "vid_2",
+    user: "Jane Smith",
+    date: "2025-08-12",
+    time: "10:30",
+    status: "upcoming",
+  },
 ];
 
 const containerVariants = {
@@ -69,7 +81,74 @@ const itemVariants = {
 
 export default function SpecialistDetailPage() {
   const { id } = useParams();
-  const [status, setStatus] = useState(specialist.status);
+  const [specialist, setSpecialist] = useState<Specialist | null>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [videoSessions, setVideoSessions] = useState<VideoSession[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  // Fetch specialist and appointments data
+  useEffect(() => {
+    async function fetchData() {
+      try {
+        // Fetch specialist
+        const specialistResponse = await fetch(
+          `/api/specialists/application?id=${id}`
+        );
+        if (!specialistResponse.ok)
+          throw new Error("Failed to fetch specialist");
+        const specialistData = await specialistResponse.json();
+        setSpecialist({
+          id: specialistData.id,
+          name: specialistData.name,
+          specialty: specialistData.role,
+          status: specialistData.status,
+          location: specialistData.location,
+          biography: specialistData.biography,
+          education: specialistData.education, // Fixed typo
+          license: specialistData.license,
+        });
+
+        // Fetch appointments for the specific specialist
+        const apptResponse = await fetch(`/api/appointment?specialistId=${id}`);
+        if (!apptResponse.ok) throw new Error("Failed to fetch appointments");
+        const apptData = await apptResponse.json();
+        setAppointments(apptData);
+
+        // Use dummy video sessions
+        setVideoSessions(dummyVideoSessions);
+      } catch (error) {
+        toast.error("Failed to load specialist data");
+      } finally {
+        setLoading(false);
+      }
+    }
+    if (id) fetchData();
+  }, [id]);
+
+  // Handle status update
+  const handleStatusChange = async (
+    newStatus: "pending" | "reviewed" | "approved" | "rejected"
+  ) => {
+    try {
+      const response = await fetch("/api/specialists/application", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ id, status: newStatus }),
+      });
+      if (!response.ok) throw new Error("Failed to update status");
+      const updatedApplication = await response.json();
+      setSpecialist((prev) =>
+        prev ? { ...prev, status: updatedApplication.status } : prev
+      );
+      toast.success("Status updated successfully");
+    } catch (error) {
+      toast.error("Failed to update status");
+    }
+  };
+
+  if (loading) return <div className="p-4 text-center">Loading...</div>;
+  if (!specialist)
+    return <div className="p-4 text-center">Specialist not found</div>;
 
   return (
     <motion.div
@@ -119,19 +198,21 @@ export default function SpecialistDetailPage() {
               Status:{" "}
               <span
                 className={
-                  status === "active" ? "text-green-500" : "text-yellow-500"
+                  specialist.status === "approved"
+                    ? "text-green-500"
+                    : specialist.status === "rejected"
+                      ? "text-red-500"
+                      : "text-yellow-500"
                 }
               >
-                {status}
+                {specialist.status}
               </span>
             </p>
           </div>
           <div className="flex gap-2">
             <Select
-              value={status}
-              onValueChange={(value) =>
-                setStatus(value as "active" | "pending")
-              }
+              value={specialist.status}
+              onValueChange={handleStatusChange}
             >
               <SelectTrigger
                 className="w-[140px] border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
@@ -140,8 +221,10 @@ export default function SpecialistDetailPage() {
                 <SelectValue />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="active">Activate</SelectItem>
-                <SelectItem value="pending">Set to Pending</SelectItem>
+                <SelectItem value="pending">Pending</SelectItem>
+                <SelectItem value="reviewed">Reviewed</SelectItem>
+                <SelectItem value="approved">Approved</SelectItem>
+                <SelectItem value="rejected">Rejected</SelectItem>
               </SelectContent>
             </Select>
           </div>
@@ -174,15 +257,23 @@ export default function SpecialistDetailPage() {
             </TabsList>
             <TabsContent value="details">
               <div className="p-4 space-y-2 text-black dark:text-white">
+                <p>Name: {specialist.name}</p>
                 <p>Specialty: {specialist.specialty}</p>
+                <p>Location: {specialist.location}</p>
+                <p>Education: {specialist.education}</p>
+                <p>License: {specialist.license}</p>
                 <p>
                   Status:{" "}
                   <span
                     className={
-                      status === "active" ? "text-green-500" : "text-yellow-500"
+                      specialist.status === "approved"
+                        ? "text-green-500"
+                        : specialist.status === "rejected"
+                          ? "text-red-500"
+                          : "text-yellow-500"
                     }
                   >
-                    {status}
+                    {specialist.status}
                   </span>
                 </p>
               </div>
@@ -190,36 +281,50 @@ export default function SpecialistDetailPage() {
             <TabsContent value="appointments">
               <ScrollArea className="h-[200px]">
                 <AnimatePresence>
-                  {appointments.map((appt) => (
-                    <motion.div
-                      key={appt.id}
-                      variants={itemVariants}
-                      className="p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
-                    >
-                      <p className="flex items-center text-black dark:text-white">
-                        <Calendar className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                        {appt.user} - {appt.date}
-                      </p>
-                    </motion.div>
-                  ))}
+                  {appointments.length > 0 ? (
+                    appointments.map((appt) => (
+                      <motion.div
+                        key={appt.id}
+                        variants={itemVariants}
+                        className="p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
+                      >
+                        <p className="flex items-center text-black dark:text-white">
+                          <Calendar className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                          {appt.user.name} - {appt.date} {appt.time} (
+                          {appt.status})
+                        </p>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-[#C4C4C4]">
+                      No appointments found
+                    </div>
+                  )}
                 </AnimatePresence>
               </ScrollArea>
             </TabsContent>
             <TabsContent value="videos">
               <ScrollArea className="h-[200px]">
                 <AnimatePresence>
-                  {videoSessions.map((vid) => (
-                    <motion.div
-                      key={vid.id}
-                      variants={itemVariants}
-                      className="p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
-                    >
-                      <p className="flex items-center text-black dark:text-white">
-                        <Video className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                        {vid.user} - {vid.date}
-                      </p>
-                    </motion.div>
-                  ))}
+                  {videoSessions.length > 0 ? (
+                    videoSessions.map((session) => (
+                      <motion.div
+                        key={session.id}
+                        variants={itemVariants}
+                        className="p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
+                      >
+                        <p className="flex items-center text-black dark:text-white">
+                          <Video className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                          {session.user} - {session.date} {session.time} (
+                          {session.status})
+                        </p>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-[#C4C4C4]">
+                      No video sessions found
+                    </div>
+                  )}
                 </AnimatePresence>
               </ScrollArea>
             </TabsContent>

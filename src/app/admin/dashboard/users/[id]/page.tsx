@@ -9,40 +9,36 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { User, Calendar, Video, ArrowLeft } from "lucide-react";
 import Link from "next/link";
+import { useState, useEffect } from "react";
+import { toast } from "sonner";
 
 interface User {
   id: string;
   name: string;
   email: string;
   status: "active" | "suspended";
+  profileImage?: string;
+  phoneNumber?: string;
+  firstName?: string;
+  lastName?: string;
 }
 
 interface Appointment {
-  id: string;
-  specialist: string;
+  _id: string;
+  specialistName: string;
   date: string;
+  time: string;
+  location: string;
+  status: "upcoming" | "completed" | "cancelled";
 }
 
 interface VideoSession {
-  id: string;
-  specialist: string;
+  _id: string;
+  specialistName: string;
   date: string;
+  time: string;
+  status: "upcoming" | "completed" | "cancelled";
 }
-
-const user: User = {
-  id: "user_1",
-  name: "John Doe",
-  email: "john@example.com",
-  status: "active",
-};
-
-const appointments: Appointment[] = [
-  { id: "appt_1", specialist: "Dr. Sarah", date: "2025-08-15" },
-];
-
-const videoSessions: VideoSession[] = [
-  { id: "vid_1", specialist: "Dr. Sarah", date: "2025-08-10" },
-];
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -58,8 +54,91 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
+// Dummy video sessions data
+const dummyVideoSessions: VideoSession[] = [
+  {
+    _id: "vid_1",
+    specialistName: "Dr. Sarah",
+    date: "2025-08-10",
+    time: "14:00",
+    status: "completed",
+  },
+  {
+    _id: "vid_2",
+    specialistName: "Dr. John",
+    date: "2025-08-12",
+    time: "10:30",
+    status: "upcoming",
+  },
+];
+
 export default function UserDetailPage() {
   const { id } = useParams();
+  const [user, setUser] = useState<User | null>(null);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
+  const [videoSessions, setVideoSessions] = useState<VideoSession[]>([]);
+  const [loading, setLoading] = useState(true);
+
+  useEffect(() => {
+    const fetchUserData = async () => {
+      try {
+        setLoading(true);
+        // Fetch user
+        const userResponse = await fetch(`/api/users/${id}`);
+        if (!userResponse.ok) {
+          throw new Error("Failed to fetch user");
+        }
+        const userData = await userResponse.json();
+        setUser(userData);
+
+        // Fetch appointments for the specific user
+        const apptResponse = await fetch(`/api/appointment?userId=${id}`);
+        if (!apptResponse.ok) {
+          throw new Error("Failed to fetch appointments");
+        }
+        const apptData = await apptResponse.json();
+        setAppointments(apptData);
+
+        // Use dummy video sessions
+        setVideoSessions(dummyVideoSessions);
+      } catch (error) {
+        console.error("Error fetching data:", error);
+        toast.error("Failed to load user data");
+      } finally {
+        setLoading(false);
+      }
+    };
+    if (id) {
+      fetchUserData();
+    }
+  }, [id]);
+
+  const handleStatusChange = async (newStatus: "active" | "suspended") => {
+    try {
+      const response = await fetch(`/api/users/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: newStatus }),
+      });
+      if (!response.ok) {
+        throw new Error("Failed to update status");
+      }
+      const updatedUser = await response.json();
+      setUser(updatedUser);
+      toast.success(`User status updated to ${newStatus}`);
+    } catch (error) {
+      console.error("Error updating status:", error);
+      toast.error("Failed to update user status");
+    }
+  };
+
+  if (loading) {
+    return <div className="p-4 text-center">Loading...</div>;
+  }
+
+  if (!user) {
+    return <div className="p-4 text-center">User not found</div>;
+  }
 
   return (
     <motion.div
@@ -83,7 +162,9 @@ export default function UserDetailPage() {
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 border-2 border-white">
               <AvatarImage
-                src="/assets/images/avatar-placeholder.png"
+                src={
+                  user.profileImage || "/assets/images/avatar-placeholder.png"
+                }
                 alt={user.name}
               />
               <AvatarFallback className="bg-[#C4C4C4] text-black">
@@ -116,15 +197,17 @@ export default function UserDetailPage() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:bg-black/80 dark:hover:bg-gray-700"
               disabled={user.status === "active"}
+              onClick={() => handleStatusChange("active")}
             >
               Activate
             </Button>
             <Button
               variant="outline"
-              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:bg-black/80 dark:hover:bg-gray-700"
               disabled={user.status === "suspended"}
+              onClick={() => handleStatusChange("suspended")}
             >
               Suspend
             </Button>
@@ -158,7 +241,10 @@ export default function UserDetailPage() {
             </TabsList>
             <TabsContent value="details">
               <div className="p-4 space-y-2 text-black dark:text-white">
+                <p>First Name: {user.firstName}</p>
+                <p>Last Name: {user.lastName}</p>
                 <p>Email: {user.email}</p>
+                <p>Phone: {user.phoneNumber}</p>
                 <p>
                   Status:{" "}
                   <span
@@ -176,36 +262,50 @@ export default function UserDetailPage() {
             <TabsContent value="appointments">
               <ScrollArea className="h-[200px]">
                 <AnimatePresence>
-                  {appointments.map((appt) => (
-                    <motion.div
-                      key={appt.id}
-                      variants={itemVariants}
-                      className="p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
-                    >
-                      <p className="flex items-center text-black dark:text-white">
-                        <Calendar className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                        {appt.specialist} - {appt.date}
-                      </p>
-                    </motion.div>
-                  ))}
+                  {appointments.length > 0 ? (
+                    appointments.map((appt) => (
+                      <motion.div
+                        key={appt._id}
+                        variants={itemVariants}
+                        className="p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
+                      >
+                        <p className="flex items-center text-black dark:text-white">
+                          <Calendar className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                          {appt.specialistName} - {appt.date} {appt.time} (
+                          {appt.status})
+                        </p>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-[#C4C4C4]">
+                      No appointments found
+                    </div>
+                  )}
                 </AnimatePresence>
               </ScrollArea>
             </TabsContent>
             <TabsContent value="videos">
               <ScrollArea className="h-[200px]">
                 <AnimatePresence>
-                  {videoSessions.map((vid) => (
-                    <motion.div
-                      key={vid.id}
-                      variants={itemVariants}
-                      className="p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
-                    >
-                      <p className="flex items-center text-black dark:text-white">
-                        <Video className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                        {vid.specialist} - {vid.date}
-                      </p>
-                    </motion.div>
-                  ))}
+                  {videoSessions.length > 0 ? (
+                    videoSessions.map((session) => (
+                      <motion.div
+                        key={session._id}
+                        variants={itemVariants}
+                        className="p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
+                      >
+                        <p className="flex items-center text-black dark:text-white">
+                          <Video className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                          {session.specialistName} - {session.date}{" "}
+                          {session.time} ({session.status})
+                        </p>
+                      </motion.div>
+                    ))
+                  ) : (
+                    <div className="p-4 text-center text-[#C4C4C4]">
+                      No video sessions found
+                    </div>
+                  )}
                 </AnimatePresence>
               </ScrollArea>
             </TabsContent>

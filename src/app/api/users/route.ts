@@ -31,7 +31,7 @@ export async function GET(req: Request) {
           phoneNumber: true,
           profileImage: true,
           location: true,
-
+          status: true,
           createdAt: true,
         },
       });
@@ -52,7 +52,7 @@ export async function GET(req: Request) {
         phoneNumber: user.phoneNumber || "",
         image: user.profileImage || "",
         location: user.location || "",
-
+        status: user.status,
         createdAt: user.createdAt,
       });
     }
@@ -67,7 +67,7 @@ export async function GET(req: Request) {
         phoneNumber: true,
         profileImage: true,
         location: true,
-
+        status: true,
         createdAt: true,
       },
     });
@@ -90,7 +90,7 @@ export async function GET(req: Request) {
         phoneNumber: user.phoneNumber || "",
         image: user.profileImage || "",
         location: user.location || "",
-
+        status: user.status,
         createdAt: user.createdAt,
       }))
     );
@@ -109,8 +109,15 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { firstName, lastName, name, phoneNumber, profileImage, location } =
-      await req.json();
+    const {
+      firstName,
+      lastName,
+      name,
+      phoneNumber,
+      profileImage,
+      location,
+      status,
+    } = await req.json();
 
     if (
       !firstName ||
@@ -118,12 +125,13 @@ export async function PUT(req: Request) {
       !phoneNumber ||
       typeof firstName !== "string" ||
       typeof lastName !== "string" ||
-      typeof phoneNumber !== "string"
+      typeof phoneNumber !== "string" ||
+      (status && !["active", "suspended"].includes(status))
     ) {
       return NextResponse.json(
         {
           error:
-            "Required fields (firstName, lastName, phoneNumber) are missing or invalid",
+            "Required fields (firstName, lastName, phoneNumber) are missing or invalid, or status is invalid",
         },
         { status: 400 }
       );
@@ -138,6 +146,7 @@ export async function PUT(req: Request) {
         phoneNumber,
         profileImage,
         location,
+        status,
       },
       select: {
         id: true,
@@ -148,7 +157,7 @@ export async function PUT(req: Request) {
         phoneNumber: true,
         profileImage: true,
         location: true,
-
+        status: true,
         createdAt: true,
       },
     });

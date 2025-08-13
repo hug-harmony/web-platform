@@ -12,6 +12,7 @@ const editableFields = [
   "phoneNumber",
   "profileImage",
   "location",
+  "status",
 ];
 
 export async function GET(req: Request) {
@@ -34,6 +35,7 @@ export async function GET(req: Request) {
         phoneNumber: true,
         profileImage: true,
         location: true,
+        status: true,
         createdAt: true,
       },
     });
@@ -42,7 +44,22 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json(user);
+    return NextResponse.json({
+      id: user.id,
+      name:
+        user.name ||
+        (user.firstName && user.lastName
+          ? `${user.firstName} ${user.lastName}`
+          : "Unknown User"),
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      email: user.email,
+      phoneNumber: user.phoneNumber || "",
+      profileImage: user.profileImage || "",
+      location: user.location || "",
+      status: user.status,
+      createdAt: user.createdAt,
+    });
   } catch (error) {
     console.error("GET /users/[id] error:", error);
     return NextResponse.json(
@@ -66,14 +83,25 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
     }
 
-    const currentUserId = session.user.id;
+    // Check if user is admin
+    const currentUser = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isAdmin: true },
+    });
 
-    // Prevent non-admins from editing others' accounts
-    if (currentUserId !== id) {
+    if (!currentUser?.isAdmin && session.user.id !== id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const body = await req.json();
+
+    // Validate status if provided
+    if (body.status && !["active", "suspended"].includes(body.status)) {
+      return NextResponse.json(
+        { error: "Invalid status value" },
+        { status: 400 }
+      );
+    }
 
     // Only update allowed fields
     const data: Record<string, any> = {};
@@ -91,13 +119,29 @@ export async function PATCH(req: Request) {
         name: true,
         firstName: true,
         lastName: true,
+        email: true,
         phoneNumber: true,
         profileImage: true,
         location: true,
+        status: true,
       },
     });
 
-    return NextResponse.json(updatedUser);
+    return NextResponse.json({
+      id: updatedUser.id,
+      name:
+        updatedUser.name ||
+        (updatedUser.firstName && updatedUser.lastName
+          ? `${updatedUser.firstName} ${updatedUser.lastName}`
+          : "Unknown User"),
+      firstName: updatedUser.firstName || "",
+      lastName: updatedUser.lastName || "",
+      email: updatedUser.email,
+      phoneNumber: updatedUser.phoneNumber || "",
+      profileImage: updatedUser.profileImage || "",
+      location: updatedUser.location || "",
+      status: updatedUser.status,
+    });
   } catch (error) {
     console.error("PATCH /users/[id] error:", error);
     return NextResponse.json(
