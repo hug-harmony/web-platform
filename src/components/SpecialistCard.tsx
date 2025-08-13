@@ -14,6 +14,7 @@ interface SpecialistCardProps {
   reviewCount: number;
   rate: number;
   onMessage?: () => void;
+  className?: string;
 }
 
 const SpecialistCard: React.FC<SpecialistCardProps> = ({
@@ -24,40 +25,43 @@ const SpecialistCard: React.FC<SpecialistCardProps> = ({
   reviewCount,
   rate,
   onMessage,
+  className,
 }) => {
   return (
-    <Card className="bg-white border border-pink-200 shadow-md">
-      <CardContent className="p-2 flex flex-col items-center text-center gap-2">
-        <Avatar className="h-20 w-20">
+    <Card className={`shadow-lg border-[#F3CFC6] ${className}`}>
+      <CardContent className="p-4 flex flex-col items-center text-center gap-2">
+        <Avatar className="h-20 w-20 border-2 border-white">
           <AvatarImage src={imageSrc} alt={name} className="rounded-full" />
-          <AvatarFallback className="rounded-full">
+          <AvatarFallback className="rounded-full bg-[#C4C4C4] text-black">
             {name.charAt(0)}
           </AvatarFallback>
         </Avatar>
         <div className="flex-1">
-          <h3 className="text-lg font-semibold">{name}</h3>
+          <h3 className="text-lg font-semibold text-black dark:text-white">
+            {name}
+          </h3>
           {location && (
-            <div className="flex items-center text-xs text-gray-500 mt-0.5">
-              <MapPin className="h-3 w-3 mr-1" />
+            <div className="flex items-center text-xs text-[#C4C4C4] mt-0.5">
+              <MapPin className="h-4 w-4 text-[#F3CFC6] mr-1" />
               {location}
             </div>
           )}
-          <div className="text-md text-gray-500 mt-0.5">${rate}/hr</div>
-          <div className="flex items-center justify-center text-xs text-gray-500 mt-0.5">
-            <Star className="h-3 w-3 text-yellow-400 mr-1" />
+          <div className="text-sm text-[#C4C4C4] mt-0.5">${rate}/hr</div>
+          <div className="flex items-center justify-center text-xs text-[#C4C4C4] mt-0.5">
+            <Star className="h-4 w-4 text-[#F3CFC6] mr-1" />
             {rating.toFixed(1)} ({reviewCount} reviews)
           </div>
         </div>
       </CardContent>
       {onMessage && (
-        <CardFooter className="p-1.5 pt-0">
+        <CardFooter className="p-2 pt-0">
           <Button
             onClick={onMessage}
             size="sm"
-            className="bg-[#E8C5BC] hover:bg-[#ddb0a3] text-black text-xs px-2 py-1 w-full"
+            className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white text-xs px-3 py-1 w-full rounded-full"
           >
-            <MessageCircle className="w-3.5 h-3.5 mr-1" />
-            Msg
+            <MessageCircle className="w-4 h-4 mr-1 text-black dark:text-white" />
+            Message
           </Button>
         </CardFooter>
       )}

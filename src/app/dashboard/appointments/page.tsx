@@ -1,12 +1,17 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Input } from "@/components/ui/input";
-import { Calendar } from "lucide-react";
+import { Calendar, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import Link from "next/link";
+import { Button } from "@/components/ui/button";
+import { Skeleton } from "@/components/ui/skeleton";
 import AppointmentCard from "@/components/AppointmentCard";
 
 interface Appointment {
@@ -23,13 +28,24 @@ interface Appointment {
   rate?: number | null;
 }
 
+// Animation variants
 const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, staggerChildren: 0.2 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
 };
 
 export default function AppointmentsPage() {
   const router = useRouter();
+  const { data: session, status } = useSession();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -37,6 +53,11 @@ export default function AppointmentsPage() {
 
   useEffect(() => {
     const fetchAppointments = async () => {
+      if (status === "unauthenticated") {
+        router.push("/login");
+        return;
+      }
+
       try {
         const res = await fetch("/api/appointment", {
           cache: "no-store",
@@ -81,7 +102,7 @@ export default function AppointmentsPage() {
       }
     };
     fetchAppointments();
-  }, [router]);
+  }, [router, status]);
 
   const handleDateRangeChange = (key: "start" | "end", value: string) => {
     setDateRange((prev) => ({ ...prev, [key]: value }));
@@ -131,6 +152,53 @@ export default function AppointmentsPage() {
 
   const filteredAppointments = filterByDateRange(appointments);
 
+  if (status === "loading" || loading) {
+    return (
+      <motion.div
+        className="p-4 space-y-6 max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
+            <motion.div variants={itemVariants}>
+              <CardTitle className="text-2xl text-black dark:text-white">
+                Appointments
+              </CardTitle>
+              <p className="text-sm text-black">Manage your appointments</p>
+            </motion.div>
+          </CardHeader>
+          <CardContent className="flex space-x-4">
+            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+            <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
+            <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
+          </CardContent>
+        </Card>
+        <Card className="shadow-lg">
+          <CardHeader>
+            <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
+          </CardHeader>
+          <CardContent className="pt-6">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+              {[...Array(4)].map((_, i) => (
+                <Skeleton
+                  key={i}
+                  className="h-48 w-full bg-[#C4C4C4]/50 rounded-lg"
+                />
+              ))}
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
+
+  if (status === "unauthenticated") {
+    router.push("/login");
+    return null;
+  }
+
   return (
     <motion.div
       className="p-4 space-y-6 max-w-7xl mx-auto"
@@ -138,37 +206,68 @@ export default function AppointmentsPage() {
       initial="hidden"
       animate="visible"
     >
-      <div className="w-full max-w-6xl">
-        <div className="flex items-center mb-6 w-full space-x-2">
+      {/* Header Section */}
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+        <CardHeader>
+          <motion.div variants={itemVariants}>
+            <CardTitle className="text-2xl text-black dark:text-white">
+              Appointments
+            </CardTitle>
+            <p className="text-sm text-[#C4C4C4]">Manage your appointments</p>
+          </motion.div>
+        </CardHeader>
+        <CardContent className="flex space-x-4">
+          <motion.div
+            variants={itemVariants}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <Button
+              asChild
+              variant="outline"
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+            >
+              <Link href="/dashboard">
+                <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                Back to Dashboard
+              </Link>
+            </Button>
+          </motion.div>
           <div className="relative flex-grow">
-            <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#fff]" />
             <Input
               type="date"
               placeholder="Start Date"
               value={dateRange.start}
               onChange={(e) => handleDateRangeChange("start", e.target.value)}
-              className="p-2 pl-10 rounded border border-gray-300 w-full"
+              className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
             />
           </div>
           <div className="relative flex-grow">
-            <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+            <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#fff]" />
             <Input
               type="date"
               placeholder="End Date"
               value={dateRange.end}
               onChange={(e) => handleDateRangeChange("end", e.target.value)}
-              className="p-2 pl-10 rounded border border-gray-300 w-full"
+              className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
             />
           </div>
-        </div>
+        </CardContent>
+      </Card>
 
-        <section className="mb-6">
-          <h2 className="text-lg font-semibold text-center mb-4">
+      {/* Appointments Section */}
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-black dark:text-white">
             My Appointments
-          </h2>
-          {loading ? (
-            <p className="text-center">Loading...</p>
-          ) : error ? (
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="pt-6">
+          {error ? (
             <p className="text-center text-red-500">{error}</p>
           ) : filteredAppointments.length > 0 ? (
             <motion.div
@@ -177,7 +276,7 @@ export default function AppointmentsPage() {
             >
               <AnimatePresence>
                 {filteredAppointments.map((appointment) => (
-                  <motion.div key={appointment._id}>
+                  <motion.div key={appointment._id} variants={itemVariants}>
                     <AppointmentCard
                       specialistName={appointment.specialistName}
                       date={appointment.date}
@@ -196,10 +295,10 @@ export default function AppointmentsPage() {
               </AnimatePresence>
             </motion.div>
           ) : (
-            <p className="text-center">No appointments found.</p>
+            <p className="text-center text-[#C4C4C4]">No appointments found.</p>
           )}
-        </section>
-      </div>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 }

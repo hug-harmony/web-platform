@@ -89,7 +89,7 @@ export default function ForumPage() {
 
       try {
         // Fetch user data
-        const id = session?.user?.id; // Adjust if ID is under a different field (e.g., sub)
+        const id = session?.user?.id;
         if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
           console.error("Invalid user ID format:", id);
           notFound();
@@ -151,58 +151,60 @@ export default function ForumPage() {
 
   // Skeleton UI
   const renderSkeleton = () => (
-    <div className="p-4 space-y-6 max-w-7xl mx-auto">
-      <Card>
+    <motion.div
+      className="p-4 space-y-6 max-w-7xl mx-auto"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
           <div className="flex items-center space-x-4">
-            <Skeleton className="h-16 w-16 rounded-full" />
+            <Skeleton className="h-16 w-16 rounded-full bg-[#C4C4C4]/50" />
             <div className="space-y-2">
-              <Skeleton className="h-6 w-48" />
-              <Skeleton className="h-4 w-32" />
+              <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
+              <Skeleton className="h-4 w-64 bg-[#C4C4C4]/50" />
             </div>
           </div>
         </CardHeader>
-        <CardContent>
+        <CardContent className="flex space-x-4">
+          <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
+          <Skeleton className="h-10 w-32 bg-[#C4C4C4]/50" />
+          <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+        </CardContent>
+      </Card>
+      <Card className="shadow-lg">
+        <CardHeader>
+          <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
+        </CardHeader>
+        <CardContent className="space-y-4 pt-6">
+          <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
+          <Skeleton className="h-24 w-full bg-[#C4C4C4]/50" />
           <div className="flex space-x-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-10 w-32" />
+            <Skeleton className="h-10 w-40 bg-[#C4C4C4]/50" />
+            <Skeleton className="h-10 w-24 bg-[#C4C4C4]/50" />
           </div>
         </CardContent>
       </Card>
-      <Card>
+      <Card className="shadow-lg">
         <CardHeader>
-          <Skeleton className="h-6 w-40" />
+          <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
         </CardHeader>
-        <CardContent>
-          <div className="space-y-4">
-            <Skeleton className="h-10 w-full" />
-            <Skeleton className="h-24 w-full" />
-            <div className="flex space-x-4">
-              <Skeleton className="h-10 w-40" />
-              <Skeleton className="h-10 w-24" />
-            </div>
-          </div>
-        </CardContent>
-      </Card>
-      <Card>
-        <CardHeader>
-          <Skeleton className="h-6 w-32" />
-        </CardHeader>
-        <CardContent>
+        <CardContent className="space-y-4 pt-6">
           <ScrollArea className="h-[400px]">
             {[...Array(3)].map((_, i) => (
               <div key={i} className="p-4 border rounded-md mb-4">
                 <div className="flex items-start space-x-4">
-                  <Skeleton className="h-10 w-10 rounded-full" />
+                  <Skeleton className="h-10 w-10 rounded-full bg-[#C4C4C4]/50" />
                   <div className="flex-1 space-y-2">
                     <div className="flex items-center justify-between">
-                      <Skeleton className="h-5 w-48" />
-                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-5 w-48 bg-[#C4C4C4]/50" />
+                      <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
                     </div>
-                    <Skeleton className="h-4 w-full" />
+                    <Skeleton className="h-4 w-full bg-[#C4C4C4]/50" />
                     <div className="flex space-x-2">
-                      <Skeleton className="h-4 w-20" />
-                      <Skeleton className="h-4 w-24" />
+                      <Skeleton className="h-4 w-20 bg-[#C4C4C4]/50" />
+                      <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
                     </div>
                   </div>
                 </div>
@@ -211,7 +213,7 @@ export default function ForumPage() {
           </ScrollArea>
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
   );
 
   // Authentication and error handling
@@ -226,9 +228,51 @@ export default function ForumPage() {
 
   if (error || !user) {
     return (
-      <div className="text-center p-6 text-red-500">
-        {error || "User data not found."}
-      </div>
+      <motion.div
+        className="p-4 space-y-6 max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
+            <motion.div variants={itemVariants}>
+              <CardTitle className="text-2xl text-black dark:text-white">
+                Community Forum
+              </CardTitle>
+              <p className="text-sm text-[#C4C4C4]">
+                Connect, share, and support
+              </p>
+            </motion.div>
+          </CardHeader>
+          <CardContent className="flex space-x-4">
+            <motion.div
+              variants={itemVariants}
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+              }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button
+                asChild
+                variant="outline"
+                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+              >
+                <Link href="/dashboard">
+                  <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                  Back to Dashboard
+                </Link>
+              </Button>
+            </motion.div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-lg">
+          <CardContent className="flex items-center justify-center pt-6">
+            <p className="text-red-500">{error || "User data not found."}</p>
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   }
 
@@ -287,24 +331,26 @@ export default function ForumPage() {
       animate="visible"
     >
       {/* Header Section */}
-      <Card>
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
           <motion.div
             variants={itemVariants}
             className="flex items-center space-x-4"
           >
-            <Avatar className="h-16 w-16">
+            <Avatar className="h-16 w-16 border-2 border-white">
               {user.profileImage ? (
                 <AvatarImage src={user.profileImage} alt={user.name} />
               ) : (
-                <AvatarFallback className="bg-gray-200 text-gray-600 flex items-center justify-center">
-                  <User className="h-10 w-10" />
+                <AvatarFallback className="bg-[#C4C4C4] text-black flex items-center justify-center">
+                  <User className="h-10 w-10 text-[#F3CFC6]" />
                 </AvatarFallback>
               )}
             </Avatar>
             <div>
-              <CardTitle className="text-2xl">Community Forum</CardTitle>
-              <p className="text-muted-foreground">
+              <CardTitle className="text-2xl text-black dark:text-white">
+                Community Forum
+              </CardTitle>
+              <p className="text-sm text-[#C4C4C4]">
                 Connect, share, and support
               </p>
             </div>
@@ -314,53 +360,75 @@ export default function ForumPage() {
           <motion.div
             variants={itemVariants}
             className="flex items-center space-x-4 w-full"
+            whileHover={{
+              scale: 1.0,
+            }}
+            transition={{ duration: 0.2 }}
           >
             <div className="relative flex-grow">
-              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
+              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#fff]" />
               <Input
                 type="text"
                 placeholder="Search forum posts..."
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="p-2 pl-10 rounded border border-gray-300 w-full"
+                className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
               />
             </div>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center space-x-2"
+                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full flex items-center space-x-2"
                 >
-                  <MessageSquare className="h-5 w-5" />
+                  <MessageSquare className="h-5 w-5 text-[#F3CFC6]" />
                   <span>Category</span>
                 </Button>
               </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56">
-                <DropdownMenuLabel>Filter by Category</DropdownMenuLabel>
+              <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
+                <DropdownMenuLabel className="text-black dark:text-white">
+                  Filter by Category
+                </DropdownMenuLabel>
                 <DropdownMenuSeparator />
-                <DropdownMenuItem onClick={() => setCategoryFilter("")}>
+                <DropdownMenuItem
+                  onClick={() => setCategoryFilter("")}
+                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20"
+                >
                   All
                 </DropdownMenuItem>
                 {categories.map((category) => (
                   <DropdownMenuItem
                     key={category}
                     onClick={() => setCategoryFilter(category)}
+                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20"
                   >
                     {category}
                   </DropdownMenuItem>
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              asChild
+              variant="outline"
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+            >
+              <Link href="/dashboard">
+                <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                Back to Dashboard
+              </Link>
+            </Button>
           </motion.div>
         </CardContent>
       </Card>
 
       {/* Create New Post */}
-      <Card>
+      <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle>Create a New Post</CardTitle>
+          <CardTitle className="text-black dark:text-white">
+            Create a New Post
+          </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <motion.form
             onSubmit={handlePostSubmit}
             className="space-y-4"
@@ -373,7 +441,7 @@ export default function ForumPage() {
               onChange={(e) =>
                 setNewPost({ ...newPost, title: e.target.value })
               }
-              className="w-full"
+              className="w-full text-black dark:text-white border-[#F3CFC6] focus:ring-[#F3CFC6]"
             />
             <Textarea
               placeholder="Share your thoughts..."
@@ -381,29 +449,38 @@ export default function ForumPage() {
               onChange={(e) =>
                 setNewPost({ ...newPost, content: e.target.value })
               }
-              className="w-full"
+              className="w-full text-black dark:text-white border-[#F3CFC6] focus:ring-[#F3CFC6]"
             />
             <div className="flex items-center gap-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
-                  <Button variant="outline" className="w-full sm:w-auto">
+                  <Button
+                    variant="outline"
+                    className="w-full sm:w-auto text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+                  >
                     {newPost.category || "Select Category"}
                   </Button>
                 </DropdownMenuTrigger>
-                <DropdownMenuContent className="w-56">
-                  <DropdownMenuLabel>Post Category</DropdownMenuLabel>
+                <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
+                  <DropdownMenuLabel className="text-black dark:text-white">
+                    Post Category
+                  </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   {categories.map((category) => (
                     <DropdownMenuItem
                       key={category}
                       onClick={() => setNewPost({ ...newPost, category })}
+                      className="text-black dark:text-white hover:bg-[#F3CFC6]/20"
                     >
                       {category}
                     </DropdownMenuItem>
                   ))}
                 </DropdownMenuContent>
               </DropdownMenu>
-              <Button type="submit" className="w-full sm:w-auto">
+              <Button
+                type="submit"
+                className="w-full sm:w-auto bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+              >
                 <Send className="mr-2 h-4 w-4" />
                 Post
               </Button>
@@ -413,14 +490,14 @@ export default function ForumPage() {
       </Card>
 
       {/* Forum Posts */}
-      <Card>
+      <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <MessageSquare className="mr-2 h-5 w-5" />
+          <CardTitle className="flex items-center text-black dark:text-white">
+            <MessageSquare className="mr-2 h-5 w-5 text-[#F3CFC6]" />
             Forum Posts
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <ScrollArea className="h-[400px]">
             <motion.div className="space-y-4" variants={containerVariants}>
               <AnimatePresence>
@@ -432,34 +509,36 @@ export default function ForumPage() {
                       initial="hidden"
                       animate="visible"
                       exit={{ opacity: 0, x: -20 }}
-                      className="p-4 hover:bg-gray-50 rounded-md border"
+                      className="p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md border border-[#F3CFC6]"
                     >
                       <Link href={`/dashboard/forum/${post.id}`}>
                         <div className="flex items-start space-x-4">
-                          <Avatar className="h-10 w-10">
+                          <Avatar className="h-10 w-10 border-2 border-white">
                             <AvatarImage
                               src={post.user.avatar}
                               alt={post.user.name}
                             />
-                            <AvatarFallback className="bg-gray-200 text-gray-600 flex items-center justify-center">
-                              <User className="h-6 w-6" />
+                            <AvatarFallback className="bg-[#C4C4C4] text-black flex items-center justify-center">
+                              <User className="h-6 w-6 text-[#F3CFC6]" />
                             </AvatarFallback>
                           </Avatar>
                           <div className="flex-1">
                             <div className="flex items-center justify-between">
-                              <h3 className="font-semibold">{post.title}</h3>
-                              <p className="text-sm text-muted-foreground">
+                              <h3 className="font-semibold text-black dark:text-white">
+                                {post.title}
+                              </h3>
+                              <p className="text-sm text-[#C4C4C4]">
                                 {post.timestamp}
                               </p>
                             </div>
-                            <p className="text-sm text-muted-foreground mt-1">
+                            <p className="text-sm text-[#C4C4C4] mt-1">
                               {post.content}
                             </p>
                             <div className="flex items-center space-x-2 mt-2">
-                              <span className="text-sm text-muted-foreground">
+                              <span className="text-sm text-[#F3CFC6]">
                                 {post.category}
                               </span>
-                              <span className="text-sm text-muted-foreground">
+                              <span className="text-sm text-[#C4C4C4]">
                                 • {post.replies} Replies
                               </span>
                             </div>
@@ -469,9 +548,7 @@ export default function ForumPage() {
                     </motion.div>
                   ))
                 ) : (
-                  <p className="text-muted-foreground text-center">
-                    No posts found.
-                  </p>
+                  <p className="text-[#C4C4C4] text-center">No posts found.</p>
                 )}
               </AnimatePresence>
             </motion.div>

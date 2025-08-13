@@ -17,6 +17,7 @@ import {
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Type definitions based on schema
 interface User {
@@ -88,7 +89,36 @@ export default function NotificationsPage() {
   const router = useRouter();
 
   if (status === "loading") {
-    return <div className="p-4">Loading...</div>;
+    return (
+      <div className="p-4 space-y-6 max-w-7xl mx-auto">
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
+            <div className="flex items-center space-x-4">
+              <Skeleton className="h-16 w-16 rounded-full bg-[#C4C4C4]/50" />
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
+                <Skeleton className="h-4 w-64 bg-[#C4C4C4]/50" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex space-x-4">
+            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+          </CardContent>
+        </Card>
+        Facet
+        <Card className="shadow-lg">
+          <CardHeader>
+            <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
+          </CardHeader>
+          <CardContent className="space-y-4 pt-6">
+            {[...Array(3)].map((_, idx) => (
+              <Skeleton key={idx} className="h-16 w-full bg-[#C4C4C4]/50" />
+            ))}
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (status === "unauthenticated") {
@@ -123,37 +153,60 @@ export default function NotificationsPage() {
       animate="visible"
     >
       {/* Header Section */}
-      <Card>
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
           <motion.div
             variants={itemVariants}
             className="flex items-center space-x-4"
           >
-            <Avatar className="h-16 w-16">
+            <Avatar className="h-16 w-16 border-2 border-white">
               <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>{user.name[0]}</AvatarFallback>
+              <AvatarFallback className="bg-[#C4C4C4] text-black">
+                {user.name[0]}
+              </AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-2xl">Notifications</CardTitle>
-              <p className="text-muted-foreground">
+              <CardTitle className="text-2xl text-black dark:text-white">
+                Notifications
+              </CardTitle>
+              <p className="text-sm text-[#C4C4C4]">
                 Stay updated with your activity
               </p>
             </div>
           </motion.div>
         </CardHeader>
         <CardContent className="flex space-x-4">
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline">
+          <motion.div
+            variants={itemVariants}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <Button
+              asChild
+              variant="outline"
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+            >
               <Link href="/dashboard">
-                <MessageSquare className="mr-2 h-4 w-4" />
+                <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
                 Back to Dashboard
               </Link>
             </Button>
           </motion.div>
-          <motion.div variants={itemVariants}>
+          <motion.div
+            variants={itemVariants}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+            }}
+            transition={{ duration: 0.2 }}
+          >
             <Button
               variant="outline"
               onClick={() => setShowUnreadOnly(!showUnreadOnly)}
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
             >
               {showUnreadOnly ? "Show All" : "Show Unread Only"}
             </Button>
@@ -162,14 +215,14 @@ export default function NotificationsPage() {
       </Card>
 
       {/* Notifications List */}
-      <Card>
+      <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Bell className="mr-2 h-5 w-5" />
+          <CardTitle className="flex items-center text-black dark:text-white">
+            <Bell className="mr-2 h-5 w-5 text-[#F3CFC6]" />
             Your Notifications
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <ScrollArea className="h-[400px]">
             <motion.div className="space-y-4" variants={containerVariants}>
               <AnimatePresence>
@@ -181,21 +234,23 @@ export default function NotificationsPage() {
                       initial="hidden"
                       animate="visible"
                       exit={{ opacity: 0, x: -20 }}
-                      className="flex items-center justify-between p-4 hover:bg-gray-50 rounded-md border"
+                      className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md border border-[#F3CFC6]"
                     >
                       <div className="flex items-center space-x-3">
                         {notif.type === "message" && (
-                          <MessageSquare className="h-5 w-5 text-muted-foreground" />
+                          <MessageSquare className="h-5 w-5 text-[#F3CFC6]" />
                         )}
                         {notif.type === "appointment" && (
-                          <Calendar className="h-5 w-5 text-muted-foreground" />
+                          <Calendar className="h-5 w-5 text-[#F3CFC6]" />
                         )}
                         {notif.type === "payment" && (
-                          <DollarSign className="h-5 w-5 text-muted-foreground" />
+                          <DollarSign className="h-5 w-5 text-[#F3CFC6]" />
                         )}
                         <div>
-                          <p className="text-sm">{notif.content}</p>
-                          <p className="text-xs text-muted-foreground">
+                          <p className="text-sm text-black dark:text-white">
+                            {notif.content}
+                          </p>
+                          <p className="text-xs text-[#C4C4C4]">
                             {notif.timestamp}
                           </p>
                         </div>
@@ -206,13 +261,19 @@ export default function NotificationsPage() {
                             variant="outline"
                             size="sm"
                             onClick={() => markAsRead(notif.id)}
+                            className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
                           >
-                            <CheckCircle className="h-4 w-4 mr-1" />
+                            <CheckCircle className="h-4 w-4 mr-1 text-[#F3CFC6]" />
                             Mark as Read
                           </Button>
                         )}
                         {notif.relatedId && (
-                          <Button asChild variant="link" size="sm">
+                          <Button
+                            asChild
+                            variant="link"
+                            size="sm"
+                            className="text-[#F3CFC6] hover:text-[#C4C4C4]"
+                          >
                             <Link
                               href={
                                 notif.type === "message"
@@ -230,7 +291,7 @@ export default function NotificationsPage() {
                     </motion.div>
                   ))
                 ) : (
-                  <p className="text-muted-foreground text-center">
+                  <p className="text-[#C4C4C4] text-center">
                     No notifications found.
                   </p>
                 )}

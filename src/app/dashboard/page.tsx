@@ -40,7 +40,7 @@ interface Message {
   unread: boolean;
 }
 
-// Dummy data (unchanged)
+// Dummy data
 const recentMessages: Message[] = [
   {
     id: 1,
@@ -92,10 +92,7 @@ const containerVariants = {
   visible: {
     opacity: 1,
     y: 0,
-    transition: {
-      duration: 0.5,
-      staggerChildren: 0.2,
-    },
+    transition: { duration: 0.5, staggerChildren: 0.2 },
   },
 };
 
@@ -121,7 +118,7 @@ export default function HomePage() {
       }
 
       try {
-        const id = session?.user?.id; // Assuming session.user.id is available
+        const id = session?.user?.id;
         if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
           console.error("Invalid user ID format:", id);
           notFound();
@@ -161,7 +158,7 @@ export default function HomePage() {
   }, [status, session, router]);
 
   if (status === "loading" || loading) {
-    return <div className="p-4">Loading...</div>;
+    return <div className="p-4 text-center">Loading...</div>;
   }
 
   if (status === "unauthenticated") {
@@ -179,66 +176,93 @@ export default function HomePage() {
 
   return (
     <motion.div
-      className="p-4 space-y-6 max-w-7xl mx-auto"
+      className="space-y-6 w-full max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
       {/* Hero Section */}
-      <Card>
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black dark:text-white shadow-lg">
         <CardHeader>
           <motion.div
             variants={itemVariants}
             className="flex items-center space-x-4"
           >
-            <Avatar className="h-16 w-16">
-              {user.profileImage ? (
-                <AvatarImage src={user.profileImage} alt={user.name} />
-              ) : (
-                <AvatarFallback className="bg-gray-200 text-gray-600 flex items-center justify-center">
-                  <User className="h-10 w-10" />
-                </AvatarFallback>
-              )}
+            <Avatar className="h-16 w-16 border-2 border-white">
+              <AvatarImage
+                src={
+                  user.profileImage || "/assets/images/avatar-placeholder.png"
+                }
+                alt={user.name}
+              />
+              <AvatarFallback className="bg-[#C4C4C4] text-black">
+                {user.name[0]}
+              </AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-2xl">Welcome, {user.name}!</CardTitle>
-              <p className="text-muted-foreground">{user.email}</p>
+              <CardTitle className="text-2xl font-bold">
+                Welcome to Hug Harmony, {user.name}!
+              </CardTitle>
+              <p className="text-sm opacity-80">
+                Manage your wellness journey with ease.
+              </p>
             </div>
           </motion.div>
         </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-4">
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/dashboard/specialists">
-                <UserStar className="mr-2 h-4 w-4" />
-                Find a Professional
-              </Link>
-            </Button>
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/dashboard/explore">
-                <UserRoundSearch className="mr-2 h-4 w-4" />
-                Explore Users
-              </Link>
-            </Button>
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/dashboard/video-session">
-                <Video className="mr-2 h-4 w-4" />
-                Join Video Session
-              </Link>
-            </Button>
-          </motion.div>
-        </CardContent>
       </Card>
 
+      {/* Action Tiles */}
+      <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+        {[
+          {
+            href: "/dashboard/specialists",
+            label: "Find a Professional",
+            icon: <UserStar className="h-8 w-8 text-[#F3CFC6]" />,
+            description: "Connect with certified specialists.",
+          },
+          {
+            href: "/dashboard/explore",
+            label: "Explore Users",
+            icon: <UserRoundSearch className="h-8 w-8 text-[#F3CFC6]" />,
+            description: "Discover community members.",
+          },
+          {
+            href: "/dashboard/video-session",
+            label: "Join Video Session",
+            icon: <Video className="h-8 w-8 text-[#F3CFC6]" />,
+            description: "Start your virtual consultation.",
+          },
+        ].map((item) => (
+          <motion.div
+            key={item.href}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <Link href={item.href}>
+              <Card className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors">
+                <CardContent className="flex items-center space-x-4 p-6">
+                  {item.icon}
+                  <div>
+                    <h3 className="text-lg font-semibold text-black dark:text-white">
+                      {item.label}
+                    </h3>
+                    <p className="text-sm text-[#C4C4C4]">{item.description}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
+          </motion.div>
+        ))}
+      </div>
+
       {/* Recent Messages */}
-      <Card>
+      <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <MessageSquare className="mr-2 h-5 w-5" />
+          <CardTitle className="flex items-center text-black dark:text-white">
+            <MessageSquare className="mr-2 h-6 w-6 text-[#F3CFC6]" />
             Recent Messages
           </CardTitle>
         </CardHeader>
@@ -254,25 +278,25 @@ export default function HomePage() {
                       initial="hidden"
                       animate="visible"
                       exit={{ opacity: 0, x: -20 }}
-                      className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-md"
+                      className="flex items-center justify-between p-2 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
                     >
                       <div className="flex items-center space-x-3">
                         <Avatar className="h-10 w-10">
-                          <AvatarFallback>
+                          <AvatarFallback className="bg-[#C4C4C4] text-black">
                             {msg.therapist.split(" ")[1]?.[0] || "T"}
                           </AvatarFallback>
                         </Avatar>
                         <div>
-                          <p className="font-semibold">{msg.therapist}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-semibold text-black dark:text-white">
+                            {msg.therapist}
+                          </p>
+                          <p className="text-sm text-[#C4C4C4]">
                             {msg.message}
                           </p>
                         </div>
                       </div>
                       <div className="text-right">
-                        <p className="text-sm text-muted-foreground">
-                          {msg.time}
-                        </p>
+                        <p className="text-sm text-[#C4C4C4]">{msg.time}</p>
                         {msg.unread && (
                           <Badge variant="destructive">Unread</Badge>
                         )}
@@ -280,24 +304,22 @@ export default function HomePage() {
                     </motion.div>
                   ))
                 ) : (
-                  <p className="text-muted-foreground">
-                    No messages available.
-                  </p>
+                  <p className="text-[#C4C4C4]">No messages available.</p>
                 )}
               </AnimatePresence>
             </motion.div>
           </ScrollArea>
-          <Button asChild variant="link" className="mt-4">
+          <Button asChild variant="link" className="mt-4 text-[#F3CFC6]">
             <Link href="/messaging">View All Messages</Link>
           </Button>
         </CardContent>
       </Card>
 
       {/* Appointments */}
-      <Card>
+      <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Clock className="mr-2 h-5 w-5" />
+          <CardTitle className="flex items-center text-black dark:text-white">
+            <Clock className="mr-2 h-6 w-6 text-[#F3CFC6]" />
             Your Appointments
           </CardTitle>
         </CardHeader>
@@ -309,7 +331,7 @@ export default function HomePage() {
             }
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-2 bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20">
               <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
               <TabsTrigger value="past">Past</TabsTrigger>
             </TabsList>
@@ -324,23 +346,28 @@ export default function HomePage() {
                         initial="hidden"
                         animate="visible"
                         exit={{ opacity: 0, x: -20 }}
-                        className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-md"
+                        className="flex items-center justify-between p-2 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
                       >
                         <div>
-                          <p className="font-semibold">{appt.therapist}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-semibold text-black dark:text-white">
+                            {appt.therapist}
+                          </p>
+                          <p className="text-sm text-[#C4C4C4]">
                             {appt.date} at {appt.time} - {appt.type}
                           </p>
                         </div>
-                        <Button asChild variant="outline" size="sm">
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="text-[#F3CFC6] border-[#F3CFC6]"
+                        >
                           <Link href={`/dashboard/appointments`}>Details</Link>
                         </Button>
                       </motion.div>
                     ))
                   ) : (
-                    <p className="text-muted-foreground">
-                      No upcoming appointments.
-                    </p>
+                    <p className="text-[#C4C4C4]">No upcoming appointments.</p>
                   )}
                 </AnimatePresence>
               </motion.div>
@@ -356,58 +383,79 @@ export default function HomePage() {
                         initial="hidden"
                         animate="visible"
                         exit={{ opacity: 0, x: -20 }}
-                        className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-md"
+                        className="flex items-center justify-between p-2 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
                       >
                         <div>
-                          <p className="font-semibold">{appt.therapist}</p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="font-semibold text-black dark:text-white">
+                            {appt.therapist}
+                          </p>
+                          <p className="text-sm text-[#C4C4C4]">
                             {appt.date} at {appt.time} - {appt.type}
                           </p>
                         </div>
-                        <Button asChild variant="outline" size="sm">
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="text-[#F3CFC6] border-[#F3CFC6]"
+                        >
                           <Link href={`/appointments/${appt.id}`}>Details</Link>
                         </Button>
                       </motion.div>
                     ))
                   ) : (
-                    <p className="text-muted-foreground">
-                      No past appointments.
-                    </p>
+                    <p className="text-[#C4C4C4]">No past appointments.</p>
                   )}
                 </AnimatePresence>
               </motion.div>
             </TabsContent>
           </Tabs>
-          <Button asChild variant="link" className="mt-4">
+          <Button asChild variant="link" className="mt-4 text-[#F3CFC6]">
             <Link href="/appointments">View All Appointments</Link>
           </Button>
         </CardContent>
       </Card>
 
       {/* Quick Actions */}
-      <Card>
-        <CardHeader>
-          <CardTitle>Quick Actions</CardTitle>
-        </CardHeader>
-        <CardContent className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/payment">
-                <DollarSign className="mr-2 h-4 w-4" />
-                View Payments
-              </Link>
-            </Button>
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        {[
+          {
+            href: "/payment",
+            label: "View Payments",
+            icon: <DollarSign className="h-8 w-8 text-[#F3CFC6]" />,
+            description: "Check your payment history.",
+          },
+          {
+            href: "/notes-history",
+            label: "Notes & Journal",
+            icon: <MessageSquare className="h-8 w-8 text-[#F3CFC6]" />,
+            description: "Review your session notes.",
+          },
+        ].map((item) => (
+          <motion.div
+            key={item.href}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <Link href={item.href}>
+              <Card className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors shadow-lg">
+                <CardContent className="flex items-center space-x-4 p-6">
+                  {item.icon}
+                  <div>
+                    <h3 className="text-lg font-semibold text-black dark:text-white">
+                      {item.label}
+                    </h3>
+                    <p className="text-sm text-[#C4C4C4]">{item.description}</p>
+                  </div>
+                </CardContent>
+              </Card>
+            </Link>
           </motion.div>
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline" className="w-full">
-              <Link href="/notes-history">
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Notes & Journal
-              </Link>
-            </Button>
-          </motion.div>
-        </CardContent>
-      </Card>
+        ))}
+      </div>
     </motion.div>
   );
 }

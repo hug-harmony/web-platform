@@ -5,11 +5,28 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { MapPin, BookOpen, FileText } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
+import {
+  MapPin,
+  BookOpen,
+  FileText,
+  MessageSquare,
+  MoreHorizontal,
+  Star,
+  XCircle,
+  Flag,
+} from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -175,7 +192,40 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   };
 
   if (loading) {
-    return <div className="text-center p-6">Loading...</div>;
+    return (
+      <div className="min-h-screen flex items-start justify-center p-4 sm:p-6">
+        <div className="w-full max-w-7xl rounded-2xl shadow-lg overflow-hidden bg-gradient-to-b from-[#F3CFC6] to-[#C4C4C4]">
+          <div className="relative h-64 sm:h-80">
+            <Skeleton className="absolute inset-0 bg-[#C4C4C4]/50" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#F3CFC6]/30 to-[#C4C4C4]/30" />
+            <div className="relative flex justify-center items-center h-full">
+              <Skeleton className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-white" />
+            </div>
+          </div>
+          <div className="p-6 sm:p-8 text-center space-y-4">
+            <Skeleton className="h-8 w-1/2 mx-auto bg-[#C4C4C4]/50" />
+            <Skeleton className="h-4 w-1/4 mx-auto bg-[#C4C4C4]/50" />
+            <div className="flex flex-wrap justify-center gap-2">
+              <Skeleton className="h-6 w-20 rounded-full bg-[#C4C4C4]/50" />
+              <Skeleton className="h-6 w-20 rounded-full bg-[#C4C4C4]/50" />
+            </div>
+            <div className="max-w-2xl mx-auto">
+              <Skeleton className="h-6 w-1/4 mx-auto bg-[#C4C4C4]/50 mb-2" />
+              <Skeleton className="h-4 w-full bg-[#C4C4C4]/50" />
+              <Skeleton className="h-4 w-3/4 bg-[#C4C4C4]/50" />
+            </div>
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+              <Skeleton className="h-24 w-full bg-[#C4C4C4]/50 rounded-lg" />
+              <Skeleton className="h-24 w-full bg-[#C4C4C4]/50 rounded-lg" />
+            </div>
+            <div className="flex justify-center gap-4">
+              <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+              <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+            </div>
+          </div>
+        </div>
+      </div>
+    );
   }
 
   if (error || !profile) {
@@ -199,7 +249,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       animate="visible"
     >
       <motion.div
-        className="w-full max-w-7xl rounded-2xl shadow-lg overflow-hidden"
+        className="w-full max-w-7xl rounded-2xl shadow-lg overflow-hidden "
         variants={itemVariants}
       >
         <div className="relative h-64 sm:h-80">
@@ -212,36 +262,32 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
               filter: "blur(8px)",
             }}
           />
-          <div className="absolute inset-0 bg-opacity-30" />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#F3CFC6]/30 to-[#C4C4C4]/30" />
           <div className="relative flex justify-center items-center h-full">
-            <div className="w-32 h-32 sm:w-40 sm:h-40 rounded-full overflow-hidden border-4 border-white shadow-md z-10">
-              <Image
-                src={validImageSrc}
-                alt={profile.name}
-                width={160}
-                height={160}
-                className="object-cover w-full h-full"
-                unoptimized
-              />
-            </div>
+            <Avatar className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-white shadow-md z-10">
+              <AvatarImage src={validImageSrc} alt={profile.name} />
+              <AvatarFallback className="bg-[#C4C4C4] text-black">
+                {profile.name.charAt(0)}
+              </AvatarFallback>
+            </Avatar>
           </div>
         </div>
 
         <div className="p-6 sm:p-8 text-center">
           <motion.h2
-            className="text-2xl sm:text-3xl font-bold text-gray-800"
+            className="text-2xl sm:text-3xl font-bold text-black dark:text-white"
             variants={itemVariants}
           >
             {profile.name}
             {profile.role && `, ${profile.role}`}
           </motion.h2>
           <motion.div
-            className="flex items-center justify-center gap-2 mt-2 text-gray-600"
+            className="flex items-center justify-center gap-2 mt-2 text-[#C4C4C4]"
             variants={itemVariants}
           >
             {profile.location && (
               <>
-                <MapPin className="h-4 w-4" />
+                <MapPin className="h-5 w-5 text-[#F3CFC6]" />
                 <span>{profile.location}</span>
               </>
             )}
@@ -255,13 +301,13 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
               {tagsArray.slice(0, 4).map((tag, idx) => (
                 <span
                   key={idx}
-                  className="bg-[#C6A89D] text-white text-xs px-3 py-1 rounded-full"
+                  className="bg-[#F3CFC6] text-black dark:text-white text-xs px-3 py-1 rounded-full"
                 >
                   {tag}
                 </span>
               ))}
               {tagsArray.length > 4 && (
-                <span className="bg-[#C6A89D] text-white text-xs px-3 py-1 rounded-full">
+                <span className="bg-[#F3CFC6] text-black dark:text-white text-xs px-3 py-1 rounded-full">
                   +{tagsArray.length - 4} more
                 </span>
               )}
@@ -270,7 +316,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
 
           {profile.type === "specialist" && profile.biography && (
             <motion.div
-              className="mt-6 max-w-2xl mx-auto text-gray-700"
+              className="mt-6 max-w-2xl mx-auto text-black dark:text-white"
               variants={itemVariants}
             >
               <h3 className="text-lg font-semibold mb-2">Biography</h3>
@@ -285,27 +331,27 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                 variants={itemVariants}
               >
                 {profile.education && (
-                  <div className="bg-gray-50 p-4 rounded-lg shadow-sm text-left">
+                  <div className="bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20 p-4 rounded-lg shadow-sm text-left">
                     <div className="flex items-center gap-2">
-                      <BookOpen className="h-5 w-5 text-gray-600" />
-                      <h4 className="font-semibold text-sm sm:text-base">
+                      <BookOpen className="h-5 w-5 text-[#F3CFC6]" />
+                      <h4 className="font-semibold text-sm sm:text-base text-black dark:text-white">
                         Education
                       </h4>
                     </div>
-                    <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                    <p className="text-xs sm:text-sm text-[#C4C4C4] mt-1">
                       {profile.education}
                     </p>
                   </div>
                 )}
                 {profile.license && (
-                  <div className="bg-gray-50 p-4 rounded-lg shadow-sm text-left">
+                  <div className="bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20 p-4 rounded-lg shadow-sm text-left">
                     <div className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-gray-600" />
-                      <h4 className="font-semibold text-sm sm:text-base">
+                      <FileText className="h-5 w-5 text-[#F3CFC6]" />
+                      <h4 className="font-semibold text-sm sm:text-base text-black dark:text-white">
                         License Number
                       </h4>
                     </div>
-                    <p className="text-xs sm:text-sm text-gray-600 mt-1">
+                    <p className="text-xs sm:text-sm text-[#C4C4C4] mt-1">
                       {profile.license}
                     </p>
                   </div>
@@ -313,13 +359,46 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
               </motion.div>
             )}
 
-          <motion.div className="mt-6" variants={itemVariants}>
+          <motion.div
+            className="mt-6 flex items-center justify-center gap-4"
+            variants={itemVariants}
+          >
             <Button
               onClick={handleStartChat}
-              className="mt-4 bg-[#E8C5BC] hover:bg-[#D9B1A4] text-black px-6 py-2 rounded-full"
+              className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full"
             >
+              <MessageSquare className="mr-2 h-5 w-5 text-black dark:text-white" />
               Start Chat with {profile.name}
             </Button>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 px-6 py-2 rounded-full"
+                >
+                  <MoreHorizontal className="mr-2 h-5 w-5 text-[#F3CFC6]" />
+                  More Actions
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
+                <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
+                  <Star className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                  Add to Favourites
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
+                  <XCircle className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                  Block
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
+                  <Flag className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                  Report
+                </DropdownMenuItem>
+                <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
+                  <FileText className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                  Make a Note
+                </DropdownMenuItem>
+              </DropdownMenuContent>
+            </DropdownMenu>
           </motion.div>
         </div>
       </motion.div>

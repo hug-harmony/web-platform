@@ -16,6 +16,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import SpecialistCard from "@/components/SpecialistCard";
 import AddSpecialist from "@/components/AddSpecialist";
@@ -150,41 +151,7 @@ export default function TherapistsPage() {
               : []
         );
 
-        const therapistsRes = await fetch("/api/specialists", {
-          cache: "no-store",
-          credentials: "include",
-        });
-        if (!therapistsRes.ok) {
-          console.error(
-            "Specialists API error:",
-            therapistsRes.status,
-            await therapistsRes.text()
-          );
-          if (therapistsRes.status === 401) redirect("/login");
-          throw new Error(
-            `Failed to fetch specialists: ${therapistsRes.status}`
-          );
-        }
-        const { specialists } = await therapistsRes.json();
-        setSpecialists(
-          specialists
-            .filter((s: any) => s.id)
-            .map((s: any) => ({
-              _id: s.id,
-              name: s.name,
-              image: s.image || "",
-              location: s.location || "",
-              rating: s.rating || 0,
-              reviewCount: s.reviewCount || 0,
-              rate: s.rate || 0,
-              role: s.role || "",
-              tags: s.tags || "",
-              biography: s.biography || "",
-              education: s.education || "",
-              license: s.license || "",
-              createdAt: s.createdAt,
-            }))
-        );
+        await fetchSpecialists();
       } catch (error) {
         console.error("Error fetching data:", error);
       } finally {
@@ -237,118 +204,164 @@ export default function TherapistsPage() {
 
   return (
     <motion.div
-      className="p-4 space-y-6 max-w-7xl mx-auto"
+      className="space-y-6 w-full max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      <div className="w-full max-w-6xl">
-        <div className="flex items-center mb-6 w-full space-x-2">
-          <div className="relative flex-grow">
-            <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-gray-400" />
-            <Input
-              type="text"
-              placeholder="Search..."
-              value={searchQuery}
-              onChange={handleSearchChange}
-              className="p-2 pl-10 rounded border border-gray-300 w-full"
-            />
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black dark:text-white shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-2xl font-bold">
+            Specialist Directory
+          </CardTitle>
+          <p className="text-sm opacity-80">
+            Find and connect with certified professionals
+          </p>
+        </CardHeader>
+        <CardContent>
+          <div className="flex items-center mb-6 w-full space-x-2">
+            <div className="relative flex-grow">
+              <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#fff]" />
+              <Input
+                type="text"
+                placeholder="Search specialists..."
+                value={searchQuery}
+                onChange={handleSearchChange}
+                className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
+              />
+            </div>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                >
+                  <MapPin className="h-6 w-6 text-[#F3CFC6]" />
+                  <span>Location</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
+                <DropdownMenuLabel className="text-black dark:text-white">
+                  Location
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleFilterChange("location", "")}
+                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                >
+                  All
+                </DropdownMenuItem>
+                {locations.map((location) => (
+                  <DropdownMenuItem
+                    key={location}
+                    onClick={() => handleFilterChange("location", location)}
+                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  >
+                    {location}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                >
+                  <Star className="h-6 w-6 text-[#F3CFC6]" />
+                  <span>Rating</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
+                <DropdownMenuLabel className="text-black dark:text-white">
+                  Minimum Rating
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleFilterChange("minRating", 0)}
+                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                >
+                  All
+                </DropdownMenuItem>
+                {ratings.map((rating) => (
+                  <DropdownMenuItem
+                    key={rating}
+                    onClick={() => handleFilterChange("minRating", rating)}
+                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  >
+                    {rating}+
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="outline"
+                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                >
+                  <span>Sort By</span>
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
+                <DropdownMenuLabel className="text-black dark:text-white">
+                  Sort By
+                </DropdownMenuLabel>
+                <DropdownMenuSeparator />
+                <DropdownMenuItem
+                  onClick={() => handleFilterChange("sortBy", "")}
+                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                >
+                  None
+                </DropdownMenuItem>
+                {sortOptions.map((option) => (
+                  <DropdownMenuItem
+                    key={option}
+                    onClick={() => handleFilterChange("sortBy", option)}
+                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  >
+                    {option.charAt(0).toUpperCase() + option.slice(1)}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <AddSpecialist onSpecialistAdded={fetchSpecialists} />
           </div>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center space-x-2">
-                <MapPin className="h-5 w-5" />
-                <span>Location</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-              <DropdownMenuLabel>Location</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => handleFilterChange("location", "")}
-              >
-                All
-              </DropdownMenuItem>
-              {locations.map((location) => (
-                <DropdownMenuItem
-                  key={location}
-                  onClick={() => handleFilterChange("location", location)}
-                >
-                  {location}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center space-x-2">
-                <Star className="h-5 w-5" />
-                <span>Rating</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-              <DropdownMenuLabel>Minimum Rating</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => handleFilterChange("minRating", 0)}
-              >
-                All
-              </DropdownMenuItem>
-              {ratings.map((rating) => (
-                <DropdownMenuItem
-                  key={rating}
-                  onClick={() => handleFilterChange("minRating", rating)}
-                >
-                  {rating}+
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <DropdownMenu>
-            <DropdownMenuTrigger asChild>
-              <Button variant="outline" className="flex items-center space-x-2">
-                <span>Sort By</span>
-              </Button>
-            </DropdownMenuTrigger>
-            <DropdownMenuContent className="w-56">
-              <DropdownMenuLabel>Sort By</DropdownMenuLabel>
-              <DropdownMenuSeparator />
-              <DropdownMenuItem
-                onClick={() => handleFilterChange("sortBy", "")}
-              >
-                None
-              </DropdownMenuItem>
-              {sortOptions.map((option) => (
-                <DropdownMenuItem
-                  key={option}
-                  onClick={() => handleFilterChange("sortBy", option)}
-                >
-                  {option.charAt(0).toUpperCase() + option.slice(1)}
-                </DropdownMenuItem>
-              ))}
-            </DropdownMenuContent>
-          </DropdownMenu>
-          <AddSpecialist onSpecialistAdded={fetchSpecialists} />
-        </div>
+        </CardContent>
+      </Card>
 
-        <section className="mb-6">
-          <h2 className="text-lg font-semibold text-center mb-4">
-            Professionals
-          </h2>
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-black dark:text-white">
+            Available Specialists
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
+            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
               {[...Array(4)].map((_, index) => (
-                <Skeleton key={index} className="h-64 w-full rounded-lg" />
+                <Skeleton
+                  key={index}
+                  className="h-64 w-full rounded-lg bg-[#C4C4C4]/50"
+                />
               ))}
             </div>
           ) : filteredSpecialists.length > 0 ? (
             <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
               variants={containerVariants}
             >
               <AnimatePresence>
                 {filteredSpecialists.map((therapist) => (
-                  <motion.div key={therapist._id} variants={cardVariants}>
+                  <motion.div
+                    key={therapist._id}
+                    variants={cardVariants}
+                    whileHover={{
+                      scale: 1.05,
+                      boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+                    }}
+                    transition={{ duration: 0.2 }}
+                  >
                     <Link href={`/dashboard/specialists/${therapist._id}`}>
                       <SpecialistCard
                         name={therapist.name}
@@ -357,6 +370,7 @@ export default function TherapistsPage() {
                         rating={therapist.rating || 0}
                         reviewCount={therapist.reviewCount || 0}
                         rate={therapist.rate || 0}
+                        className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors"
                       />
                     </Link>
                   </motion.div>
@@ -364,10 +378,10 @@ export default function TherapistsPage() {
               </AnimatePresence>
             </motion.div>
           ) : (
-            <p className="text-center">No specialists found.</p>
+            <p className="text-center text-[#C4C4C4]">No specialists found.</p>
           )}
-        </section>
-      </div>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 }

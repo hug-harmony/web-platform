@@ -1,8 +1,9 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
+
 import { useState } from "react";
 import { motion } from "framer-motion";
-import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
+import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
@@ -11,6 +12,7 @@ import { MessageSquare, User } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
+import { Skeleton } from "@/components/ui/skeleton";
 
 interface SpecialistApplication {
   name: string;
@@ -49,7 +51,38 @@ export default function ProfessionalApplicationPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  if (status === "loading") return <div className="p-4">Loading...</div>;
+  if (status === "loading") {
+    return (
+      <div className="p-4 space-y-6 max-w-7xl mx-auto">
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
+            <div className="space-y-2">
+              <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
+              <Skeleton className="h-4 w-64 bg-[#C4C4C4]/50" />
+            </div>
+          </CardHeader>
+          <CardContent className="flex space-x-4">
+            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+          </CardContent>
+        </Card>
+        <Card className="shadow-lg">
+          <CardContent className="space-y-4 pt-6">
+            {[...Array(7)].map((_, index) => (
+              <div key={index} className="space-y-2">
+                <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
+                <Skeleton
+                  className={`h-${index === 4 || index === 6 ? 20 : 10} w-full bg-[#C4C4C4]/50`}
+                />
+              </div>
+            ))}
+            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+          </CardContent>
+        </Card>
+      </div>
+    );
+  }
+
   if (status === "unauthenticated") {
     router.push("/login");
     return null;
@@ -90,33 +123,60 @@ export default function ProfessionalApplicationPage() {
       initial="hidden"
       animate="visible"
     >
-      <Card>
+      {/* Header Section */}
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
           <motion.div variants={itemVariants}>
-            <CardTitle className="text-2xl">Professional Application</CardTitle>
-            <p className="text-muted-foreground">
-              Apply to become a specialist
-            </p>
+            <CardTitle className="text-2xl text-black dark:text-white">
+              Professional Application
+            </CardTitle>
+            <p className="text-sm text-black">Apply to become a specialist</p>
           </motion.div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <motion.div variants={itemVariants} className="flex space-x-4">
-            <Button asChild variant="outline">
-              <Link href="/dashboard">
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Back to Dashboard
-              </Link>
-            </Button>
-            <Button asChild variant="outline">
-              <Link href="/profile">
-                <User className="mr-2 h-4 w-4" />
-                Back to Profile
-              </Link>
-            </Button>
-          </motion.div>
+        <CardContent className="flex space-x-4">
+          {[
+            {
+              href: "/dashboard",
+              label: "Back to Dashboard",
+              icon: <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />,
+            },
+            {
+              href: "/profile",
+              label: "Back to Profile",
+              icon: <User className="mr-2 h-4 w-4 text-[#F3CFC6]" />,
+            },
+          ].map((item) => (
+            <motion.div
+              key={item.href}
+              variants={itemVariants}
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+              }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button
+                asChild
+                variant="outline"
+                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+              >
+                <Link href={item.href}>
+                  {item.icon} {item.label}
+                </Link>
+              </Button>
+            </motion.div>
+          ))}
+        </CardContent>
+      </Card>
+
+      {/* Content Section */}
+      <Card className="shadow-lg">
+        <CardContent className="space-y-4 pt-6">
           <motion.div variants={itemVariants} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name">Full Name</Label>
+              <Label htmlFor="name" className="text-black dark:text-white">
+                Full Name
+              </Label>
               <Input
                 id="name"
                 value={formData.name}
@@ -124,10 +184,13 @@ export default function ProfessionalApplicationPage() {
                   setFormData({ ...formData, name: e.target.value })
                 }
                 placeholder="Enter your full name"
+                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="location">Location</Label>
+              <Label htmlFor="location" className="text-black dark:text-white">
+                Location
+              </Label>
               <Input
                 id="location"
                 value={formData.location}
@@ -135,10 +198,13 @@ export default function ProfessionalApplicationPage() {
                   setFormData({ ...formData, location: e.target.value })
                 }
                 placeholder="Enter your location"
+                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="role">Role</Label>
+              <Label htmlFor="role" className="text-black dark:text-white">
+                Role
+              </Label>
               <Input
                 id="role"
                 value={formData.role}
@@ -146,10 +212,13 @@ export default function ProfessionalApplicationPage() {
                   setFormData({ ...formData, role: e.target.value })
                 }
                 placeholder="Enter your professional role"
+                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="tags">Specialty Tags</Label>
+              <Label htmlFor="tags" className="text-black dark:text-white">
+                Specialty Tags
+              </Label>
               <Input
                 id="tags"
                 value={formData.tags}
@@ -157,10 +226,13 @@ export default function ProfessionalApplicationPage() {
                   setFormData({ ...formData, tags: e.target.value })
                 }
                 placeholder="Enter tags (e.g., therapy, counseling)"
+                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="education">Education</Label>
+              <Label htmlFor="education" className="text-black dark:text-white">
+                Education
+              </Label>
               <Textarea
                 id="education"
                 value={formData.education}
@@ -168,10 +240,13 @@ export default function ProfessionalApplicationPage() {
                   setFormData({ ...formData, education: e.target.value })
                 }
                 placeholder="Enter your educational background"
+                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="license">License</Label>
+              <Label htmlFor="license" className="text-black dark:text-white">
+                License
+              </Label>
               <Input
                 id="license"
                 value={formData.license}
@@ -179,10 +254,13 @@ export default function ProfessionalApplicationPage() {
                   setFormData({ ...formData, license: e.target.value })
                 }
                 placeholder="Enter your license details"
+                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
               />
             </div>
             <div className="space-y-2">
-              <Label htmlFor="biography">Biography</Label>
+              <Label htmlFor="biography" className="text-black dark:text-white">
+                Biography
+              </Label>
               <Textarea
                 id="biography"
                 value={formData.biography}
@@ -190,9 +268,13 @@ export default function ProfessionalApplicationPage() {
                   setFormData({ ...formData, biography: e.target.value })
                 }
                 placeholder="Enter your professional biography"
+                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
               />
             </div>
-            <Button variant="default" onClick={handleSubmit}>
+            <Button
+              onClick={handleSubmit}
+              className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+            >
               Submit Application
             </Button>
           </motion.div>

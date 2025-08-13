@@ -13,7 +13,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 
-// Type definitions based on schema
+// Type definitions
 interface User {
   id: string;
   name: string;
@@ -73,7 +73,7 @@ export default function VideoSessionsPage() {
   const router = useRouter();
 
   if (status === "loading") {
-    return <div className="p-4">Loading...</div>;
+    return <div className="p-4 text-center">Loading...</div>;
   }
 
   if (status === "unauthenticated") {
@@ -90,55 +90,75 @@ export default function VideoSessionsPage() {
 
   return (
     <motion.div
-      className="p-4 space-y-6 max-w-7xl mx-auto"
+      className="space-y-6 w-full max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
       {/* Header Section */}
-      <Card>
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black dark:text-white shadow-lg">
         <CardHeader>
           <motion.div
             variants={itemVariants}
             className="flex items-center space-x-4"
           >
-            <Avatar className="h-16 w-16">
+            <Avatar className="h-16 w-16 border-2 border-white">
               <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>{user.name[0]}</AvatarFallback>
+              <AvatarFallback className="bg-[#C4C4C4] text-black">
+                {user.name[0]}
+              </AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-2xl">Video Sessions</CardTitle>
-              <p className="text-muted-foreground">
-                Manage your video appointments
+              <CardTitle className="text-2xl font-bold">
+                Video Sessions
+              </CardTitle>
+              <p className="text-sm opacity-80">
+                Manage your video appointments with ease
               </p>
             </div>
           </motion.div>
         </CardHeader>
         <CardContent className="flex space-x-4">
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline">
-              <Link href="/dashboard">
-                <MessageSquare className="mr-2 h-4 w-4" />
-                Back to Dashboard
-              </Link>
-            </Button>
-          </motion.div>
-          <motion.div variants={itemVariants}>
-            <Button asChild variant="outline">
-              <Link href="/booking">
-                <Calendar className="mr-2 h-4 w-4" />
-                Book Appointment
-              </Link>
-            </Button>
-          </motion.div>
+          {[
+            {
+              href: "/dashboard",
+              label: "Back to Dashboard",
+              icon: <MessageSquare className="mr-2 h-6 w-6 text-[#F3CFC6]" />,
+            },
+            {
+              href: "/booking",
+              label: "Book Appointment",
+              icon: <Calendar className="mr-2 h-6 w-6 text-[#F3CFC6]" />,
+            },
+          ].map((item) => (
+            <motion.div
+              key={item.href}
+              variants={itemVariants}
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+              }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button
+                asChild
+                variant="outline"
+                className="text-[#F3CFC6] border-[#F3CFC6]"
+              >
+                <Link href={item.href}>
+                  {item.icon} {item.label}
+                </Link>
+              </Button>
+            </motion.div>
+          ))}
         </CardContent>
       </Card>
 
       {/* Video Sessions Tabs */}
-      <Card>
+      <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="flex items-center">
-            <Video className="mr-2 h-5 w-5" />
+          <CardTitle className="flex items-center text-black dark:text-white">
+            <Video className="mr-2 h-6 w-6 text-[#F3CFC6]" />
             Your Video Sessions
           </CardTitle>
         </CardHeader>
@@ -150,7 +170,7 @@ export default function VideoSessionsPage() {
             }
             className="w-full"
           >
-            <TabsList className="grid w-full grid-cols-2">
+            <TabsList className="grid w-full grid-cols-2 bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20">
               <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
               <TabsTrigger value="past">Past</TabsTrigger>
             </TabsList>
@@ -166,17 +186,22 @@ export default function VideoSessionsPage() {
                         initial="hidden"
                         animate="visible"
                         exit={{ opacity: 0, x: -20 }}
-                        className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-md"
+                        className="flex items-center justify-between p-2 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
                       >
                         <div>
-                          <p className="font-semibold">
+                          <p className="font-semibold text-black dark:text-white">
                             {session.specialist.name}
                           </p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-[#C4C4C4]">
                             {session.date} at {session.time}
                           </p>
                         </div>
-                        <Button asChild variant="outline" size="sm">
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="text-[#F3CFC6] border-[#F3CFC6]"
+                        >
                           <Link href={session.joinUrl || "#"}>
                             Join Session
                           </Link>
@@ -198,17 +223,22 @@ export default function VideoSessionsPage() {
                         initial="hidden"
                         animate="visible"
                         exit={{ opacity: 0, x: -20 }}
-                        className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-md"
+                        className="flex items-center justify-between p-2 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
                       >
                         <div>
-                          <p className="font-semibold">
+                          <p className="font-semibold text-black dark:text-white">
                             {session.specialist.name}
                           </p>
-                          <p className="text-sm text-muted-foreground">
+                          <p className="text-sm text-[#C4C4C4]">
                             {session.date} at {session.time} - {session.status}
                           </p>
                         </div>
-                        <Button asChild variant="outline" size="sm">
+                        <Button
+                          asChild
+                          variant="outline"
+                          size="sm"
+                          className="text-[#F3CFC6] border-[#F3CFC6]"
+                        >
                           <Link href={`/appointments/${session.id}`}>
                             Details
                           </Link>

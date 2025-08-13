@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect } from "react";
+import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -9,7 +9,11 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
+import { MessageSquare } from "lucide-react";
+import Link from "next/link";
 
+// Type definitions based on schema
 interface User {
   id: string;
   firstName?: string | null;
@@ -36,6 +40,21 @@ interface Conversation {
 interface ConversationsListProps {
   activeConversationId?: string;
 }
+
+// Animation variants
+const containerVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, staggerChildren: 0.2 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
+};
 
 const ConversationsList: React.FC<ConversationsListProps> = ({
   activeConversationId,
@@ -91,61 +110,201 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
 
   if (status === "loading" || loading) {
     return (
-      <div className="p-4 space-y-6 max-w-7xl mx-auto">
-        <Card className=" flex flex-col">
+      <motion.div
+        className="p-4 space-y-6 max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
           <CardHeader>
-            <CardTitle>Conversations</CardTitle>
+            <div className="flex items-center space-x-4">
+              <Skeleton className="h-16 w-16 rounded-full bg-[#C4C4C4]/50" />
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
+                <Skeleton className="h-4 w-64 bg-[#C4C4C4]/50" />
+              </div>
+            </div>
           </CardHeader>
-          <CardContent className="flex-1 overflow-y-auto space-y-4">
+          <CardContent className="flex space-x-4">
+            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+          </CardContent>
+        </Card>
+        <Card className="shadow-lg flex flex-col">
+          <CardHeader>
+            <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
+          </CardHeader>
+          <CardContent className="flex-1 space-y-4 pt-6">
             {[...Array(5)].map((_, i) => (
               <div key={i} className="flex items-center gap-3 p-2">
-                <Skeleton className="h-10 w-10 rounded-full" />
+                <Skeleton className="h-10 w-10 rounded-full bg-[#C4C4C4]/50" />
                 <div className="flex-1 space-y-2">
-                  <Skeleton className="h-4 w-1/2" />
-                  <Skeleton className="h-3 w-3/4" />
+                  <Skeleton className="h-4 w-1/2 bg-[#C4C4C4]/50" />
+                  <Skeleton className="h-3 w-3/4 bg-[#C4C4C4]/50" />
                 </div>
-                <Skeleton className="h-4 w-16" />
+                <Skeleton className="h-4 w-16 bg-[#C4C4C4]/50" />
               </div>
             ))}
           </CardContent>
         </Card>
-      </div>
+      </motion.div>
     );
   }
 
   if (!session) {
     return (
-      <Card className="w-full h-full flex flex-col">
-        <CardContent className="flex-1 flex items-center justify-center">
-          <p>Please log in to view conversations.</p>
-        </CardContent>
-      </Card>
+      <motion.div
+        className="p-4 space-y-6 max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
+            <motion.div variants={itemVariants}>
+              <CardTitle className="text-2xl text-black dark:text-white">
+                Conversations
+              </CardTitle>
+              <p className="text-sm text-black">Manage your conversations</p>
+            </motion.div>
+          </CardHeader>
+          <CardContent className="flex space-x-4">
+            <motion.div
+              variants={itemVariants}
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+              }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button
+                asChild
+                variant="outline"
+                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+              >
+                <Link href="/dashboard">
+                  <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                  Back to Dashboard
+                </Link>
+              </Button>
+            </motion.div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-lg flex flex-col">
+          <CardContent className="flex-1 flex items-center justify-center pt-6">
+            <p className="text-[#C4C4C4]">
+              Please log in to view conversations.
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   }
 
   if (error) {
     return (
-      <Card className="w-full h-full flex flex-col">
-        <CardContent className="flex-1 flex items-center justify-center">
-          <p className="text-red-500">{error}</p>
-        </CardContent>
-      </Card>
+      <motion.div
+        className="p-4 space-y-6 max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
+            <motion.div variants={itemVariants}>
+              <CardTitle className="text-2xl text-black dark:text-white">
+                Conversations
+              </CardTitle>
+              <p className="text-sm text-[#C4C4C4]">
+                Manage your conversations
+              </p>
+            </motion.div>
+          </CardHeader>
+          <CardContent className="flex space-x-4">
+            <motion.div
+              variants={itemVariants}
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+              }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button
+                asChild
+                variant="outline"
+                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+              >
+                <Link href="/dashboard">
+                  <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                  Back to Dashboard
+                </Link>
+              </Button>
+            </motion.div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-lg flex flex-col">
+          <CardContent className="flex-1 flex items-center justify-center pt-6">
+            <p className="text-red-500">{error}</p>
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   }
 
   return (
-    <div className="p-4 space-y-6 max-w-7xl mx-auto">
-      <Card className="w-full h-full flex flex-col">
-        <CardHeader className="border-b">
-          <CardTitle>Conversations</CardTitle>
+    <motion.div
+      className="p-4 space-y-6 max-w-7xl mx-auto"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      {/* Header Section */}
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+        <CardHeader>
+          <motion.div variants={itemVariants}>
+            <CardTitle className="text-2xl text-black dark:text-white">
+              Conversations
+            </CardTitle>
+            <p className="text-sm text-[#C4C4C4]">Manage your conversations</p>
+          </motion.div>
         </CardHeader>
-        <CardContent className="flex-1 overflow-y-auto p-0">
+        <CardContent className="flex space-x-4">
+          <motion.div
+            variants={itemVariants}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <Button
+              asChild
+              variant="outline"
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+            >
+              <Link href="/dashboard">
+                <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                Back to Dashboard
+              </Link>
+            </Button>
+          </motion.div>
+        </CardContent>
+      </Card>
+
+      {/* Conversations List */}
+      <Card className="shadow-lg flex flex-col">
+        <CardHeader>
+          <CardTitle className="text-black dark:text-white">
+            Your Conversations
+          </CardTitle>
+        </CardHeader>
+        <CardContent className="flex-1 overflow-y-auto p-0 pt-6">
           {conversations.length === 0 ? (
             <div className="flex h-full items-center justify-center">
-              <p className="text-gray-500">No conversations found.</p>
+              <p className="text-[#C4C4C4]">No conversations found.</p>
             </div>
           ) : (
-            <div className="divide-y">
+            <div className="divide-y divide-[#F3CFC6]/20">
               {conversations.map((conv) => {
                 // Determine the other participant (user or specialist)
                 let otherParticipant: User | Specialist | null;
@@ -204,28 +363,25 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                     variant="ghost"
                     className={cn(
                       "w-full flex items-center gap-3 p-4 rounded-none h-auto",
-                      isActive ? "bg-[#F5E6E8] text-black" : "hover:bg-gray-100"
+                      isActive
+                        ? "bg-[#F3CFC6]/20 text-black dark:text-white"
+                        : "hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10"
                     )}
                     onClick={() => handleConversationClick(conv.id)}
                   >
-                    <Avatar
-                      className="h-10 w-10"
-                      onClick={() => {
-                        if (otherParticipant?.id) {
-                          router.push(
-                            `/dashboard/users/${otherParticipant.id}`
-                          );
-                        }
-                      }}
-                    >
+                    <Avatar className="h-10 w-10 border-2 border-white">
                       <AvatarImage src={profileImage || ""} alt={name} />
-                      <AvatarFallback>{name.charAt(0)}</AvatarFallback>
+                      <AvatarFallback className="bg-[#C4C4C4] text-black">
+                        {name.charAt(0)}
+                      </AvatarFallback>
                     </Avatar>
                     <div className="flex-1 text-left min-w-0">
                       <div className="flex items-center justify-between gap-2">
-                        <span className="font-semibold truncate">{name}</span>
+                        <span className="font-semibold truncate text-black dark:text-white">
+                          {name}
+                        </span>
                         {conv.lastMessage && (
-                          <span className="text-xs text-gray-500 whitespace-nowrap">
+                          <span className="text-xs text-[#C4C4C4] whitespace-nowrap">
                             {new Date(
                               conv.lastMessage.createdAt
                             ).toLocaleTimeString([], {
@@ -235,12 +391,12 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                           </span>
                         )}
                       </div>
-                      <p className="text-sm text-gray-600 truncate">
+                      <p className="text-sm text-[#C4C4C4] truncate">
                         {conv.lastMessage?.text || "No messages"}
                       </p>
                     </div>
                     {conv.messageCount > 0 && (
-                      <span className="bg-[#D8A7B1] text-white text-xs rounded-full px-2 py-1">
+                      <span className="bg-[#F3CFC6] text-black dark:text-white text-xs rounded-full px-2 py-1">
                         {conv.messageCount}
                       </span>
                     )}
@@ -251,7 +407,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
           )}
         </CardContent>
       </Card>
-    </div>
+    </motion.div>
   );
 };
 

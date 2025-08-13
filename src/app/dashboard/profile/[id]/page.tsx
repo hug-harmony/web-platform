@@ -6,13 +6,14 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Gem, Upload } from "lucide-react"; // Added Upload icon
+import { Gem, Upload } from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
+import { Skeleton } from "@/components/ui/skeleton";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -178,7 +179,52 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   };
 
   if (loading) {
-    return <div className="text-center p-6">Loading...</div>;
+    return (
+      <div className="p-4 space-y-6 max-w-7xl mx-auto">
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
+            <div className="flex items-center space-x-4">
+              <Skeleton className="h-16 w-16 rounded-full bg-[#C4C4C4]/50" />
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
+                <Skeleton className="h-4 w-64 bg-[#C4C4C4]/50" />
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="flex space-x-4">
+            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+          </CardContent>
+        </Card>
+        <Card className="shadow-lg">
+          <CardContent className="space-y-4 pt-6">
+            <div className="space-y-2 max-w-2xl">
+              <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
+              <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
+              <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
+              <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
+              <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
+            </div>
+            <div className="space-y-2">
+              <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
+              <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
+            </div>
+            <div className="flex space-x-4">
+              <Skeleton className="h-10 w-24 rounded-full bg-[#C4C4C4]/50" />
+              <Skeleton className="h-10 w-24 rounded-full bg-[#C4C4C4]/50" />
+            </div>
+          </CardContent>
+        </Card>
+      </div>
+    );
   }
 
   if (error || !profile) {
@@ -196,37 +242,65 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       initial="hidden"
       animate="visible"
     >
-      <Card>
+      {/* Header Section */}
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
           <motion.div
             variants={itemVariants}
             className="flex items-center space-x-4"
           >
-            <Avatar className="h-16 w-16">
+            <Avatar className="h-16 w-16 border-2 border-white">
               <AvatarImage
                 src={profile.profileImage || "/register.jpg"}
                 alt={profile.name || "User"}
               />
-              <AvatarFallback>{profile.name?.[0] || "U"}</AvatarFallback>
+              <AvatarFallback className="bg-[#C4C4C4] text-black">
+                {profile.name?.[0] || "U"}
+              </AvatarFallback>
             </Avatar>
             <div>
-              <CardTitle className="text-2xl">Profile</CardTitle>
-              <p className="text-muted-foreground">
+              <CardTitle className="text-2xl text-black dark:text-white">
+                Profile
+              </CardTitle>
+              <p className="text-black text-sm">
                 Manage your personal information
               </p>
             </div>
           </motion.div>
         </CardHeader>
-        <CardContent className="space-y-4">
-          <motion.div variants={itemVariants} className="flex space-x-4">
-            <Button variant="outline" onClick={handleNewProfessional}>
-              <Gem /> Become a Professional
+        <CardContent className="flex space-x-4">
+          <motion.div
+            variants={itemVariants}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <Button
+              variant="outline"
+              onClick={handleNewProfessional}
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+            >
+              <Gem className="w-4 h-4 mr-2 text-[#F3CFC6]" /> Become a
+              Professional
             </Button>
           </motion.div>
+        </CardContent>
+      </Card>
+
+      {/* Content Section */}
+      <Card className="shadow-lg">
+        <CardContent className="space-y-4 pt-6">
           <motion.div variants={itemVariants} className="space-y-4">
             <form onSubmit={handleUpdateProfile} className="space-y-4">
               <div className="space-y-2 max-w-2xl">
-                <Label htmlFor="profileImage">Profile Picture</Label>
+                <Label
+                  htmlFor="profileImage"
+                  className="text-black dark:text-white"
+                >
+                  Profile Picture
+                </Label>
                 <div className="flex items-center space-x-2">
                   <Input
                     id="profileImage"
@@ -244,13 +318,25 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     variant="outline"
                     disabled={!isEditing || updating}
                     onClick={() => fileInputRef.current?.click()}
+                    className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
                   >
-                    <Upload className="w-4 h-4 mr-2" /> Upload Image
+                    <Upload className="w-4 h-4 mr-2 text-[#F3CFC6]" />{" "}
+                    {selectedFile ? "Replace" : "Upload Image"}
                   </Button>
+                  {selectedFile && (
+                    <span className="text-sm text-[#C4C4C4] truncate max-w-xs">
+                      {selectedFile.name}
+                    </span>
+                  )}
                 </div>
               </div>
               <div className="space-y-2">
-                <Label htmlFor="firstName">First Name</Label>
+                <Label
+                  htmlFor="firstName"
+                  className="text-black dark:text-white"
+                >
+                  First Name
+                </Label>
                 <Input
                   id="firstName"
                   name="firstName"
@@ -259,10 +345,16 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     setProfile({ ...profile, firstName: e.target.value })
                   }
                   disabled={!isEditing || updating}
+                  className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="lastName">Last Name</Label>
+                <Label
+                  htmlFor="lastName"
+                  className="text-black dark:text-white"
+                >
+                  Last Name
+                </Label>
                 <Input
                   id="lastName"
                   name="lastName"
@@ -271,10 +363,16 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     setProfile({ ...profile, lastName: e.target.value })
                   }
                   disabled={!isEditing || updating}
+                  className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="phoneNumber">Phone Number</Label>
+                <Label
+                  htmlFor="phoneNumber"
+                  className="text-black dark:text-white"
+                >
+                  Phone Number
+                </Label>
                 <Input
                   id="phoneNumber"
                   name="phoneNumber"
@@ -283,10 +381,16 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     setProfile({ ...profile, phoneNumber: e.target.value })
                   }
                   disabled={!isEditing || updating}
+                  className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="location">Location</Label>
+                <Label
+                  htmlFor="location"
+                  className="text-black dark:text-white"
+                >
+                  Location
+                </Label>
                 <Input
                   id="location"
                   name="location"
@@ -295,6 +399,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     setProfile({ ...profile, location: e.target.value })
                   }
                   disabled={!isEditing || updating}
+                  className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
                 />
               </div>
               <div className="flex space-x-4 mt-4">
@@ -303,13 +408,14 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                   type="button"
                   onClick={() => setIsEditing(true)}
                   disabled={isEditing || updating}
+                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
                 >
                   Edit
                 </Button>
                 <Button
-                  variant="default"
                   type="submit"
                   disabled={!isEditing || updating}
+                  className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
                 >
                   {updating ? "Saving..." : "Save"}
                 </Button>
