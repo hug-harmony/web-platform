@@ -22,7 +22,7 @@ import UserCard from "@/components/UserCard";
 interface Therapist {
   _id: string;
   name: string;
-  image?: string;
+  image: string; // Changed from `image?: string` to `image: string`
   location?: string;
 }
 
@@ -69,7 +69,9 @@ export default function ExplorePage() {
                     user.firstName && user.lastName
                       ? `${user.firstName} ${user.lastName}`
                       : user.name || "Unknown User",
-                  image: user.image || "",
+                  image:
+                    user.profileImage ||
+                    "/assets/images/avatar-placeholder.png",
                   location: user.location || "",
                 }))
             : usersData._id
@@ -80,7 +82,9 @@ export default function ExplorePage() {
                       usersData.firstName && usersData.lastName
                         ? `${usersData.firstName} ${usersData.lastName}`
                         : usersData.name || "Unknown User",
-                    image: usersData.image || "",
+                    image:
+                      usersData.profileImage ||
+                      "/assets/images/avatar-placeholder.png",
                     location: usersData.location || "",
                   },
                 ]
@@ -211,7 +215,7 @@ export default function ExplorePage() {
                     <Link href={`/dashboard/users/${user._id}`}>
                       <UserCard
                         name={user.name}
-                        imageSrc={user.image || ""}
+                        imageSrc={user.image}
                         className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors"
                       />
                     </Link>

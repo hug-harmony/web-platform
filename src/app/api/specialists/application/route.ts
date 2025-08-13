@@ -105,6 +105,7 @@ export async function GET(req: Request) {
       where: {
         ...(status !== "all" && { status }),
         name: { contains: search, mode: "insensitive" },
+        userId: { not: session.user.id }, // Exclude current user's application
       },
       select: {
         id: true,

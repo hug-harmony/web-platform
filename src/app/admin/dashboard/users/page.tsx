@@ -15,11 +15,13 @@ import {
 import { Users, Search } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface User {
   _id: string;
   name: string;
   email: string;
+  profileImage: string;
   status: "active" | "suspended";
 }
 
@@ -128,7 +130,18 @@ export default function UsersPage() {
                     >
                       <div className="flex items-center gap-4">
                         <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center text-black dark:text-white">
-                          {user.name[0]}
+                          <Avatar className="h-16 w-16 border-2 border-white">
+                            <AvatarImage
+                              src={
+                                user.profileImage ||
+                                "/assets/images/avatar-placeholder.png"
+                              }
+                              alt={user.name}
+                            />
+                            <AvatarFallback className="bg-[#C4C4C4] text-black">
+                              {user.name[0]}
+                            </AvatarFallback>
+                          </Avatar>
                         </div>
                         <div>
                           <p className="font-semibold text-black dark:text-white">

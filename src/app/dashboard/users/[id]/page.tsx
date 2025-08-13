@@ -90,7 +90,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             biography: data.biography || "",
             education: data.education || "",
             license: data.license || "",
-            image: data.image || "/register.jpg",
+            image: data.image || "/assets/images/avatar-placeholder.png", // Updated fallback path
             location: data.location || "",
             rating: data.rating || 0,
             reviewCount: data.reviewCount || 0,
@@ -115,7 +115,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
               (data.firstName && data.lastName
                 ? `${data.firstName} ${data.lastName}`
                 : "Unknown User"),
-            image: data.image || "/register.jpg",
+            image: data.profileImage || "/assets/images/avatar-placeholder.png", // Changed from `data.image` to `data.profileImage`
             location: data.location || "",
             rating: data.rating || 0,
             reviewCount: data.reviewCount || 0,
@@ -236,7 +236,8 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     );
   }
 
-  const validImageSrc = profile.image || "/register.jpg";
+  const validImageSrc =
+    profile.image || "/assets/images/avatar-placeholder.png"; // Updated fallback path
   const tagsArray = profile.tags
     ? profile.tags.split(",").map((tag) => tag.trim())
     : [];
@@ -249,7 +250,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       animate="visible"
     >
       <motion.div
-        className="w-full max-w-7xl rounded-2xl shadow-lg overflow-hidden "
+        className="w-full max-w-7xl rounded-2xl shadow-lg overflow-hidden"
         variants={itemVariants}
       >
         <div className="relative h-64 sm:h-80">

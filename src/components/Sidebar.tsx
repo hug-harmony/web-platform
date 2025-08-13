@@ -62,6 +62,7 @@ const sidebarVariants = {
 export default function Sidebar() {
   const [isOpen, setIsOpen] = useState(true);
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [isSpecialist, setIsSpecialist] = useState(false);
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
@@ -122,18 +123,18 @@ export default function Sidebar() {
   ];
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchProfileAndSpecialistStatus = async () => {
       if (!session?.user?.id || !/^[0-9a-fA-F]{24}$/.test(session.user.id))
         return;
 
       try {
-        const res = await fetch(`/api/users/${session.user.id}`, {
+        // Fetch profile
+        const profileRes = await fetch(`/api/users/${session.user.id}`, {
           cache: "no-store",
           credentials: "include",
         });
-
-        if (res.ok) {
-          const data = await res.json();
+        if (profileRes.ok) {
+          const data = await profileRes.json();
           setProfile({
             id: data.id,
             name:
@@ -146,12 +147,22 @@ export default function Sidebar() {
             profileImage: data.profileImage,
           });
         }
+
+        // Fetch specialist application status
+        const specialistRes = await fetch("/api/specialists/application/me", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        if (specialistRes.ok) {
+          const { status } = await specialistRes.json();
+          setIsSpecialist(status === "approved");
+        }
       } catch (error) {
-        console.error("Fetch Profile Error:", error);
+        console.error("Fetch Error:", error);
       }
     };
 
-    if (status === "authenticated") fetchProfile();
+    if (status === "authenticated") fetchProfileAndSpecialistStatus();
   }, [session, status]);
 
   const handleLogout = async () => {
@@ -216,6 +227,11 @@ export default function Sidebar() {
                     <p className="text-xs text-muted-foreground">
                       {user.email}
                     </p>
+                    {isSpecialist && (
+                      <span className="mt-1 inline-block  bg-black text-[#F3CFC6] text-xs font-medium px-2 py-1 rounded">
+                        Professional
+                      </span>
+                    )}
                   </div>
                 )}
               </motion.div>

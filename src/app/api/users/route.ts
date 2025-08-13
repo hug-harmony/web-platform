@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
@@ -50,7 +51,7 @@ export async function GET(req: Request) {
             ? `${user.firstName} ${user.lastName}`
             : "Unknown User"),
         phoneNumber: user.phoneNumber || "",
-        image: user.profileImage || "",
+        profileImage: user.profileImage || "", // Changed from `image` to `profileImage`
         location: user.location || "",
         status: user.status,
         createdAt: user.createdAt,
@@ -58,6 +59,9 @@ export async function GET(req: Request) {
     }
 
     const users = await prisma.user.findMany({
+      where: {
+        id: { not: session.user.id }, // Exclude current user's profile
+      },
       select: {
         id: true,
         email: true,
@@ -88,7 +92,7 @@ export async function GET(req: Request) {
             ? `${user.firstName} ${user.lastName}`
             : "Unknown User"),
         phoneNumber: user.phoneNumber || "",
-        image: user.profileImage || "",
+        profileImage: user.profileImage || "", // Changed from `image` to `profileImage`
         location: user.location || "",
         status: user.status,
         createdAt: user.createdAt,

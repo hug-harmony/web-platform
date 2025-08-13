@@ -35,6 +35,14 @@ interface Profile {
   location?: string | null;
   email: string;
   type: "user" | "specialist";
+  role?: string | null;
+  tags?: string | null;
+  biography?: string | null;
+  education?: string | null;
+  license?: string | null;
+  rating?: number | null;
+  reviewCount?: number | null;
+  rate?: number | null;
 }
 
 interface Props {
@@ -48,12 +56,13 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   const [updating, setUpdating] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
+  const [isSpecialist, setIsSpecialist] = useState(false);
   const router = useRouter();
   const { data: session, status, update } = useSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
-    const fetchProfile = async () => {
+    const fetchProfileAndSpecialistStatus = async () => {
       try {
         const { id } = await params;
         if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
@@ -61,6 +70,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           notFound();
         }
 
+        // Fetch profile
         const res = await fetch(`/api/users/${id}`, {
           cache: "no-store",
           credentials: "include",
@@ -88,6 +98,48 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           if (res.status === 404) notFound();
           throw new Error(`Failed to fetch user: ${res.status}`);
         }
+
+        // Fetch specialist application status
+        const specialistRes = await fetch("/api/specialists/application/me", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        if (specialistRes.ok) {
+          const { status: appStatus, specialistId } =
+            await specialistRes.json();
+          setIsSpecialist(appStatus === "approved");
+
+          // Fetch specialist details if approved
+          if (appStatus === "approved" && specialistId) {
+            const specialistDetailsRes = await fetch(
+              `/api/specialists?id=${specialistId}`,
+              {
+                cache: "no-store",
+                credentials: "include",
+              }
+            );
+            if (specialistDetailsRes.ok) {
+              const specialistData = await specialistDetailsRes.json();
+              setProfile((prev) =>
+                prev
+                  ? {
+                      ...prev,
+                      type: "specialist",
+                      role: specialistData.role,
+                      tags: specialistData.tags,
+                      biography: specialistData.biography,
+                      education: specialistData.education,
+                      license: specialistData.license,
+                      location: specialistData.location,
+                      rating: specialistData.rating,
+                      reviewCount: specialistData.reviewCount,
+                      rate: specialistData.rate,
+                    }
+                  : prev
+              );
+            }
+          }
+        }
       } catch (err: any) {
         console.error("Fetch Profile Error:", err.message, err.stack);
         setError("Failed to load profile. Please try again.");
@@ -96,7 +148,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       }
     };
 
-    fetchProfile();
+    fetchProfileAndSpecialistStatus();
   }, [params, router]);
 
   const handleNewProfessional = async () => {
@@ -260,35 +312,39 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             </Avatar>
             <div>
               <CardTitle className="text-2xl text-black dark:text-white">
-                Profile
+                {profile.name || "User"}
               </CardTitle>
-              <p className="text-black text-sm">
-                Manage your personal information
-              </p>
+              <p className="text-black text-sm">{profile.email}</p>
+              {isSpecialist && (
+                <span className="mt-1 inline-block bg-black text-[#F3CFC6] text-xs font-medium px-2 py-1 rounded">
+                  Professional
+                </span>
+              )}
             </div>
           </motion.div>
         </CardHeader>
         <CardContent className="flex space-x-4">
-          <motion.div
-            variants={itemVariants}
-            whileHover={{
-              scale: 1.05,
-              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-            }}
-            transition={{ duration: 0.2 }}
-          >
-            <Button
-              variant="outline"
-              onClick={handleNewProfessional}
-              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+          {!isSpecialist && (
+            <motion.div
+              variants={itemVariants}
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+              }}
+              transition={{ duration: 0.2 }}
             >
-              <Gem className="w-4 h-4 mr-2 text-[#F3CFC6]" /> Become a
-              Professional
-            </Button>
-          </motion.div>
+              <Button
+                variant="outline"
+                onClick={handleNewProfessional}
+                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+              >
+                <Gem className="w-4 h-4 mr-2 text-[#F3CFC6]" /> Become a
+                Professional
+              </Button>
+            </motion.div>
+          )}
         </CardContent>
       </Card>
-
       {/* Content Section */}
       <Card className="shadow-lg">
         <CardContent className="space-y-4 pt-6">
@@ -424,6 +480,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           </motion.div>
         </CardContent>
       </Card>
+      ``
     </motion.div>
   );
 };
