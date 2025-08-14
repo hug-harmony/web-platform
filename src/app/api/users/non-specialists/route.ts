@@ -12,6 +12,7 @@ export async function GET(req: Request) {
 
     const users = await prisma.user.findMany({
       where: {
+        id: { not: session.user.id }, // Exclude the current user's ID
         specialistApplication: null, // Filter out users with specialist applications
       },
       select: {

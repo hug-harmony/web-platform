@@ -26,7 +26,7 @@ interface Appointment {
   rating?: number | null;
   reviewCount?: number | null;
   rate?: number | null;
-  userId: string;
+  specialistId: string;
 }
 
 // Animation variants
@@ -82,7 +82,7 @@ export default function AppointmentsPage() {
             ? data.map((appt: any) => ({
                 _id: appt._id || "",
                 name: appt.name || "Unknown",
-                userId: appt.specialistId || "",
+                specialistId: appt.specialistId || "",
                 specialistName: appt.specialistName || "Unknown Specialist",
                 date: appt.date || "",
                 time: appt.time || "",
@@ -118,8 +118,8 @@ export default function AppointmentsPage() {
       return (!start || apptDate >= start) && (!end || apptDate <= end);
     });
 
-  const handleMessageClick = async (userId: string) => {
-    if (!userId || !/^[0-9a-fA-F]{24}$/.test(userId)) {
+  const handleMessageClick = async (specialistId: string) => {
+    if (!specialistId || !/^[0-9a-fA-F]{24}$/.test(specialistId)) {
       toast.error("Invalid specialist ID");
       return;
     }
@@ -129,7 +129,7 @@ export default function AppointmentsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          recipientId: userId,
+          recipientId: specialistId,
           isSpecialistRecipient: true,
         }),
         credentials: "include",
@@ -287,7 +287,9 @@ export default function AppointmentsPage() {
                       reviewCount={appointment.reviewCount || 0}
                       rate={appointment.rate || 0}
                       status={appointment.status}
-                      onMessage={() => handleMessageClick(appointment.userId)}
+                      onMessage={() =>
+                        handleMessageClick(appointment.specialistId)
+                      }
                     />
                   </motion.div>
                 ))}

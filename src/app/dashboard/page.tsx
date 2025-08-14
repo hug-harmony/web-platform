@@ -1,3 +1,4 @@
+/* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -13,16 +14,17 @@ import {
   Calendar,
   MessageSquare,
   Clock,
-  User,
-  Video,
-  DollarSign,
   UserStar,
   UserRoundSearch,
+  Video,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
+import { toast } from "sonner";
+import { Skeleton } from "@/components/ui/skeleton";
 
 // Type definitions
 interface User {
@@ -32,59 +34,25 @@ interface User {
   profileImage?: string | null;
 }
 
-interface Message {
-  id: number;
-  therapist: string;
-  message: string;
-  time: string;
-  unread: boolean;
+interface Conversation {
+  id: string;
+  user1?: {
+    id: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    profileImage?: string | null;
+  } | null;
+  user2?: {
+    id: string;
+    firstName?: string | null;
+    lastName?: string | null;
+    profileImage?: string | null;
+  } | null;
+  specialist1?: { id: string; name: string; image?: string | null } | null;
+  specialist2?: { id: string; name: string; image?: string | null } | null;
+  lastMessage?: { text: string; createdAt: string } | null;
+  messageCount: number;
 }
-
-// Dummy data
-const recentMessages: Message[] = [
-  {
-    id: 1,
-    therapist: "Dr. Sarah Johnson",
-    message: "Looking forward to our session tomorrow!",
-    time: "2025-08-04 14:30",
-    unread: true,
-  },
-  {
-    id: 2,
-    therapist: "Dr. Michael Brown",
-    message: "Please review the notes from our last session.",
-    time: "2025-08-03 09:15",
-    unread: false,
-  },
-];
-
-const appointments = {
-  upcoming: [
-    {
-      id: 1,
-      therapist: "Dr. Sarah Johnson",
-      date: "2025-08-06",
-      time: "10:00 AM",
-      type: "Video Session",
-    },
-    {
-      id: 2,
-      therapist: "Dr. Emily Carter",
-      date: "2025-08-08",
-      time: "2:00 PM",
-      type: "In-Person",
-    },
-  ],
-  past: [
-    {
-      id: 3,
-      therapist: "Dr. Michael Brown",
-      date: "2025-07-30",
-      time: "11:00 AM",
-      type: "Video Session",
-    },
-  ],
-};
 
 // Animation variants
 const containerVariants = {
@@ -104,13 +72,43 @@ const itemVariants = {
 export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
   const [user, setUser] = useState<User | null>(null);
+  const [conversations, setConversations] = useState<Conversation[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { data: session, status } = useSession();
   const router = useRouter();
 
+  // Static appointments data
+  const appointments = {
+    upcoming: [
+      {
+        id: 1,
+        therapist: "Dr. Sarah Johnson",
+        date: "2025-08-06",
+        time: "10:00 AM",
+        type: "Video Session",
+      },
+      {
+        id: 2,
+        therapist: "Dr. Emily Carter",
+        date: "2025-08-08",
+        time: "2:00 PM",
+        type: "In-Person",
+      },
+    ],
+    past: [
+      {
+        id: 3,
+        therapist: "Dr. Michael Brown",
+        date: "2025-07-30",
+        time: "11:00 AM",
+        type: "Video Session",
+      },
+    ],
+  };
+
   useEffect(() => {
-    const fetchUser = async () => {
+    const fetchData = async () => {
       if (status === "loading") return;
       if (status === "unauthenticated") {
         router.push("/login");
@@ -124,41 +122,152 @@ export default function HomePage() {
           notFound();
         }
 
-        const res = await fetch(`/api/users/${id}`, {
+        // Fetch user data
+        const userRes = await fetch(`/api/users/${id}`, {
           cache: "no-store",
           credentials: "include",
         });
 
-        if (res.ok) {
-          const data = await res.json();
-          setUser({
-            id: data.id,
-            name:
-              data.firstName && data.lastName
-                ? `${data.firstName} ${data.lastName}`
-                : data.name || "User",
-            email: data.email || "user@example.com",
-            profileImage: data.profileImage || null,
-          });
-        } else {
-          console.error("User API response:", res.status, await res.text());
-          if (res.status === 401) router.push("/login");
-          if (res.status === 404) notFound();
-          throw new Error(`Failed to fetch user: ${res.status}`);
+        if (!userRes.ok) {
+          console.error(
+            "User API response:",
+            userRes.status,
+            await userRes.text()
+          );
+          if (userRes.status === 401) router.push("/login");
+          if (userRes.status === 404) notFound();
+          throw new Error(`Failed to fetch user: ${userRes.status}`);
         }
+
+        const userData = await userRes.json();
+        setUser({
+          id: userData.id,
+          name:
+            userData.firstName && userData.lastName
+              ? `${userData.firstName} ${userData.lastName}`
+              : userData.name || "User",
+          email: userData.email || "",
+          profileImage: userData.profileImage || null,
+        });
+
+        // Fetch conversations
+        const convRes = await fetch("/api/conversations", {
+          cache: "no-store",
+          credentials: "include",
+        });
+
+        if (!convRes.ok) {
+          if (convRes.status === 401) {
+            router.push("/login");
+            return;
+          }
+          throw new Error(`Failed to fetch conversations: ${convRes.status}`);
+        }
+
+        const convData = await convRes.json();
+        setConversations(convData);
       } catch (err: any) {
-        console.error("Fetch User Error:", err.message, err.stack);
-        setError("Failed to load user data. Please try again.");
+        console.error("Fetch Error:", err.message, err.stack);
+        setError("Failed to load data. Please try again.");
+        toast.error("Failed to load data");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchUser();
+    fetchData();
   }, [status, session, router]);
 
+  const handleConversationClick = (convId: string) => {
+    if (!/^[0-9a-fA-F]{24}$/.test(convId)) {
+      toast.error("Invalid conversation ID");
+      return;
+    }
+    router.push(`/dashboard/messaging/${convId}`);
+  };
+
   if (status === "loading" || loading) {
-    return <div className="p-4 text-center">Loading...</div>;
+    return (
+      <motion.div
+        className="space-y-6 w-full max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
+            <div className="flex items-center space-x-4">
+              <Skeleton className="h-16 w-16 rounded-full bg-[#C4C4C4]/50" />
+              <div className="space-y-2">
+                <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
+                <Skeleton className="h-4 w-64 bg-[#C4C4C4]/50" />
+              </div>
+            </div>
+          </CardHeader>
+        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+          {[...Array(3)].map((_, i) => (
+            <Card key={i} className="shadow-lg">
+              <CardContent className="flex items-center space-x-4 p-6">
+                <Skeleton className="h-8 w-8 bg-[#C4C4C4]/50" />
+                <div className="space-y-2">
+                  <Skeleton className="h-6 w-32 bg-[#C4C4C4]/50" />
+                  <Skeleton className="h-4 w-48 bg-[#C4C4C4]/50" />
+                </div>
+              </CardContent>
+            </Card>
+          ))}
+        </div>
+        <Card className="shadow-lg">
+          <CardHeader>
+            <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
+          </CardHeader>
+          <CardContent>
+            <ScrollArea className="h-[200px]">
+              {[...Array(3)].map((_, i) => (
+                <div key={i} className="flex items-center justify-between p-2">
+                  <div className="flex items-center space-x-3">
+                    <Skeleton className="h-10 w-10 rounded-full bg-[#C4C4C4]/50" />
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32 bg-[#C4C4C4]/50" />
+                      <Skeleton className="h-3 w-48 bg-[#C4C4C4]/50" />
+                    </div>
+                  </div>
+                  <Skeleton className="h-4 w-16 bg-[#C4C4C4]/50" />
+                </div>
+              ))}
+            </ScrollArea>
+          </CardContent>
+        </Card>
+        <Card className="shadow-lg">
+          <CardHeader>
+            <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
+          </CardHeader>
+          <CardContent>
+            <Tabs defaultValue="upcoming">
+              <TabsList className="grid w-full grid-cols-2 bg-[#F3CFC6]/20">
+                <TabsTrigger value="upcoming">Upcoming</TabsTrigger>
+                <TabsTrigger value="past">Past</TabsTrigger>
+              </TabsList>
+              <TabsContent value="upcoming">
+                {[...Array(2)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="flex items-center justify-between p-2"
+                  >
+                    <div className="space-y-2">
+                      <Skeleton className="h-4 w-32 bg-[#C4C4C4]/50" />
+                      <Skeleton className="h-3 w-48 bg-[#C4C4C4]/50" />
+                    </div>
+                    <Skeleton className="h-8 w-16 bg-[#C4C4C4]/50" />
+                  </div>
+                ))}
+              </TabsContent>
+            </Tabs>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
   }
 
   if (status === "unauthenticated") {
@@ -189,14 +298,9 @@ export default function HomePage() {
             className="flex items-center space-x-4"
           >
             <Avatar className="h-16 w-16 border-2 border-white">
-              <AvatarImage
-                src={
-                  user.profileImage || "/assets/images/avatar-placeholder.png"
-                }
-                alt={user.name}
-              />
+              <AvatarImage src={user.profileImage || ""} alt={user.name} />
               <AvatarFallback className="bg-[#C4C4C4] text-black">
-                {user.name[0]}
+                {user.name[0] || "?"}
               </AvatarFallback>
             </Avatar>
             <div>
@@ -270,39 +374,102 @@ export default function HomePage() {
           <ScrollArea className="h-[200px]">
             <motion.div className="space-y-4" variants={containerVariants}>
               <AnimatePresence>
-                {recentMessages.length ? (
-                  recentMessages.map((msg) => (
-                    <motion.div
-                      key={msg.id}
-                      variants={itemVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit={{ opacity: 0, x: -20 }}
-                      className="flex items-center justify-between p-2 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
-                    >
-                      <div className="flex items-center space-x-3">
-                        <Avatar className="h-10 w-10">
-                          <AvatarFallback className="bg-[#C4C4C4] text-black">
-                            {msg.therapist.split(" ")[1]?.[0] || "T"}
-                          </AvatarFallback>
-                        </Avatar>
-                        <div>
-                          <p className="font-semibold text-black dark:text-white">
-                            {msg.therapist}
-                          </p>
-                          <p className="text-sm text-[#C4C4C4]">
-                            {msg.message}
-                          </p>
+                {conversations.length ? (
+                  conversations.map((conv) => {
+                    let otherParticipant: any | null;
+                    let name: string;
+                    let profileImage: string | undefined | null;
+                    let unread = conv.messageCount > 0;
+
+                    if (conv.user1?.id === session?.user.id) {
+                      otherParticipant = conv.user2 || conv.specialist2 || null;
+                      name = conv.user2
+                        ? `${conv.user2.firstName || ""} ${conv.user2.lastName || ""}`.trim() ||
+                          "Unknown User"
+                        : conv.specialist2?.name || "Unknown Specialist";
+                      profileImage = conv.user2
+                        ? conv.user2.profileImage
+                        : conv.specialist2?.image;
+                    } else if (conv.user2?.id === session?.user.id) {
+                      otherParticipant = conv.user1 || conv.specialist1 || null;
+                      name = conv.user1
+                        ? `${conv.user1.firstName || ""} ${conv.user1.lastName || ""}`.trim() ||
+                          "Unknown User"
+                        : conv.specialist1?.name || "Unknown Specialist";
+                      profileImage = conv.user1
+                        ? conv.user1.profileImage
+                        : conv.specialist1?.image;
+                    } else if (conv.specialist1?.id === session?.user.id) {
+                      otherParticipant = conv.user2 || conv.specialist2 || null;
+                      name = conv.user2
+                        ? `${conv.user2.firstName || ""} ${conv.user2.lastName || ""}`.trim() ||
+                          "Unknown User"
+                        : conv.specialist2?.name || "Unknown Specialist";
+                      profileImage = conv.user2
+                        ? conv.user2.profileImage
+                        : conv.specialist2?.image;
+                    } else if (conv.specialist2?.id === session?.user.id) {
+                      otherParticipant = conv.user1 || conv.specialist1 || null;
+                      name = conv.user1
+                        ? `${conv.user1.firstName || ""} ${conv.user1.lastName || ""}`.trim() ||
+                          "Unknown User"
+                        : conv.specialist1?.name || "Unknown Specialist";
+                      profileImage = conv.user1
+                        ? conv.user1.profileImage
+                        : conv.specialist1?.image;
+                    } else {
+                      otherParticipant = null;
+                      name = "Unknown Participant";
+                      profileImage = undefined;
+                    }
+
+                    return (
+                      <motion.div
+                        key={conv.id}
+                        variants={itemVariants}
+                        initial="hidden"
+                        animate="visible"
+                        exit={{ opacity: 0, x: -20 }}
+                        className="flex items-center justify-between p-2 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
+                        onClick={() => handleConversationClick(conv.id)}
+                      >
+                        <div className="flex items-center space-x-3">
+                          <Avatar className="h-10 w-10">
+                            <AvatarImage src={profileImage || ""} alt={name} />
+                            <AvatarFallback className="bg-[#C4C4C4] text-black">
+                              {name.charAt(0)}
+                            </AvatarFallback>
+                          </Avatar>
+                          <div>
+                            <p className="font-semibold text-black dark:text-white">
+                              {name}
+                            </p>
+                            <p className="text-sm text-[#C4C4C4]">
+                              {conv.lastMessage?.text || "No messages"}
+                            </p>
+                          </div>
                         </div>
-                      </div>
-                      <div className="text-right">
-                        <p className="text-sm text-[#C4C4C4]">{msg.time}</p>
-                        {msg.unread && (
-                          <Badge variant="destructive">Unread</Badge>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))
+                        <div className="text-right">
+                          <p className="text-sm text-[#C4C4C4]">
+                            {conv.lastMessage
+                              ? new Date(
+                                  conv.lastMessage.createdAt
+                                ).toLocaleString([], {
+                                  year: "numeric",
+                                  month: "numeric",
+                                  day: "numeric",
+                                  hour: "2-digit",
+                                  minute: "2-digit",
+                                })
+                              : ""}
+                          </p>
+                          {unread && (
+                            <Badge variant="destructive">Unread</Badge>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })
                 ) : (
                   <p className="text-[#C4C4C4]">No messages available.</p>
                 )}
@@ -310,7 +477,7 @@ export default function HomePage() {
             </motion.div>
           </ScrollArea>
           <Button asChild variant="link" className="mt-4 text-[#F3CFC6]">
-            <Link href="/messaging">View All Messages</Link>
+            <Link href="/dashboard/messaging">View All Messages</Link>
           </Button>
         </CardContent>
       </Card>
@@ -411,7 +578,7 @@ export default function HomePage() {
             </TabsContent>
           </Tabs>
           <Button asChild variant="link" className="mt-4 text-[#F3CFC6]">
-            <Link href="/appointments">View All Appointments</Link>
+            <Link href="/dashboard/appointments">View All Appointments</Link>
           </Button>
         </CardContent>
       </Card>
@@ -420,13 +587,13 @@ export default function HomePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
         {[
           {
-            href: "/payment",
+            href: "/dashboard/payment",
             label: "View Payments",
             icon: <DollarSign className="h-8 w-8 text-[#F3CFC6]" />,
             description: "Check your payment history.",
           },
           {
-            href: "/notes-history",
+            href: "/dashboard/notes-history",
             label: "Notes & Journal",
             icon: <MessageSquare className="h-8 w-8 text-[#F3CFC6]" />,
             description: "Review your session notes.",

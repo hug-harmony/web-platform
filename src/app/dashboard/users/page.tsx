@@ -22,7 +22,7 @@ import UserCard from "@/components/UserCard";
 interface Therapist {
   _id: string;
   name: string;
-  image: string;
+  image?: string;
   location?: string;
 }
 
@@ -64,33 +64,17 @@ export default function ExplorePage() {
         setUsers(
           Array.isArray(usersData)
             ? usersData
-                .filter((user) => user.id)
-                .map((user) => ({
+                .filter((user: any) => user.id)
+                .map((user: any) => ({
                   _id: user.id,
                   name:
                     user.firstName && user.lastName
                       ? `${user.firstName} ${user.lastName}`
                       : user.name || "Unknown User",
-                  image:
-                    user.profileImage ||
-                    "/assets/images/avatar-placeholder.png",
+                  image: user.profileImage || undefined,
                   location: user.location || "",
                 }))
-            : usersData.id
-              ? [
-                  {
-                    _id: usersData.id,
-                    name:
-                      usersData.firstName && usersData.lastName
-                        ? `${usersData.firstName} ${usersData.lastName}`
-                        : usersData.name || "Unknown User",
-                    image:
-                      usersData.profileImage ||
-                      "/assets/images/avatar-placeholder.png",
-                    location: usersData.location || "",
-                  },
-                ]
-              : []
+            : []
         );
       } catch (error) {
         console.error("Error fetching data:", error);
@@ -217,7 +201,7 @@ export default function ExplorePage() {
                     <Link href={`/dashboard/users/${user._id}`}>
                       <UserCard
                         name={user.name}
-                        imageSrc={user.image}
+                        imageSrc={user.image || ""}
                         className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors"
                       />
                     </Link>
