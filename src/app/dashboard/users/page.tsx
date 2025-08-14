@@ -22,7 +22,7 @@ import UserCard from "@/components/UserCard";
 interface Therapist {
   _id: string;
   name: string;
-  image: string; // Changed from `image?: string` to `image: string`
+  image: string;
   location?: string;
 }
 
@@ -45,26 +45,28 @@ export default function ExplorePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const usersRes = await fetch("/api/users", {
+        const usersRes = await fetch("/api/users/non-specialists", {
           cache: "no-store",
           credentials: "include",
         });
         if (!usersRes.ok) {
           console.error(
-            "Users API error:",
+            "Non-specialists API error:",
             usersRes.status,
             await usersRes.text()
           );
           if (usersRes.status === 401) redirect("/login");
-          throw new Error(`Failed to fetch users: ${usersRes.status}`);
+          throw new Error(
+            `Failed to fetch non-specialist users: ${usersRes.status}`
+          );
         }
         const usersData = await usersRes.json();
         setUsers(
           Array.isArray(usersData)
             ? usersData
-                .filter((user) => user._id)
+                .filter((user) => user.id)
                 .map((user) => ({
-                  _id: user._id,
+                  _id: user.id,
                   name:
                     user.firstName && user.lastName
                       ? `${user.firstName} ${user.lastName}`
@@ -74,10 +76,10 @@ export default function ExplorePage() {
                     "/assets/images/avatar-placeholder.png",
                   location: user.location || "",
                 }))
-            : usersData._id
+            : usersData.id
               ? [
                   {
-                    _id: usersData._id,
+                    _id: usersData.id,
                     name:
                       usersData.firstName && usersData.lastName
                         ? `${usersData.firstName} ${usersData.lastName}`
@@ -190,7 +192,7 @@ export default function ExplorePage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-black dark:text-white">
-            All Users
+            All Non-Specialist Users
           </CardTitle>
         </CardHeader>
         <CardContent>
@@ -224,7 +226,9 @@ export default function ExplorePage() {
               </AnimatePresence>
             </motion.div>
           ) : (
-            <p className="text-center text-[#C4C4C4]">No users found.</p>
+            <p className="text-center text-[#C4C4C4]">
+              No non-specialist users found.
+            </p>
           )}
         </CardContent>
       </Card>

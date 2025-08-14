@@ -16,13 +16,10 @@ const specialistApplicationSchema = z.object({
   tags: z.string().min(1, "Tags are required"),
 });
 
-<<<<<<< HEAD
 const updateStatusSchema = z.object({
   status: z.enum(["pending", "reviewed", "approved", "rejected"]),
 });
 
-z;
-=======
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -144,7 +141,6 @@ export async function POST(req: Request) {
     );
   }
 }
->>>>>>> d02a3afb20c64babde9b3637615fff64d6d08f7c
 
 export async function GET(req: Request) {
   try {
