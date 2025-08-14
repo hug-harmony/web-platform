@@ -148,5 +148,5 @@ model SpecialistApplication {
   updatedAt    DateTime    @updatedAt
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
   specialist   Specialist? @relation(fields: [specialistId], references: [id], onDelete: SetNull)
-  specialistId String?     @unique @db.ObjectId
+  specialistId String?     @unique @db.ObjectId // Keep @unique for one-to-one relation
 }
