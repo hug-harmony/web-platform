@@ -148,7 +148,7 @@ export default function SpecialistDetailPage() {
 
   if (loading) return <div className="p-4 text-center">Loading...</div>;
   if (!specialist)
-    return <div className="p-4 text-center">Specialist not found</div>;
+    return <div className="p-4 text-center">Professional not found</div>;
 
   return (
     <motion.div
@@ -163,7 +163,7 @@ export default function SpecialistDetailPage() {
           href="/admin/dashboard/specialists"
           className="hover:text-[#F3CFC6]"
         >
-          Specialists
+          Professionals
         </Link>
         <span>/</span>
         <span>{specialist.name}</span>
@@ -187,13 +187,13 @@ export default function SpecialistDetailPage() {
                 <Stethoscope className="mr-2 h-6 w-6" />
                 {specialist.name}
               </CardTitle>
-              <p className="text-sm opacity-80">Specialist Profile</p>
+              <p className="text-sm opacity-80">Professional Profile</p>
             </div>
           </div>
         </CardHeader>
         <CardContent className="flex items-center justify-between">
           <div className="space-y-2">
-            <p>Specialty: {specialist.specialty}</p>
+            <p>Speciality: {specialist.specialty}</p>
             <p>
               Status:{" "}
               <span
@@ -339,7 +339,7 @@ export default function SpecialistDetailPage() {
       >
         <Link href="/admin/dashboard/specialists">
           <ArrowLeft className="mr-2 h-4 w-4" />
-          Back to Specialists
+          Back to Professionals
         </Link>
       </Button>
     </motion.div>

@@ -176,7 +176,7 @@ export default function ExplorePage() {
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-black dark:text-white">
-            All Non-Specialist Users
+            All Users
           </CardTitle>
         </CardHeader>
         <CardContent>

@@ -121,7 +121,7 @@ export default function AdminDashboardLayout({
                       },
                       {
                         href: "/admin/dashboard/specialists",
-                        label: "Specialists",
+                        label: "Professionals",
                         icon: (
                           <UserCheck className="h-5 w-5 text-black dark:text-white" />
                         ),
