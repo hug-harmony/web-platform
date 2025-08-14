@@ -19,59 +19,7 @@ const updateStatusSchema = z.object({
   status: z.enum(["pending", "reviewed", "approved", "rejected"]),
 });
 
-export async function POST(req: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "Unauthorized: No session found" },
-        { status: 401 }
-      );
-    }
-
-    const body = await req.json();
-    const validatedData = specialistApplicationSchema.parse(body);
-
-    const existingApplication = await prisma.specialistApplication.findFirst({
-      where: { userId: session.user.id },
-      select: { status: true },
-    });
-
-    if (
-      existingApplication &&
-      ["pending", "approved"].includes(existingApplication.status)
-    ) {
-      return NextResponse.json(
-        { error: "You already have a pending or approved application" },
-        { status: 400 }
-      );
-    }
-
-    const application = await prisma.specialistApplication.create({
-      data: {
-        userId: session.user.id,
-        name: validatedData.name,
-        location: validatedData.location,
-        biography: validatedData.biography,
-        education: validatedData.education,
-        license: validatedData.license,
-        role: validatedData.role,
-        tags: validatedData.tags,
-      },
-    });
-
-    return NextResponse.json(application, { status: 201 });
-  } catch (error) {
-    console.error("Error submitting application:", error);
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
-    }
-    return NextResponse.json(
-      { error: "Internal server error: Failed to submit application" },
-      { status: 500 }
-    );
-  }
-}
+z;
 
 export async function GET(req: Request) {
   try {

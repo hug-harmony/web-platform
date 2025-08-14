@@ -1,5 +1,4 @@
 "use client";
-
 import { useState, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
@@ -78,10 +77,9 @@ export default function StatsPage() {
     { name: "Appointments", value: 0 },
     { name: "Reports", value: 0 },
   ]);
-  const [dateRange, setDateRange] = useState("");
   const [loading, setLoading] = useState(true);
 
-  const fetchStats = async (startDate?: string, endDate?: string) => {
+  const fetchStats = async () => {
     setLoading(true);
     try {
       // Fetch users
@@ -90,7 +88,7 @@ export default function StatsPage() {
       const users = await usersRes.json();
       const userCount = Array.isArray(users) ? users.length : 0;
 
-      // Fetch specialists (approved applications)
+      // Fetch approved specialists
       const specialistsRes = await fetch(
         "/api/specialists/application?status=approved"
       );
@@ -100,30 +98,20 @@ export default function StatsPage() {
         ? applications.length
         : 0;
 
-      // Fetch appointments with optional date range
-      const appointmentsUrl = new URL(
-        "/api/appointment",
-        window.location.origin
-      );
-      if (startDate && endDate) {
-        appointmentsUrl.searchParams.append("startDate", startDate);
-        appointmentsUrl.searchParams.append("endDate", endDate);
-      }
-      const appointmentsRes = await fetch(appointmentsUrl);
+      // Fetch all appointments
+      const appointmentsRes = await fetch("/api/appointment/all");
       if (!appointmentsRes.ok) throw new Error("Failed to fetch appointments");
       const appointments = await appointmentsRes.json();
       const appointmentCount = Array.isArray(appointments)
         ? appointments.length
         : 0;
 
-      // Reports count (placeholder)
-      const reportsCount = 0;
-
+      // Set stats data
       setStatsData([
         { name: "Users", value: userCount },
         { name: "Specialists", value: specialistCount },
         { name: "Appointments", value: appointmentCount },
-        { name: "Reports", value: reportsCount },
+        { name: "Reports", value: 0 },
       ]);
     } catch (error) {
       console.error("Fetch Stats Error:", error);
@@ -135,19 +123,6 @@ export default function StatsPage() {
   useEffect(() => {
     fetchStats();
   }, []);
-
-  const handleFilter = () => {
-    if (dateRange) {
-      const [start, end] = dateRange.split(" to ");
-      if (start && end) {
-        fetchStats(start, end);
-      } else {
-        fetchStats();
-      }
-    } else {
-      fetchStats();
-    }
-  };
 
   const chartData = {
     labels: statsData.map((stat) => stat.name),
@@ -183,20 +158,19 @@ export default function StatsPage() {
         <div className="relative flex-1">
           <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C4C4C4]" />
           <Input
-            placeholder="Select date range (e.g., 2025-01-01 to 2025-12-31)"
+            placeholder="Select date range (disabled for now)"
             className="pl-10 border-[#C4C4C4] focus:ring-[#F3CFC6] dark:bg-black dark:text-white dark:border-[#C4C4C4]"
             aria-label="Select date range"
-            value={dateRange}
-            onChange={(e) => setDateRange(e.target.value)}
+            disabled
           />
         </div>
         <Button
           variant="outline"
           className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-          onClick={handleFilter}
+          onClick={fetchStats}
           disabled={loading}
         >
-          {loading ? "Loading..." : "Filter"}
+          {loading ? "Loading..." : "Refresh"}
         </Button>
       </div>
 

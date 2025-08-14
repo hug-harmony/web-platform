@@ -17,7 +17,7 @@ import AppointmentCard from "@/components/AppointmentCard";
 interface Appointment {
   _id: string;
   name: string;
-  specialistId: string;
+
   specialistName: string;
   date: string;
   time: string;
@@ -26,6 +26,7 @@ interface Appointment {
   rating?: number | null;
   reviewCount?: number | null;
   rate?: number | null;
+  userId: string;
 }
 
 // Animation variants
@@ -81,7 +82,7 @@ export default function AppointmentsPage() {
             ? data.map((appt: any) => ({
                 _id: appt._id || "",
                 name: appt.name || "Unknown",
-                specialistId: appt.specialistId || "",
+                userId: appt.specialistId || "",
                 specialistName: appt.specialistName || "Unknown Specialist",
                 date: appt.date || "",
                 time: appt.time || "",
@@ -117,8 +118,8 @@ export default function AppointmentsPage() {
       return (!start || apptDate >= start) && (!end || apptDate <= end);
     });
 
-  const handleMessageClick = async (specialistId: string) => {
-    if (!specialistId || !/^[0-9a-fA-F]{24}$/.test(specialistId)) {
+  const handleMessageClick = async (userId: string) => {
+    if (!userId || !/^[0-9a-fA-F]{24}$/.test(userId)) {
       toast.error("Invalid specialist ID");
       return;
     }
@@ -128,7 +129,7 @@ export default function AppointmentsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          recipientId: specialistId,
+          recipientId: userId,
           isSpecialistRecipient: true,
         }),
         credentials: "include",
@@ -286,9 +287,7 @@ export default function AppointmentsPage() {
                       reviewCount={appointment.reviewCount || 0}
                       rate={appointment.rate || 0}
                       status={appointment.status}
-                      onMessage={() =>
-                        handleMessageClick(appointment.specialistId)
-                      }
+                      onMessage={() => handleMessageClick(appointment.userId)}
                     />
                   </motion.div>
                 ))}
