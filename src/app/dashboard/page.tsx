@@ -54,6 +54,20 @@ interface Conversation {
   messageCount: number;
 }
 
+interface Appointment {
+  _id: string;
+  name: string;
+  specialistName: string;
+  date: string;
+  time: string;
+  location: string;
+  status: "upcoming" | "completed" | "cancelled";
+  rating?: number | null;
+  reviewCount?: number | null;
+  rate?: number | null;
+  specialistId: string;
+}
+
 // Animation variants
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -73,39 +87,11 @@ export default function HomePage() {
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
   const [user, setUser] = useState<User | null>(null);
   const [conversations, setConversations] = useState<Conversation[]>([]);
+  const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const { data: session, status } = useSession();
   const router = useRouter();
-
-  // Static appointments data
-  const appointments = {
-    upcoming: [
-      {
-        id: 1,
-        therapist: "Dr. Sarah Johnson",
-        date: "2025-08-06",
-        time: "10:00 AM",
-        type: "Video Session",
-      },
-      {
-        id: 2,
-        therapist: "Dr. Emily Carter",
-        date: "2025-08-08",
-        time: "2:00 PM",
-        type: "In-Person",
-      },
-    ],
-    past: [
-      {
-        id: 3,
-        therapist: "Dr. Michael Brown",
-        date: "2025-07-30",
-        time: "11:00 AM",
-        type: "Video Session",
-      },
-    ],
-  };
 
   useEffect(() => {
     const fetchData = async () => {
@@ -166,6 +152,44 @@ export default function HomePage() {
 
         const convData = await convRes.json();
         setConversations(convData);
+
+        // Fetch appointments
+        const apptRes = await fetch("/api/appointment", {
+          cache: "no-store",
+          credentials: "include",
+        });
+
+        if (!apptRes.ok) {
+          console.error(
+            "Appointments API response:",
+            apptRes.status,
+            await apptRes.text()
+          );
+          if (apptRes.status === 401) {
+            router.push("/login");
+            return;
+          }
+          throw new Error(`Failed to fetch appointments: ${apptRes.status}`);
+        }
+
+        const apptData = await apptRes.json();
+        setAppointments(
+          Array.isArray(apptData)
+            ? apptData.map((appt: any) => ({
+                _id: appt._id || "",
+                name: appt.name || "Unknown",
+                specialistId: appt.specialistId || "",
+                specialistName: appt.specialistName || "Unknown Specialist",
+                date: appt.date || "",
+                time: appt.time || "",
+                location: appt.location || "Unknown",
+                status: appt.status || "upcoming",
+                rating: appt.rating ?? 0,
+                reviewCount: appt.reviewCount ?? 0,
+                rate: appt.rate ?? 0,
+              }))
+            : []
+        );
       } catch (err: any) {
         console.error("Fetch Error:", err.message, err.stack);
         setError("Failed to load data. Please try again.");
@@ -185,6 +209,14 @@ export default function HomePage() {
     }
     router.push(`/dashboard/messaging/${convId}`);
   };
+
+  // Filter appointments for upcoming and past
+  const upcomingAppointments = appointments.filter(
+    (appt) => appt.status === "upcoming"
+  );
+  const pastAppointments = appointments.filter(
+    (appt) => appt.status === "completed" || appt.status === "cancelled"
+  );
 
   if (status === "loading" || loading) {
     return (
@@ -505,10 +537,10 @@ export default function HomePage() {
             <TabsContent value="upcoming">
               <motion.div className="space-y-4" variants={containerVariants}>
                 <AnimatePresence>
-                  {appointments.upcoming.length ? (
-                    appointments.upcoming.map((appt) => (
+                  {upcomingAppointments.length ? (
+                    upcomingAppointments.map((appt) => (
                       <motion.div
-                        key={appt.id}
+                        key={appt._id}
                         variants={itemVariants}
                         initial="hidden"
                         animate="visible"
@@ -517,10 +549,10 @@ export default function HomePage() {
                       >
                         <div>
                           <p className="font-semibold text-black dark:text-white">
-                            {appt.therapist}
+                            {appt.specialistName}
                           </p>
                           <p className="text-sm text-[#C4C4C4]">
-                            {appt.date} at {appt.time} - {appt.type}
+                            {appt.date} at {appt.time} - {appt.location}
                           </p>
                         </div>
                         <Button
@@ -542,10 +574,10 @@ export default function HomePage() {
             <TabsContent value="past">
               <motion.div className="space-y-4" variants={containerVariants}>
                 <AnimatePresence>
-                  {appointments.past.length ? (
-                    appointments.past.map((appt) => (
+                  {pastAppointments.length ? (
+                    pastAppointments.map((appt) => (
                       <motion.div
-                        key={appt.id}
+                        key={appt._id}
                         variants={itemVariants}
                         initial="hidden"
                         animate="visible"
@@ -554,10 +586,10 @@ export default function HomePage() {
                       >
                         <div>
                           <p className="font-semibold text-black dark:text-white">
-                            {appt.therapist}
+                            {appt.specialistName}
                           </p>
                           <p className="text-sm text-[#C4C4C4]">
-                            {appt.date} at {appt.time} - {appt.type}
+                            {appt.date} at {appt.time} - {appt.location}
                           </p>
                         </div>
                         <Button
@@ -566,7 +598,7 @@ export default function HomePage() {
                           size="sm"
                           className="text-[#F3CFC6] border-[#F3CFC6]"
                         >
-                          <Link href={`/appointments/${appt.id}`}>Details</Link>
+                          <Link href={`/dashboard/appointments`}>Details</Link>
                         </Button>
                       </motion.div>
                     ))
