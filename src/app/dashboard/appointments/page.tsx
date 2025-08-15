@@ -27,6 +27,7 @@ interface Appointment {
   reviewCount?: number | null;
   rate?: number | null;
   specialistId: string;
+  clientId?: string; // Added for client appointments
 }
 
 const containerVariants = {
@@ -130,6 +131,7 @@ export default function AppointmentsPage() {
                   rating: appt.rating ?? 0,
                   reviewCount: appt.reviewCount ?? 0,
                   rate: appt.rate ?? 0,
+                  clientId: appt.clientId || "", // Added clientId
                 }))
               : []
           );
@@ -158,9 +160,12 @@ export default function AppointmentsPage() {
       return (!start || apptDate >= start) && (!end || apptDate <= end);
     });
 
-  const handleMessageClick = async (specialistId: string) => {
-    if (!specialistId || !/^[0-9a-fA-F]{24}$/.test(specialistId)) {
-      toast.error("Invalid specialist ID");
+  const handleMessageClick = async (
+    userId: string,
+    isSpecialistRecipient: boolean
+  ) => {
+    if (!userId || !/^[0-9a-fA-F]{24}$/.test(userId)) {
+      toast.error("Invalid user ID");
       return;
     }
     try {
@@ -168,8 +173,8 @@ export default function AppointmentsPage() {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          recipientId: specialistId,
-          isSpecialistRecipient: true,
+          recipientId: userId,
+          isSpecialistRecipient,
         }),
         credentials: "include",
       });
@@ -333,7 +338,7 @@ export default function AppointmentsPage() {
                             rate={appointment.rate || 0}
                             status={appointment.status}
                             onMessage={() =>
-                              handleMessageClick(appointment.specialistId)
+                              handleMessageClick(appointment.specialistId, true)
                             }
                           />
                         </motion.div>
@@ -359,7 +364,7 @@ export default function AppointmentsPage() {
                           variants={itemVariants}
                         >
                           <AppointmentCard
-                            specialistName={appointment.name} // Display client name for client appointments
+                            specialistName={appointment.name}
                             date={appointment.date}
                             time={appointment.time}
                             location={appointment.location}
@@ -368,7 +373,10 @@ export default function AppointmentsPage() {
                             rate={appointment.rate || 0}
                             status={appointment.status}
                             onMessage={() =>
-                              handleMessageClick(appointment.specialistId)
+                              handleMessageClick(
+                                appointment.clientId || "",
+                                false
+                              )
                             }
                           />
                         </motion.div>
@@ -400,7 +408,7 @@ export default function AppointmentsPage() {
                       rate={appointment.rate || 0}
                       status={appointment.status}
                       onMessage={() =>
-                        handleMessageClick(appointment.specialistId)
+                        handleMessageClick(appointment.specialistId, true)
                       }
                     />
                   </motion.div>
