@@ -30,7 +30,6 @@ export default function VideoSessionPage({ params }: Props) {
   const { id } = use(params);
 
   useEffect(() => {
-    console.log("VideoSessionPage: Mounting, specialistId:", id);
     if (status === "authenticated" && session?.user?.id) {
       const createOrFetchSession = async () => {
         try {
@@ -39,11 +38,6 @@ export default function VideoSessionPage({ params }: Props) {
             cache: "no-store",
           });
           if (!specialistRes.ok) {
-            console.error(
-              "Specialist API response:",
-              specialistRes.status,
-              await specialistRes.text()
-            );
             throw new Error("Specialist not found");
           }
 
@@ -53,28 +47,15 @@ export default function VideoSessionPage({ params }: Props) {
             { cache: "no-store" }
           );
           if (!res.ok) {
-            console.error(
-              "Video sessions API response:",
-              res.status,
-              await res.text()
-            );
             throw new Error(`Failed to fetch video sessions: ${res.status}`);
           }
           const sessions = await res.json();
           if (sessions.length > 0) {
-            console.log(
-              "VideoSessionPage: Found existing session:",
-              sessions[0]
-            );
             setVideoSession(sessions[0]);
             return;
           }
 
           // Create new session
-          console.log(
-            "VideoSessionPage: Creating new session for specialistId:",
-            id
-          );
           const newSession = await fetch("/api/videoSessions", {
             method: "POST",
             headers: { "Content-Type": "application/json" },
@@ -88,17 +69,14 @@ export default function VideoSessionPage({ params }: Props) {
 
           if (!newSession.ok) {
             const errorData = await newSession.json();
-            console.error("Video session creation failed:", errorData);
             throw new Error(
               errorData.error || "Failed to create video session"
             );
           }
 
           const data = await newSession.json();
-          console.log("VideoSessionPage: Created new session:", data);
           setVideoSession(data);
         } catch (err: any) {
-          console.error("Error fetching/creating session:", err);
           setError(err.message || "Failed to load or create video session.");
           setVideoSession(null);
           router.push("/dashboard/specialists");
@@ -144,7 +122,10 @@ export default function VideoSessionPage({ params }: Props) {
         </p>
       </CardHeader>
       <CardContent>
-        <VideoSessionComponent roomId={videoSession.roomId} />
+        <VideoSessionComponent
+          roomId={videoSession.roomId}
+          specialistId={videoSession.specialist.id}
+        />
         <Button
           variant="outline"
           className="mt-4 text-[#F3CFC6] border-[#F3CFC6]"

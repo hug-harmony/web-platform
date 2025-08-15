@@ -62,7 +62,7 @@ export default function VideoSessionsPage() {
     id: session?.user?.id || "user_1",
     name: session?.user?.name || "User",
     email: session?.user?.email || "user@example.com",
-    avatar: session?.user?.image || "/assets/images/avatar-placeholder.png",
+    avatar: session?.user?.image || "/next.svg", // Updated to existing asset
   };
 
   return (
@@ -102,7 +102,7 @@ export default function VideoSessionsPage() {
               icon: <MessageSquare className="mr-2 h-6 w-6 text-[#F3CFC6]" />,
             },
             {
-              href: "/booking",
+              href: "/dashboard/appointments/book", // Updated to correct route
               label: "Book Appointment",
               icon: <Calendar className="mr-2 h-6 w-6 text-[#F3CFC6]" />,
             },
