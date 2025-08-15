@@ -12,10 +12,13 @@ export async function GET(req: Request) {
 
     const application = await prisma.specialistApplication.findFirst({
       where: { userId: session.user.id },
-      select: { status: true },
+      select: { status: true, specialistId: true },
     });
 
-    return NextResponse.json({ status: application?.status || null });
+    return NextResponse.json({
+      status: application?.status || "none",
+      specialistId: application?.specialistId || null,
+    });
   } catch (error) {
     console.error("Error fetching user application:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

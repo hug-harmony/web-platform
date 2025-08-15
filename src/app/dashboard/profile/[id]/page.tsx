@@ -6,9 +6,10 @@ import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
+import { Textarea } from "@/components/ui/textarea";
 import { Gem, Upload } from "lucide-react";
 import { notFound } from "next/navigation";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
@@ -52,14 +53,92 @@ interface Props {
 const ProfilePage: React.FC<Props> = ({ params }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
+  const [isEditingSpecialist, setIsEditingSpecialist] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
+  const [updatingSpecialist, setUpdatingSpecialist] = useState(false);
+  const [specialistStatusLoading, setSpecialistStatusLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSpecialist, setIsSpecialist] = useState(false);
+  const [specialistId, setSpecialistId] = useState<string | null>(null);
   const router = useRouter();
+  const searchParams = useSearchParams();
   const { data: session, status, update } = useSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const fetchSpecialistStatus = async (
+    retries = 3,
+    delay = 1000
+  ): Promise<void> => {
+    setSpecialistStatusLoading(true);
+    try {
+      for (let attempt = 1; attempt <= retries; attempt++) {
+        const specialistRes = await fetch("/api/specialists/application/me", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        if (!specialistRes.ok) {
+          throw new Error(
+            `Failed to fetch specialist application: ${specialistRes.status}`
+          );
+        }
+        const { status: appStatus, specialistId } = await specialistRes.json();
+        console.log(`Attempt ${attempt} - Specialist Status Response:`, {
+          appStatus,
+          specialistId,
+        });
+        setIsSpecialist(appStatus === "approved");
+        setSpecialistId(specialistId || null);
+
+        if (appStatus === "approved" && specialistId) {
+          const specialistDetailsRes = await fetch(
+            `/api/specialists/${specialistId}`,
+            {
+              cache: "no-store",
+              credentials: "include",
+            }
+          );
+          if (specialistDetailsRes.ok) {
+            const specialistData = await specialistDetailsRes.json();
+            setProfile((prev) =>
+              prev
+                ? {
+                    ...prev,
+                    type: "specialist",
+                    role: specialistData.role,
+                    tags: specialistData.tags,
+                    biography: specialistData.biography,
+                    education: specialistData.education,
+                    license: specialistData.license,
+                    location: specialistData.location,
+                    rating: specialistData.rating,
+                    reviewCount: specialistData.reviewCount,
+                    rate: specialistData.rate,
+                  }
+                : prev
+            );
+            break; // Exit retry loop on success
+          } else {
+            console.error(
+              "Failed to fetch specialist details:",
+              await specialistDetailsRes.text()
+            );
+          }
+        }
+        if (attempt < retries && appStatus !== "approved") {
+          await new Promise((resolve) => setTimeout(resolve, delay));
+        }
+      }
+    } catch (err: any) {
+      console.error("Fetch Specialist Status Error:", err.message);
+      setIsSpecialist(false);
+      setSpecialistId(null);
+      toast.error("Failed to fetch specialist status. Please try again.");
+    } finally {
+      setSpecialistStatusLoading(false);
+    }
+  };
 
   useEffect(() => {
     const fetchProfileAndSpecialistStatus = async () => {
@@ -99,47 +178,8 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           throw new Error(`Failed to fetch user: ${res.status}`);
         }
 
-        // Fetch specialist application status
-        const specialistRes = await fetch("/api/specialists/application/me", {
-          cache: "no-store",
-          credentials: "include",
-        });
-        if (specialistRes.ok) {
-          const { status: appStatus, specialistId } =
-            await specialistRes.json();
-          setIsSpecialist(appStatus === "approved");
-
-          // Fetch specialist details if approved
-          if (appStatus === "approved" && specialistId) {
-            const specialistDetailsRes = await fetch(
-              `/api/specialists?id=${specialistId}`,
-              {
-                cache: "no-store",
-                credentials: "include",
-              }
-            );
-            if (specialistDetailsRes.ok) {
-              const specialistData = await specialistDetailsRes.json();
-              setProfile((prev) =>
-                prev
-                  ? {
-                      ...prev,
-                      type: "specialist",
-                      role: specialistData.role,
-                      tags: specialistData.tags,
-                      biography: specialistData.biography,
-                      education: specialistData.education,
-                      license: specialistData.license,
-                      location: specialistData.location,
-                      rating: specialistData.rating,
-                      reviewCount: specialistData.reviewCount,
-                      rate: specialistData.rate,
-                    }
-                  : prev
-              );
-            }
-          }
-        }
+        // Fetch specialist status
+        await fetchSpecialistStatus();
       } catch (err: any) {
         console.error("Fetch Profile Error:", err.message, err.stack);
         setError("Failed to load profile. Please try again.");
@@ -149,7 +189,13 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     };
 
     fetchProfileAndSpecialistStatus();
-  }, [params, router]);
+
+    // Refresh specialist status if coming from professional application page
+    const fromApplication = searchParams.get("fromApplication");
+    if (fromApplication) {
+      fetchSpecialistStatus();
+    }
+  }, [params, router, searchParams]);
 
   const handleNewProfessional = async () => {
     if (status === "loading") {
@@ -230,6 +276,80 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     }
   };
 
+  const handleUpdateSpecialist = async (
+    e: React.FormEvent<HTMLFormElement>
+  ) => {
+    e.preventDefault();
+    setUpdatingSpecialist(true);
+    const formData = new FormData(e.currentTarget);
+    const data = {
+      role: formData.get("role")?.toString(),
+      tags: formData.get("tags")?.toString(),
+      biography: formData.get("biography")?.toString(),
+      education: formData.get("education")?.toString(),
+      license: formData.get("license")?.toString(),
+      location: formData.get("location")?.toString(),
+      rate: parseFloat(formData.get("rate")?.toString() || "0") || null,
+      name:
+        profile?.name ||
+        `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim(), // Add name from profile
+    };
+
+    try {
+      if (!specialistId || specialistStatusLoading) {
+        console.log("Refetching specialist status before update...");
+        await fetchSpecialistStatus();
+        if (!specialistId) {
+          throw new Error(
+            "No approved specialist profile found. Please ensure your specialist application is approved and try again."
+          );
+        }
+      }
+
+      console.log("Attempting to update specialist with ID:", specialistId);
+      const res = await fetch(`/api/specialists/${specialistId}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+        credentials: "include",
+      });
+
+      if (res.ok) {
+        const updatedSpecialist = await res.json();
+        setProfile((prev) =>
+          prev
+            ? {
+                ...prev,
+                role: updatedSpecialist.role,
+                tags: updatedSpecialist.tags,
+                biography: updatedSpecialist.biography,
+                education: updatedSpecialist.education,
+                license: updatedSpecialist.license,
+                location: updatedSpecialist.location,
+                rate: updatedSpecialist.rate,
+                name: updatedSpecialist.name, // Update name in profile
+              }
+            : prev
+        );
+        setIsEditingSpecialist(false);
+        toast.success("Specialist profile updated successfully");
+      } else {
+        const errorData = await res.json();
+        throw new Error(
+          errorData.error || "Failed to update specialist profile"
+        );
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to update specialist profile";
+      toast.error(errorMessage);
+    } finally {
+      setUpdatingSpecialist(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -247,34 +367,41 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
           </CardContent>
         </Card>
-        <Card className="shadow-lg">
-          <CardContent className="space-y-4 pt-6">
-            <div className="space-y-2 max-w-2xl">
-              <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
-              <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
-              <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
-              <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
-              <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
-            </div>
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
-              <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
-            </div>
-            <div className="flex space-x-4">
-              <Skeleton className="h-10 w-24 rounded-full bg-[#C4C4C4]/50" />
-              <Skeleton className="h-10 w-24 rounded-full bg-[#C4C4C4]/50" />
-            </div>
-          </CardContent>
-        </Card>
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+          <Card className="shadow-lg">
+            <CardContent className="space-y-4 pt-6">
+              {[...Array(5)].map((_, i) => (
+                <div key={i} className="space-y-2">
+                  <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
+                  <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
+                </div>
+              ))}
+              <div className="flex space-x-4">
+                <Skeleton className="h-10 w-24 rounded-full bg-[#C4C4C4]/50" />
+                <Skeleton className="h-10 w-24 rounded-full bg-[#C4C4C4]/50" />
+              </div>
+            </CardContent>
+          </Card>
+          {isSpecialist && (
+            <Card className="shadow-lg">
+              <CardContent className="space-y-4 pt-6">
+                {[...Array(7)].map((_, i) => (
+                  <div key={i} className="space-y-2">
+                    <Skeleton
+                      className={`h-${
+                        i === 2 || i === 4 ? 20 : 10
+                      } w-full bg-[#C4C4C4]/50`}
+                    />
+                  </div>
+                ))}
+                <div className="flex space-x-4">
+                  <Skeleton className="h-10 w-24 rounded-full bg-[#C4C4C4]/50" />
+                  <Skeleton className="h-10 w-24 rounded-full bg-[#C4C4C4]/50" />
+                </div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
       </div>
     );
   }
@@ -294,7 +421,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       initial="hidden"
       animate="visible"
     >
-      {/* Header Section */}
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
           <motion.div
@@ -345,142 +471,336 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           )}
         </CardContent>
       </Card>
-      {/* Content Section */}
-      <Card className="shadow-lg">
-        <CardContent className="space-y-4 pt-6">
-          <motion.div variants={itemVariants} className="space-y-4">
-            <form onSubmit={handleUpdateProfile} className="space-y-4">
-              <div className="space-y-2 max-w-2xl">
-                <Label
-                  htmlFor="profileImage"
-                  className="text-black dark:text-white"
-                >
-                  Profile Picture
-                </Label>
-                <div className="flex items-center space-x-2">
+      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
+        <Card className="shadow-lg">
+          <CardContent className="space-y-4 pt-6">
+            <motion.div variants={itemVariants} className="space-y-4">
+              <form onSubmit={handleUpdateProfile} className="space-y-4">
+                <div className="space-y-2 max-w-2xl">
+                  <Label
+                    htmlFor="profileImage"
+                    className="text-black dark:text-white"
+                  >
+                    Profile Picture
+                  </Label>
+                  <div className="flex items-center space-x-2">
+                    <Input
+                      id="profileImage"
+                      type="file"
+                      accept="image/*"
+                      ref={fileInputRef}
+                      className="hidden"
+                      disabled={!isEditing || updating}
+                      onChange={(e) =>
+                        setSelectedFile(e.target.files?.[0] || null)
+                      }
+                    />
+                    <Button
+                      type="button"
+                      variant="outline"
+                      disabled={!isEditing || updating}
+                      onClick={() => fileInputRef.current?.click()}
+                      className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+                    >
+                      <Upload className="w-4 h-4 mr-2 text-[#F3CFC6]" />{" "}
+                      {selectedFile ? "Replace" : "Upload Image"}
+                    </Button>
+                    {selectedFile && (
+                      <span className="text-sm text-[#C4C4C4] truncate max-w-xs">
+                        {selectedFile.name}
+                      </span>
+                    )}
+                  </div>
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="firstName"
+                    className="text-black dark:text-white"
+                  >
+                    First Name
+                  </Label>
                   <Input
-                    id="profileImage"
-                    type="file"
-                    accept="image/*"
-                    ref={fileInputRef}
-                    className="hidden"
-                    disabled={!isEditing || updating}
+                    id="firstName"
+                    name="firstName"
+                    value={profile.firstName || ""}
                     onChange={(e) =>
-                      setSelectedFile(e.target.files?.[0] || null)
+                      setProfile({ ...profile, firstName: e.target.value })
                     }
-                  />
-                  <Button
-                    type="button"
-                    variant="outline"
                     disabled={!isEditing || updating}
-                    onClick={() => fileInputRef.current?.click()}
+                    className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="lastName"
+                    className="text-black dark:text-white"
+                  >
+                    Last Name
+                  </Label>
+                  <Input
+                    id="lastName"
+                    name="lastName"
+                    value={profile.lastName || ""}
+                    onChange={(e) =>
+                      setProfile({ ...profile, lastName: e.target.value })
+                    }
+                    disabled={!isEditing || updating}
+                    className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="phoneNumber"
+                    className="text-black dark:text-white"
+                  >
+                    Phone Number
+                  </Label>
+                  <Input
+                    id="phoneNumber"
+                    name="phoneNumber"
+                    value={profile.phoneNumber || ""}
+                    onChange={(e) =>
+                      setProfile({ ...profile, phoneNumber: e.target.value })
+                    }
+                    disabled={!isEditing || updating}
+                    className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                  />
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="location"
+                    className="text-black dark:text-white"
+                  >
+                    Location
+                  </Label>
+                  <Input
+                    id="location"
+                    name="location"
+                    value={profile.location || ""}
+                    onChange={(e) =>
+                      setProfile({ ...profile, location: e.target.value })
+                    }
+                    disabled={!isEditing || updating}
+                    className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                  />
+                </div>
+                <div className="flex space-x-4 mt-4">
+                  <Button
+                    variant="outline"
+                    type="button"
+                    onClick={() => setIsEditing(true)}
+                    disabled={isEditing || updating}
                     className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
                   >
-                    <Upload className="w-4 h-4 mr-2 text-[#F3CFC6]" />{" "}
-                    {selectedFile ? "Replace" : "Upload Image"}
+                    Edit
                   </Button>
-                  {selectedFile && (
-                    <span className="text-sm text-[#C4C4C4] truncate max-w-xs">
-                      {selectedFile.name}
-                    </span>
-                  )}
+                  <Button
+                    type="submit"
+                    disabled={!isEditing || updating}
+                    className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+                  >
+                    {updating ? "Saving..." : "Save"}
+                  </Button>
                 </div>
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="firstName"
-                  className="text-black dark:text-white"
-                >
-                  First Name
-                </Label>
-                <Input
-                  id="firstName"
-                  name="firstName"
-                  value={profile.firstName || ""}
-                  onChange={(e) =>
-                    setProfile({ ...profile, firstName: e.target.value })
-                  }
-                  disabled={!isEditing || updating}
-                  className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="lastName"
-                  className="text-black dark:text-white"
-                >
-                  Last Name
-                </Label>
-                <Input
-                  id="lastName"
-                  name="lastName"
-                  value={profile.lastName || ""}
-                  onChange={(e) =>
-                    setProfile({ ...profile, lastName: e.target.value })
-                  }
-                  disabled={!isEditing || updating}
-                  className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="phoneNumber"
-                  className="text-black dark:text-white"
-                >
-                  Phone Number
-                </Label>
-                <Input
-                  id="phoneNumber"
-                  name="phoneNumber"
-                  value={profile.phoneNumber || ""}
-                  onChange={(e) =>
-                    setProfile({ ...profile, phoneNumber: e.target.value })
-                  }
-                  disabled={!isEditing || updating}
-                  className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                />
-              </div>
-              <div className="space-y-2">
-                <Label
-                  htmlFor="location"
-                  className="text-black dark:text-white"
-                >
-                  Location
-                </Label>
-                <Input
-                  id="location"
-                  name="location"
-                  value={profile.location || ""}
-                  onChange={(e) =>
-                    setProfile({ ...profile, location: e.target.value })
-                  }
-                  disabled={!isEditing || updating}
-                  className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                />
-              </div>
-              <div className="flex space-x-4 mt-4">
-                <Button
-                  variant="outline"
-                  type="button"
-                  onClick={() => setIsEditing(true)}
-                  disabled={isEditing || updating}
-                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
-                >
-                  Edit
-                </Button>
-                <Button
-                  type="submit"
-                  disabled={!isEditing || updating}
-                  className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
-                >
-                  {updating ? "Saving..." : "Save"}
-                </Button>
-              </div>
-            </form>
-          </motion.div>
-        </CardContent>
-      </Card>
-      ``
+              </form>
+            </motion.div>
+          </CardContent>
+        </Card>
+        {isSpecialist && (
+          <Card className="shadow-lg">
+            <CardContent className="space-y-4 pt-6">
+              <motion.div variants={itemVariants} className="space-y-4">
+                <form onSubmit={handleUpdateSpecialist} className="space-y-4">
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="role"
+                      className="text-black dark:text-white"
+                    >
+                      Role
+                    </Label>
+                    <Input
+                      id="role"
+                      name="role"
+                      value={profile.role || ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, role: e.target.value })
+                      }
+                      disabled={
+                        !isEditingSpecialist ||
+                        updatingSpecialist ||
+                        specialistStatusLoading
+                      }
+                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="tags"
+                      className="text-black dark:text-white"
+                    >
+                      Specialty Tags
+                    </Label>
+                    <Input
+                      id="tags"
+                      name="tags"
+                      value={profile.tags || ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, tags: e.target.value })
+                      }
+                      disabled={
+                        !isEditingSpecialist ||
+                        updatingSpecialist ||
+                        specialistStatusLoading
+                      }
+                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="biography"
+                      className="text-black dark:text-white"
+                    >
+                      Biography
+                    </Label>
+                    <Textarea
+                      id="biography"
+                      name="biography"
+                      value={profile.biography || ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, biography: e.target.value })
+                      }
+                      disabled={
+                        !isEditingSpecialist ||
+                        updatingSpecialist ||
+                        specialistStatusLoading
+                      }
+                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="education"
+                      className="text-black dark:text-white"
+                    >
+                      Education
+                    </Label>
+                    <Textarea
+                      id="education"
+                      name="education"
+                      value={profile.education || ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, education: e.target.value })
+                      }
+                      disabled={
+                        !isEditingSpecialist ||
+                        updatingSpecialist ||
+                        specialistStatusLoading
+                      }
+                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="license"
+                      className="text-black dark:text-white"
+                    >
+                      License
+                    </Label>
+                    <Input
+                      id="license"
+                      name="license"
+                      value={profile.license || ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, license: e.target.value })
+                      }
+                      disabled={
+                        !isEditingSpecialist ||
+                        updatingSpecialist ||
+                        specialistStatusLoading
+                      }
+                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="location"
+                      className="text-black dark:text-white"
+                    >
+                      Location
+                    </Label>
+                    <Input
+                      id="location"
+                      name="location"
+                      value={profile.location || ""}
+                      onChange={(e) =>
+                        setProfile({ ...profile, location: e.target.value })
+                      }
+                      disabled={
+                        !isEditingSpecialist ||
+                        updatingSpecialist ||
+                        specialistStatusLoading
+                      }
+                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                    />
+                  </div>
+                  <div className="space-y-2">
+                    <Label
+                      htmlFor="rate"
+                      className="text-black dark:text-white"
+                    >
+                      Rate (per session)
+                    </Label>
+                    <Input
+                      id="rate"
+                      name="rate"
+                      type="number"
+                      value={profile.rate || ""}
+                      onChange={(e) =>
+                        setProfile({
+                          ...profile,
+                          rate: parseFloat(e.target.value) || null,
+                        })
+                      }
+                      disabled={
+                        !isEditingSpecialist ||
+                        updatingSpecialist ||
+                        specialistStatusLoading
+                      }
+                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                    />
+                  </div>
+                  <div className="flex space-x-4 mt-4">
+                    <Button
+                      variant="outline"
+                      type="button"
+                      onClick={() => setIsEditingSpecialist(true)}
+                      disabled={
+                        isEditingSpecialist ||
+                        updatingSpecialist ||
+                        specialistStatusLoading
+                      }
+                      className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+                    >
+                      Edit Specialist
+                    </Button>
+                    <Button
+                      type="submit"
+                      disabled={
+                        !isEditingSpecialist ||
+                        updatingSpecialist ||
+                        specialistStatusLoading
+                      }
+                      className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+                    >
+                      {updatingSpecialist ? "Saving..." : "Save Specialist"}
+                    </Button>
+                  </div>
+                </form>
+              </motion.div>
+            </CardContent>
+          </Card>
+        )}
+      </div>
     </motion.div>
   );
 };
