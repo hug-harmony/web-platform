@@ -1,58 +1,26 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { Video, Calendar, MessageSquare } from "lucide-react";
+import { MessageSquare, Video } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-
-// Type definitions
-interface User {
-  id: string;
-  name: string;
-  email: string;
-  avatar: string;
-}
+import { Calendar } from "@/components/ui/calendar";
 
 interface VideoSession {
   id: string;
-  specialist: {
-    name: string;
-    id: string;
-  };
+  specialist: { name: string; id: string };
   date: string;
   time: string;
   status: "upcoming" | "completed" | "cancelled";
-  joinUrl?: string;
+  roomId?: string;
 }
 
-// Dummy data
-const videoSessions: VideoSession[] = [
-  {
-    id: "appt_1",
-    specialist: { name: "Dr. Sarah Johnson", id: "spec_1" },
-    date: "2025-08-09",
-    time: "10:00 AM",
-    status: "upcoming",
-    joinUrl: "https://video.example.com/join/appt_1",
-  },
-  {
-    id: "appt_2",
-    specialist: { name: "Dr. Michael Brown", id: "spec_2" },
-    date: "2025-08-01",
-    time: "11:00 AM",
-    status: "completed",
-  },
-];
-
-// Animation variants
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
@@ -69,8 +37,17 @@ const itemVariants = {
 
 export default function VideoSessionsPage() {
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
+  const [videoSessions, setVideoSessions] = useState<VideoSession[]>([]);
   const { data: session, status } = useSession();
   const router = useRouter();
+
+  useEffect(() => {
+    if (status === "authenticated") {
+      fetch(`/api/videoSessions?userId=${session.user.id}`)
+        .then((res) => res.json())
+        .then((data) => setVideoSessions(data));
+    }
+  }, [status, session]);
 
   if (status === "loading") {
     return <div className="p-4 text-center">Loading...</div>;
@@ -81,7 +58,7 @@ export default function VideoSessionsPage() {
     return null;
   }
 
-  const user: User = {
+  const user = {
     id: session?.user?.id || "user_1",
     name: session?.user?.name || "User",
     email: session?.user?.email || "user@example.com",
@@ -95,7 +72,6 @@ export default function VideoSessionsPage() {
       initial="hidden"
       animate="visible"
     >
-      {/* Header Section */}
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black dark:text-white shadow-lg">
         <CardHeader>
           <motion.div
@@ -154,7 +130,6 @@ export default function VideoSessionsPage() {
         </CardContent>
       </Card>
 
-      {/* Video Sessions Tabs */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center text-black dark:text-white">
@@ -197,14 +172,16 @@ export default function VideoSessionsPage() {
                           </p>
                         </div>
                         <Button
-                          asChild
                           variant="outline"
                           size="sm"
                           className="text-[#F3CFC6] border-[#F3CFC6]"
+                          onClick={() =>
+                            router.push(
+                              `/dashboard/video-session/${session.id}`
+                            )
+                          }
                         >
-                          <Link href={session.joinUrl || "#"}>
-                            Join Session
-                          </Link>
+                          Join Session
                         </Button>
                       </motion.div>
                     ))}

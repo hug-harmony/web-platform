@@ -16,7 +16,7 @@ import {
   StarIcon,
   Book,
   User,
-  MessageSquare,
+  Video,
 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
@@ -27,7 +27,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
+import { Card, CardContent, CardHeader } from "@/components/ui/card";
 
 // Animation variants
 const containerVariants = {
@@ -323,6 +323,14 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                   >
                     <Link href={`/dashboard/appointments/book/${profile._id}`}>
                       <Book className="mr-2 h-4 w-4" /> Book a Session
+                    </Link>
+                  </Button>
+                  <Button
+                    asChild
+                    className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full"
+                  >
+                    <Link href={`/dashboard/video-session/${profile._id}`}>
+                      <Video className="mr-2 h-4 w-4" /> Video Call
                     </Link>
                   </Button>
                   <Button className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full">

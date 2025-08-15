@@ -127,7 +127,7 @@ const BookingConfirmationPage: React.FC = () => {
               <p className="text-lg text-gray-500">{bookingDetails.name}</p>
             </div>
             <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
-              <p className="text-lg font-medium">Specialist Name</p>
+              <p className="text-lg font-medium">Professional Name</p>
               <p className="text-lg text-gray-500">
                 {bookingDetails.specialistName}
               </p>
