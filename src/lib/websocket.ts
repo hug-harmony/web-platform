@@ -13,7 +13,7 @@ export default function initializeSocket(req: any, res: NextApiResponse) {
     // Create an HTTP server (Next.js will handle the actual server)
     const httpServer = createServer();
     io = new Server(httpServer, {
-      path: "/api/websocket",
+      path: "/api/webSocket",
     });
 
     io.on("connection", (socket) => {

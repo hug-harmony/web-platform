@@ -53,11 +53,15 @@ export default function VideoSessionComponent({
           cache: "no-store",
         });
         if (!response.ok) {
-          throw new Error("Specialist not found");
+          throw new Error(
+            response.status === 404
+              ? `Specialist not found for ID: ${specialistId}`
+              : "Failed to validate specialist"
+          );
         }
       } catch (err: any) {
         console.error("Specialist validation failed:", err);
-        setError(`Invalid specialist: ${err.message}`);
+        setError(err.message || "Invalid specialist.");
         setLoading(false);
         router.push("/dashboard/specialists");
         return false;
@@ -67,13 +71,16 @@ export default function VideoSessionComponent({
 
     const initializeWebRTC = async () => {
       if (!videoRef.current) {
-        console.error("VideoSessionComponent: videoRef.current is null");
-        setError("Video container not found");
+        console.error(
+          "VideoSessionComponent: videoRef.current is null during WebRTC initialization"
+        );
+        setError("Video element not found");
         setLoading(false);
         return;
       }
 
       try {
+        console.log("VideoSessionComponent: Initializing WebRTC");
         streamRef.current = await navigator.mediaDevices.getUserMedia({
           video: true,
           audio: true,
@@ -88,6 +95,10 @@ export default function VideoSessionComponent({
 
         socketRef.current = io("/api/websocket", { transports: ["websocket"] });
         socketRef.current.emit("join-room", roomId);
+        console.log(
+          "VideoSessionComponent: Emitted join-room for roomId:",
+          roomId
+        );
 
         peerRef.current = new Peer({
           initiator: !isSpecialist,
@@ -103,24 +114,38 @@ export default function VideoSessionComponent({
 
         peerRef.current.on("signal", (data: SignalData) => {
           socketRef.current?.emit("signal", { roomId, signalingData: data });
+          console.log("VideoSessionComponent: Emitted signaling data");
         });
 
         socketRef.current.on("signal", (signalingData: SignalData) => {
           if (peerRef.current) {
             peerRef.current.signal(signalingData);
+            console.log(
+              "VideoSessionComponent: Received and processed signaling data"
+            );
           }
         });
 
         peerRef.current.on("stream", (remoteStream: MediaStream) => {
+          console.log("VideoSessionComponent: Received remote stream");
           const remoteVideo = document.createElement("video");
           remoteVideo.srcObject = remoteStream;
           remoteVideo.playsInline = true;
           remoteVideo.autoplay = true;
           remoteVideo.className = "w-full h-full object-cover";
-          if (videoRef.current?.parentElement) {
-            videoRef.current.parentElement.appendChild(remoteVideo);
+          const container = document.getElementById("remote-video-container");
+          if (container) {
+            container.appendChild(remoteVideo);
+            console.log(
+              "VideoSessionComponent: Appended remote video to container"
+            );
+          } else {
+            console.error(
+              "VideoSessionComponent: Remote video container not found"
+            );
+            setError("Remote video container not found");
+            setLoading(false);
           }
-          setLoading(false);
         });
 
         peerRef.current.on("error", (err: Error) => {
@@ -141,48 +166,57 @@ export default function VideoSessionComponent({
       }
     };
 
-    const observeVideoElement = async () => {
+    const checkVideoElement = async () => {
       const isValidSpecialist = await validateSpecialist();
       if (!isValidSpecialist) return;
+
+      // Check if video element exists in DOM
+      const domVideoCheck = () => {
+        const videoElement = document.querySelector("video");
+        console.log(
+          "VideoSessionComponent: DOM video element check:",
+          videoElement ? "Found" : "Not found"
+        );
+        return videoElement;
+      };
 
       if (videoRef.current) {
         console.log(
           "VideoSessionComponent: videoRef.current found, initializing WebRTC"
         );
-        initializeWebRTC();
+        await initializeWebRTC();
         return;
       }
 
-      const observer = new MutationObserver((mutations, obs) => {
+      console.warn(
+        "VideoSessionComponent: videoRef.current not found, starting polling"
+      );
+      domVideoCheck(); // Initial DOM check
+      const startTime = Date.now();
+      const maxWaitTime = 15000; // 15 seconds
+
+      const poll = setInterval(() => {
+        domVideoCheck(); // Log DOM presence each poll
         if (videoRef.current) {
           console.log(
-            "VideoSessionComponent: videoRef.current detected by observer"
+            "VideoSessionComponent: videoRef.current found during polling, initializing WebRTC"
           );
-          obs.disconnect();
+          clearInterval(poll);
           initializeWebRTC();
-        }
-      });
-
-      observer.observe(document.body, { childList: true, subtree: true });
-
-      const timeout = setTimeout(() => {
-        observer.disconnect();
-        if (!videoRef.current) {
+        } else if (Date.now() - startTime >= maxWaitTime) {
           console.error(
-            "VideoSessionComponent: videoRef.current not found after timeout"
+            "VideoSessionComponent: videoRef.current not found after 15 seconds"
           );
-          setError("Video container not found after waiting");
+          clearInterval(poll);
+          setError("Unable to initialize video call: video element not found");
           setLoading(false);
         }
-      }, 5000);
+      }, 500); // Check every 500ms
 
-      return () => {
-        observer.disconnect();
-        clearTimeout(timeout);
-      };
+      return () => clearInterval(poll);
     };
 
-    observeVideoElement();
+    checkVideoElement();
 
     return () => {
       console.log("VideoSessionComponent: Cleaning up");
@@ -232,6 +266,10 @@ export default function VideoSessionComponent({
         playsInline
         muted
         className="w-full h-full object-cover"
+      />
+      <div
+        id="remote-video-container"
+        className="absolute top-0 left-0 w-full h-full"
       />
     </div>
   );

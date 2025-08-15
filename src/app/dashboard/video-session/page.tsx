@@ -5,12 +5,11 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Avatar, AvatarFallback } from "@/components/ui/avatar";
 import { MessageSquare, Video } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Calendar } from "@/components/ui/calendar";
 
 interface VideoSession {
   id: string;
@@ -62,7 +61,7 @@ export default function VideoSessionsPage() {
     id: session?.user?.id || "user_1",
     name: session?.user?.name || "User",
     email: session?.user?.email || "user@example.com",
-    avatar: session?.user?.image || "/next.svg", // Updated to existing asset
+    avatar: "", // Remove Next.js logo
   };
 
   return (
@@ -79,7 +78,6 @@ export default function VideoSessionsPage() {
             className="flex items-center space-x-4"
           >
             <Avatar className="h-16 w-16 border-2 border-white">
-              <AvatarImage src={user.avatar} alt={user.name} />
               <AvatarFallback className="bg-[#C4C4C4] text-black">
                 {user.name[0]}
               </AvatarFallback>
@@ -101,11 +99,7 @@ export default function VideoSessionsPage() {
               label: "Back to Dashboard",
               icon: <MessageSquare className="mr-2 h-6 w-6 text-[#F3CFC6]" />,
             },
-            {
-              href: "/dashboard/appointments/book", // Updated to correct route
-              label: "Book Appointment",
-              icon: <Calendar className="mr-2 h-6 w-6 text-[#F3CFC6]" />,
-            },
+            // Removed "Book Appointment" button
           ].map((item) => (
             <motion.div
               key={item.href}
