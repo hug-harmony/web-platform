@@ -33,6 +33,12 @@ export async function GET(req: Request) {
           location: true,
           status: true,
           createdAt: true,
+          specialistApplication: {
+            select: {
+              status: true,
+              specialistId: true,
+            },
+          },
         },
       });
       if (!user) {
@@ -40,7 +46,7 @@ export async function GET(req: Request) {
         return NextResponse.json({ error: "User not found" }, { status: 404 });
       }
       return NextResponse.json({
-        _id: user.id,
+        id: user.id,
         email: user.email,
         firstName: user.firstName || "",
         lastName: user.lastName || "",
@@ -50,10 +56,14 @@ export async function GET(req: Request) {
             ? `${user.firstName} ${user.lastName}`
             : "Unknown User"),
         phoneNumber: user.phoneNumber || "",
-        profileImage: user.profileImage || "", // Changed from `image` to `profileImage`
+        profileImage: user.profileImage || "",
         location: user.location || "",
         status: user.status,
         createdAt: user.createdAt,
+        specialistApplication: {
+          status: user.specialistApplication?.status || null,
+          specialistId: user.specialistApplication?.specialistId || null,
+        },
       });
     }
 
@@ -72,6 +82,12 @@ export async function GET(req: Request) {
         location: true,
         status: true,
         createdAt: true,
+        specialistApplication: {
+          select: {
+            status: true,
+            specialistId: true,
+          },
+        },
       },
     });
 
@@ -81,7 +97,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(
       users.map((user) => ({
-        _id: user.id,
+        id: user.id,
         email: user.email,
         firstName: user.firstName || "",
         lastName: user.lastName || "",
@@ -91,10 +107,14 @@ export async function GET(req: Request) {
             ? `${user.firstName} ${user.lastName}`
             : "Unknown User"),
         phoneNumber: user.phoneNumber || "",
-        profileImage: user.profileImage || "", // Changed from `image` to `profileImage`
+        profileImage: user.profileImage || "",
         location: user.location || "",
         status: user.status,
         createdAt: user.createdAt,
+        specialistApplication: {
+          status: user.specialistApplication?.status || null,
+          specialistId: user.specialistApplication?.specialistId || null,
+        },
       }))
     );
   } catch (error) {

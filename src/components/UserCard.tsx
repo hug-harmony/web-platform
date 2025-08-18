@@ -7,6 +7,7 @@ import { Card, CardContent } from "@/components/ui/card";
 interface UserCardProps {
   name: string;
   imageSrc: string;
+  isSpecialist: boolean;
   onMessage?: () => void;
   className?: string;
 }
@@ -14,7 +15,8 @@ interface UserCardProps {
 const UserCard: React.FC<UserCardProps> = ({
   name,
   imageSrc,
-  onMessage,
+  isSpecialist,
+
   className,
 }) => {
   return (
@@ -34,6 +36,11 @@ const UserCard: React.FC<UserCardProps> = ({
           <h3 className="text-lg font-semibold text-black dark:text-white">
             {name}
           </h3>
+          {isSpecialist && (
+            <span className="mt-1 inline-block bg-black text-[#F3CFC6] text-xs font-medium px-2 py-1 rounded">
+              Professional
+            </span>
+          )}
         </div>
       </CardContent>
     </Card>

@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable @next/next/no-async-client-component */
 "use client";
 
 import React, { useEffect, useState } from "react";
@@ -15,7 +14,6 @@ import {
   MoreVertical,
   StarIcon,
   Book,
-  User,
   Video,
 } from "lucide-react";
 import { notFound } from "next/navigation";
@@ -27,9 +25,8 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 
-// Animation variants
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
@@ -53,7 +50,7 @@ interface Profile {
   rating?: number;
   reviewCount?: number;
   rate?: number;
-  type: "specialist" | "user";
+  type: "specialist";
 }
 
 interface Props {
@@ -76,8 +73,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
           notFound();
         }
 
-        // Try fetching from specialists API
-        let res = await fetch(`/api/specialists?id=${id}`, {
+        const res = await fetch(`/api/specialists?id=${id}`, {
           cache: "no-store",
           credentials: "include",
         });
@@ -99,37 +95,15 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
             rate: data.rate || 0,
             type: "specialist",
           });
-          setLoading(false);
-          return;
-        }
-
-        // Try fetching from users API
-        res = await fetch(`/api/users?id=${id}`, {
-          cache: "no-store",
-          credentials: "include",
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setProfile({
-            _id: data._id,
-            name:
-              data.name ||
-              (data.firstName && data.lastName
-                ? `${data.firstName} ${data.lastName}`
-                : "Unknown User"),
-            image: data.image || "",
-            location: data.location || "",
-            rating: data.rating || 0,
-            reviewCount: data.reviewCount || 0,
-            rate: data.rate || 0,
-            type: "user",
-          });
         } else {
-          console.error("User API response:", res.status, await res.text());
+          console.error(
+            "Specialist API response:",
+            res.status,
+            await res.text()
+          );
           if (res.status === 401) router.push("/login");
           if (res.status === 404) notFound();
-          throw new Error(`Failed to fetch user: ${res.status}`);
+          throw new Error(`Failed to fetch specialist: ${res.status}`);
         }
       } catch (err: any) {
         console.error("Fetch Profile Error:", err.message, err.stack);
@@ -145,20 +119,15 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
   if (loading) {
     return (
       <div className="p-4 space-y-6 max-w-7xl mx-auto">
-        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
-          <CardHeader>
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
-              <Skeleton className="h-4 w-64 bg-[#C4C4C4]/50" />
+        <Card className="shadow-lg pt-0 overflow-hidden">
+          <div className="relative h-64 sm:h-80">
+            <Skeleton className="absolute inset-0 bg-[#C4C4C4]/50" />
+            <div className="absolute inset-0 bg-gradient-to-b from-[#F3CFC6]/30 to-[#C4C4C4]/30" />
+            <div className="relative flex justify-center items-center h-full">
+              <Skeleton className="w-40 h-40 rounded-full border-4 border-white bg-[#C4C4C4]/50" />
             </div>
-          </CardHeader>
-          <CardContent className="flex space-x-4">
-            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
-          </CardContent>
-        </Card>
-        <Card className="shadow-lg">
-          <CardContent className="pt-6 space-y-4">
-            <Skeleton className="h-40 w-40 rounded-full mx-auto bg-[#C4C4C4]/50" />
+          </div>
+          <CardContent className="pt-6 space-y-4 text-center">
             <Skeleton className="h-8 w-64 mx-auto bg-[#C4C4C4]/50" />
             <Skeleton className="h-4 w-48 mx-auto bg-[#C4C4C4]/50" />
             <div className="flex justify-center gap-2">
@@ -176,6 +145,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
             </div>
             <Skeleton className="h-6 w-32 mx-auto bg-[#C4C4C4]/50" />
             <div className="flex justify-center gap-4">
+              <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
               <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
               <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
               <Skeleton className="h-10 w-10 rounded-full bg-[#C4C4C4]/50" />
@@ -206,11 +176,20 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
       initial="hidden"
       animate="visible"
     >
-      {/* Content Section */}
-      <Card className="shadow-lg">
-        <CardContent className="pt-6 text-center">
-          <motion.div variants={itemVariants} className="space-y-6">
-            <div className="w-40 h-40 rounded-full overflow-hidden border-2 border-white shadow-md mx-auto">
+      <Card className="shadow-lg pt-0 overflow-hidden">
+        <div className="relative h-64 sm:h-80">
+          <div
+            className="absolute inset-0"
+            style={{
+              backgroundImage: `url(${validImageSrc})`,
+              backgroundSize: "cover",
+              backgroundPosition: "center",
+              filter: "blur(8px)",
+            }}
+          />
+          <div className="absolute inset-0 bg-gradient-to-b from-[#F3CFC6]/30 to-[#C4C4C4]/30" />
+          <div className="relative flex justify-center items-center h-full">
+            <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white shadow-md">
               {profile.image ? (
                 <Image
                   src={validImageSrc}
@@ -222,11 +201,16 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                 />
               ) : (
                 <div className="w-full h-full flex items-center justify-center bg-[#C4C4C4]">
-                  <User className="h-16 w-16 text-black" />
+                  <span className="text-4xl text-black">
+                    {profile.name.charAt(0)}
+                  </span>
                 </div>
               )}
             </div>
-
+          </div>
+        </div>
+        <CardContent className="pt-6 text-center">
+          <motion.div variants={itemVariants} className="space-y-4">
             <div>
               <h2 className="text-2xl sm:text-3xl font-bold text-black dark:text-white">
                 {profile.name}
@@ -235,7 +219,6 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                 <p className="text-sm text-[#C4C4C4] mt-1">{profile.role}</p>
               )}
             </div>
-
             <div className="flex items-center justify-center gap-2 text-[#C4C4C4]">
               {profile.location && (
                 <>
@@ -253,8 +236,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                 </>
               )}
             </div>
-
-            {profile.type === "specialist" && tagsArray.length > 0 && (
+            {tagsArray.length > 0 && (
               <div className="flex flex-wrap justify-center gap-2">
                 {tagsArray.slice(0, 4).map((tag, idx) => (
                   <span
@@ -271,46 +253,42 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                 )}
               </div>
             )}
-
-            {profile.type === "specialist" && profile.biography && (
+            {profile.biography && (
               <div className="max-w-2xl mx-auto text-black dark:text-white">
                 <h3 className="text-lg font-semibold mb-2">Biography</h3>
                 <p className="text-sm sm:text-base">{profile.biography}</p>
               </div>
             )}
-
-            {profile.type === "specialist" &&
-              (profile.education || profile.license) && (
-                <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                  {profile.education && (
-                    <div className="bg-[#F3CFC6]/10 dark:bg-[#C4C4C4]/10 p-4 rounded-lg shadow-sm text-left">
-                      <div className="flex items-center gap-2">
-                        <BookOpen className="h-5 w-5 text-[#F3CFC6]" />
-                        <h4 className="font-semibold text-sm sm:text-base text-black dark:text-white">
-                          Education
-                        </h4>
-                      </div>
-                      <p className="text-xs sm:text-sm text-[#C4C4C4] mt-1">
-                        {profile.education}
-                      </p>
+            {(profile.education || profile.license) && (
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {profile.education && (
+                  <div className="bg-[#F3CFC6]/10 dark:bg-[#C4C4C4]/10 p-4 rounded-lg shadow-sm text-left">
+                    <div className="flex items-center gap-2">
+                      <BookOpen className="h-5 w-5 text-[#F3CFC6]" />
+                      <h4 className="font-semibold text-sm sm:text-base text-black dark:text-white">
+                        Education
+                      </h4>
                     </div>
-                  )}
-                  {profile.license && (
-                    <div className="bg-[#F3CFC6]/10 dark:bg-[#C4C4C4]/10 p-4 rounded-lg shadow-sm text-left">
-                      <div className="flex items-center gap-2">
-                        <FileText className="h-5 w-5 text-[#F3CFC6]" />
-                        <h4 className="font-semibold text-sm sm:text-base text-black dark:text-white">
-                          License Number
-                        </h4>
-                      </div>
-                      <p className="text-xs sm:text-sm text-[#C4C4C4] mt-1">
-                        {profile.license}
-                      </p>
+                    <p className="text-xs sm:text-sm text-[#C4C4C4] mt-1">
+                      {profile.education}
+                    </p>
+                  </div>
+                )}
+                {profile.license && (
+                  <div className="bg-[#F3CFC6]/10 dark:bg-[#C4C4C4]/10 p-4 rounded-lg shadow-sm text-left">
+                    <div className="flex items-center gap-2">
+                      <FileText className="h-5 w-5 text-[#F3CFC6]" />
+                      <h4 className="font-semibold text-sm sm:text-base text-black dark:text-white">
+                        License Number
+                      </h4>
                     </div>
-                  )}
-                </div>
-              )}
-
+                    <p className="text-xs sm:text-sm text-[#C4C4C4] mt-1">
+                      {profile.license}
+                    </p>
+                  </div>
+                )}
+              </div>
+            )}
             {profile.rate !== undefined && (
               <div className="space-y-4">
                 <p className="text-lg font-semibold text-black dark:text-white">

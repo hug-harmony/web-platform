@@ -19,7 +19,6 @@ import {
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import SpecialistCard from "@/components/SpecialistCard";
-import AddSpecialist from "@/components/AddSpecialist";
 
 interface Therapist {
   _id: string;
@@ -48,7 +47,6 @@ const cardVariants = {
 };
 
 export default function TherapistsPage() {
-  const [users, setUsers] = useState<Therapist[]>([]);
   const [specialists, setSpecialists] = useState<Therapist[]>([]);
   const [loading, setLoading] = useState(true);
   const [searchQuery, setSearchQuery] = useState("");
@@ -58,107 +56,53 @@ export default function TherapistsPage() {
     sortBy: "",
   });
 
-  const fetchSpecialists = async () => {
-    try {
-      const therapistsRes = await fetch("/api/specialists", {
-        cache: "no-store",
-        credentials: "include",
-      });
-      if (!therapistsRes.ok) {
-        console.error(
-          "Specialists API error:",
-          therapistsRes.status,
-          await therapistsRes.text()
-        );
-        if (therapistsRes.status === 401) redirect("/login");
-        throw new Error(`Failed to fetch specialists: ${therapistsRes.status}`);
-      }
-      const { specialists } = await therapistsRes.json();
-      setSpecialists(
-        specialists
-          .filter((s: any) => s.id)
-          .map((s: any) => ({
-            _id: s.id,
-            name: s.name,
-            image: s.image || "",
-            location: s.location || "",
-            rating: s.rating || 0,
-            reviewCount: s.reviewCount || 0,
-            rate: s.rate || 0,
-            role: s.role || "",
-            tags: s.tags || "",
-            biography: s.biography || "",
-            education: s.education || "",
-            license: s.license || "",
-            createdAt: s.createdAt,
-          }))
-      );
-    } catch (error) {
-      console.error("Error fetching specialists:", error);
-    }
-  };
-
   useEffect(() => {
-    const fetchData = async () => {
+    const fetchSpecialists = async () => {
       try {
-        const usersRes = await fetch("/api/users", {
+        const therapistsRes = await fetch("/api/specialists", {
           cache: "no-store",
           credentials: "include",
         });
-        if (!usersRes.ok) {
+        if (!therapistsRes.ok) {
           console.error(
-            "Users API error:",
-            usersRes.status,
-            await usersRes.text()
+            "Specialists API error:",
+            therapistsRes.status,
+            await therapistsRes.text()
           );
-          if (usersRes.status === 401) redirect("/login");
-          throw new Error(`Failed to fetch users: ${usersRes.status}`);
+          if (therapistsRes.status === 401) redirect("/login");
+          throw new Error(
+            `Failed to fetch specialists: ${therapistsRes.status}`
+          );
         }
-        const usersData = await usersRes.json();
-        setUsers(
-          Array.isArray(usersData)
-            ? usersData
-                .filter((user) => user._id)
-                .map((user) => ({
-                  _id: user._id,
-                  name:
-                    user.firstName && user.lastName
-                      ? `${user.firstName} ${user.lastName}`
-                      : user.name || "Unknown User",
-                  image: user.image || "",
-                  location: user.location || "",
-                  rating: user.rating || 0,
-                  reviewCount: user.reviewCount || 0,
-                  rate: user.rate || 0,
-                  createdAt: user.createdAt,
+        const { specialists } = await therapistsRes.json();
+        setSpecialists(
+          Array.isArray(specialists)
+            ? specialists
+                .filter((s: any) => s.id)
+                .map((s: any) => ({
+                  _id: s.id,
+                  name: s.name,
+                  image: s.image || "",
+                  location: s.location || "",
+                  rating: s.rating || 0,
+                  reviewCount: s.reviewCount || 0,
+                  rate: s.rate || 0,
+                  role: s.role || "",
+                  tags: s.tags || "",
+                  biography: s.biography || "",
+                  education: s.education || "",
+                  license: s.license || "",
+                  createdAt: s.createdAt,
                 }))
-            : usersData._id
-              ? [
-                  {
-                    _id: usersData._id,
-                    name:
-                      usersData.firstName && usersData.lastName
-                        ? `${usersData.firstName} ${usersData.lastName}`
-                        : usersData.name || "Unknown User",
-                    image: usersData.image || "",
-                    location: usersData.location || "",
-                    rating: usersData.rating || 0,
-                    reviewCount: usersData.reviewCount || 0,
-                    rate: usersData.rate || 0,
-                    createdAt: usersData.createdAt,
-                  },
-                ]
-              : []
+            : []
         );
-
-        await fetchSpecialists();
       } catch (error) {
-        console.error("Error fetching data:", error);
+        console.error("Error fetching specialists:", error);
       } finally {
         setLoading(false);
       }
     };
-    fetchData();
+    fetchSpecialists();
   }, []);
 
   const handleFilterChange = (key: string, value: string | number) => {

@@ -1,10 +1,17 @@
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { getServerSession } from "next-auth/next";
+import { authOptions } from "@/lib/auth";
 
 const prisma = new PrismaClient();
 
 export async function GET(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
@@ -26,12 +33,59 @@ export async function GET(req: Request) {
           { status: 404 }
         );
       }
-      return NextResponse.json(specialist);
-    } else {
-      const specialists = await prisma.specialist.findMany();
-      console.log("Specialists found:", specialists);
-      return NextResponse.json({ specialists });
+      return NextResponse.json({
+        id: specialist.id,
+        name: specialist.name,
+        image: specialist.image,
+        location: specialist.location,
+        rating: specialist.rating,
+        reviewCount: specialist.reviewCount,
+        rate: specialist.rate,
+        role: specialist.role,
+        tags: specialist.tags,
+        biography: specialist.biography,
+        education: specialist.education,
+        license: specialist.license,
+        createdAt: specialist.createdAt,
+      });
     }
+
+    // Find the logged-in user's specialistId, if any
+    const userApplication = await prisma.specialistApplication.findFirst({
+      where: {
+        userId: session.user.id,
+        status: "approved",
+      },
+      select: { specialistId: true },
+    });
+
+    const specialists = await prisma.specialist.findMany({
+      where: userApplication?.specialistId
+        ? {
+            id: {
+              not: userApplication.specialistId, // Only include if specialistId exists
+            },
+          }
+        : {}, // No filter if user has no specialist profile
+    });
+
+    return NextResponse.json({
+      specialists: specialists.map((specialist) => ({
+        id: specialist.id,
+        name: specialist.name,
+        image: specialist.image,
+        location: specialist.location,
+        rating: specialist.rating,
+        reviewCount: specialist.reviewCount,
+        rate: specialist.rate,
+        role: specialist.role,
+        tags: specialist.tags,
+        biography: specialist.biography,
+        education: specialist.education,
+        license: specialist.license,
+        createdAt: specialist.createdAt,
+      })),
+    });
   } catch (error) {
     console.error("GET Error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -80,7 +134,24 @@ export async function POST(req: Request) {
     });
 
     console.log("Specialist created:", specialist);
-    return NextResponse.json(specialist, { status: 201 });
+    return NextResponse.json(
+      {
+        id: specialist.id,
+        name: specialist.name,
+        image: specialist.image,
+        location: specialist.location,
+        rating: specialist.rating,
+        reviewCount: specialist.reviewCount,
+        rate: specialist.rate,
+        role: specialist.role,
+        tags: specialist.tags,
+        biography: specialist.biography,
+        education: specialist.education,
+        license: specialist.license,
+        createdAt: specialist.createdAt,
+      },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("POST Error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
@@ -151,7 +222,21 @@ export async function PATCH(req: Request) {
       );
     }
 
-    return NextResponse.json(specialist);
+    return NextResponse.json({
+      id: specialist.id,
+      name: specialist.name,
+      image: specialist.image,
+      location: specialist.location,
+      rating: specialist.rating,
+      reviewCount: specialist.reviewCount,
+      rate: specialist.rate,
+      role: specialist.role,
+      tags: specialist.tags,
+      biography: specialist.biography,
+      education: specialist.education,
+      license: specialist.license,
+      createdAt: specialist.createdAt,
+    });
   } catch (error) {
     console.error("PATCH Error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

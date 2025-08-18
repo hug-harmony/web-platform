@@ -24,6 +24,8 @@ interface Therapist {
   name: string;
   image?: string;
   location?: string;
+  isSpecialist: boolean;
+  specialistId?: string;
 }
 
 const containerVariants = {
@@ -45,20 +47,18 @@ export default function ExplorePage() {
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const usersRes = await fetch("/api/users/non-specialists", {
+        const usersRes = await fetch("/api/users", {
           cache: "no-store",
           credentials: "include",
         });
         if (!usersRes.ok) {
           console.error(
-            "Non-specialists API error:",
+            "Users API error:",
             usersRes.status,
             await usersRes.text()
           );
           if (usersRes.status === 401) redirect("/login");
-          throw new Error(
-            `Failed to fetch non-specialist users: ${usersRes.status}`
-          );
+          throw new Error(`Failed to fetch users: ${usersRes.status}`);
         }
         const usersData = await usersRes.json();
         setUsers(
@@ -73,6 +73,10 @@ export default function ExplorePage() {
                       : user.name || "Unknown User",
                   image: user.profileImage || undefined,
                   location: user.location || "",
+                  isSpecialist:
+                    user.specialistApplication?.status === "approved" || false,
+                  specialistId:
+                    user.specialistApplication?.specialistId || undefined,
                 }))
             : []
         );
@@ -198,10 +202,17 @@ export default function ExplorePage() {
                     }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Link href={`/dashboard/users/${user._id}`}>
+                    <Link
+                      href={
+                        user.isSpecialist
+                          ? `/dashboard/specialists/${user.specialistId}`
+                          : `/dashboard/users/${user._id}`
+                      }
+                    >
                       <UserCard
                         name={user.name}
                         imageSrc={user.image || ""}
+                        isSpecialist={user.isSpecialist}
                         className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors"
                       />
                     </Link>
@@ -210,9 +221,7 @@ export default function ExplorePage() {
               </AnimatePresence>
             </motion.div>
           ) : (
-            <p className="text-center text-[#C4C4C4]">
-              No non-specialist users found.
-            </p>
+            <p className="text-center text-[#C4C4C4]">No users found.</p>
           )}
         </CardContent>
       </Card>

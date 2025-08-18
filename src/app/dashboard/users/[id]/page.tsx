@@ -5,23 +5,14 @@ import React, { useEffect, useState } from "react";
 import { motion } from "framer-motion";
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardContent } from "@/components/ui/card";
 import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  MapPin,
-  BookOpen,
-  FileText,
-  MessageSquare,
-  MoreHorizontal,
-  Star,
-  XCircle,
-  Flag,
-} from "lucide-react";
+import { MapPin, MoreVertical, StarIcon, MessageSquare } from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -41,17 +32,11 @@ const itemVariants = {
 interface Profile {
   _id: string;
   name: string;
-  role?: string;
-  tags?: string;
-  biography?: string;
-  education?: string;
-  license?: string;
   image?: string;
   location?: string;
   rating?: number;
   reviewCount?: number;
-  rate?: number;
-  type: "specialist" | "user";
+  type: "user";
 }
 
 interface Props {
@@ -75,7 +60,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           notFound();
         }
 
-        let res = await fetch(`/api/specialists?id=${id}`, {
+        const res = await fetch(`/api/users?id=${id}`, {
           cache: "no-store",
           credentials: "include",
         });
@@ -84,42 +69,15 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           const data = await res.json();
           setProfile({
             _id: data.id,
-            name: data.name,
-            role: data.role || "Licensed Therapist",
-            tags: data.tags || "",
-            biography: data.biography || "",
-            education: data.education || "",
-            license: data.license || "",
-            image: data.image || "/assets/images/avatar-placeholder.png", // Updated fallback path
-            location: data.location || "",
-            rating: data.rating || 0,
-            reviewCount: data.reviewCount || 0,
-            rate: data.rate || 0,
-            type: "specialist",
-          });
-          setLoading(false);
-          return;
-        }
-
-        res = await fetch(`/api/users?id=${id}`, {
-          cache: "no-store",
-          credentials: "include",
-        });
-
-        if (res.ok) {
-          const data = await res.json();
-          setProfile({
-            _id: data._id,
             name:
               data.name ||
               (data.firstName && data.lastName
                 ? `${data.firstName} ${data.lastName}`
                 : "Unknown User"),
-            image: data.profileImage || "/assets/images/avatar-placeholder.png", // Changed from `data.image` to `data.profileImage`
+            image: data.profileImage || "",
             location: data.location || "",
             rating: data.rating || 0,
             reviewCount: data.reviewCount || 0,
-            rate: data.rate || 0,
             type: "user",
           });
         } else {
@@ -193,37 +151,25 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
 
   if (loading) {
     return (
-      <div className="min-h-screen flex items-start justify-center p-4 sm:p-6">
-        <div className="w-full max-w-7xl rounded-2xl shadow-lg overflow-hidden bg-gradient-to-b from-[#F3CFC6] to-[#C4C4C4]">
+      <div className="p-4 space-y-6 max-w-7xl mx-auto">
+        <Card className="shadow-lg pt-0 overflow-hidden">
           <div className="relative h-64 sm:h-80">
             <Skeleton className="absolute inset-0 bg-[#C4C4C4]/50" />
             <div className="absolute inset-0 bg-gradient-to-b from-[#F3CFC6]/30 to-[#C4C4C4]/30" />
             <div className="relative flex justify-center items-center h-full">
-              <Skeleton className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-white" />
+              <Skeleton className="w-40 h-40 rounded-full border-4 border-white bg-[#C4C4C4]/50" />
             </div>
           </div>
-          <div className="p-6 sm:p-8 text-center space-y-4">
-            <Skeleton className="h-8 w-1/2 mx-auto bg-[#C4C4C4]/50" />
-            <Skeleton className="h-4 w-1/4 mx-auto bg-[#C4C4C4]/50" />
-            <div className="flex flex-wrap justify-center gap-2">
-              <Skeleton className="h-6 w-20 rounded-full bg-[#C4C4C4]/50" />
-              <Skeleton className="h-6 w-20 rounded-full bg-[#C4C4C4]/50" />
-            </div>
-            <div className="max-w-2xl mx-auto">
-              <Skeleton className="h-6 w-1/4 mx-auto bg-[#C4C4C4]/50 mb-2" />
-              <Skeleton className="h-4 w-full bg-[#C4C4C4]/50" />
-              <Skeleton className="h-4 w-3/4 bg-[#C4C4C4]/50" />
-            </div>
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              <Skeleton className="h-24 w-full bg-[#C4C4C4]/50 rounded-lg" />
-              <Skeleton className="h-24 w-full bg-[#C4C4C4]/50 rounded-lg" />
-            </div>
+          <CardContent className="pt-6 space-y-4 text-center">
+            <Skeleton className="h-8 w-64 mx-auto bg-[#C4C4C4]/50" />
+            <Skeleton className="h-4 w-48 mx-auto bg-[#C4C4C4]/50" />
             <div className="flex justify-center gap-4">
               <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
               <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+              <Skeleton className="h-10 w-10 rounded-full bg-[#C4C4C4]/50" />
             </div>
-          </div>
-        </div>
+          </CardContent>
+        </Card>
       </div>
     );
   }
@@ -236,23 +182,16 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     );
   }
 
-  const validImageSrc =
-    profile.image || "/assets/images/avatar-placeholder.png"; // Updated fallback path
-  const tagsArray = profile.tags
-    ? profile.tags.split(",").map((tag) => tag.trim())
-    : [];
+  const validImageSrc = profile.image || "/register.jpg";
 
   return (
     <motion.div
-      className="min-h-screen flex items-start justify-center p-4 sm:p-6"
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      <motion.div
-        className="w-full max-w-7xl rounded-2xl shadow-lg overflow-hidden"
-        variants={itemVariants}
-      >
+      <Card className="shadow-lg pt-0 overflow-hidden">
         <div className="relative h-64 sm:h-80">
           <div
             className="absolute inset-0"
@@ -265,148 +204,79 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           />
           <div className="absolute inset-0 bg-gradient-to-b from-[#F3CFC6]/30 to-[#C4C4C4]/30" />
           <div className="relative flex justify-center items-center h-full">
-            <Avatar className="w-32 h-32 sm:w-40 sm:h-40 rounded-full border-4 border-white shadow-md z-10">
-              <AvatarImage
-                src={validImageSrc}
-                alt={profile.name}
-                className="object-cover"
-              />
-              <AvatarFallback className="bg-[#C4C4C4] text-black">
-                {profile.name.charAt(0)}
-              </AvatarFallback>
-            </Avatar>
+            <div className="w-40 h-40 rounded-full overflow-hidden border-4 border-white shadow-md">
+              {profile.image ? (
+                <Image
+                  src={validImageSrc}
+                  alt={profile.name}
+                  width={160}
+                  height={160}
+                  className="object-cover w-full h-full"
+                  unoptimized
+                />
+              ) : (
+                <div className="w-full h-full flex items-center justify-center bg-[#C4C4C4]">
+                  <span className="text-4xl text-black">
+                    {profile.name.charAt(0)}
+                  </span>
+                </div>
+              )}
+            </div>
           </div>
         </div>
-
-        <div className="p-6 sm:p-8 text-center">
-          <motion.h2
-            className="text-2xl sm:text-3xl font-bold text-black dark:text-white"
-            variants={itemVariants}
-          >
-            {profile.name}
-            {profile.role && `, ${profile.role}`}
-          </motion.h2>
-          <motion.div
-            className="flex items-center justify-center gap-2 mt-2 text-[#C4C4C4]"
-            variants={itemVariants}
-          >
-            {profile.location && (
-              <>
-                <MapPin className="h-5 w-5 text-[#F3CFC6]" />
-                <span>{profile.location}</span>
-              </>
-            )}
-          </motion.div>
-
-          {profile.type === "specialist" && tagsArray.length > 0 && (
-            <motion.div
-              className="flex flex-wrap justify-center gap-2 mt-4"
-              variants={itemVariants}
-            >
-              {tagsArray.slice(0, 4).map((tag, idx) => (
-                <span
-                  key={idx}
-                  className="bg-[#F3CFC6] text-black dark:text-white text-xs px-3 py-1 rounded-full"
-                >
-                  {tag}
-                </span>
-              ))}
-              {tagsArray.length > 4 && (
-                <span className="bg-[#F3CFC6] text-black dark:text-white text-xs px-3 py-1 rounded-full">
-                  +{tagsArray.length - 4} more
-                </span>
+        <CardContent className="pt-6 text-center">
+          <motion.div variants={itemVariants} className="space-y-4">
+            <div>
+              <h2 className="text-2xl sm:text-3xl font-bold text-black dark:text-white">
+                {profile.name}
+              </h2>
+            </div>
+            <div className="flex items-center justify-center gap-2 text-[#C4C4C4]">
+              {profile.location && (
+                <>
+                  <MapPin className="h-4 w-4 text-[#F3CFC6]" />
+                  <span>{profile.location}</span>
+                </>
               )}
-            </motion.div>
-          )}
-
-          {profile.type === "specialist" && profile.biography && (
-            <motion.div
-              className="mt-6 max-w-2xl mx-auto text-black dark:text-white"
-              variants={itemVariants}
-            >
-              <h3 className="text-lg font-semibold mb-2">Biography</h3>
-              <p className="text-sm sm:text-base">{profile.biography}</p>
-            </motion.div>
-          )}
-
-          {profile.type === "specialist" &&
-            (profile.education || profile.license) && (
-              <motion.div
-                className="grid grid-cols-1 sm:grid-cols-2 gap-4 mt-6"
-                variants={itemVariants}
+            </div>
+            <div className="flex justify-center gap-4">
+              <Button
+                onClick={handleStartChat}
+                className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full"
               >
-                {profile.education && (
-                  <div className="bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20 p-4 rounded-lg shadow-sm text-left">
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="h-5 w-5 text-[#F3CFC6]" />
-                      <h4 className="font-semibold text-sm sm:text-base text-black dark:text-white">
-                        Education
-                      </h4>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[#C4C4C4] mt-1">
-                      {profile.education}
-                    </p>
-                  </div>
-                )}
-                {profile.license && (
-                  <div className="bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20 p-4 rounded-lg shadow-sm text-left">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-[#F3CFC6]" />
-                      <h4 className="font-semibold text-sm sm:text-base text-black dark:text-white">
-                        License Number
-                      </h4>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[#C4C4C4] mt-1">
-                      {profile.license}
-                    </p>
-                  </div>
-                )}
-              </motion.div>
-            )}
-
-          <motion.div
-            className="mt-6 flex items-center justify-center gap-4"
-            variants={itemVariants}
-          >
-            <Button
-              onClick={handleStartChat}
-              className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full"
-            >
-              <MessageSquare className="mr-2 h-5 w-5 text-black dark:text-white" />
-              Start Chat with {profile.name}
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 px-6 py-2 rounded-full"
+                <MessageSquare className="mr-2 h-4 w-4" /> Start Chat
+              </Button>
+              <Button className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full">
+                <StarIcon className="mr-2 h-4 w-4" /> Save to Favourites
+              </Button>
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 px-6 py-2 rounded-full"
+                  >
+                    <MoreVertical className="h-4 w-4" />
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent
+                  align="end"
+                  className="bg-white dark:bg-gray-800"
                 >
-                  <MoreHorizontal className="mr-2 h-5 w-5 text-[#F3CFC6]" />
-                  More Actions
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
-                <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
-                  <Star className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                  Add to Favourites
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
-                  <XCircle className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                  Block
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
-                  <Flag className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                  Report
-                </DropdownMenuItem>
-                <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
-                  <FileText className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                  Make a Note
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
+                  <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
+                    Block
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
+                    Report
+                  </DropdownMenuItem>
+                  <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
+                    Make a Note
+                  </DropdownMenuItem>
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </motion.div>
-        </div>
-      </motion.div>
+        </CardContent>
+      </Card>
     </motion.div>
   );
 };
