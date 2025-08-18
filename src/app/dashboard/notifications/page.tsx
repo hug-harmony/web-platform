@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -18,6 +17,7 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
+import { io } from "socket.io-client";
 
 // Type definitions based on schema
 interface User {
@@ -33,60 +33,28 @@ interface Notification {
   content: string;
   timestamp: string;
   unread: boolean;
-  relatedId?: string; // Links to message, appointment, or payment
+  relatedId?: string;
 }
 
-// Dummy data
-const notifications: Notification[] = [
-  {
-    id: "1",
-    type: "message",
-    content:
-      "New message from Dr. Sarah Johnson: 'Please review our session notes.'",
-    timestamp: "2025-08-08 09:00 AM",
-    unread: true,
-    relatedId: "msg_1",
-  },
-  {
-    id: "2",
-    type: "appointment",
-    content:
-      "Upcoming video session with Dr. Emily Carter on 2025-08-09 at 2:00 PM.",
-    timestamp: "2025-08-07 10:30 AM",
-    unread: true,
-    relatedId: "appt_1",
-  },
-  {
-    id: "3",
-    type: "payment",
-    content: "Payment of $100 processed for session with Dr. Michael Brown.",
-    timestamp: "2025-08-06 3:15 PM",
-    unread: false,
-    relatedId: "pay_1",
-  },
-];
-
-// Animation variants
-const containerVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, staggerChildren: 0.2 },
-  },
-};
-
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0 },
-};
-
 export default function NotificationsPage() {
-  const [notificationsList, setNotificationsList] =
-    useState<Notification[]>(notifications);
+  const [notificationsList, setNotificationsList] = useState<Notification[]>(
+    []
+  );
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const { data: session, status } = useSession();
   const router = useRouter();
+
+  useEffect(() => {
+    const socket = io(
+      process.env.NEXT_PUBLIC_WEBSOCKET_URL || "http://localhost:3001"
+    );
+    socket.on("notification", (data: Notification) => {
+      setNotificationsList((prev) => [data, ...prev].slice(0, 50)); // Limit to 50
+    });
+    return () => {
+      socket.disconnect();
+    };
+  }, []);
 
   if (status === "loading") {
     return (
@@ -106,7 +74,6 @@ export default function NotificationsPage() {
             <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
           </CardContent>
         </Card>
-        Facet
         <Card className="shadow-lg">
           <CardHeader>
             <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
@@ -145,6 +112,20 @@ export default function NotificationsPage() {
     ? notificationsList.filter((notif) => notif.unread)
     : notificationsList;
 
+  const containerVariants = {
+    hidden: { opacity: 0, y: 20 },
+    visible: {
+      opacity: 1,
+      y: 0,
+      transition: { duration: 0.5, staggerChildren: 0.2 },
+    },
+  };
+
+  const itemVariants = {
+    hidden: { opacity: 0, y: 10 },
+    visible: { opacity: 1, y: 0 },
+  };
+
   return (
     <motion.div
       className="p-4 space-y-6 max-w-7xl mx-auto"
@@ -152,7 +133,6 @@ export default function NotificationsPage() {
       initial="hidden"
       animate="visible"
     >
-      {/* Header Section */}
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
           <motion.div
@@ -214,7 +194,6 @@ export default function NotificationsPage() {
         </CardContent>
       </Card>
 
-      {/* Notifications List */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center text-black dark:text-white">

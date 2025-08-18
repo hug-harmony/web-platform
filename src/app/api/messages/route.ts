@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { io } from "socket.io-client";
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -62,6 +63,19 @@ export async function POST(request: NextRequest) {
       where: { id: conversationId },
       data: { updatedAt: new Date() },
     });
+
+    // Emit notification via WebSocket
+    const socket = io(process.env.WEBSOCKET_URL || "http://localhost:3001");
+    const notification = {
+      id: message.id,
+      type: "message" as const,
+      content: `New message from ${message.senderUser?.firstName || "User"}: ${text || "Image message"}`,
+      timestamp: new Date().toISOString(),
+      unread: true,
+      relatedId: conversationId,
+    };
+    socket.emit("notification", notification);
+    socket.disconnect();
 
     return NextResponse.json({
       ...message,

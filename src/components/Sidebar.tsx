@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
-import { motion } from "framer-motion";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -12,14 +11,13 @@ import {
   SidebarMenuItem,
   SidebarGroup,
   SidebarGroupLabel,
-  SidebarProvider,
+  SidebarTrigger,
 } from "@/components/ui/sidebar";
 import {
   MessageSquare,
   Clock,
   User,
   LogOut,
-  Menu,
   Search,
   Video,
   CreditCard,
@@ -28,7 +26,6 @@ import {
   Users,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Button } from "@/components/ui/button";
 import {
   Tooltip,
   TooltipContent,
@@ -38,6 +35,9 @@ import {
 import Link from "next/link";
 import { useRouter, usePathname } from "next/navigation";
 import { useSession, signOut } from "next-auth/react";
+import NotificationsDropdown from "@/components/NotificationsDropdown";
+import { motion, AnimatePresence } from "framer-motion";
+import { useSidebar } from "@/components/ui/sidebar";
 
 interface NavItem {
   href: string;
@@ -54,36 +54,14 @@ interface Profile {
   profileImage?: string | null;
 }
 
-const itemVariants = {
-  open: { opacity: 1, x: 0, transition: { duration: 0.2 } },
-  closed: { opacity: 0, x: -20, transition: { duration: 0.2 } },
-};
-
-const sidebarVariants = {
-  open: { width: "250px" },
-  closed: { width: "80px" },
-};
-
 export default function Sidebar() {
-  const [isOpen, setIsOpen] = useState(() => {
-    if (typeof window !== "undefined") {
-      return localStorage.getItem("sidebarOpen") !== "false";
-    }
-    return true;
-  });
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isSpecialist, setIsSpecialist] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
-
-  const toggleSidebar = () => {
-    setIsOpen((prev) => {
-      localStorage.setItem("sidebarOpen", (!prev).toString());
-      return !prev;
-    });
-  };
+  const { open } = useSidebar(); // Get sidebar state
 
   const navItems: NavItem[] = useMemo(
     () => [
@@ -223,7 +201,6 @@ export default function Sidebar() {
     id: session?.user?.id || "default-id",
   };
 
-  // Check if the current path exactly matches the item href or is a subpath but not just "/dashboard"
   const isActive = (href: string) =>
     pathname === href ||
     (pathname.startsWith(href) &&
@@ -231,121 +208,161 @@ export default function Sidebar() {
       pathname !== "/dashboard");
 
   return (
-    <SidebarProvider>
-      <motion.div
-        className="h-screen border-r bg-white"
-        initial="open"
-        animate={isOpen ? "open" : "closed"}
-        variants={sidebarVariants}
-        role="navigation"
-        aria-label="Sidebar"
-      >
-        <ShadcnSidebar className="h-full">
-          <SidebarHeader className="p-4">
-            <div className="flex items-center justify-between">
-              <motion.div
-                className="flex items-center space-x-3 cursor-pointer"
-                variants={itemVariants}
-                animate={isOpen ? "open" : "closed"}
-                onClick={() => router.push(`/dashboard/profile/${user.id}`)}
-                role="button"
-                aria-label={`View profile of ${user.name}`}
-              >
-                <Avatar className="h-10 w-10">
-                  <AvatarImage src={user.avatar} alt={user.name} />
-                  <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
-                </Avatar>
-                {isOpen && (
-                  <div>
-                    <p className="font-semibold">{user.name}</p>
-                    <p className="text-xs text-muted-foreground">
-                      {user.email}
-                    </p>
-                    {isSpecialist && (
-                      <span className="mt-1 inline-block bg-black text-[#F3CFC6] text-xs font-medium px-2 py-1 rounded">
-                        Professional
-                      </span>
-                    )}
-                  </div>
-                )}
-              </motion.div>
-              <Button
-                variant="ghost"
-                size="icon"
-                onClick={toggleSidebar}
-                className="md:hidden"
-                aria-label={isOpen ? "Collapse sidebar" : "Expand sidebar"}
-              >
-                <Menu className="h-5 w-5" />
-              </Button>
-            </div>
-          </SidebarHeader>
-
-          <SidebarContent>
-            <SidebarGroup>
-              <SidebarGroupLabel>Navigation</SidebarGroupLabel>
-              <SidebarMenu>
-                <TooltipProvider>
-                  {navItems.map((item) => (
-                    <SidebarMenuItem key={item.href}>
-                      <Tooltip>
-                        <TooltipTrigger asChild>
-                          <SidebarMenuButton asChild>
-                            <Link
-                              href={item.href}
-                              className={`flex items-center space-x-2 ${
-                                isActive(item.href)
-                                  ? "bg-[#F5E6E8] text-black"
-                                  : "hover:bg-gray-100"
-                              }`}
-                              aria-current={
-                                isActive(item.href) ? "page" : undefined
-                              }
-                            >
-                              {item.icon}
-                              {isOpen && <span>{item.label}</span>}
-                            </Link>
-                          </SidebarMenuButton>
-                        </TooltipTrigger>
-                        {!isOpen && (
-                          <TooltipContent side="right">
-                            {item.label}
-                          </TooltipContent>
-                        )}
-                      </Tooltip>
-                    </SidebarMenuItem>
-                  ))}
-                </TooltipProvider>
-              </SidebarMenu>
-            </SidebarGroup>
-          </SidebarContent>
-
-          <SidebarFooter>
-            <SidebarMenu>
-              <SidebarMenuItem>
-                <Tooltip>
-                  <TooltipTrigger asChild>
-                    <SidebarMenuButton asChild>
-                      <Button
-                        variant="ghost"
-                        className="w-full justify-start"
-                        onClick={handleLogout}
-                        aria-label="Logout"
-                      >
-                        <LogOut className="h-5 w-5" />
-                        {isOpen && <span>Logout</span>}
-                      </Button>
-                    </SidebarMenuButton>
-                  </TooltipTrigger>
-                  {!isOpen && (
-                    <TooltipContent side="right">Logout</TooltipContent>
+    <ShadcnSidebar
+      collapsible="offcanvas"
+      className="fixed inset-y-0 z-10 bg-white border-r transition-[width] duration-200 ease-linear group-data-[collapsible=icon]:w-[80px] w-[fit-content] md:group-data-[collapsible=offcanvas]:left-0 group-data-[collapsible=offcanvas]:left-[-280px]"
+    >
+      <SidebarHeader className="p-4">
+        <div className="flex flex-col gap-4">
+          <div className="flex items-center justify-between">
+            <SidebarTrigger className="h-8 w-8" />
+            <AnimatePresence>
+              {open && (
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                >
+                  <NotificationsDropdown />
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+          <div
+            className="flex items-center space-x-3 cursor-pointer group-data-[collapsible=offcanvas]:pointer-events-none"
+            onClick={() => router.push(`/dashboard/profile/${user.id}`)}
+            role="button"
+            aria-label={`View profile of ${user.name}`}
+          >
+            <Avatar className="h-10 w-10">
+              <AvatarImage src={user.avatar} alt={user.name} />
+              <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+            </Avatar>
+            <AnimatePresence>
+              {open && (
+                <motion.div
+                  initial={{ opacity: 0, width: 0 }}
+                  animate={{ opacity: 1, width: "auto" }}
+                  exit={{ opacity: 0, width: 0 }}
+                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                >
+                  <p className="font-semibold">{user.name}</p>
+                  <p className="text-xs text-muted-foreground">{user.email}</p>
+                  {isSpecialist && (
+                    <span className="mt-1 inline-block bg-black text-[#F3CFC6] text-xs font-medium px-2 py-1 rounded">
+                      Professional
+                    </span>
                   )}
-                </Tooltip>
-              </SidebarMenuItem>
-            </SidebarMenu>
-          </SidebarFooter>
-        </ShadcnSidebar>
-      </motion.div>
-    </SidebarProvider>
+                </motion.div>
+              )}
+            </AnimatePresence>
+          </div>
+        </div>
+      </SidebarHeader>
+
+      <SidebarContent>
+        <SidebarGroup>
+          <AnimatePresence>
+            {open && (
+              <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: "auto" }}
+                exit={{ opacity: 0, height: 0 }}
+                transition={{ duration: 0.2, ease: "easeInOut" }}
+              >
+                <SidebarGroupLabel>Navigation</SidebarGroupLabel>
+              </motion.div>
+            )}
+          </AnimatePresence>
+          <SidebarMenu>
+            <TooltipProvider>
+              {navItems.map((item) => (
+                <SidebarMenuItem key={item.href}>
+                  <Tooltip>
+                    <TooltipTrigger asChild>
+                      <SidebarMenuButton
+                        asChild
+                        isActive={isActive(item.href)}
+                        className={
+                          isActive(item.href)
+                            ? "bg-[#F5E6E8] text-black text-center"
+                            : "hover:bg-gray-100"
+                        }
+                      >
+                        <Link href={item.href}>
+                          {item.icon}
+                          <AnimatePresence>
+                            {open && (
+                              <motion.span
+                                initial={{ opacity: 0, width: 0 }}
+                                animate={{ opacity: 1, width: "auto" }}
+                                exit={{ opacity: 0, width: 0 }}
+                                transition={{
+                                  duration: 0.2,
+                                  ease: "easeInOut",
+                                }}
+                                className="truncate"
+                              >
+                                {item.label}
+                              </motion.span>
+                            )}
+                          </AnimatePresence>
+                        </Link>
+                      </SidebarMenuButton>
+                    </TooltipTrigger>
+                    <TooltipContent
+                      side="right"
+                      className="group-data-[collapsible=icon]:block hidden"
+                    >
+                      {item.label}
+                    </TooltipContent>
+                  </Tooltip>
+                </SidebarMenuItem>
+              ))}
+            </TooltipProvider>
+          </SidebarMenu>
+        </SidebarGroup>
+      </SidebarContent>
+
+      <SidebarFooter>
+        <SidebarMenu>
+          <SidebarMenuItem>
+            <Tooltip>
+              <TooltipTrigger asChild>
+                <SidebarMenuButton asChild>
+                  <button
+                    className="flex items-center gap-2 w-full text-left h-8 hover:bg-gray-100"
+                    onClick={handleLogout}
+                    aria-label="Logout"
+                  >
+                    <LogOut className="h-5 w-5" />
+                    <AnimatePresence>
+                      {open && (
+                        <motion.span
+                          initial={{ opacity: 0, width: 0 }}
+                          animate={{ opacity: 1, width: "auto" }}
+                          exit={{ opacity: 0, width: 0 }}
+                          transition={{ duration: 0.2, ease: "easeInOut" }}
+                          className="truncate"
+                        >
+                          Logout
+                        </motion.span>
+                      )}
+                    </AnimatePresence>
+                  </button>
+                </SidebarMenuButton>
+              </TooltipTrigger>
+              <TooltipContent
+                side="right"
+                className="group-data-[collapsible=icon]:block hidden"
+              >
+                Logout
+              </TooltipContent>
+            </Tooltip>
+          </SidebarMenuItem>
+        </SidebarMenu>
+      </SidebarFooter>
+    </ShadcnSidebar>
   );
 }
