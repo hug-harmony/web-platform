@@ -17,9 +17,8 @@ import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
-import { io } from "socket.io-client";
+import { supabase } from "@/lib/supabase";
 
-// Type definitions based on schema
 interface User {
   id: string;
   name: string;
@@ -33,7 +32,7 @@ interface Notification {
   content: string;
   timestamp: string;
   unread: boolean;
-  relatedId?: string;
+  relatedid?: string;
 }
 
 export default function NotificationsPage() {
@@ -41,18 +40,47 @@ export default function NotificationsPage() {
     []
   );
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
+  const [error, setError] = useState<string | null>(null);
   const { data: session, status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
-    const socket = io(
-      process.env.NEXT_PUBLIC_WEBSOCKET_URL || "http://localhost:3001"
-    );
-    socket.on("notification", (data: Notification) => {
-      setNotificationsList((prev) => [data, ...prev].slice(0, 50)); // Limit to 50
-    });
+    if (!supabase) {
+      setError("Notifications unavailable: Supabase configuration missing");
+      return;
+    }
+
+    const fetchNotifications = async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .order("timestamp", { ascending: false })
+        .limit(50);
+      if (error) {
+        console.error("Fetch notifications error:", error);
+        setError("Failed to load notifications");
+        return;
+      }
+      setNotificationsList(data);
+      setError(null);
+    };
+
+    fetchNotifications();
+
+    const channel = supabase
+      .channel("notifications-channel")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        (payload) => {
+          const newNotif = payload.new as Notification;
+          setNotificationsList((prev) => [newNotif, ...prev].slice(0, 50));
+        }
+      )
+      .subscribe((status) => console.log("subscription:", status));
+
     return () => {
-      socket.disconnect();
+      supabase.removeChannel(channel);
     };
   }, []);
 
@@ -100,7 +128,16 @@ export default function NotificationsPage() {
     avatar: session?.user?.image || "/assets/images/avatar-placeholder.png",
   };
 
-  const markAsRead = (id: string) => {
+  const markAsRead = async (id: string) => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from("notifications")
+      .update({ unread: false })
+      .eq("id", id);
+    if (error) {
+      console.error("Mark as read error:", error);
+      return;
+    }
     setNotificationsList((prev) =>
       prev.map((notif) =>
         notif.id === id ? { ...notif, unread: false } : notif
@@ -205,7 +242,9 @@ export default function NotificationsPage() {
           <ScrollArea className="h-[400px]">
             <motion.div className="space-y-4" variants={containerVariants}>
               <AnimatePresence>
-                {filteredNotifications.length ? (
+                {error ? (
+                  <p className="text-[#C4C4C4] text-center">{error}</p>
+                ) : filteredNotifications.length ? (
                   filteredNotifications.map((notif) => (
                     <motion.div
                       key={notif.id}
@@ -246,7 +285,7 @@ export default function NotificationsPage() {
                             Mark as Read
                           </Button>
                         )}
-                        {notif.relatedId && (
+                        {notif.relatedid && (
                           <Button
                             asChild
                             variant="link"
@@ -256,10 +295,10 @@ export default function NotificationsPage() {
                             <Link
                               href={
                                 notif.type === "message"
-                                  ? `/messaging/${notif.relatedId}`
+                                  ? `/messaging/${notif.relatedid}`
                                   : notif.type === "appointment"
-                                    ? `/appointments/${notif.relatedId}`
-                                    : `/payment/${notif.relatedId}`
+                                    ? `/appointments/${notif.relatedid}`
+                                    : `/payment/${notif.relatedid}`
                               }
                             >
                               View

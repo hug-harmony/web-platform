@@ -25,6 +25,7 @@
     "@radix-ui/react-slot": "^1.2.3",
     "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-tooltip": "^1.2.7",
+    "@supabase/supabase-js": "^2.55.0",
     "@vercel/blob": "^1.1.1",
     "add": "^2.0.6",
     "button": "^1.1.1",
@@ -49,7 +50,6 @@
     "shadcn": "^2.10.0",
     "simple-peer": "^9.11.1",
     "socket.io": "^4.8.1",
-    "socket.io-client": "^4.8.1",
     "sonner": "^2.0.7",
     "tailwind-merge": "^3.3.1",
     "zod": "^3.25.76"

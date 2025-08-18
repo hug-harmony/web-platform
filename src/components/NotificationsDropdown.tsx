@@ -1,7 +1,7 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { io } from "socket.io-client";
+import { supabase } from "@/lib/supabase";
 import {
   DropdownMenu,
   DropdownMenuContent,
@@ -19,7 +19,7 @@ interface Notification {
   content: string;
   timestamp: string;
   unread: boolean;
-  relatedId?: string;
+  relatedid?: string;
 }
 
 export default function NotificationsDropdown({
@@ -29,24 +29,68 @@ export default function NotificationsDropdown({
 }) {
   const [notifications, setNotifications] = useState<Notification[]>([]);
   const [unreadCount, setUnreadCount] = useState(0);
+  const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const socket = io(
-      process.env.NEXT_PUBLIC_WEBSOCKET_URL || "http://localhost:3001"
-    );
-    socket.on("notification", (data: Notification) => {
-      setNotifications((prev) => [data, ...prev].slice(0, 10));
-      if (data.unread) {
-        setUnreadCount((prev) => prev + 1);
-        toast.success(data.content, { duration: 5000 });
+    if (!supabase) {
+      setError("Notifications unavailable: Supabase configuration missing");
+      toast.error("Notifications unavailable: Supabase configuration missing", {
+        duration: 5000,
+      });
+      return;
+    }
+
+    const fetchNotifications = async () => {
+      const { data, error } = await supabase
+        .from("notifications")
+        .select("*")
+        .order("timestamp", { ascending: false })
+        .limit(10);
+      if (error) {
+        console.error("Fetch notifications error:", error);
+        setError("Failed to load notifications");
+        toast.error("Failed to load notifications", { duration: 5000 });
+        return;
       }
-    });
+      setNotifications(data);
+      setUnreadCount(data.filter((n: Notification) => n.unread).length);
+      setError(null);
+    };
+
+    fetchNotifications();
+
+    const channel = supabase
+      .channel("notifications")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "notifications" },
+        (payload) => {
+          const newNotif = payload.new as Notification;
+          setNotifications((prev) => [newNotif, ...prev].slice(0, 10));
+          if (newNotif.unread) {
+            setUnreadCount((prev) => prev + 1);
+            toast.success(newNotif.content, { duration: 5000 });
+          }
+        }
+      )
+      .subscribe();
+
     return () => {
-      socket.disconnect();
+      supabase.removeChannel(channel);
     };
   }, []);
 
-  const markAsRead = (id: string) => {
+  const markAsRead = async (id: string) => {
+    if (!supabase) return;
+    const { error } = await supabase
+      .from("notifications")
+      .update({ unread: false })
+      .eq("id", id);
+    if (error) {
+      console.error("Mark as read error:", error);
+      toast.error("Failed to mark notification as read", { duration: 5000 });
+      return;
+    }
     setNotifications((prev) =>
       prev.map((notif) =>
         notif.id === id ? { ...notif, unread: false } : notif
@@ -67,9 +111,13 @@ export default function NotificationsDropdown({
           )}
         </Button>
       </DropdownMenuTrigger>
-      <DropdownMenuContent className="w-80 p-4" align="start">
+      <DropdownMenuContent className="w-80 p-4" align="end">
         <div className="max-h-[300px] overflow-y-auto">
-          {notifications.length ? (
+          {error ? (
+            <DropdownMenuItem className="text-gray-500 text-center p-3">
+              {error}
+            </DropdownMenuItem>
+          ) : notifications.length ? (
             notifications.map((notif) => (
               <DropdownMenuItem
                 key={notif.id}
@@ -93,14 +141,14 @@ export default function NotificationsDropdown({
                     {notif.timestamp}
                   </p>
                 </div>
-                {notif.relatedId && (
+                {notif.relatedid && (
                   <Link
                     href={
                       notif.type === "message"
-                        ? `/messaging/${notif.relatedId}`
+                        ? `/messaging/${notif.relatedid}`
                         : notif.type === "appointment"
-                          ? `/appointments/${notif.relatedId}`
-                          : `/payment/${notif.relatedId}`
+                          ? `/appointments/${notif.relatedid}`
+                          : `/payment/${notif.relatedid}`
                     }
                     className="text-[#F3CFC6] hover:text-[#C4C4C4] text-sm"
                   >
