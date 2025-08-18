@@ -32,10 +32,7 @@ export async function GET(request: NextRequest) {
     const isUserParticipant =
       conversation.userId1 === session.user.id ||
       conversation.userId2 === session.user.id;
-    const isSpecialistParticipant =
-      conversation.specialistId1 === session.user.id ||
-      conversation.specialistId2 === session.user.id;
-    if (!isUserParticipant && !isSpecialistParticipant) {
+    if (!isUserParticipant) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -44,17 +41,14 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "asc" },
       include: {
         senderUser: { select: { firstName: true, lastName: true } },
-        senderSpecialist: { select: { name: true } },
       },
     });
 
-    // Normalize sender name
     return NextResponse.json(
       messages.map((msg) => ({
         ...msg,
         sender: {
           name:
-            msg.senderSpecialist?.name ||
             `${msg.senderUser?.firstName || ""} ${msg.senderUser?.lastName || ""}`.trim() ||
             "Unknown User",
         },

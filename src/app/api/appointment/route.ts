@@ -28,7 +28,14 @@ export async function GET(req: Request) {
 
     const appointments = await prisma.appointment.findMany({
       where: { userId: userId || session.user.id },
-      include: { specialist: true, user: true },
+      include: {
+        specialist: {
+          include: {
+            application: { select: { userId: true } },
+          },
+        },
+        user: true,
+      },
       orderBy: { createdAt: "desc" },
     });
 
@@ -44,6 +51,7 @@ export async function GET(req: Request) {
       rating: appt.specialist?.rating ?? 0,
       reviewCount: appt.specialist?.reviewCount ?? 0,
       rate: appt.specialist?.rate ?? 0,
+      specialistUserId: appt.specialist?.application?.userId || "",
     }));
 
     return NextResponse.json(formatted);

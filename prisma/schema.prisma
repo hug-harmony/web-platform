@@ -57,16 +57,12 @@ model Appointment {
 
 model Conversation {
   id               String       @id @default(auto()) @map("_id") @db.ObjectId
-  userId1          String?      @db.ObjectId
-  userId2          String?      @db.ObjectId
-  specialistId1    String?      @db.ObjectId
-  specialistId2    String?      @db.ObjectId
+  userId1          String       @db.ObjectId
+  userId2          String       @db.ObjectId
   createdAt        DateTime     @default(now())
   updatedAt        DateTime     @updatedAt
-  user1            User?        @relation("User1Conversations", fields: [userId1], references: [id], onDelete: Cascade)
-  user2            User?        @relation("User2Conversations", fields: [userId2], references: [id], onDelete: Cascade)
-  specialist1      Specialist?  @relation("Specialist1Conversations", fields: [specialistId1], references: [id], onDelete: Cascade)
-  specialist2      Specialist?  @relation("Specialist2Conversations", fields: [specialistId2], references: [id], onDelete: Cascade)
+  user1            User         @relation("User1Conversations", fields: [userId1], references: [id], onDelete: Cascade)
+  user2            User         @relation("User2Conversations", fields: [userId2], references: [id], onDelete: Cascade)
   messages         Message[]    @relation("ConversationMessages")
 }
 
@@ -79,10 +75,8 @@ model Message {
   recipientId      String       @db.ObjectId
   conversationId   String       @db.ObjectId
   createdAt        DateTime     @default(now())
-  senderUser       User?        @relation("SentMessagesUser", fields: [senderId], references: [id], onDelete: Cascade)
-  recipientUser    User?        @relation("ReceivedMessagesUser", fields: [recipientId], references: [id], onDelete: Cascade)
-  senderSpecialist Specialist?  @relation("SentMessagesSpecialist", fields: [senderId], references: [id], onDelete: Cascade)
-  recipientSpecialist Specialist? @relation("ReceivedMessagesSpecialist", fields: [recipientId], references: [id], onDelete: Cascade)
+  senderUser       User         @relation("SentMessagesUser", fields: [senderId], references: [id], onDelete: Cascade)
+  recipientUser    User         @relation("ReceivedMessagesUser", fields: [recipientId], references: [id], onDelete: Cascade)
   conversation     Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
 }
 
@@ -101,10 +95,7 @@ model Specialist {
   license          String?
   createdAt        DateTime     @default(now())
   appointments     Appointment[] @relation("SpecialistAppointments")
-  sentMessages     Message[]    @relation("SentMessagesSpecialist")
-  receivedMessages Message[]    @relation("ReceivedMessagesSpecialist")
-  conversations1   Conversation[] @relation("Specialist1Conversations")
-  conversations2   Conversation[] @relation("Specialist2Conversations")
+ 
   application      SpecialistApplication? @relation
   VideoSession VideoSession[]
 }

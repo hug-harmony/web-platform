@@ -27,7 +27,8 @@ interface Appointment {
   reviewCount?: number | null;
   rate?: number | null;
   specialistId: string;
-  clientId?: string; // Added for client appointments
+  specialistUserId?: string; // Added for specialist's User ID
+  clientId?: string;
 }
 
 const containerVariants = {
@@ -46,7 +47,7 @@ const itemVariants = {
 
 export default function AppointmentsPage() {
   const router = useRouter();
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clientAppointments, setClientAppointments] = useState<Appointment[]>(
     []
@@ -101,6 +102,7 @@ export default function AppointmentsPage() {
                 rating: appt.rating ?? 0,
                 reviewCount: appt.reviewCount ?? 0,
                 rate: appt.rate ?? 0,
+                specialistUserId: appt.specialistUserId || "", // Added
               }))
             : []
         );
@@ -131,7 +133,7 @@ export default function AppointmentsPage() {
                   rating: appt.rating ?? 0,
                   reviewCount: appt.reviewCount ?? 0,
                   rate: appt.rate ?? 0,
-                  clientId: appt.clientId || "", // Added clientId
+                  clientId: appt.clientId || "",
                 }))
               : []
           );
@@ -160,26 +162,23 @@ export default function AppointmentsPage() {
       return (!start || apptDate >= start) && (!end || apptDate <= end);
     });
 
-  const handleMessageClick = async (
-    userId: string,
-    isSpecialistRecipient: boolean
-  ) => {
+  const handleMessageClick = async (userId: string) => {
     if (!userId || !/^[0-9a-fA-F]{24}$/.test(userId)) {
-      toast.error("Invalid user ID");
+      toast.error("Invalid or missing user ID");
       return;
     }
     try {
       const res = await fetch("/api/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          recipientId: userId,
-          isSpecialistRecipient,
-        }),
+        body: JSON.stringify({ recipientId: userId }),
         credentials: "include",
       });
       if (!res.ok) {
-        throw new Error(`Failed to create conversation: ${res.status}`);
+        const errorData = await res.json();
+        throw new Error(
+          errorData.error || `Failed to create conversation: ${res.status}`
+        );
       }
       const conversation = await res.json();
       if (conversation.id) {
@@ -338,7 +337,9 @@ export default function AppointmentsPage() {
                             rate={appointment.rate || 0}
                             status={appointment.status}
                             onMessage={() =>
-                              handleMessageClick(appointment.specialistId, true)
+                              handleMessageClick(
+                                appointment.specialistUserId || ""
+                              )
                             }
                           />
                         </motion.div>
@@ -373,10 +374,7 @@ export default function AppointmentsPage() {
                             rate={appointment.rate || 0}
                             status={appointment.status}
                             onMessage={() =>
-                              handleMessageClick(
-                                appointment.clientId || "",
-                                false
-                              )
+                              handleMessageClick(appointment.clientId || "")
                             }
                           />
                         </motion.div>
@@ -408,7 +406,7 @@ export default function AppointmentsPage() {
                       rate={appointment.rate || 0}
                       status={appointment.status}
                       onMessage={() =>
-                        handleMessageClick(appointment.specialistId, true)
+                        handleMessageClick(appointment.specialistUserId || "")
                       }
                     />
                   </motion.div>

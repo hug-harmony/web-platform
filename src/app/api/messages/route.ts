@@ -40,25 +40,21 @@ export async function POST(request: NextRequest) {
     const isUserParticipant =
       conversation.userId1 === session.user.id ||
       conversation.userId2 === session.user.id;
-    const isSpecialistParticipant =
-      conversation.specialistId1 === session.user.id ||
-      conversation.specialistId2 === session.user.id;
-    if (!isUserParticipant && !isSpecialistParticipant) {
+    if (!isUserParticipant) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
     const message = await prisma.message.create({
       data: {
-        text: text || "", // Allow empty text if imageUrl is provided
+        text: text || "",
         senderId: session.user.id,
         recipientId,
         conversationId,
-        imageUrl, // Store image URL
+        imageUrl,
         isAudio: false,
       },
       include: {
-        senderUser: { select: { firstName: true, lastName: true, name: true } },
-        senderSpecialist: { select: { name: true } },
+        senderUser: { select: { firstName: true, lastName: true } },
       },
     });
 
@@ -71,8 +67,6 @@ export async function POST(request: NextRequest) {
       ...message,
       sender: {
         name:
-          message.senderSpecialist?.name ||
-          message.senderUser?.name ||
           `${message.senderUser?.firstName || ""} ${message.senderUser?.lastName || ""}`.trim() ||
           "Unknown User",
       },

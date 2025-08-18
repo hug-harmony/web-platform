@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -13,12 +12,7 @@ export async function GET() {
   try {
     const conversations = await prisma.conversation.findMany({
       where: {
-        OR: [
-          { userId1: session.user.id },
-          { userId2: session.user.id },
-          { specialistId1: session.user.id },
-          { specialistId2: session.user.id },
-        ],
+        OR: [{ userId1: session.user.id }, { userId2: session.user.id }],
       },
       include: {
         user1: {
@@ -37,12 +31,6 @@ export async function GET() {
             profileImage: true,
           },
         },
-        specialist1: {
-          select: { id: true, name: true, image: true },
-        },
-        specialist2: {
-          select: { id: true, name: true, image: true },
-        },
         messages: {
           orderBy: { createdAt: "desc" },
           take: 1,
@@ -55,8 +43,6 @@ export async function GET() {
       id: conv.id,
       user1: conv.user1,
       user2: conv.user2,
-      specialist1: conv.specialist1,
-      specialist2: conv.specialist2,
       lastMessage: conv.messages[0],
       messageCount: conv.messages.length,
     }));
@@ -78,7 +64,7 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { recipientId, isSpecialistRecipient } = await request.json();
+    const { recipientId } = await request.json();
     if (!recipientId || !/^[0-9a-fA-F]{24}$/.test(recipientId)) {
       return NextResponse.json(
         { error: "Invalid recipient ID" },
@@ -93,38 +79,18 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check if session user is a specialist
-    const isSessionUserSpecialist = await prisma.specialist.findUnique({
-      where: { id: session.user.id },
+    const recipient = await prisma.user.findUnique({
+      where: { id: recipientId },
     });
-
-    // Check if recipient is a specialist
-    const isRecipientSpecialist = isSpecialistRecipient
-      ? await prisma.specialist.findUnique({ where: { id: recipientId } })
-      : await prisma.user.findUnique({ where: { id: recipientId } });
-
-    if (!isRecipientSpecialist && isSpecialistRecipient) {
-      return NextResponse.json(
-        { error: "Specialist not found" },
-        { status: 404 }
-      );
-    }
-    if (!isRecipientSpecialist && !isSpecialistRecipient) {
+    if (!recipient) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    // Check if conversation already exists
     const existingConversation = await prisma.conversation.findFirst({
       where: {
         OR: [
           { userId1: session.user.id, userId2: recipientId },
           { userId1: recipientId, userId2: session.user.id },
-          { userId1: session.user.id, specialistId2: recipientId },
-          { specialistId1: session.user.id, userId2: recipientId },
-          { specialistId1: session.user.id, specialistId2: recipientId },
-          { specialistId1: recipientId, specialistId2: session.user.id },
-          { userId1: recipientId, specialistId2: session.user.id },
-          { specialistId1: recipientId, userId2: session.user.id },
         ],
       },
       include: {
@@ -144,8 +110,6 @@ export async function POST(request: Request) {
             profileImage: true,
           },
         },
-        specialist1: { select: { id: true, name: true, image: true } },
-        specialist2: { select: { id: true, name: true, image: true } },
       },
     });
 
@@ -153,26 +117,11 @@ export async function POST(request: Request) {
       return NextResponse.json(existingConversation);
     }
 
-    // Create new conversation based on participant types
-    const conversationData: any = {};
-    if (isSessionUserSpecialist) {
-      conversationData.specialistId1 = session.user.id;
-      if (isSpecialistRecipient) {
-        conversationData.specialistId2 = recipientId;
-      } else {
-        conversationData.userId2 = recipientId;
-      }
-    } else {
-      conversationData.userId1 = session.user.id;
-      if (isSpecialistRecipient) {
-        conversationData.specialistId2 = recipientId;
-      } else {
-        conversationData.userId2 = recipientId;
-      }
-    }
-
     const conversation = await prisma.conversation.create({
-      data: conversationData,
+      data: {
+        userId1: session.user.id,
+        userId2: recipientId,
+      },
       include: {
         user1: {
           select: {
@@ -190,8 +139,6 @@ export async function POST(request: Request) {
             profileImage: true,
           },
         },
-        specialist1: { select: { id: true, name: true, image: true } },
-        specialist2: { select: { id: true, name: true, image: true } },
       },
     });
 

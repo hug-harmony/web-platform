@@ -5,7 +5,7 @@ import { authOptions } from "@/lib/auth";
 
 const prisma = new PrismaClient();
 
-export async function GET(req: Request) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -47,6 +47,7 @@ export async function GET(req: Request) {
       rating: appt.specialist?.rating ?? 0,
       reviewCount: appt.specialist?.reviewCount ?? 0,
       rate: appt.specialist?.rate ?? 0,
+      clientId: appt.userId, // Explicitly include userId as clientId
     }));
 
     return NextResponse.json(formatted);

@@ -21,18 +21,10 @@ interface User {
   profileImage?: string | null;
 }
 
-interface Specialist {
-  id: string;
-  name: string;
-  image?: string | null;
-}
-
 interface Conversation {
   id: string;
   user1?: User | null;
   user2?: User | null;
-  specialist1?: Specialist | null;
-  specialist2?: Specialist | null;
   lastMessage?: { text: string; createdAt: string } | null;
   messageCount: number;
 }
@@ -291,7 +283,6 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
         </CardContent>
       </Card>
 
-      {/* Conversations List */}
       <Card className="shadow-lg flex flex-col">
         <CardHeader>
           <CardTitle className="text-black dark:text-white">
@@ -306,51 +297,27 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
           ) : (
             <div className="divide-y divide-[#F3CFC6]/20">
               {conversations.map((conv) => {
-                // Determine the other participant (user or specialist)
-                let otherParticipant: User | Specialist | null;
+                let otherParticipant: User | null | undefined;
                 let name: string;
                 let profileImage: string | undefined | null;
 
                 if (conv.user1?.id === session.user.id) {
-                  otherParticipant = conv.user2 || conv.specialist2 || null;
+                  otherParticipant = conv.user2 || null;
                   name = conv.user2
                     ? `${conv.user2.firstName || ""} ${conv.user2.lastName || ""}`.trim() ||
                       "Unknown User"
-                    : conv.specialist2?.name || "Unknown Specialist";
-                  profileImage = conv.user2
-                    ? conv.user2.profileImage
-                    : conv.specialist2?.image;
-                } else if (conv.user2?.id === session.user.id) {
-                  otherParticipant = conv.user1 || conv.specialist1 || null;
-                  name = conv.user1
-                    ? `${conv.user1.firstName || ""} ${conv.user1.lastName || ""}`.trim() ||
-                      "Unknown User"
-                    : conv.specialist1?.name || "Unknown Specialist";
-                  profileImage = conv.user1
-                    ? conv.user1.profileImage
-                    : conv.specialist1?.image;
-                } else if (conv.specialist1?.id === session.user.id) {
-                  otherParticipant = conv.user2 || conv.specialist2 || null;
-                  name = conv.user2
-                    ? `${conv.user2.firstName || ""} ${conv.user2.lastName || ""}`.trim() ||
-                      "Unknown User"
-                    : conv.specialist2?.name || "Unknown Specialist";
-                  profileImage = conv.user2
-                    ? conv.user2.profileImage
-                    : conv.specialist2?.image;
-                } else if (conv.specialist2?.id === session.user.id) {
-                  otherParticipant = conv.user1 || conv.specialist1 || null;
-                  name = conv.user1
-                    ? `${conv.user1.firstName || ""} ${conv.user1.lastName || ""}`.trim() ||
-                      "Unknown User"
-                    : conv.specialist1?.name || "Unknown Specialist";
-                  profileImage = conv.user1
-                    ? conv.user1.profileImage
-                    : conv.specialist1?.image;
+                    : "Unknown User";
+                  profileImage = conv.user2?.profileImage;
                 } else {
-                  otherParticipant = null;
-                  name = "Unknown Participant";
-                  profileImage = undefined;
+                  otherParticipant =
+                    conv.user1?.id === session.user.id
+                      ? conv.user2
+                      : conv.user1;
+                  name = otherParticipant
+                    ? `${otherParticipant.firstName || ""} ${otherParticipant.lastName || ""}`.trim() ||
+                      "Unknown User"
+                    : "Unknown User";
+                  profileImage = otherParticipant?.profileImage;
                 }
 
                 const isActive =

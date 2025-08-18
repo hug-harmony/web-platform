@@ -1,6 +1,6 @@
 "use client";
 
-import React, { useState, useEffect, useRef } from "react";
+import React, { useState, useEffect, useRef, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
@@ -26,19 +26,15 @@ interface Message {
 
 interface Participant {
   id: string;
-  name?: string;
   firstName?: string;
   lastName?: string;
   profileImage?: string;
-  image?: string;
 }
 
 interface Conversation {
   id: string;
   user1?: Participant;
   user2?: Participant;
-  specialist1?: Participant;
-  specialist2?: Participant;
 }
 
 const MessageInterface: React.FC = () => {
@@ -63,7 +59,7 @@ const MessageInterface: React.FC = () => {
     scrollToBottom();
   }, [messages]);
 
-  const fetchMessages = async () => {
+  const fetchMessages = useCallback(async () => {
     if (!conversationId || status !== "authenticated") return;
 
     try {
@@ -85,7 +81,7 @@ const MessageInterface: React.FC = () => {
     } catch {
       toast.error("Failed to load messages");
     }
-  };
+  }, [conversationId, status, router]);
 
   useEffect(() => {
     const fetchConversationAndMessages = async () => {
@@ -133,7 +129,7 @@ const MessageInterface: React.FC = () => {
         clearInterval(pollingIntervalRef.current);
       }
     };
-  }, [status, conversationId, router]);
+  }, [status, conversationId, router, fetchMessages]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -167,8 +163,8 @@ const MessageInterface: React.FC = () => {
     setSending(true);
     const recipientId =
       (conversation.user1?.id === session.user.id
-        ? conversation.user2?.id || conversation.specialist2?.id
-        : conversation.user1?.id || conversation.specialist1?.id) || "";
+        ? conversation.user2?.id || conversation.user2?.id
+        : conversation.user1?.id || conversation.user1?.id) || "";
 
     try {
       let imageUrl: string | undefined;
@@ -284,15 +280,14 @@ const MessageInterface: React.FC = () => {
 
   const otherUser =
     conversation.user1?.id === session.user.id
-      ? conversation.user2 || conversation.specialist2
-      : conversation.user1 || conversation.specialist1;
+      ? conversation.user2
+      : conversation.user1;
 
   const otherUserName = otherUser
-    ? otherUser.name ||
-      `${otherUser.firstName || ""} ${otherUser.lastName || ""}`.trim() ||
+    ? `${otherUser.firstName || ""} ${otherUser.lastName || ""}`.trim() ||
       "Unknown User"
     : "Unknown User";
-  const profileImage = otherUser?.profileImage || otherUser?.image;
+  const profileImage = otherUser?.profileImage;
   const initials = otherUserName
     .split(" ")
     .map((n) => n.charAt(0))
