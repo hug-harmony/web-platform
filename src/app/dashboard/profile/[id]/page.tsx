@@ -62,10 +62,99 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
   const [isSpecialist, setIsSpecialist] = useState(false);
   const [specialistId, setSpecialistId] = useState<string | null>(null);
+  const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status, update } = useSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  // Validation functions
+  const validateUserProfileForm = (formData: FormData) => {
+    const errors: Record<string, string> = {};
+    const firstName = formData.get("firstName")?.toString() || "";
+    const lastName = formData.get("lastName")?.toString() || "";
+    const phoneNumber = formData.get("phoneNumber")?.toString() || "";
+    const location = formData.get("location")?.toString() || "";
+
+    if (!firstName) {
+      errors.firstName = "First name is required";
+    } else if (firstName.length > 50) {
+      errors.firstName = "First name must be 50 characters or less";
+    }
+
+    if (!lastName) {
+      errors.lastName = "Last name is required";
+    } else if (lastName.length > 50) {
+      errors.lastName = "Last name must be 50 characters or less";
+    }
+
+    if (!phoneNumber) {
+      errors.phoneNumber = "Phone Number is required";
+    }
+
+    if (location && location.length > 100) {
+      errors.location = "Location must be 100 characters or less";
+    }
+
+    if (selectedFile) {
+      const validTypes = ["image/jpeg", "image/png"];
+      if (!validTypes.includes(selectedFile.type)) {
+        errors.profileImage = "Only JPEG or PNG images are allowed";
+      } else if (selectedFile.size > 5 * 1024 * 1024) {
+        errors.profileImage = "Image must be less than 5MB";
+      }
+    }
+
+    return errors;
+  };
+
+  const validateSpecialistProfileForm = (formData: FormData) => {
+    const errors: Record<string, string> = {};
+    const role = formData.get("role")?.toString() || "";
+    const tags = formData.get("tags")?.toString() || "";
+    const biography = formData.get("biography")?.toString() || "";
+    const education = formData.get("education")?.toString() || "";
+    const license = formData.get("license")?.toString() || "";
+    const location = formData.get("location")?.toString() || "";
+    const rate = formData.get("rate")?.toString() || "";
+
+    if (!role) {
+      errors.role = "Role is required";
+    } else if (role.length > 50) {
+      errors.role = "Role must be 50 characters or less";
+    }
+
+    if (tags && tags.length > 100) {
+      errors.tags = "Tags must be 100 characters or less";
+    }
+
+    if (biography && biography.length > 500) {
+      errors.biography = "Biography must be 500 characters or less";
+    }
+
+    if (education && education.length > 500) {
+      errors.education = "Education must be 500 characters or less";
+    }
+
+    if (license && license.length > 100) {
+      errors.license = "License must be 100 characters or less";
+    }
+
+    if (location && location.length > 100) {
+      errors.location = "Location must be 100 characters or less";
+    }
+
+    if (rate) {
+      const rateNum = parseFloat(rate);
+      if (isNaN(rateNum) || rateNum <= 0) {
+        errors.rate = "Rate must be a positive number";
+      } else if (rateNum > 10000) {
+        errors.rate = "Rate cannot exceed 10000";
+      }
+    }
+
+    return errors;
+  };
 
   const fetchSpecialistStatus = async (
     retries = 3,
@@ -118,7 +207,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                   }
                 : prev
             );
-            break; // Exit retry loop on success
+            break;
           } else {
             console.error(
               "Failed to fetch specialist details:",
@@ -149,7 +238,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           notFound();
         }
 
-        // Fetch profile
         const res = await fetch(`/api/users/${id}`, {
           cache: "no-store",
           credentials: "include",
@@ -159,10 +247,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           const data = await res.json();
           setProfile({
             id: data.id,
-            name:
-              data.firstName && data.lastName
-                ? `${data.firstName} ${data.lastName}`
-                : null,
+            name: data.name,
             firstName: data.firstName,
             lastName: data.lastName,
             phoneNumber: data.phoneNumber,
@@ -178,7 +263,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           throw new Error(`Failed to fetch user: ${res.status}`);
         }
 
-        // Fetch specialist status
         await fetchSpecialistStatus();
       } catch (err: any) {
         console.error("Fetch Profile Error:", err.message, err.stack);
@@ -190,7 +274,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
 
     fetchProfileAndSpecialistStatus();
 
-    // Refresh specialist status if coming from professional application page
     const fromApplication = searchParams.get("fromApplication");
     if (fromApplication) {
       fetchSpecialistStatus();
@@ -209,10 +292,23 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     e.preventDefault();
     setUpdating(true);
     const formData = new FormData(e.currentTarget);
+    const errors = validateUserProfileForm(formData);
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      toast.error("Please fix the errors in the form");
+      setUpdating(false);
+      return;
+    }
+
+    setFormErrors({});
+
     const data = {
       firstName: formData.get("firstName")?.toString(),
       lastName: formData.get("lastName")?.toString(),
-      name: `${formData.get("firstName")?.toString() || ""} ${formData.get("lastName")?.toString() || ""}`.trim(),
+      name:
+        `${formData.get("firstName")?.toString() || ""} ${formData.get("lastName")?.toString() || ""}`.trim() ||
+        undefined,
       phoneNumber: formData.get("phoneNumber")?.toString(),
       location: formData.get("location")?.toString(),
     };
@@ -243,10 +339,8 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         const updatedProfile = await res.json();
         setProfile({
           ...updatedProfile,
-          name:
-            updatedProfile.firstName && updatedProfile.lastName
-              ? `${updatedProfile.firstName} ${updatedProfile.lastName}`
-              : null,
+          name: updatedProfile.name,
+          type: profile?.type || "user",
         });
 
         await update({
@@ -282,6 +376,17 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     e.preventDefault();
     setUpdatingSpecialist(true);
     const formData = new FormData(e.currentTarget);
+    const errors = validateSpecialistProfileForm(formData);
+
+    if (Object.keys(errors).length > 0) {
+      setFormErrors(errors);
+      toast.error("Please fix the errors in the specialist form");
+      setUpdatingSpecialist(false);
+      return;
+    }
+
+    setFormErrors({});
+
     const data = {
       role: formData.get("role")?.toString(),
       tags: formData.get("tags")?.toString(),
@@ -290,9 +395,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       license: formData.get("license")?.toString(),
       location: formData.get("location")?.toString(),
       rate: parseFloat(formData.get("rate")?.toString() || "0") || null,
-      name:
-        profile?.name ||
-        `${profile?.firstName || ""} ${profile?.lastName || ""}`.trim(), // Add name from profile
     };
 
     try {
@@ -327,7 +429,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                 license: updatedSpecialist.license,
                 location: updatedSpecialist.location,
                 rate: updatedSpecialist.rate,
-                name: updatedSpecialist.name, // Update name in profile
               }
             : prev
         );
@@ -367,8 +468,9 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
           </CardContent>
         </Card>
-        <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-          <Card className="shadow-lg">
+
+        <div className="flex gap-6">
+          <Card className="grow">
             <CardContent className="space-y-4 pt-6">
               {[...Array(5)].map((_, i) => (
                 <div key={i} className="space-y-2">
@@ -383,7 +485,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             </CardContent>
           </Card>
           {isSpecialist && (
-            <Card className="shadow-lg">
+            <Card className="grow">
               <CardContent className="space-y-4 pt-6">
                 {[...Array(7)].map((_, i) => (
                   <div key={i} className="space-y-2">
@@ -463,6 +565,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                 variant="outline"
                 onClick={handleNewProfessional}
                 className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+                disabled={status === "loading"}
               >
                 <Gem className="w-4 h-4 mr-2 text-[#F3CFC6]" /> Become a
                 Professional
@@ -471,9 +574,10 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           )}
         </CardContent>
       </Card>
-      <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
-        <Card className="shadow-lg">
+      <div className="flex gap-6">
+        <Card className="grow">
           <CardContent className="space-y-4 pt-6">
+            <h2 className="text-xl">Personal Details</h2>
             <motion.div variants={itemVariants} className="space-y-4">
               <form onSubmit={handleUpdateProfile} className="space-y-4">
                 <div className="space-y-2 max-w-2xl">
@@ -487,7 +591,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     <Input
                       id="profileImage"
                       type="file"
-                      accept="image/*"
+                      accept="image/jpeg,image/png"
                       ref={fileInputRef}
                       className="hidden"
                       disabled={!isEditing || updating}
@@ -511,6 +615,11 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                       </span>
                     )}
                   </div>
+                  {formErrors.profileImage && (
+                    <p className="text-red-500 text-sm">
+                      {formErrors.profileImage}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label
@@ -528,7 +637,15 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     }
                     disabled={!isEditing || updating}
                     className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                    aria-label="First Name"
+                    required
+                    maxLength={50}
                   />
+                  {formErrors.firstName && (
+                    <p className="text-red-500 text-sm">
+                      {formErrors.firstName}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label
@@ -546,7 +663,15 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     }
                     disabled={!isEditing || updating}
                     className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                    aria-label="Last Name"
+                    required
+                    maxLength={50}
                   />
+                  {formErrors.lastName && (
+                    <p className="text-red-500 text-sm">
+                      {formErrors.lastName}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label
@@ -564,7 +689,15 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     }
                     disabled={!isEditing || updating}
                     className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                    aria-label="Phone Number"
+                    pattern="\+?[\d\s-()]{7,15}"
+                    title="Phone number should be 7-15 digits, may include +, -, (), or spaces"
                   />
+                  {formErrors.phoneNumber && (
+                    <p className="text-red-500 text-sm">
+                      {formErrors.phoneNumber}
+                    </p>
+                  )}
                 </div>
                 <div className="space-y-2">
                   <Label
@@ -582,7 +715,14 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     }
                     disabled={!isEditing || updating}
                     className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                    aria-label="Location"
+                    maxLength={100}
                   />
+                  {formErrors.location && (
+                    <p className="text-red-500 text-sm">
+                      {formErrors.location}
+                    </p>
+                  )}
                 </div>
                 <div className="flex space-x-4 mt-4">
                   <Button
@@ -607,8 +747,9 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           </CardContent>
         </Card>
         {isSpecialist && (
-          <Card className="shadow-lg">
+          <Card className="grow">
             <CardContent className="space-y-4 pt-6">
+              <h2 className="text-xl">Professional Profile Details</h2>
               <motion.div variants={itemVariants} className="space-y-4">
                 <form onSubmit={handleUpdateSpecialist} className="space-y-4">
                   <div className="space-y-2">
@@ -631,7 +772,13 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                         specialistStatusLoading
                       }
                       className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                      aria-label="Role"
+                      required
+                      maxLength={50}
                     />
+                    {formErrors.role && (
+                      <p className="text-red-500 text-sm">{formErrors.role}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label
@@ -653,7 +800,12 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                         specialistStatusLoading
                       }
                       className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                      aria-label="Specialty Tags"
+                      maxLength={100}
                     />
+                    {formErrors.tags && (
+                      <p className="text-red-500 text-sm">{formErrors.tags}</p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label
@@ -675,7 +827,14 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                         specialistStatusLoading
                       }
                       className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                      aria-label="Biography"
+                      maxLength={500}
                     />
+                    {formErrors.biography && (
+                      <p className="text-red-500 text-sm">
+                        {formErrors.biography}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label
@@ -697,7 +856,14 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                         specialistStatusLoading
                       }
                       className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                      aria-label="Education"
+                      maxLength={500}
                     />
+                    {formErrors.education && (
+                      <p className="text-red-500 text-sm">
+                        {formErrors.education}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label
@@ -719,7 +885,14 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                         specialistStatusLoading
                       }
                       className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                      aria-label="License"
+                      maxLength={100}
                     />
+                    {formErrors.license && (
+                      <p className="text-red-500 text-sm">
+                        {formErrors.license}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label
@@ -741,7 +914,14 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                         specialistStatusLoading
                       }
                       className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                      aria-label="Location"
+                      maxLength={100}
                     />
+                    {formErrors.location && (
+                      <p className="text-red-500 text-sm">
+                        {formErrors.location}
+                      </p>
+                    )}
                   </div>
                   <div className="space-y-2">
                     <Label
@@ -767,7 +947,14 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                         specialistStatusLoading
                       }
                       className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                      aria-label="Rate"
+                      min={0}
+                      max={10000}
+                      step={0.01}
                     />
+                    {formErrors.rate && (
+                      <p className="text-red-500 text-sm">{formErrors.rate}</p>
+                    )}
                   </div>
                   <div className="flex space-x-4 mt-4">
                     <Button

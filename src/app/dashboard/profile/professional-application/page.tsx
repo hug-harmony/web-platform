@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useState } from "react";
@@ -15,7 +14,6 @@ import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
 
 interface SpecialistApplication {
-  name: string;
   location: string;
   biography: string;
   education: string;
@@ -40,7 +38,6 @@ const itemVariants = {
 
 export default function ProfessionalApplicationPage() {
   const [formData, setFormData] = useState<SpecialistApplication>({
-    name: "",
     location: "",
     biography: "",
     education: "",
@@ -48,8 +45,44 @@ export default function ProfessionalApplicationPage() {
     role: "",
     tags: "",
   });
+
   const { data: session, status } = useSession();
+
   const router = useRouter();
+
+  const handleSubmit = async () => {
+    if (!session?.user?.name) {
+      console.error("Error: User must have a name to submit application");
+      // Optionally, show a toast notification here
+      return;
+    }
+
+    try {
+      const response = await fetch("/api/specialists/application", {
+        method: "POST",
+        headers: {
+          "Content-Type": "application/json",
+        },
+        body: JSON.stringify(formData),
+        credentials: "include",
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        console.error("Specialist API error:", response.status, errorData);
+        if (response.status === 401) {
+          router.push("/login");
+        }
+        throw new Error(`Failed to submit application: ${errorData.error}`);
+      }
+
+      const result = await response.json();
+      console.log("Application submitted successfully:", result);
+      router.push("/dashboard");
+    } catch (error) {
+      console.error("Error submitting application:", error);
+    }
+  };
 
   if (status === "loading") {
     return (
@@ -68,11 +101,11 @@ export default function ProfessionalApplicationPage() {
         </Card>
         <Card className="shadow-lg">
           <CardContent className="space-y-4 pt-6">
-            {[...Array(7)].map((_, index) => (
+            {[...Array(6)].map((_, index) => (
               <div key={index} className="space-y-2">
                 <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
                 <Skeleton
-                  className={`h-${index === 4 || index === 6 ? 20 : 10} w-full bg-[#C4C4C4]/50`}
+                  className={`h-${index === 3 || index === 5 ? 20 : 10} w-full bg-[#C4C4C4]/50`}
                 />
               </div>
             ))}
@@ -88,34 +121,6 @@ export default function ProfessionalApplicationPage() {
     return null;
   }
 
-  const handleSubmit = async () => {
-    try {
-      const response = await fetch("/api/specialists/application", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify(formData),
-        credentials: "include",
-      });
-
-      if (!response.ok) {
-        const errorData = await response.text();
-        console.error("Specialist API error:", response.status, errorData);
-        if (response.status === 401) {
-          router.push("/login");
-        }
-        throw new Error(`Failed to submit application: ${response.status}`);
-      }
-
-      const result = await response.json();
-      console.log("Application submitted successfully:", result);
-      router.push("/dashboard");
-    } catch (error) {
-      console.error("Error submitting application:", error);
-    }
-  };
-
   return (
     <motion.div
       className="p-4 space-y-6 max-w-7xl mx-auto"
@@ -130,7 +135,11 @@ export default function ProfessionalApplicationPage() {
             <CardTitle className="text-2xl text-black dark:text-white">
               Professional Application
             </CardTitle>
-            <p className="text-sm text-black">Apply to become a specialist</p>
+            <p className="text-sm text-black">
+              Apply to become a specialist. Your name (
+              {session?.user?.name || "Not set"}) and profile picture will be
+              used for your specialist profile.
+            </p>
           </motion.div>
         </CardHeader>
         <CardContent className="flex space-x-4">
@@ -174,20 +183,6 @@ export default function ProfessionalApplicationPage() {
         <CardContent className="space-y-4 pt-6">
           <motion.div variants={itemVariants} className="space-y-4">
             <div className="space-y-2">
-              <Label htmlFor="name" className="text-black dark:text-white">
-                Full Name
-              </Label>
-              <Input
-                id="name"
-                value={formData.name}
-                onChange={(e) =>
-                  setFormData({ ...formData, name: e.target.value })
-                }
-                placeholder="Enter your full name"
-                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-              />
-            </div>
-            <div className="space-y-2">
               <Label htmlFor="location" className="text-black dark:text-white">
                 Location
               </Label>
@@ -199,6 +194,7 @@ export default function ProfessionalApplicationPage() {
                 }
                 placeholder="Enter your location"
                 className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                aria-label="Location"
               />
             </div>
             <div className="space-y-2">
@@ -213,6 +209,7 @@ export default function ProfessionalApplicationPage() {
                 }
                 placeholder="Enter your professional role"
                 className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                aria-label="Role"
               />
             </div>
             <div className="space-y-2">
@@ -227,6 +224,7 @@ export default function ProfessionalApplicationPage() {
                 }
                 placeholder="Enter tags (e.g., therapy, counseling)"
                 className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                aria-label="Specialty Tags"
               />
             </div>
             <div className="space-y-2">
@@ -241,6 +239,7 @@ export default function ProfessionalApplicationPage() {
                 }
                 placeholder="Enter your educational background"
                 className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                aria-label="Education"
               />
             </div>
             <div className="space-y-2">
@@ -255,6 +254,7 @@ export default function ProfessionalApplicationPage() {
                 }
                 placeholder="Enter your license details"
                 className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                aria-label="License"
               />
             </div>
             <div className="space-y-2">
@@ -269,11 +269,13 @@ export default function ProfessionalApplicationPage() {
                 }
                 placeholder="Enter your professional biography"
                 className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                aria-label="Biography"
               />
             </div>
             <Button
               onClick={handleSubmit}
               className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+              disabled={!session?.user?.name}
             >
               Submit Application
             </Button>

@@ -1,19 +1,20 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
+import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-// Allowed fields to update
-const editableFields = [
-  "name",
-  "firstName",
-  "lastName",
-  "phoneNumber",
-  "profileImage",
-  "location",
-  "status",
-];
+// Validation schema for PATCH request
+const updateUserSchema = z.object({
+  name: z.string().min(1, "Name is required").optional(),
+  firstName: z.string().min(1, "First name is required").optional(),
+  lastName: z.string().min(1, "Last name is required").optional(),
+  phoneNumber: z.string().min(1, "Phone number is required").optional(),
+  profileImage: z.string().url().nullable().optional(),
+  location: z.string().min(1, "Location is required").optional(),
+  status: z.enum(["active", "suspended"]).optional(),
+});
 
 export async function GET(req: Request) {
   try {
@@ -83,7 +84,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
     }
 
-    // Check if user is admin
+    // Check if user is admin or updating their own profile
     const currentUser = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { isAdmin: true },
@@ -94,38 +95,68 @@ export async function PATCH(req: Request) {
     }
 
     const body = await req.json();
+    const validatedData = updateUserSchema.parse(body);
 
-    // Validate status if provided
-    if (body.status && !["active", "suspended"].includes(body.status)) {
-      return NextResponse.json(
-        { error: "Invalid status value" },
-        { status: 400 }
-      );
-    }
-
-    // Only update allowed fields
-    const data: Record<string, any> = {};
-    for (const field of editableFields) {
-      if (field in body) {
-        data[field] = body[field];
-      }
-    }
-
-    const updatedUser = await prisma.user.update({
+    // Fetch user with associated specialist application to check for specialist
+    const user = await prisma.user.findUnique({
       where: { id },
-      data,
-      select: {
-        id: true,
-        name: true,
-        firstName: true,
-        lastName: true,
-        email: true,
-        phoneNumber: true,
-        profileImage: true,
-        location: true,
-        status: true,
-      },
+      include: { specialistApplication: { include: { specialist: true } } },
     });
+
+    if (!user) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
+
+    // Prepare data for User update
+    const userUpdateData = {
+      name: validatedData.name,
+      firstName: validatedData.firstName,
+      lastName: validatedData.lastName,
+      phoneNumber: validatedData.phoneNumber,
+      profileImage: validatedData.profileImage,
+      location: validatedData.location,
+      status: validatedData.status,
+    };
+
+    // Prepare data for Specialist update (only if name or profileImage is provided)
+    const specialistUpdateData = {
+      ...(validatedData.name && { name: validatedData.name }),
+      ...(validatedData.profileImage !== undefined && {
+        image: validatedData.profileImage ?? undefined, // Convert null to undefined
+      }),
+    };
+
+    // Update User and Specialist (if applicable) in a transaction
+    const updatedRecords = await prisma.$transaction([
+      // Update User
+      prisma.user.update({
+        where: { id },
+        data: userUpdateData,
+        select: {
+          id: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+          email: true,
+          phoneNumber: true,
+          profileImage: true,
+          location: true,
+          status: true,
+        },
+      }),
+      // Update Specialist if it exists and name or profileImage is updated
+      ...(user.specialistApplication?.specialist &&
+      (validatedData.name || validatedData.profileImage !== undefined)
+        ? [
+            prisma.specialist.update({
+              where: { id: user.specialistApplication.specialistId! }, // Non-null assertion since specialist exists
+              data: specialistUpdateData,
+            }),
+          ]
+        : []),
+    ]);
+
+    const updatedUser = updatedRecords[0];
 
     return NextResponse.json({
       id: updatedUser.id,
@@ -142,8 +173,14 @@ export async function PATCH(req: Request) {
       location: updatedUser.location || "",
       status: updatedUser.status,
     });
-  } catch (error) {
+  } catch (error: any) {
     console.error("PATCH /users/[id] error:", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
+    if (error.message === "User not found") {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
+    }
     return NextResponse.json(
       { error: "Internal Server Error" },
       { status: 500 }

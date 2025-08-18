@@ -1,7 +1,8 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(req: Request) {
   try {
@@ -19,8 +20,11 @@ export async function GET(req: Request) {
       status: application?.status || "none",
       specialistId: application?.specialistId || null,
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error fetching user application:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Internal server error: Failed to fetch application" },
+      { status: 500 }
+    );
   }
 }

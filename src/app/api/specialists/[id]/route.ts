@@ -1,9 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { authOptions } from "@/lib/auth";
-import prisma from "@/lib/prisma";
 import { z } from "zod";
+import prisma from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
 
 // Validation schema for updating specialist data
 const updateSpecialistSchema = z.object({
@@ -13,8 +13,7 @@ const updateSpecialistSchema = z.object({
   education: z.string().min(1, "Education is required").optional(),
   license: z.string().min(1, "License is required").optional(),
   location: z.string().min(1, "Location is required").optional(),
-  rate: z.number().optional().nullable(),
-  name: z.string().min(1, "Name is required").optional(),
+  rate: z.number().nullable().optional(),
 });
 
 export async function GET(req: Request) {
@@ -134,7 +133,15 @@ export async function PATCH(req: Request) {
     // Update the Specialist model
     const updatedSpecialist = await prisma.specialist.update({
       where: { id },
-      data: validatedData,
+      data: {
+        role: validatedData.role,
+        tags: validatedData.tags,
+        biography: validatedData.biography,
+        education: validatedData.education,
+        license: validatedData.license,
+        location: validatedData.location,
+        rate: validatedData.rate,
+      },
       select: {
         id: true,
         name: true,
@@ -147,14 +154,6 @@ export async function PATCH(req: Request) {
         rate: true,
       },
     });
-
-    // Update the SpecialistApplication model with the same name
-    if (validatedData.name) {
-      await prisma.specialistApplication.update({
-        where: { specialistId: id },
-        data: { name: validatedData.name },
-      });
-    }
 
     return NextResponse.json({
       id: updatedSpecialist.id,
@@ -172,7 +171,7 @@ export async function PATCH(req: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
-    if (error.message === "Specialist not found") {
+    if (error.code === "P2025") {
       return NextResponse.json(
         { error: "Specialist not found" },
         { status: 404 }

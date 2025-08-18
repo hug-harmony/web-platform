@@ -7,17 +7,12 @@ import { z } from "zod";
 
 // Validation schemas
 const specialistApplicationSchema = z.object({
-  name: z.string().min(1, "Name is required"),
   location: z.string().min(1, "Location is required"),
   biography: z.string().min(1, "Biography is required"),
   education: z.string().min(1, "Education is required"),
   license: z.string().min(1, "License is required"),
   role: z.string().min(1, "Role is required"),
   tags: z.string().min(1, "Tags are required"),
-});
-
-const updateStatusSchema = z.object({
-  status: z.enum(["pending", "reviewed", "approved", "rejected"]),
 });
 
 export async function POST(req: Request) {
@@ -92,7 +87,6 @@ export async function POST(req: Request) {
       console.log("Creating new application for user:", session.user.id);
       const createData = {
         userId: session.user.id,
-        name: validatedData.name,
         location: validatedData.location,
         biography: validatedData.biography,
         education: validatedData.education,
@@ -160,6 +154,7 @@ export async function GET(req: Request) {
     if (id) {
       const application = await prisma.specialistApplication.findUnique({
         where: { id },
+        include: { user: true },
       });
       if (!application) {
         return NextResponse.json(
@@ -167,20 +162,35 @@ export async function GET(req: Request) {
           { status: 404 }
         );
       }
-      return NextResponse.json(application);
+      return NextResponse.json({
+        ...application,
+        name: application.user.name,
+      });
     }
 
     const applications = await prisma.specialistApplication.findMany({
       where: {
         ...(status !== "all" && { status }),
-        name: { contains: search, mode: "insensitive" },
+        user: { name: { contains: search, mode: "insensitive" } },
         userId: { not: session.user.id },
       },
-      select: { id: true, name: true, status: true, createdAt: true },
+      select: {
+        id: true,
+        status: true,
+        createdAt: true,
+        user: { select: { name: true } },
+      },
       orderBy: { createdAt: "desc" },
     });
 
-    return NextResponse.json(applications);
+    const formattedApplications = applications.map((app) => ({
+      id: app.id,
+      name: app.user.name || "Unknown",
+      status: app.status,
+      createdAt: app.createdAt,
+    }));
+
+    return NextResponse.json(formattedApplications);
   } catch (error: any) {
     console.error("Error fetching applications:", error);
     return NextResponse.json(
@@ -211,6 +221,7 @@ export async function PATCH(req: Request) {
     const updatedApplication = await prisma.$transaction(async (tx) => {
       const application = await tx.specialistApplication.findUnique({
         where: { id },
+        include: { user: true },
       });
 
       if (!application) {
@@ -247,15 +258,19 @@ export async function PATCH(req: Request) {
             "Creating new specialist for application:",
             application.id
           );
+          if (!application.user.name) {
+            throw new Error("User must have a name to become a specialist");
+          }
           const specialist = await tx.specialist.create({
             data: {
-              name: application.name,
+              name: application.user.name,
               location: application.location,
               biography: application.biography,
               education: application.education,
               license: application.license,
               role: application.role,
               tags: application.tags,
+              image: application.user.profileImage || null,
             },
           });
           specialistId = specialist.id;
@@ -273,7 +288,7 @@ export async function PATCH(req: Request) {
         status: updated.status,
         specialistId: updated.specialistId,
       });
-      return updated;
+      return { ...updated, name: application.user.name };
     });
 
     return NextResponse.json(updatedApplication);
@@ -282,11 +297,11 @@ export async function PATCH(req: Request) {
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
-    if (error.message === "Application not found") {
-      return NextResponse.json(
-        { error: "Application not found" },
-        { status: 404 }
-      );
+    if (
+      error.message === "Application not found" ||
+      error.message === "User must have a name to become a specialist"
+    ) {
+      return NextResponse.json({ error: error.message }, { status: 404 });
     }
     if (error.code === "P2002") {
       console.error("Unique constraint violation details:", error.meta);
