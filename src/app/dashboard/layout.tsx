@@ -11,10 +11,10 @@ export default function Layout({
 }>) {
   return (
     <ClientSessionProvider>
-      <SidebarProvider defaultOpen={false}>
-        <div className="flex min-h-screen">
+      <SidebarProvider defaultOpen={true}>
+        <div className="flex min-h-screen w-full">
           <Sidebar />
-          <main className="flex-1 transition-all duration-200 ease-in-out md:group-data-[collapsible=icon]:ml-[80px] md:ml-[280px] ml-0 p-4 max-w-7xl mx-auto">
+          <main className="flex-1 transition-all duration-200 ease-in-out p-4 max-w-7xl mx-auto">
             {children}
           </main>
         </div>
