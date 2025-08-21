@@ -154,8 +154,12 @@ export default function TherapistsPage() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [tempRadius, setTempRadius] = useState(10);
   const [tempUnit, setTempUnit] = useState<"km" | "miles">("km");
+  const [isClient, setIsClient] = useState(false);
 
   useEffect(() => {
+    // Ensure code runs only on client side
+    setIsClient(true);
+
     const fetchSpecialists = async () => {
       try {
         const therapistsRes = await fetch("/api/specialists", {
@@ -231,7 +235,7 @@ export default function TherapistsPage() {
   };
 
   const handleCurrentLocation = () => {
-    if (navigator.geolocation) {
+    if (typeof window !== "undefined" && navigator.geolocation) {
       navigator.geolocation.getCurrentPosition(
         (position) => {
           setFilters((prev) => ({
@@ -377,6 +381,7 @@ export default function TherapistsPage() {
               variant="outline"
               className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
               onClick={handleCurrentLocation}
+              disabled={!isClient}
             >
               <Globe className="h-6 w-6 text-[#F3CFC6]" />
               <span>Current Location</span>
