@@ -247,9 +247,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                   <span>{profile.location}</span>
                 </>
               )}
-            </div>git config --global user.name "mmali"
-git config --global user.email "swiftcodedeveloper1@gmail.com"
-
+            </div>
          
             <div className="flex justify-center gap-4">
               <Button
