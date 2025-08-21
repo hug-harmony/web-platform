@@ -34,11 +34,11 @@ interface Profile {
   phoneNumber?: string | null;
   profileImage?: string | null;
   location?: string | null;
+  biography?: string | null; // Added biography
   email: string;
   type: "user" | "specialist";
   role?: string | null;
   tags?: string | null;
-  biography?: string | null;
   education?: string | null;
   license?: string | null;
   rating?: number | null;
@@ -75,6 +75,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     const lastName = formData.get("lastName")?.toString() || "";
     const phoneNumber = formData.get("phoneNumber")?.toString() || "";
     const location = formData.get("location")?.toString() || "";
+    const biography = formData.get("biography")?.toString() || ""; // Added biography validation
 
     if (!firstName) {
       errors.firstName = "First name is required";
@@ -94,6 +95,10 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
 
     if (location && location.length > 100) {
       errors.location = "Location must be 100 characters or less";
+    }
+
+    if (biography && biography.length > 500) { // Added biography validation
+      errors.biography = "Biography must be 500 characters or less";
     }
 
     if (selectedFile) {
@@ -253,6 +258,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             phoneNumber: data.phoneNumber,
             profileImage: data.profileImage,
             location: data.location,
+            biography: data.biography, // Added biography
             email: data.email,
             type: "user",
           });
@@ -311,6 +317,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         undefined,
       phoneNumber: formData.get("phoneNumber")?.toString(),
       location: formData.get("location")?.toString(),
+      biography: formData.get("biography")?.toString(), // Added biography
     };
 
     try {
@@ -472,7 +479,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         <div className="flex gap-6">
           <Card className="grow">
             <CardContent className="space-y-4 pt-6">
-              {[...Array(5)].map((_, i) => (
+              {[...Array(6)].map((_, i) => (
                 <div key={i} className="space-y-2">
                   <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
                   <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
@@ -721,6 +728,31 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                   {formErrors.location && (
                     <p className="text-red-500 text-sm">
                       {formErrors.location}
+                    </p>
+                  )}
+                </div>
+                <div className="space-y-2">
+                  <Label
+                    htmlFor="biography"
+                    className="text-black dark:text-white"
+                  >
+                    Biography
+                  </Label>
+                  <Textarea
+                    id="biography"
+                    name="biography"
+                    value={profile.biography || ""}
+                    onChange={(e) =>
+                      setProfile({ ...profile, biography: e.target.value })
+                    }
+                    disabled={!isEditing || updating}
+                    className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                    aria-label="Biography"
+                    maxLength={500}
+                  />
+                  {formErrors.biography && (
+                    <p className="text-red-500 text-sm">
+                      {formErrors.biography}
                     </p>
                   )}
                 </div>

@@ -13,6 +13,7 @@ const updateUserSchema = z.object({
   phoneNumber: z.string().min(1, "Phone number is required").optional(),
   profileImage: z.string().url().nullable().optional(),
   location: z.string().min(1, "Location is required").optional(),
+  biography: z.string().max(500, "Biography must be 500 characters or less").optional(), // Added biography
   status: z.enum(["active", "suspended"]).optional(),
 });
 
@@ -36,6 +37,7 @@ export async function GET(req: Request) {
         phoneNumber: true,
         profileImage: true,
         location: true,
+        biography: true, // Added biography
         status: true,
         createdAt: true,
       },
@@ -58,6 +60,7 @@ export async function GET(req: Request) {
       phoneNumber: user.phoneNumber || "",
       profileImage: user.profileImage || "",
       location: user.location || "",
+      biography: user.biography || "", // Added biography
       status: user.status,
       createdAt: user.createdAt,
     });
@@ -115,15 +118,17 @@ export async function PATCH(req: Request) {
       phoneNumber: validatedData.phoneNumber,
       profileImage: validatedData.profileImage,
       location: validatedData.location,
+      biography: validatedData.biography, // Added biography
       status: validatedData.status,
     };
 
-    // Prepare data for Specialist update (only if name or profileImage is provided)
+    // Prepare data for Specialist update (only if name, profileImage, or biography is provided)
     const specialistUpdateData = {
       ...(validatedData.name && { name: validatedData.name }),
       ...(validatedData.profileImage !== undefined && {
         image: validatedData.profileImage ?? undefined, // Convert null to undefined
       }),
+      ...(validatedData.biography && { biography: validatedData.biography }), // Added biography
     };
 
     // Update User and Specialist (if applicable) in a transaction
@@ -141,12 +146,13 @@ export async function PATCH(req: Request) {
           phoneNumber: true,
           profileImage: true,
           location: true,
+          biography: true, // Added biography
           status: true,
         },
       }),
-      // Update Specialist if it exists and name or profileImage is updated
+      // Update Specialist if it exists and name, profileImage, or biography is updated
       ...(user.specialistApplication?.specialist &&
-      (validatedData.name || validatedData.profileImage !== undefined)
+      (validatedData.name || validatedData.profileImage !== undefined || validatedData.biography)
         ? [
             prisma.specialist.update({
               where: { id: user.specialistApplication.specialistId! }, // Non-null assertion since specialist exists
@@ -171,6 +177,7 @@ export async function PATCH(req: Request) {
       phoneNumber: updatedUser.phoneNumber || "",
       profileImage: updatedUser.profileImage || "",
       location: updatedUser.location || "",
+      biography: updatedUser.biography || "", // Added biography
       status: updatedUser.status,
     });
   } catch (error: any) {

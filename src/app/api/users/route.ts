@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { getServerSession } from "next-auth/next";
 import { NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
@@ -31,6 +32,7 @@ export async function GET(req: Request) {
           phoneNumber: true,
           profileImage: true,
           location: true,
+          biography: true, // Added biography
           status: true,
           createdAt: true,
           specialistApplication: {
@@ -58,6 +60,7 @@ export async function GET(req: Request) {
         phoneNumber: user.phoneNumber || "",
         profileImage: user.profileImage || "",
         location: user.location || "",
+        biography: user.biography || "", // Added biography
         status: user.status,
         createdAt: user.createdAt,
         specialistApplication: {
@@ -80,6 +83,7 @@ export async function GET(req: Request) {
         phoneNumber: true,
         profileImage: true,
         location: true,
+        biography: true, // Added biography
         status: true,
         createdAt: true,
         specialistApplication: {
@@ -109,6 +113,7 @@ export async function GET(req: Request) {
         phoneNumber: user.phoneNumber || "",
         profileImage: user.profileImage || "",
         location: user.location || "",
+        biography: user.biography || "", // Added biography
         status: user.status,
         createdAt: user.createdAt,
         specialistApplication: {
@@ -139,6 +144,7 @@ export async function PUT(req: Request) {
       phoneNumber,
       profileImage,
       location,
+      biography, // Added biography
       status,
     } = await req.json();
 
@@ -169,6 +175,7 @@ export async function PUT(req: Request) {
         phoneNumber,
         profileImage,
         location,
+        biography, // Added biography
         status,
       },
       select: {
@@ -180,6 +187,7 @@ export async function PUT(req: Request) {
         phoneNumber: true,
         profileImage: true,
         location: true,
+        biography: true, // Added biography
         status: true,
         createdAt: true,
       },
@@ -189,7 +197,23 @@ export async function PUT(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
-    return NextResponse.json({ message: "Profile updated" }, { status: 200 });
+    return NextResponse.json({
+      id: user.id,
+      email: user.email,
+      firstName: user.firstName || "",
+      lastName: user.lastName || "",
+      name:
+        user.name ||
+        (user.firstName && user.lastName
+          ? `${user.firstName} ${user.lastName}`
+          : "Unknown User"),
+      phoneNumber: user.phoneNumber || "",
+      profileImage: user.profileImage || "",
+      location: user.location || "",
+      biography: user.biography || "", // Added biography
+      status: user.status,
+      createdAt: user.createdAt,
+    });
   } catch (error) {
     console.error("PUT Error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

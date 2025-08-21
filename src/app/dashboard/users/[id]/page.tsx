@@ -34,6 +34,7 @@ interface Profile {
   name: string;
   image?: string;
   location?: string;
+  biography?: string; // Added biography
   rating?: number;
   reviewCount?: number;
   type: "user";
@@ -76,6 +77,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                 : "Unknown User"),
             image: data.profileImage || "",
             location: data.location || "",
+            biography: data.biography || "", // Added biography
             rating: data.rating || 0,
             reviewCount: data.reviewCount || 0,
             type: "user",
@@ -163,6 +165,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           <CardContent className="pt-6 space-y-4 text-center">
             <Skeleton className="h-8 w-64 mx-auto bg-[#C4C4C4]/50" />
             <Skeleton className="h-4 w-48 mx-auto bg-[#C4C4C4]/50" />
+            <Skeleton className="h-4 w-80 mx-auto bg-[#C4C4C4]/50" /> {/* Added for biography */}
             <div className="flex justify-center gap-4">
               <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
               <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
@@ -231,14 +234,23 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                 {profile.name}
               </h2>
             </div>
+               {profile.biography && (
+              <div className="text-[#C4C4C4] max-w-2xl mx-auto">
+                <p>{profile.biography}</p>
+              </div>
+            )}
             <div className="flex items-center justify-center gap-2 text-[#C4C4C4]">
+
               {profile.location && (
                 <>
                   <MapPin className="h-4 w-4 text-[#F3CFC6]" />
                   <span>{profile.location}</span>
                 </>
               )}
-            </div>
+            </div>git config --global user.name "mmali"
+git config --global user.email "swiftcodedeveloper1@gmail.com"
+
+         
             <div className="flex justify-center gap-4">
               <Button
                 onClick={handleStartChat}
