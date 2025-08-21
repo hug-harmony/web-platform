@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Star, MapPin } from "lucide-react";
+import { Search, Star, MapPin, Globe } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -18,6 +18,23 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
+import dynamic from "next/dynamic";
+import { MapContainer, TileLayer, Circle } from "react-leaflet";
+import { LatLngExpression } from "leaflet";
+import "leaflet/dist/leaflet.css";
 import SpecialistCard from "@/components/SpecialistCard";
 
 interface Therapist {
@@ -34,7 +51,11 @@ interface Therapist {
   education?: string;
   license?: string;
   createdAt?: string;
+  lat?: number;
+  lng?: number;
 }
+
+const ACCESS_TOKEN = process.env.LOCATION_IQ_TOKEN;
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -46,6 +67,77 @@ const cardVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
+async function geocode(
+  location: string
+): Promise<{ lat: number; lng: number } | null> {
+  const url = `https://us1.locationiq.com/v1/search?key=${ACCESS_TOKEN}&q=${encodeURIComponent(location)}&format=json`;
+  try {
+    const res = await fetch(url);
+    if (!res.ok) return null;
+    const data = await res.json();
+    if (data.length > 0) {
+      return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
+    }
+  } catch (e) {
+    console.error("Geocoding error:", e);
+  }
+  return null;
+}
+
+function calculateDistance(
+  lat1: number,
+  lng1: number,
+  lat2: number,
+  lng2: number
+): number {
+  const R = 6371; // Earth radius in km
+  const dLat = deg2rad(lat2 - lat1);
+  const dLng = deg2rad(lng2 - lng1);
+  const a =
+    Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+    Math.cos(deg2rad(lat1)) *
+      Math.cos(deg2rad(lat2)) *
+      Math.sin(dLng / 2) *
+      Math.sin(dLng / 2);
+  const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+  return R * c;
+}
+
+function deg2rad(deg: number): number {
+  return deg * (Math.PI / 180);
+}
+
+const DynamicMap = dynamic(
+  () =>
+    Promise.resolve(
+      ({
+        lat,
+        lng,
+        radiusMeters,
+      }: {
+        lat: number;
+        lng: number;
+        radiusMeters: number;
+      }) => {
+        const center: LatLngExpression = [lat, lng];
+        return (
+          <MapContainer
+            center={center}
+            zoom={10}
+            style={{ height: "100%", width: "100%" }}
+          >
+            <TileLayer
+              attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
+              url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
+            />
+            <Circle center={center} radius={radiusMeters} />
+          </MapContainer>
+        );
+      }
+    ),
+  { ssr: false }
+);
+
 export default function TherapistsPage() {
   const [specialists, setSpecialists] = useState<Therapist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -54,7 +146,14 @@ export default function TherapistsPage() {
     location: "",
     minRating: 0,
     sortBy: "",
+    currentLat: undefined as number | undefined,
+    currentLng: undefined as number | undefined,
+    radius: undefined as number | undefined,
+    unit: "km" as "km" | "miles",
   });
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [tempRadius, setTempRadius] = useState(10);
+  const [tempUnit, setTempUnit] = useState<"km" | "miles">("km");
 
   useEffect(() => {
     const fetchSpecialists = async () => {
@@ -74,28 +173,40 @@ export default function TherapistsPage() {
             `Failed to fetch specialists: ${therapistsRes.status}`
           );
         }
-        const { specialists } = await therapistsRes.json();
-        setSpecialists(
-          Array.isArray(specialists)
-            ? specialists
-                .filter((s: any) => s.id)
-                .map((s: any) => ({
-                  _id: s.id,
-                  name: s.name,
-                  image: s.image || "",
-                  location: s.location || "",
-                  rating: s.rating || 0,
-                  reviewCount: s.reviewCount || 0,
-                  rate: s.rate || 0,
-                  role: s.role || "",
-                  tags: s.tags || "",
-                  biography: s.biography || "",
-                  education: s.education || "",
-                  license: s.license || "",
-                  createdAt: s.createdAt,
-                }))
-            : []
+        let { specialists } = await therapistsRes.json();
+        specialists = Array.isArray(specialists)
+          ? specialists
+              .filter((s: any) => s.id)
+              .map((s: any) => ({
+                _id: s.id,
+                name: s.name,
+                image: s.image || "",
+                location: s.location || "",
+                rating: s.rating || 0,
+                reviewCount: s.reviewCount || 0,
+                rate: s.rate || 0,
+                role: s.role || "",
+                tags: s.tags || "",
+                biography: s.biography || "",
+                education: s.education || "",
+                license: s.license || "",
+                createdAt: s.createdAt,
+              }))
+          : [];
+
+        // Geocode locations
+        const geocoded = await Promise.all(
+          specialists.map(async (s: Therapist) => {
+            if (s.location) {
+              const coord = await geocode(s.location);
+              if (coord) {
+                return { ...s, lat: coord.lat, lng: coord.lng };
+              }
+            }
+            return s;
+          })
         );
+        setSpecialists(geocoded);
       } catch (error) {
         console.error("Error fetching specialists:", error);
       } finally {
@@ -106,11 +217,44 @@ export default function TherapistsPage() {
   }, []);
 
   const handleFilterChange = (key: string, value: string | number) => {
-    setFilters((prev) => ({ ...prev, [key]: value }));
+    setFilters((prev) => ({
+      ...prev,
+      [key]: value,
+      ...(key === "location"
+        ? { radius: undefined, currentLat: undefined, currentLng: undefined }
+        : {}),
+    }));
   };
 
   const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setSearchQuery(e.target.value);
+  };
+
+  const handleCurrentLocation = () => {
+    if (navigator.geolocation) {
+      navigator.geolocation.getCurrentPosition(
+        (position) => {
+          setFilters((prev) => ({
+            ...prev,
+            currentLat: position.coords.latitude,
+            currentLng: position.coords.longitude,
+            location: "Current Location",
+          }));
+          setIsDialogOpen(true);
+        },
+        (error) => {
+          console.error("Geolocation error:", error);
+          alert("Unable to retrieve your location. Please check permissions.");
+        }
+      );
+    } else {
+      alert("Geolocation is not supported by this browser.");
+    }
+  };
+
+  const applyRadiusFilter = () => {
+    setFilters((prev) => ({ ...prev, radius: tempRadius, unit: tempUnit }));
+    setIsDialogOpen(false);
   };
 
   const locations = Array.from(
@@ -125,9 +269,32 @@ export default function TherapistsPage() {
           ? item.name.toLowerCase().includes(searchQuery.toLowerCase())
           : true
       )
-      .filter((item) =>
-        filters.location ? item.location === filters.location : true
-      )
+      .filter((item) => {
+        if (
+          filters.location === "Current Location" &&
+          filters.currentLat &&
+          filters.currentLng &&
+          filters.radius !== undefined
+        ) {
+          if (!item.lat || !item.lng) return false;
+          let dist = calculateDistance(
+            filters.currentLat,
+            filters.currentLng,
+            item.lat,
+            item.lng
+          );
+          if (filters.unit === "miles") {
+            dist /= 1.60934; // Convert km to miles
+          }
+          return dist <= filters.radius;
+        } else if (
+          filters.location &&
+          filters.location !== "Current Location"
+        ) {
+          return item.location === filters.location;
+        }
+        return true;
+      })
       .filter((item) =>
         filters.minRating ? (item.rating || 0) >= filters.minRating : true
       )
@@ -206,6 +373,14 @@ export default function TherapistsPage() {
                 ))}
               </DropdownMenuContent>
             </DropdownMenu>
+            <Button
+              variant="outline"
+              className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+              onClick={handleCurrentLocation}
+            >
+              <Globe className="h-6 w-6 text-[#F3CFC6]" />
+              <span>Current Location</span>
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -325,6 +500,53 @@ export default function TherapistsPage() {
           )}
         </CardContent>
       </Card>
+
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Select Search Radius</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="h-64">
+              {filters.currentLat && filters.currentLng ? (
+                <DynamicMap
+                  lat={filters.currentLat}
+                  lng={filters.currentLng}
+                  radiusMeters={
+                    tempUnit === "km" ? tempRadius * 1000 : tempRadius * 1609.34
+                  }
+                />
+              ) : (
+                <p className="text-center text-gray-500">
+                  Location not available
+                </p>
+              )}
+            </div>
+            <Input
+              type="number"
+              placeholder="Radius"
+              value={tempRadius}
+              onChange={(e) => setTempRadius(parseFloat(e.target.value) || 10)}
+              min={1}
+            />
+            <Select
+              onValueChange={(value: string) =>
+                setTempUnit(value as "km" | "miles")
+              }
+              defaultValue={tempUnit}
+            >
+              <SelectTrigger>
+                <SelectValue placeholder="Unit" />
+              </SelectTrigger>
+              <SelectContent>
+                <SelectItem value="km">Kilometers (km)</SelectItem>
+                <SelectItem value="miles">Miles</SelectItem>
+              </SelectContent>
+            </Select>
+            <Button onClick={applyRadiusFilter}>Apply Filter</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 }
