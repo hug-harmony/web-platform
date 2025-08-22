@@ -16,7 +16,10 @@ const updateSpecialistSchema = z.object({
   rate: z.number().nullable().optional(),
 });
 
-export async function GET(req: Request) {
+export async function GET(
+  req: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   try {
     const session = await getServerSession(authOptions);
     if (!session || !session.user) {
@@ -26,25 +29,11 @@ export async function GET(req: Request) {
       );
     }
 
-    const url = new URL(req.url);
-    const id = url.pathname.split("/").pop();
-
+    const { id } = await params; // Await params
     if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
       return NextResponse.json(
         { error: "Invalid specialist ID" },
         { status: 400 }
-      );
-    }
-
-    // Check if the user is the specialist or an admin
-    const application = await prisma.specialistApplication.findFirst({
-      where: { specialistId: id, userId: session.user.id },
-    });
-
-    if (!application && !session.user.isAdmin) {
-      return NextResponse.json(
-        { error: "Unauthorized: You can only access your own specialist data" },
-        { status: 403 }
       );
     }
 

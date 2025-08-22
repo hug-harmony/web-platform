@@ -11,7 +11,17 @@ import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { format } from "date-fns";
 import Image from "next/image";
-import { ImageIcon } from "lucide-react";
+import { ImageIcon, Plus } from "lucide-react";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Label } from "@/components/ui/label";
+import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 
 interface Message {
   senderId: string;
@@ -22,6 +32,7 @@ interface Message {
   createdAt: string;
   sender: { name?: string };
   userId: string;
+  proposalId?: string;
 }
 
 interface Participant {
@@ -37,6 +48,12 @@ interface Conversation {
   user2?: Participant;
 }
 
+interface Specialist {
+  id: string;
+  name: string;
+  rate?: number;
+}
+
 const MessageInterface: React.FC = () => {
   const { data: session, status } = useSession();
   const { id: conversationId } = useParams();
@@ -47,9 +64,25 @@ const MessageInterface: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
+  const [isSpecialist, setIsSpecialist] = useState(false);
+  const [isProposalDialogOpen, setIsProposalDialogOpen] = useState(false);
+  const [proposalDate, setProposalDate] = useState<Date | undefined>(
+    new Date()
+  );
+  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
+  const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
+  const [selectedProposal, setSelectedProposal] = useState<{
+    id: string;
+    date: string;
+    time: string;
+    specialist: Specialist;
+    appointmentId?: string;
+  } | null>(null);
   const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
+
+  const allSlots = Array.from({ length: 13 }, (_, i) => `${i + 8}:00`);
 
   const scrollToBottom = () => {
     messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
@@ -58,6 +91,25 @@ const MessageInterface: React.FC = () => {
   useEffect(() => {
     scrollToBottom();
   }, [messages]);
+
+  useEffect(() => {
+    const checkSpecialistStatus = async () => {
+      if (!session?.user?.id) return;
+      try {
+        const res = await fetch("/api/specialists/application/me", {
+          cache: "no-store",
+          credentials: "include",
+        });
+        if (res.ok) {
+          const { status } = await res.json();
+          setIsSpecialist(status === "approved");
+        }
+      } catch (error) {
+        console.error("Error checking specialist status:", error);
+      }
+    };
+    if (status === "authenticated") checkSpecialistStatus();
+  }, [status, session]);
 
   const fetchMessages = useCallback(async () => {
     if (!conversationId || status !== "authenticated") return;
@@ -77,6 +129,7 @@ const MessageInterface: React.FC = () => {
       }
 
       const msgData = await msgRes.json();
+      console.log("Messages:", msgData);
       setMessages(msgData);
     } catch {
       toast.error("Failed to load messages");
@@ -162,9 +215,9 @@ const MessageInterface: React.FC = () => {
 
     setSending(true);
     const recipientId =
-      (conversation.user1?.id === session.user.id
+      conversation.user1?.id === session.user.id
         ? conversation.user2?.id || conversation.user2?.id
-        : conversation.user1?.id || conversation.user1?.id) || "";
+        : conversation.user1?.id || conversation.user1?.id || "";
 
     try {
       let imageUrl: string | undefined;
@@ -226,6 +279,135 @@ const MessageInterface: React.FC = () => {
     } finally {
       setSending(false);
     }
+  };
+
+  const handleSendProposal = async () => {
+    if (!proposalDate || !selectedSlots.length) {
+      toast.error("Please select a date and at least one time slot");
+      return;
+    }
+    if (!session?.user?.id || !conversation) {
+      toast.error("Please log in to send a proposal");
+      return;
+    }
+
+    setSending(true);
+    const recipientId =
+      conversation.user1?.id === session.user.id
+        ? conversation.user2?.id || conversation.user2?.id
+        : conversation.user1?.id || conversation.user1?.id;
+
+    try {
+      const res = await fetch("/api/proposals", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          conversationId,
+          userId: recipientId,
+          date: proposalDate.toISOString().split("T")[0],
+          time: selectedSlots[0],
+        }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to send proposal");
+      }
+
+      setProposalDate(undefined);
+      setSelectedSlots([]);
+      setIsProposalDialogOpen(false);
+      toast.success("Proposal sent successfully");
+      await fetchMessages();
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to send proposal";
+      toast.error(errorMessage);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handleProposalAction = async (
+    proposalId: string,
+    action: "accept" | "reject"
+  ) => {
+    if (!session?.user?.id) {
+      toast.error("Please log in to respond to the proposal");
+      return;
+    }
+
+    setSending(true);
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: action }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || `Failed to ${action} proposal`);
+      }
+
+      const data = await res.json();
+      if (action === "accept") {
+        const proposal = data.proposal;
+        const appointmentId = data.appointmentId;
+        const specialistRes = await fetch(
+          `/api/specialists/${proposal.specialistId}`,
+          {
+            cache: "no-store",
+            credentials: "include",
+          }
+        );
+        if (!specialistRes.ok) {
+          throw new Error(
+            `Failed to fetch specialist details: ${specialistRes.status}`
+          );
+        }
+        const specialist = await specialistRes.json();
+        setSelectedProposal({
+          id: proposal.id,
+          date: proposal.date,
+          time: proposal.time,
+          specialist: {
+            id: proposal.specialistId,
+            name: specialist.name,
+            rate: specialist.rate || 50,
+          },
+          appointmentId,
+        });
+        setConfirmDialogOpen(true);
+      } else {
+        toast.success("Proposal rejected");
+        await fetchMessages();
+      }
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : `Failed to ${action} proposal`;
+      toast.error(errorMessage);
+    } finally {
+      setSending(false);
+    }
+  };
+
+  const handlePayNow = () => {
+    if (!selectedProposal?.appointmentId) {
+      toast.error("No appointment ID found");
+      return;
+    }
+    router.push(
+      `/dashboard/appointments/confirm/${selectedProposal.appointmentId}`
+    );
+    setConfirmDialogOpen(false);
+    setSelectedProposal(null);
+  };
+
+  const toggleSlot = (time: string) => {
+    setSelectedSlots((prev) => (prev.includes(time) ? [] : [time]));
   };
 
   if (status === "loading" || loading) {
@@ -298,7 +480,7 @@ const MessageInterface: React.FC = () => {
   return (
     <div className="px-4 max-w-7xl mx-auto">
       <Card className="w-full h-[calc(100vh-2rem)] flex flex-col">
-        <CardHeader className="p-4 border-b">
+        <CardHeader className="p-4 border-b flex flex-row justify-between items-center">
           <div className="flex items-center space-x-2">
             <Avatar className="w-10 h-10">
               <AvatarImage src={profileImage} alt={otherUserName} />
@@ -311,6 +493,16 @@ const MessageInterface: React.FC = () => {
               <p className="text-xs text-gray-500 h-3">Online</p>
             </div>
           </div>
+          {isSpecialist && (
+            <Button
+              variant="outline"
+              size="icon"
+              onClick={() => setIsProposalDialogOpen(true)}
+              className="h-8 w-8 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+            >
+              <Plus className="h-4 w-4" />
+            </Button>
+          )}
         </CardHeader>
         <CardContent className="p-4 flex-1 overflow-y-auto space-y-2">
           {messages.map((msg) => (
@@ -342,7 +534,35 @@ const MessageInterface: React.FC = () => {
                     />
                   </div>
                 ) : (
-                  <span className="break-words">{msg.text}</span>
+                  <>
+                    <span className="break-words">{msg.text}</span>
+                    {msg.proposalId && msg.senderId !== session.user.id && (
+                      <div className="flex space-x-2 mt-2">
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleProposalAction(msg.proposalId!, "accept")
+                          }
+                          disabled={sending}
+                          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                        >
+                          Accept
+                        </Button>
+                        <Button
+                          variant="outline"
+                          size="sm"
+                          onClick={() =>
+                            handleProposalAction(msg.proposalId!, "reject")
+                          }
+                          disabled={sending}
+                          className="text-red-500 border-red-500 hover:bg-red-500/20"
+                        >
+                          Reject
+                        </Button>
+                      </div>
+                    )}
+                  </>
                 )}
                 <div className="text-xs text-gray-500 mt-1">
                   {format(new Date(msg.createdAt), "HH:mm")}
@@ -380,7 +600,7 @@ const MessageInterface: React.FC = () => {
               onChange={(e) => setInput(e.target.value)}
               placeholder="Write a message..."
               className="flex-1 h-10"
-              disabled={sending || !!imagePreview} // Convert imagePreview to boolean
+              disabled={sending || !!imagePreview}
             />
             <label htmlFor="file-input" className="cursor-pointer">
               <ImageIcon className="h-10 w-10 text-gray-500" />
@@ -408,6 +628,110 @@ const MessageInterface: React.FC = () => {
           </div>
         </div>
       </Card>
+
+      <div className="flex flex-col">
+        <Dialog
+          open={isProposalDialogOpen}
+          onOpenChange={setIsProposalDialogOpen}
+        >
+          <DialogContent>
+            <DialogHeader>
+              <DialogTitle>Send Session Proposal</DialogTitle>
+            </DialogHeader>
+            <div className="space-y-4 flex flex-row">
+              <div>
+                <Label>Date</Label>
+                <Calendar
+                  mode="single"
+                  selected={proposalDate}
+                  onSelect={setProposalDate}
+                  className="rounded-md border-[#F3CFC6]"
+                />
+              </div>
+              <div>
+                <Label>Available Times</Label>
+                <div className="grid grid-cols-3 gap-1">
+                  {allSlots.map((time) => (
+                    <div
+                      key={time}
+                      className="flex items-center space-x-2 mt-10"
+                    >
+                      <Checkbox
+                        id={time}
+                        checked={selectedSlots.includes(time)}
+                        onCheckedChange={() => toggleSlot(time)}
+                      />
+                      <Label htmlFor={time}>{time}</Label>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            </div>
+            <DialogFooter>
+              <Button
+                variant="outline"
+                onClick={() => setIsProposalDialogOpen(false)}
+                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+              >
+                Cancel
+              </Button>
+              <Button
+                onClick={handleSendProposal}
+                disabled={sending || !proposalDate || !selectedSlots.length}
+                className="bg-[#D8A7B1] hover:bg-[#C68E9C] text-white"
+              >
+                {sending ? "Sending..." : "Send Proposal"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </div>
+
+      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
+        <DialogContent className="bg-white dark:bg-gray-800">
+          <DialogTitle className="text-black dark:text-white">
+            Confirm Booking
+          </DialogTitle>
+          <div className="py-2 space-y-2">
+            <p className="text-black dark:text-white">
+              <strong>Name:</strong> {session?.user?.name || "N/A"}
+            </p>
+            <p className="text-black dark:text-white">
+              <strong>Specialist:</strong>{" "}
+              {selectedProposal?.specialist.name || "N/A"}
+            </p>
+            <p className="text-black dark:text-white">
+              <strong>Date:</strong>{" "}
+              {selectedProposal?.date
+                ? format(new Date(selectedProposal.date), "MMMM d, yyyy")
+                : "N/A"}
+            </p>
+            <p className="text-black dark:text-white">
+              <strong>Time:</strong> {selectedProposal?.time || "N/A"}
+            </p>
+            <p className="text-black dark:text-white">
+              <strong>Amount:</strong> $
+              {selectedProposal?.specialist.rate?.toFixed(2) || "50.00"}
+            </p>
+          </div>
+          <DialogFooter>
+            <Button
+              variant="outline"
+              onClick={() => setConfirmDialogOpen(false)}
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={handlePayNow}
+              className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+              disabled={sending}
+            >
+              Pay Now
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </div>
   );
 };
