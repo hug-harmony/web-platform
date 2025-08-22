@@ -1,7 +1,9 @@
 import { NextRequest, NextResponse } from "next/server";
-import prisma from "@/lib/prisma";
+import { PrismaClient } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+
+const prisma = new PrismaClient();
 
 export async function PATCH(
   req: NextRequest,
@@ -9,17 +11,14 @@ export async function PATCH(
 ) {
   try {
     const session = await getServerSession(authOptions);
-    console.log("Session data:", session);
     if (!session?.user?.id) {
-      console.error("Unauthorized: No session or user ID found");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const { id } = await params;
     const { status } = await req.json();
 
-    if (!id || !["accept", "reject"].includes(status)) {
-      console.error("Invalid request:", { id, status });
+    if (!id || !["accepted", "rejected"].includes(status)) {
       return NextResponse.json(
         { error: "Invalid proposal ID or status" },
         { status: 400 }
@@ -31,7 +30,6 @@ export async function PATCH(
       include: { specialist: true },
     });
     if (!proposal) {
-      console.error("Proposal not found:", id);
       return NextResponse.json(
         { error: "Proposal not found" },
         { status: 404 }
@@ -39,9 +37,6 @@ export async function PATCH(
     }
 
     if (proposal.userId !== session.user.id) {
-      console.error("Forbidden: User is not the proposal recipient", {
-        userId: session.user.id,
-      });
       return NextResponse.json(
         { error: "You are not authorized to respond to this proposal" },
         { status: 403 }
@@ -49,7 +44,6 @@ export async function PATCH(
     }
 
     if (proposal.status !== "pending") {
-      console.error("Invalid proposal status:", proposal.status);
       return NextResponse.json(
         { error: "Proposal is no longer pending" },
         { status: 400 }
@@ -62,18 +56,7 @@ export async function PATCH(
     });
 
     let appointment = null;
-    if (status === "accept") {
-      const therapist = await prisma.specialist.findUnique({
-        where: { id: proposal.specialistId },
-      });
-      if (!therapist) {
-        console.error("Therapist not found:", proposal.specialistId);
-        return NextResponse.json(
-          { error: "Therapist not found" },
-          { status: 404 }
-        );
-      }
-
+    if (status === "accepted") {
       const existingAppointment = await prisma.appointment.findFirst({
         where: {
           specialistId: proposal.specialistId,
@@ -83,10 +66,6 @@ export async function PATCH(
       });
 
       if (existingAppointment) {
-        console.error("Time slot unavailable:", {
-          date: proposal.date,
-          time: proposal.time,
-        });
         return NextResponse.json(
           { error: "Time slot unavailable" },
           { status: 409 }
@@ -102,7 +81,6 @@ export async function PATCH(
           status: "upcoming",
         },
       });
-      console.log("Appointment created:", appointment);
 
       await prisma.message.create({
         data: {
@@ -127,7 +105,6 @@ export async function PATCH(
       });
     }
 
-    console.log("Proposal updated:", updatedProposal);
     return NextResponse.json(
       {
         proposal: updatedProposal,
@@ -137,9 +114,8 @@ export async function PATCH(
     );
   } catch (error) {
     console.error("Error updating proposal:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }
