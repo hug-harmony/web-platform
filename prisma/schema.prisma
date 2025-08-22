@@ -30,13 +30,11 @@ model User {
   posts            Post[]         @relation("UserPosts")
   replies          Reply[]        @relation("UserReplies")
   specialistApplication SpecialistApplication?
-  isAdmin      Boolean  @default(false)
-  status       String      @default("active")
-  VideoSession VideoSession[]
-
-  ProfileVisit ProfileVisit[]
-
-  Proposal Proposal[] @relation
+  isAdmin          Boolean        @default(false)
+  status           String         @default("active")
+  VideoSession     VideoSession[]
+  ProfileVisit     ProfileVisit[] @relation("Visitor")
+  Proposal         Proposal[]     @relation
 }
 
 model PasswordResetToken {
@@ -73,10 +71,8 @@ model Conversation {
   Proposal Proposal[] @relation
 }
 
-
-
 model Specialist {
-  id               String       @id @default(auto()) @map("_id") @db.ObjectId
+  id               String         @id @default(auto()) @map("_id") @db.ObjectId
   name             String       // Populated from User.name
   image            String?      // Populated from User.profileImage
   location         String
@@ -93,10 +89,8 @@ model Specialist {
   application      SpecialistApplication? @relation
   VideoSession     VideoSession[]
   availability     Availability[] @relation
-
-profileVisits    ProfileVisit[] @relation // Add this line
-
-  Proposal Proposal[] @relation
+  profileVisits    ProfileVisit[] @relation("Visitee")
+  Proposal         Proposal[]     @relation
 }
 
 model Post {
@@ -169,13 +163,12 @@ model Availability {
 
 model ProfileVisit {
   id           String     @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String?    @db.ObjectId // Nullable for anonymous visits
+  userId       String     @db.ObjectId
   specialistId String     @db.ObjectId
   createdAt    DateTime   @default(now())
-  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
-  specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  user         User       @relation("Visitor", fields: [userId], references: [id], onDelete: Cascade)
+  specialist   Specialist @relation("Visitee", fields: [specialistId], references: [id], onDelete: Cascade)
 }
-
 
 model Message {
   id               String       @id @default(auto()) @map("_id") @db.ObjectId

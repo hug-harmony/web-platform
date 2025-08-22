@@ -64,9 +64,14 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
-  const { data: session } = useSession(); // Added to get user session
+  const { status: sessionStatus } = useSession(); // Updated for session management
 
   useEffect(() => {
+    if (sessionStatus === "unauthenticated") {
+      router.push("/login");
+      return;
+    }
+
     const fetchProfile = async () => {
       try {
         const { id } = await params;
@@ -116,9 +121,11 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
     };
 
     fetchProfile();
-  }, [params, router]);
+  }, [params, router, sessionStatus]);
 
   useEffect(() => {
+    if (sessionStatus !== "authenticated") return;
+
     const recordVisit = async () => {
       try {
         const { id } = await params;
@@ -138,7 +145,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
     };
 
     recordVisit();
-  }, [params]);
+  }, [params, sessionStatus]);
   if (loading) {
     return (
       <div className="p-4 space-y-6 max-w-7xl mx-auto">

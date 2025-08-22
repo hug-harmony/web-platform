@@ -1,12 +1,11 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { getServerSession } from "next-auth/next";
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient } from "@prisma/client";
+import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
 const prisma = new PrismaClient();
 
-export async function GET(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session) {
@@ -32,7 +31,7 @@ export async function GET(req: Request) {
           phoneNumber: true,
           profileImage: true,
           location: true,
-          biography: true, // Added biography
+          biography: true,
           status: true,
           createdAt: true,
           specialistApplication: {
@@ -60,7 +59,7 @@ export async function GET(req: Request) {
         phoneNumber: user.phoneNumber || "",
         profileImage: user.profileImage || "",
         location: user.location || "",
-        biography: user.biography || "", // Added biography
+        biography: user.biography || "",
         status: user.status,
         createdAt: user.createdAt,
         specialistApplication: {
@@ -72,7 +71,7 @@ export async function GET(req: Request) {
 
     const users = await prisma.user.findMany({
       where: {
-        id: { not: session.user.id }, // Exclude current user's profile
+        id: { not: session.user.id },
       },
       select: {
         id: true,
@@ -83,7 +82,7 @@ export async function GET(req: Request) {
         phoneNumber: true,
         profileImage: true,
         location: true,
-        biography: true, // Added biography
+        biography: true,
         status: true,
         createdAt: true,
         specialistApplication: {
@@ -113,7 +112,7 @@ export async function GET(req: Request) {
         phoneNumber: user.phoneNumber || "",
         profileImage: user.profileImage || "",
         location: user.location || "",
-        biography: user.biography || "", // Added biography
+        biography: user.biography || "",
         status: user.status,
         createdAt: user.createdAt,
         specialistApplication: {
@@ -144,7 +143,7 @@ export async function PUT(req: Request) {
       phoneNumber,
       profileImage,
       location,
-      biography, // Added biography
+      biography,
       status,
     } = await req.json();
 
@@ -175,7 +174,7 @@ export async function PUT(req: Request) {
         phoneNumber,
         profileImage,
         location,
-        biography, // Added biography
+        biography,
         status,
       },
       select: {
@@ -187,7 +186,7 @@ export async function PUT(req: Request) {
         phoneNumber: true,
         profileImage: true,
         location: true,
-        biography: true, // Added biography
+        biography: true,
         status: true,
         createdAt: true,
       },
@@ -210,7 +209,7 @@ export async function PUT(req: Request) {
       phoneNumber: user.phoneNumber || "",
       profileImage: user.profileImage || "",
       location: user.location || "",
-      biography: user.biography || "", // Added biography
+      biography: user.biography || "",
       status: user.status,
       createdAt: user.createdAt,
     });
