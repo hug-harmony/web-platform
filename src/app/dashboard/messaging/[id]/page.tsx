@@ -33,6 +33,7 @@ interface Message {
   sender: { name?: string };
   userId: string;
   proposalId?: string;
+  proposalStatus?: string;
 }
 
 interface Participant {
@@ -493,16 +494,6 @@ const MessageInterface: React.FC = () => {
               <p className="text-xs text-gray-500 h-3">Online</p>
             </div>
           </div>
-          {isSpecialist && (
-            <Button
-              variant="outline"
-              size="icon"
-              onClick={() => setIsProposalDialogOpen(true)}
-              className="h-8 w-8 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-            >
-              <Plus className="h-4 w-4" />
-            </Button>
-          )}
         </CardHeader>
         <CardContent className="p-4 flex-1 overflow-y-auto space-y-2">
           {messages.map((msg) => (
@@ -536,30 +527,71 @@ const MessageInterface: React.FC = () => {
                 ) : (
                   <>
                     <span className="break-words">{msg.text}</span>
-                    {msg.proposalId && msg.senderId !== session.user.id && (
-                      <div className="flex space-x-2 mt-2">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            handleProposalAction(msg.proposalId!, "accept")
-                          }
-                          disabled={sending}
-                          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-                        >
-                          Accept
-                        </Button>
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() =>
-                            handleProposalAction(msg.proposalId!, "reject")
-                          }
-                          disabled={sending}
-                          className="text-red-500 border-red-500 hover:bg-red-500/20"
-                        >
-                          Reject
-                        </Button>
+                    {msg.proposalId && (
+                      <div className="mt-2">
+                        {msg.senderId !== session.user.id ? (
+                          msg.proposalStatus &&
+                          msg.proposalStatus !== "pending" ? (
+                            <span
+                              className={`text-sm ${
+                                msg.proposalStatus === "accept"
+                                  ? "text-green-500"
+                                  : "text-red-500"
+                              }`}
+                            >
+                              {msg.proposalStatus === "accept"
+                                ? "Accepted"
+                                : "Rejected"}
+                            </span>
+                          ) : (
+                            <div className="flex space-x-2">
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleProposalAction(
+                                    msg.proposalId!,
+                                    "accept"
+                                  )
+                                }
+                                disabled={sending}
+                                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                              >
+                                Accept
+                              </Button>
+                              <Button
+                                variant="outline"
+                                size="sm"
+                                onClick={() =>
+                                  handleProposalAction(
+                                    msg.proposalId!,
+                                    "reject"
+                                  )
+                                }
+                                disabled={sending}
+                                className="text-red-500 border-red-500 hover:bg-red-500/20"
+                              >
+                                Reject
+                              </Button>
+                            </div>
+                          )
+                        ) : (
+                          <span
+                            className={`text-sm ${
+                              msg.proposalStatus === "accept"
+                                ? "text-green-500"
+                                : msg.proposalStatus === "reject"
+                                  ? "text-red-500"
+                                  : "text-gray-500"
+                            }`}
+                          >
+                            {msg.proposalStatus === "accept"
+                              ? "Accepted"
+                              : msg.proposalStatus === "reject"
+                                ? "Rejected"
+                                : "Pending"}
+                          </span>
+                        )}
                       </div>
                     )}
                   </>
@@ -594,6 +626,16 @@ const MessageInterface: React.FC = () => {
             </div>
           )}
           <div className="flex items-center space-x-2">
+            {isSpecialist && (
+              <Button
+                variant="outline"
+                size="icon"
+                onClick={() => setIsProposalDialogOpen(true)}
+                className="h-10 w-10 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+              >
+                <Plus className="h-4 w-4" />
+              </Button>
+            )}
             <Input
               type="text"
               value={input}
