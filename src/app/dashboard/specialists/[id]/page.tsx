@@ -323,7 +323,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                     className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full"
                   >
                     <Link href={`/dashboard/appointments/book/${profile._id}`}>
-                      <Book className="mr-2 h-4 w-4" /> Book a Session
+                      <Book className="mr-2 h-4 w-4" /> book a in-person session
                     </Link>
                   </Button>
                   <Button
@@ -331,7 +331,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                     className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full"
                   >
                     <Link href={`/dashboard/video-session/${profile._id}`}>
-                      <Video className="mr-2 h-4 w-4" /> Video Call
+                      <Video className="mr-2 h-4 w-4" /> book a virtual session
                     </Link>
                   </Button>
                   <Button className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full">

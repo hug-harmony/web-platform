@@ -116,6 +116,11 @@ export default function Sidebar() {
         label: "Forum",
         icon: <Users className="h-5 w-5" />,
       },
+      {
+        href: "/dashboard/proposals",
+        label: "Proposals",
+        icon: <Users className="h-5 w-5" />,
+      },
       ...(isSpecialist
         ? [
             {

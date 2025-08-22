@@ -3,14 +3,22 @@
 import React from "react";
 import { Button } from "@/components/ui/button";
 import { useRouter } from "next/navigation";
+import Image from "next/image";
 
 const Home = () => {
   const router = useRouter();
 
   return (
     <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 px-4">
-      {/* Avatar Circle */}
-      <div className="w-32 h-32 bg-gray-200 rounded-full mt-4" />
+      {/* Logo */}
+      <Image
+        src="/hug.png"
+        alt="Hug Harmony Logo"
+        width={128}
+        height={128}
+        className="mt-4 rounded-full object-cover"
+        priority
+      />
 
       {/* Title */}
       <h1 className="mt-6 text-2xl font-bold text-center">Hug Harmony</h1>
