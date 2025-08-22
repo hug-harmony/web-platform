@@ -96,9 +96,9 @@ model Specialist {
   license          String?
   createdAt        DateTime     @default(now())
   appointments     Appointment[] @relation("SpecialistAppointments")
- 
   application      SpecialistApplication? @relation
-  VideoSession VideoSession[]
+  VideoSession     VideoSession[]
+  availability     Availability[] @relation
 }
 
 model Post {
@@ -158,4 +158,13 @@ model VideoSession {
   updatedAt    DateTime  @updatedAt
   user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
   specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+}
+
+model Availability {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  specialistId String   @db.ObjectId
+  date         DateTime
+  slots        String[]
+  specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  @@unique([specialistId, date])
 }

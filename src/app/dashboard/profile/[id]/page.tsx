@@ -15,6 +15,9 @@ import { toast } from "sonner";
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import { Calendar } from "@/components/ui/calendar";
+import { Checkbox } from "@/components/ui/checkbox";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -34,7 +37,7 @@ interface Profile {
   phoneNumber?: string | null;
   profileImage?: string | null;
   location?: string | null;
-  biography?: string | null; // Added biography
+  biography?: string | null;
   email: string;
   type: "user" | "specialist";
   role?: string | null;
@@ -63,6 +66,9 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   const [isSpecialist, setIsSpecialist] = useState(false);
   const [specialistId, setSpecialistId] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
+  const [date, setDate] = useState<Date | undefined>(new Date());
+  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
+  const [openAvailability, setOpenAvailability] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status, update } = useSession();
@@ -75,7 +81,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     const lastName = formData.get("lastName")?.toString() || "";
     const phoneNumber = formData.get("phoneNumber")?.toString() || "";
     const location = formData.get("location")?.toString() || "";
-    const biography = formData.get("biography")?.toString() || ""; // Added biography validation
+    const biography = formData.get("biography")?.toString() || "";
 
     if (!firstName) {
       errors.firstName = "First name is required";
@@ -97,7 +103,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       errors.location = "Location must be 100 characters or less";
     }
 
-    if (biography && biography.length > 500) { // Added biography validation
+    if (biography && biography.length > 500) {
       errors.biography = "Biography must be 500 characters or less";
     }
 
@@ -258,7 +264,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             phoneNumber: data.phoneNumber,
             profileImage: data.profileImage,
             location: data.location,
-            biography: data.biography, // Added biography
+            biography: data.biography,
             email: data.email,
             type: "user",
           });
@@ -285,6 +291,15 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       fetchSpecialistStatus();
     }
   }, [params, router, searchParams]);
+
+  useEffect(() => {
+    if (date && openAvailability) {
+      fetch(`/api/specialists/availability?date=${date.toISOString().split("T")[0]}`)
+        .then((res) => res.json())
+        .then((data) => setSelectedSlots(data.slots || []))
+        .catch(() => toast.error("Failed to fetch availability"));
+    }
+  }, [date, openAvailability]);
 
   const handleNewProfessional = async () => {
     if (status === "loading") {
@@ -317,7 +332,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         undefined,
       phoneNumber: formData.get("phoneNumber")?.toString(),
       location: formData.get("location")?.toString(),
-      biography: formData.get("biography")?.toString(), // Added biography
+      biography: formData.get("biography")?.toString(),
     };
 
     try {
@@ -458,6 +473,35 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     }
   };
 
+  const handleSubmitAvailability = async () => {
+    if (!date) return;
+    try {
+      const res = await fetch("/api/specialists/availability", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ date: date.toISOString().split("T")[0], slots: selectedSlots }),
+      });
+      if (res.ok) {
+        toast.success("Availability updated");
+        setOpenAvailability(false);
+      } else {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to update availability");
+      }
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to update availability");
+    }
+  };
+
+  const toggleSlot = (time: string) => {
+    setSelectedSlots((prev) =>
+      prev.includes(time) ? prev.filter((t) => t !== time) : [...prev, time]
+    );
+  };
+
+  const allSlots = Array.from({ length: 13 }, (_, i) => `${i + 8}:00`);
+  const isOwnProfile = session?.user?.id === profile?.id;
+
   if (loading) {
     return (
       <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -577,6 +621,47 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                 <Gem className="w-4 h-4 mr-2 text-[#F3CFC6]" /> Become a
                 Professional
               </Button>
+            </motion.div>
+          )}
+          {isOwnProfile && isSpecialist && (
+            <motion.div
+              variants={itemVariants}
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+              }}
+              transition={{ duration: 0.2 }}
+            >
+              <Dialog open={openAvailability} onOpenChange={setOpenAvailability}>
+                <DialogTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+                    disabled={status === "loading"}
+                  >
+                    Set Availability
+                  </Button>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Set Daily Availability</DialogTitle>
+                  </DialogHeader>
+                  <Calendar mode="single" selected={date} onSelect={setDate} />
+                  <div className="grid grid-cols-3 gap-2">
+                    {allSlots.map((time) => (
+                      <div key={time} className="flex items-center space-x-2">
+                        <Checkbox
+                          id={time}
+                          checked={selectedSlots.includes(time)}
+                          onCheckedChange={() => toggleSlot(time)}
+                        />
+                        <Label htmlFor={time}>{time}</Label>
+                      </div>
+                    ))}
+                  </div>
+                  <Button onClick={handleSubmitAvailability}>Save</Button>
+                </DialogContent>
+              </Dialog>
             </motion.div>
           )}
         </CardContent>

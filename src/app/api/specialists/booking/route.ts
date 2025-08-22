@@ -9,10 +9,7 @@ export async function GET(request: Request) {
   const date = searchParams.get("date");
 
   if (!therapistId || !date) {
-    return NextResponse.json(
-      { error: "Missing therapistId or date" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing therapistId or date" }, { status: 400 });
   }
 
   try {
@@ -20,10 +17,7 @@ export async function GET(request: Request) {
       where: { id: therapistId },
     });
     if (!therapist) {
-      return NextResponse.json(
-        { error: "Therapist not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Therapist not found" }, { status: 404 });
     }
 
     const appointments = await prisma.appointment.findMany({
@@ -37,20 +31,22 @@ export async function GET(request: Request) {
       select: { time: true },
     });
 
-    const slots = Array.from({ length: 13 }, (_, i) => `${i + 8}:00`).map(
-      (time) => ({
-        time,
-        available: !appointments.some((appt) => appt.time === time),
-      })
-    );
+    const availability = await prisma.availability.findUnique({
+      where: { specialistId_date: { specialistId: therapistId, date: new Date(new Date(date).setHours(0, 0, 0, 0)) } },
+    });
+
+    const defaultSlots = Array.from({ length: 13 }, (_, i) => `${i + 8}:00`);
+    const availableSlots = availability ? availability.slots : defaultSlots;
+
+    const slots = availableSlots.map((time) => ({
+      time,
+      available: !appointments.some((appt) => appt.time === time),
+    }));
 
     return NextResponse.json({ slots }, { status: 200 });
   } catch (error) {
     console.error("Availability error:", error);
-    return NextResponse.json(
-      { error: "Failed to fetch availability" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to fetch availability" }, { status: 500 });
   }
 }
 
@@ -63,10 +59,7 @@ export async function POST(request: Request) {
   const { therapistId, date, time, userId } = await request.json();
 
   if (!therapistId || !date || !time || !userId) {
-    return NextResponse.json(
-      { error: "Missing therapistId, date, time, or userId" },
-      { status: 400 }
-    );
+    return NextResponse.json({ error: "Missing therapistId, date, time, or userId" }, { status: 400 });
   }
 
   if (session.user.id !== userId) {
@@ -78,10 +71,7 @@ export async function POST(request: Request) {
       where: { id: therapistId },
     });
     if (!therapist) {
-      return NextResponse.json(
-        { error: "Therapist not found" },
-        { status: 404 }
-      );
+      return NextResponse.json({ error: "Therapist not found" }, { status: 404 });
     }
 
     const existingAppointment = await prisma.appointment.findFirst({
@@ -89,10 +79,7 @@ export async function POST(request: Request) {
     });
 
     if (existingAppointment) {
-      return NextResponse.json(
-        { error: "Time slot unavailable" },
-        { status: 409 }
-      );
+      return NextResponse.json({ error: "Time slot unavailable" }, { status: 409 });
     }
 
     const appointment = await prisma.appointment.create({
@@ -108,9 +95,6 @@ export async function POST(request: Request) {
     return NextResponse.json({ appointment }, { status: 201 });
   } catch (error) {
     console.error("Booking error:", error);
-    return NextResponse.json(
-      { error: "Failed to create booking" },
-      { status: 500 }
-    );
+    return NextResponse.json({ error: "Failed to create booking" }, { status: 500 });
   }
 }
