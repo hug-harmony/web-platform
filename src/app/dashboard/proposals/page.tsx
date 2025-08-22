@@ -5,21 +5,12 @@ import { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Calendar, Search } from "lucide-react";
+import { Search } from "lucide-react";
 import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
 import ProposalCard from "@/components/ProposalCard";
 
 interface Proposal {
@@ -50,16 +41,19 @@ export default function ProposalsPage() {
   const [loading, setLoading] = useState(true);
   const [receivedProposals, setReceivedProposals] = useState<Proposal[]>([]);
   const [sentProposals, setSentProposals] = useState<Proposal[]>([]);
-  const [filter, setFilter] = useState<"today" | "7d" | "30d" | "custom">("7d");
   const [searchQuery, setSearchQuery] = useState("");
 
   useEffect(() => {
     const fetchProposals = async () => {
-      if (!session?.user?.id) return;
+      if (!session?.user?.id) {
+        console.log("No session or user ID");
+        return;
+      }
       setLoading(true);
       try {
-        // Construct query parameters
-        const userQuery = new URLSearchParams({ role: "user", filter });
+        // Fetch received proposals (role=user)
+        const userQuery = new URLSearchParams({ role: "user" });
+        console.log("Fetching with query:", userQuery.toString());
         const userRes = await fetch(`/api/proposals?${userQuery}`, {
           cache: "no-store",
           credentials: "include",
@@ -67,6 +61,7 @@ export default function ProposalsPage() {
 
         if (!userRes.ok) {
           if (userRes.status === 401) {
+            console.log("Unauthorized, redirecting to login");
             router.push("/login");
             return;
           }
@@ -76,15 +71,17 @@ export default function ProposalsPage() {
         }
 
         const userData = await userRes.json();
+        console.log("User Data:", userData);
         setIsSpecialist(userData.isSpecialist);
         setReceivedProposals(userData.proposals);
 
         // Fetch sent proposals if specialist
         if (userData.isSpecialist) {
-          const specialistQuery = new URLSearchParams({
-            role: "specialist",
-            filter,
-          });
+          const specialistQuery = new URLSearchParams({ role: "specialist" });
+          console.log(
+            "Fetching specialist proposals with query:",
+            specialistQuery.toString()
+          );
           const specialistRes = await fetch(
             `/api/proposals?${specialistQuery}`,
             {
@@ -95,6 +92,7 @@ export default function ProposalsPage() {
 
           if (!specialistRes.ok) {
             if (specialistRes.status === 403) {
+              console.log("Forbidden: Not authorized to view sent proposals");
               toast.error("You are not authorized to view sent proposals");
               return;
             }
@@ -104,6 +102,7 @@ export default function ProposalsPage() {
           }
 
           const specialistData = await specialistRes.json();
+          console.log("Specialist Data:", specialistData);
           setSentProposals(specialistData.proposals);
         }
       } catch (error: any) {
@@ -115,9 +114,10 @@ export default function ProposalsPage() {
     };
 
     if (status === "authenticated") {
+      console.log("Session:", session);
       fetchProposals();
     }
-  }, [status, session, filter, router]);
+  }, [status, session, router]);
 
   const handleStatusUpdate = async (
     proposalId: string,
@@ -158,8 +158,8 @@ export default function ProposalsPage() {
     setSearchQuery(e.target.value);
   };
 
-  const filterProposals = (proposals: Proposal[], isReceived: boolean) =>
-    proposals.filter((proposal) =>
+  const filterProposals = (proposals: Proposal[], isReceived: boolean) => {
+    const filtered = proposals.filter((proposal) =>
       searchQuery
         ? isReceived
           ? proposal.specialist.name
@@ -168,6 +168,9 @@ export default function ProposalsPage() {
           : proposal.user.name.toLowerCase().includes(searchQuery.toLowerCase())
         : true
     );
+    console.log("Filtered Proposals:", filtered);
+    return filtered;
+  };
 
   const filteredReceivedProposals = filterProposals(receivedProposals, true);
   const filteredSentProposals = filterProposals(sentProposals, false);
@@ -188,7 +191,6 @@ export default function ProposalsPage() {
           <CardContent className="flex space-x-4">
             <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
             <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
-            <Skeleton className="h-10 w-40 bg-[#C4C4C4]/50" />
           </CardContent>
         </Card>
         <Card className="shadow-lg">
@@ -229,19 +231,12 @@ export default function ProposalsPage() {
           <p className="text-sm opacity-80">
             {filteredReceivedProposals.length} received
             {isSpecialist ? `, ${filteredSentProposals.length} sent` : ""}
-            {filter === "today"
-              ? " (Today)"
-              : filter === "7d"
-                ? " (Last 7 days)"
-                : filter === "30d"
-                  ? " (Last 30 days)"
-                  : " (Custom)"}
           </p>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center mb-6 w-full space-x-2">
+          <div className="flex items-center mb-6 w-full">
             <div className="relative flex-grow">
-              <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#000]" />
+              <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#F3CFC6]" />
               <Input
                 type="text"
                 placeholder="Search proposals..."
@@ -250,59 +245,18 @@ export default function ProposalsPage() {
                 className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
               />
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                >
-                  <Calendar className="h-6 w-6 text-[#F3CFC6]" />
-                  <span>Filter</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
-                <DropdownMenuLabel className="text-black dark:text-white">
-                  Time Period
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => setFilter("today")}
-                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                >
-                  Today
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setFilter("7d")}
-                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                >
-                  Last 7 days
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setFilter("30d")}
-                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                >
-                  Last 30 days
-                </DropdownMenuItem>
-                <DropdownMenuItem
-                  onClick={() => setFilter("custom")}
-                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                >
-                  Custom
-                </DropdownMenuItem>
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
         </CardContent>
       </Card>
 
       {/* Proposals Content */}
       <Card className="shadow-lg gap-2">
-        <CardHeader className="mb-0">
+        <CardHeader>
           <CardTitle className="text-lg font-semibold text-black dark:text-white">
             Proposals
           </CardTitle>
         </CardHeader>
-        <CardContent>
+        <CardContent className="pt-6">
           <Tabs defaultValue="received" className="w-full">
             <TabsList
               className={`grid w-full ${isSpecialist ? "grid-cols-2" : "grid-cols-1"} bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20`}
@@ -322,7 +276,7 @@ export default function ProposalsPage() {
                 </TabsTrigger>
               )}
             </TabsList>
-            <TabsContent value="received mt-4">
+            <TabsContent value="received">
               {filteredReceivedProposals.length === 0 ? (
                 <p className="text-center text-[#C4C4C4]">
                   No received proposals found.
