@@ -81,7 +81,7 @@ const ProposalsPage: React.FC = () => {
       try {
         if (isSpecialist) {
           const [clientRes, allRes] = await Promise.all([
-            fetch("/api/proposals/clients", {
+            fetch("/api/proposals/client", {
               cache: "no-store",
               credentials: "include",
             }),
