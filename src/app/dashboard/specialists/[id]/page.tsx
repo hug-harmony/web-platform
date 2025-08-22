@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
+import { useSession } from "next-auth/react"; // Added for session management
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -63,6 +64,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const router = useRouter();
+  const { data: session } = useSession(); // Added to get user session
 
   useEffect(() => {
     const fetchProfile = async () => {
@@ -116,6 +118,27 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
     fetchProfile();
   }, [params, router]);
 
+  useEffect(() => {
+    const recordVisit = async () => {
+      try {
+        const { id } = await params;
+        const res = await fetch("/api/profile-visit", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ specialistId: id }),
+        });
+        console.log(
+          "Profile visit API response:",
+          res.status,
+          await res.text()
+        );
+      } catch (error) {
+        console.error("Error recording profile visit:", error);
+      }
+    };
+
+    recordVisit();
+  }, [params]);
   if (loading) {
     return (
       <div className="p-4 space-y-6 max-w-7xl mx-auto">

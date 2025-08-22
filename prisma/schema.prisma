@@ -33,6 +33,8 @@ model User {
   isAdmin      Boolean  @default(false)
   status       String      @default("active")
   VideoSession VideoSession[]
+
+  profileVisits    ProfileVisit[] @relation // Add this line
 }
 
 model PasswordResetToken {
@@ -99,6 +101,8 @@ model Specialist {
   application      SpecialistApplication? @relation
   VideoSession     VideoSession[]
   availability     Availability[] @relation
+
+profileVisits    ProfileVisit[] @relation // Add this line
 }
 
 model Post {
@@ -167,4 +171,13 @@ model Availability {
   slots        String[]
   specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
   @@unique([specialistId, date])
+}
+
+model ProfileVisit {
+  id           String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String?    @db.ObjectId // Nullable for anonymous visits
+  specialistId String     @db.ObjectId
+  createdAt    DateTime   @default(now())
+  user         User?      @relation(fields: [userId], references: [id], onDelete: SetNull)
+  specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
 }

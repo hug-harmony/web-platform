@@ -24,6 +24,7 @@ import {
   Bell,
   Notebook,
   Users,
+  Eye, // Added for Profile Visits icon
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -61,7 +62,7 @@ export default function Sidebar() {
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
-  const { open } = useSidebar(); // Get sidebar state
+  const { open } = useSidebar();
 
   const navItems: NavItem[] = useMemo(
     () => [
@@ -115,8 +116,17 @@ export default function Sidebar() {
         label: "Forum",
         icon: <Users className="h-5 w-5" />,
       },
+      ...(isSpecialist
+        ? [
+            {
+              href: "/dashboard/profileVisits",
+              label: "Profile Visits",
+              icon: <Eye className="h-5 w-5" />,
+            },
+          ]
+        : []),
     ],
-    []
+    [isSpecialist]
   );
 
   useEffect(() => {
