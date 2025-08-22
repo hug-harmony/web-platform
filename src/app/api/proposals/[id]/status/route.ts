@@ -81,28 +81,6 @@ export async function PATCH(
           status: "upcoming",
         },
       });
-
-      await prisma.message.create({
-        data: {
-          conversationId: proposal.conversationId,
-          senderId: session.user.id,
-          recipientId: proposal.specialistId,
-          text: `Proposal accepted: ${new Date(proposal.date).toLocaleDateString()} at ${proposal.time}`,
-          isAudio: false,
-          proposalId: proposal.id,
-        },
-      });
-    } else {
-      await prisma.message.create({
-        data: {
-          conversationId: proposal.conversationId,
-          senderId: session.user.id,
-          recipientId: proposal.specialistId,
-          text: `Proposal rejected: ${new Date(proposal.date).toLocaleDateString()} at ${proposal.time}`,
-          isAudio: false,
-          proposalId: proposal.id,
-        },
-      });
     }
 
     return NextResponse.json(

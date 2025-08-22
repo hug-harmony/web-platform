@@ -1,27 +1,16 @@
 "use client";
 
-import React, { useState, useEffect, useRef, useCallback } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardContent, CardHeader } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Input } from "@/components/ui/input";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Card, CardHeader, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
-import { format } from "date-fns";
-import Image from "next/image";
-import { ImageIcon, Plus } from "lucide-react";
-import {
-  Dialog,
-  DialogContent,
-  DialogHeader,
-  DialogTitle,
-  DialogFooter,
-} from "@/components/ui/dialog";
-import { Label } from "@/components/ui/label";
-import { Calendar } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox";
+import ChatHeader from "@/components/ChatHeader";
+import MessageList from "@/components/MessageList";
+import MessageInput from "@/components/MessageInput";
+import ProposalDialog from "@/components/ProposalDialog";
+import ConfirmDialog from "@/components/ConfirmDialog";
 
 interface Message {
   senderId: string;
@@ -79,19 +68,9 @@ const MessageInterface: React.FC = () => {
     specialist: Specialist;
     appointmentId?: string;
   } | null>(null);
-  const pollingIntervalRef = useRef<NodeJS.Timeout | null>(null);
-  const messagesEndRef = useRef<HTMLDivElement>(null);
-  const fileInputRef = useRef<HTMLInputElement>(null);
-
-  const allSlots = Array.from({ length: 13 }, (_, i) => `${i + 8}:00`);
-
-  const scrollToBottom = () => {
-    messagesEndRef.current?.scrollIntoView({ behavior: "smooth" });
-  };
-
-  useEffect(() => {
-    scrollToBottom();
-  }, [messages]);
+  const [proposalActionMessage, setProposalActionMessage] = useState<
+    string | null
+  >(null);
 
   useEffect(() => {
     const checkSpecialistStatus = async () => {
@@ -130,7 +109,6 @@ const MessageInterface: React.FC = () => {
       }
 
       const msgData = await msgRes.json();
-      console.log("Messages:", msgData);
       setMessages(msgData);
     } catch {
       toast.error("Failed to load messages");
@@ -176,12 +154,10 @@ const MessageInterface: React.FC = () => {
 
     fetchConversationAndMessages();
 
-    pollingIntervalRef.current = setInterval(fetchMessages, 5000);
+    const pollingInterval = setInterval(fetchMessages, 5000);
 
     return () => {
-      if (pollingIntervalRef.current) {
-        clearInterval(pollingIntervalRef.current);
-      }
+      clearInterval(pollingInterval);
     };
   }, [status, conversationId, router, fetchMessages]);
 
@@ -205,7 +181,7 @@ const MessageInterface: React.FC = () => {
   }, [imagePreview]);
 
   const handleSend = async () => {
-    if (!input.trim() && !fileInputRef.current?.files?.[0]) {
+    if (!input.trim() && !imagePreview) {
       toast.error("Please enter a message or select an image");
       return;
     }
@@ -217,37 +193,40 @@ const MessageInterface: React.FC = () => {
     setSending(true);
     const recipientId =
       conversation.user1?.id === session.user.id
-        ? conversation.user2?.id || conversation.user2?.id
-        : conversation.user1?.id || conversation.user1?.id || "";
+        ? conversation.user2?.id || ""
+        : conversation.user1?.id || "";
 
     try {
       let imageUrl: string | undefined;
-      if (fileInputRef.current?.files?.[0]) {
-        const file = fileInputRef.current.files[0];
-        if (!file.type.startsWith("image/")) {
-          throw new Error("Only image files are allowed");
+      if (imagePreview) {
+        const file =
+          document.querySelector<HTMLInputElement>("#file-input")?.files?.[0];
+        if (file) {
+          if (!file.type.startsWith("image/")) {
+            throw new Error("Only image files are allowed");
+          }
+          const maxSize = 5 * 1024 * 1024; // 5MB
+          if (file.size > maxSize) {
+            throw new Error("File size exceeds 5MB limit");
+          }
+
+          const formData = new FormData();
+          formData.append("file", file);
+
+          const uploadRes = await fetch("/api/messages/blob-upload", {
+            method: "POST",
+            body: formData,
+            credentials: "include",
+          });
+
+          if (!uploadRes.ok) {
+            const errorData = await uploadRes.json();
+            throw new Error(errorData.error || "Failed to upload image");
+          }
+
+          const uploadData = await uploadRes.json();
+          imageUrl = uploadData.url;
         }
-        const maxSize = 5 * 1024 * 1024; // 5MB
-        if (file.size > maxSize) {
-          throw new Error("File size exceeds 5MB limit");
-        }
-
-        const formData = new FormData();
-        formData.append("file", file);
-
-        const uploadRes = await fetch("/api/messages/blob-upload", {
-          method: "POST",
-          body: formData,
-          credentials: "include",
-        });
-
-        if (!uploadRes.ok) {
-          const errorData = await uploadRes.json();
-          throw new Error(errorData.error || "Failed to upload image");
-        }
-
-        const uploadData = await uploadRes.json();
-        imageUrl = uploadData.url;
       }
 
       const res = await fetch("/api/messages", {
@@ -270,7 +249,6 @@ const MessageInterface: React.FC = () => {
       const newMessage = await res.json();
       setMessages((prevMessages) => [...prevMessages, newMessage]);
       setInput("");
-      if (fileInputRef.current) fileInputRef.current.value = "";
       setImagePreview(null);
       await fetchMessages();
     } catch (error: unknown) {
@@ -295,8 +273,8 @@ const MessageInterface: React.FC = () => {
     setSending(true);
     const recipientId =
       conversation.user1?.id === session.user.id
-        ? conversation.user2?.id || conversation.user2?.id
-        : conversation.user1?.id || conversation.user1?.id;
+        ? conversation.user2?.id || ""
+        : conversation.user1?.id || "";
 
     try {
       const res = await fetch("/api/proposals", {
@@ -332,7 +310,7 @@ const MessageInterface: React.FC = () => {
 
   const handleProposalAction = async (
     proposalId: string,
-    action: "accept" | "reject"
+    action: "accepted" | "rejected"
   ) => {
     if (!session?.user?.id) {
       toast.error("Please log in to respond to the proposal");
@@ -354,7 +332,10 @@ const MessageInterface: React.FC = () => {
       }
 
       const data = await res.json();
-      if (action === "accept") {
+      setProposalActionMessage(`Proposal ${action}`); // Set centered message
+      setTimeout(() => setProposalActionMessage(null), 3000); // Clear after 3s
+
+      if (action === "accepted") {
         const proposal = data.proposal;
         const appointmentId = data.appointmentId;
         const specialistRes = await fetch(
@@ -382,10 +363,11 @@ const MessageInterface: React.FC = () => {
           appointmentId,
         });
         setConfirmDialogOpen(true);
+        toast.success("Proposal accepted");
       } else {
         toast.success("Proposal rejected");
-        await fetchMessages();
       }
+      await fetchMessages();
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error ? error.message : `Failed to ${action} proposal`;
@@ -405,10 +387,6 @@ const MessageInterface: React.FC = () => {
     );
     setConfirmDialogOpen(false);
     setSelectedProposal(null);
-  };
-
-  const toggleSlot = (time: string) => {
-    setSelectedSlots((prev) => (prev.includes(time) ? [] : [time]));
   };
 
   if (status === "loading" || loading) {
@@ -466,314 +444,47 @@ const MessageInterface: React.FC = () => {
       ? conversation.user2
       : conversation.user1;
 
-  const otherUserName = otherUser
-    ? `${otherUser.firstName || ""} ${otherUser.lastName || ""}`.trim() ||
-      "Unknown User"
-    : "Unknown User";
-  const profileImage = otherUser?.profileImage;
-  const initials = otherUserName
-    .split(" ")
-    .map((n) => n.charAt(0))
-    .join("")
-    .slice(0, 2)
-    .toUpperCase();
-
   return (
     <div className="px-4 max-w-7xl mx-auto">
       <Card className="w-full h-[calc(100vh-2rem)] flex flex-col">
-        <CardHeader className="p-4 border-b flex flex-row justify-between items-center">
-          <div className="flex items-center space-x-2">
-            <Avatar className="w-10 h-10">
-              <AvatarImage src={profileImage} alt={otherUserName} />
-              <AvatarFallback className="bg-purple-500 text-white">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            <div className="space-y-2">
-              <p className="font-semibold h-4">{otherUserName}</p>
-              <p className="text-xs text-gray-500 h-3">Online</p>
-            </div>
-          </div>
-        </CardHeader>
-        <CardContent className="p-4 flex-1 overflow-y-auto space-y-2">
-          {messages.map((msg) => (
-            <div
-              key={msg.id}
-              className={`flex ${msg.senderId === session.user.id ? "justify-end" : "justify-start"}`}
-            >
-              <div
-                className={`p-2 rounded-lg max-w-xs h-auto min-h-[3rem] flex flex-col gap-4 ${
-                  msg.senderId === session.user.id
-                    ? "bg-primary/10 text-foreground"
-                    : "bg-[#FCF0ED] text-black"
-                }`}
-              >
-                {msg.isAudio ? (
-                  <div className="flex items-center">
-                    <span>🎵 Audio</span>
-                  </div>
-                ) : msg.imageUrl ? (
-                  <div className="relative w-full max-w-xs h-48">
-                    <Image
-                      src={msg.imageUrl}
-                      alt={`Image sent by ${msg.sender.name || "user"} at ${format(new Date(msg.createdAt), "HH:mm")}`}
-                      width={200}
-                      height={200}
-                      className="rounded-lg object-cover"
-                      priority={false}
-                      onError={() => toast.error("Failed to load image")}
-                    />
-                  </div>
-                ) : (
-                  <>
-                    <span className="break-words">{msg.text}</span>
-                    {msg.proposalId && (
-                      <div className="mt-2">
-                        {msg.senderId !== session.user.id ? (
-                          msg.proposalStatus &&
-                          msg.proposalStatus !== "pending" ? (
-                            <span
-                              className={`text-sm ${
-                                msg.proposalStatus === "accept"
-                                  ? "text-green-500"
-                                  : "text-red-500"
-                              }`}
-                            >
-                              {msg.proposalStatus === "accept"
-                                ? "Accepted"
-                                : "Rejected"}
-                            </span>
-                          ) : (
-                            <div className="flex space-x-2">
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleProposalAction(
-                                    msg.proposalId!,
-                                    "accept"
-                                  )
-                                }
-                                disabled={sending}
-                                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-                              >
-                                Accept
-                              </Button>
-                              <Button
-                                variant="outline"
-                                size="sm"
-                                onClick={() =>
-                                  handleProposalAction(
-                                    msg.proposalId!,
-                                    "reject"
-                                  )
-                                }
-                                disabled={sending}
-                                className="text-red-500 border-red-500 hover:bg-red-500/20"
-                              >
-                                Reject
-                              </Button>
-                            </div>
-                          )
-                        ) : (
-                          <span
-                            className={`text-sm ${
-                              msg.proposalStatus === "accept"
-                                ? "text-green-500"
-                                : msg.proposalStatus === "reject"
-                                  ? "text-red-500"
-                                  : "text-gray-500"
-                            }`}
-                          >
-                            {msg.proposalStatus === "accept"
-                              ? "Accepted"
-                              : msg.proposalStatus === "reject"
-                                ? "Rejected"
-                                : "Pending"}
-                          </span>
-                        )}
-                      </div>
-                    )}
-                  </>
-                )}
-                <div className="text-xs text-gray-500 mt-1">
-                  {format(new Date(msg.createdAt), "HH:mm")}
-                </div>
-              </div>
-            </div>
-          ))}
-          <div ref={messagesEndRef} />
-        </CardContent>
-        <div className="p-4 border-t flex flex-col space-y-2">
-          {imagePreview && (
-            <div className="relative w-32 h-32">
-              <Image
-                src={imagePreview}
-                alt="Image preview"
-                width={128}
-                height={128}
-                className="rounded-lg object-cover"
-              />
-              <button
-                onClick={() => {
-                  setImagePreview(null);
-                  if (fileInputRef.current) fileInputRef.current.value = "";
-                }}
-                className="absolute top-0 right-0 bg-red-500 text-white rounded-full w-6 h-6 flex items-center justify-center"
-              >
-                X
-              </button>
-            </div>
-          )}
-          <div className="flex items-center space-x-2">
-            {isSpecialist && (
-              <Button
-                variant="outline"
-                size="icon"
-                onClick={() => setIsProposalDialogOpen(true)}
-                className="h-10 w-10 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-              >
-                <Plus className="h-4 w-4" />
-              </Button>
-            )}
-            <Input
-              type="text"
-              value={input}
-              onChange={(e) => setInput(e.target.value)}
-              placeholder="Write a message..."
-              className="flex-1 h-10"
-              disabled={sending || !!imagePreview}
-            />
-            <label htmlFor="file-input" className="cursor-pointer">
-              <ImageIcon className="h-10 w-10 text-gray-500" />
-              <Input
-                id="file-input"
-                type="file"
-                accept="image/*"
-                ref={fileInputRef}
-                className="hidden"
-                disabled={sending}
-                onChange={handleFileChange}
-              />
-            </label>
-            <Button
-              onClick={handleSend}
-              className="bg-[#D8A7B1] hover:bg-[#C68E9C] text-white h-10 w-20"
-              disabled={sending}
-            >
-              {sending ? (
-                <span className="animate-pulse">Sending...</span>
-              ) : (
-                "Send"
-              )}
-            </Button>
-          </div>
-        </div>
+        <ChatHeader otherUser={otherUser} sessionUserId={session.user.id} />
+        <MessageList
+          messages={messages}
+          sessionUserId={session.user.id}
+          handleProposalAction={handleProposalAction}
+          sending={sending}
+          proposalActionMessage={proposalActionMessage}
+        />
+        <MessageInput
+          input={input}
+          setInput={setInput}
+          imagePreview={imagePreview}
+          setImagePreview={setImagePreview}
+          handleSend={handleSend}
+          handleFileChange={handleFileChange}
+          sending={sending}
+          isSpecialist={isSpecialist}
+          setIsProposalDialogOpen={setIsProposalDialogOpen}
+        />
       </Card>
-
-      <div className="flex flex-col">
-        <Dialog
-          open={isProposalDialogOpen}
-          onOpenChange={setIsProposalDialogOpen}
-        >
-          <DialogContent>
-            <DialogHeader>
-              <DialogTitle>Send Session Proposal</DialogTitle>
-            </DialogHeader>
-            <div className="space-y-4 flex flex-row">
-              <div>
-                <Label>Date</Label>
-                <Calendar
-                  mode="single"
-                  selected={proposalDate}
-                  onSelect={setProposalDate}
-                  className="rounded-md border-[#F3CFC6]"
-                />
-              </div>
-              <div>
-                <Label>Available Times</Label>
-                <div className="grid grid-cols-3 gap-1">
-                  {allSlots.map((time) => (
-                    <div
-                      key={time}
-                      className="flex items-center space-x-2 mt-10"
-                    >
-                      <Checkbox
-                        id={time}
-                        checked={selectedSlots.includes(time)}
-                        onCheckedChange={() => toggleSlot(time)}
-                      />
-                      <Label htmlFor={time}>{time}</Label>
-                    </div>
-                  ))}
-                </div>
-              </div>
-            </div>
-            <DialogFooter>
-              <Button
-                variant="outline"
-                onClick={() => setIsProposalDialogOpen(false)}
-                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-              >
-                Cancel
-              </Button>
-              <Button
-                onClick={handleSendProposal}
-                disabled={sending || !proposalDate || !selectedSlots.length}
-                className="bg-[#D8A7B1] hover:bg-[#C68E9C] text-white"
-              >
-                {sending ? "Sending..." : "Send Proposal"}
-              </Button>
-            </DialogFooter>
-          </DialogContent>
-        </Dialog>
-      </div>
-
-      <Dialog open={confirmDialogOpen} onOpenChange={setConfirmDialogOpen}>
-        <DialogContent className="bg-white dark:bg-gray-800">
-          <DialogTitle className="text-black dark:text-white">
-            Confirm Booking
-          </DialogTitle>
-          <div className="py-2 space-y-2">
-            <p className="text-black dark:text-white">
-              <strong>Name:</strong> {session?.user?.name || "N/A"}
-            </p>
-            <p className="text-black dark:text-white">
-              <strong>Specialist:</strong>{" "}
-              {selectedProposal?.specialist.name || "N/A"}
-            </p>
-            <p className="text-black dark:text-white">
-              <strong>Date:</strong>{" "}
-              {selectedProposal?.date
-                ? format(new Date(selectedProposal.date), "MMMM d, yyyy")
-                : "N/A"}
-            </p>
-            <p className="text-black dark:text-white">
-              <strong>Time:</strong> {selectedProposal?.time || "N/A"}
-            </p>
-            <p className="text-black dark:text-white">
-              <strong>Amount:</strong> $
-              {selectedProposal?.specialist.rate?.toFixed(2) || "50.00"}
-            </p>
-          </div>
-          <DialogFooter>
-            <Button
-              variant="outline"
-              onClick={() => setConfirmDialogOpen(false)}
-              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-            >
-              Cancel
-            </Button>
-            <Button
-              onClick={handlePayNow}
-              className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
-              disabled={sending}
-            >
-              Pay Now
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
+      <ProposalDialog
+        isOpen={isProposalDialogOpen}
+        setIsOpen={setIsProposalDialogOpen}
+        proposalDate={proposalDate}
+        setProposalDate={setProposalDate}
+        selectedSlots={selectedSlots}
+        setSelectedSlots={setSelectedSlots}
+        handleSendProposal={handleSendProposal}
+        sending={sending}
+      />
+      <ConfirmDialog
+        isOpen={confirmDialogOpen}
+        setIsOpen={setConfirmDialogOpen}
+        selectedProposal={selectedProposal}
+        handlePayNow={handlePayNow}
+        sending={sending}
+        sessionUserName={session.user.name}
+      />
     </div>
   );
 };
