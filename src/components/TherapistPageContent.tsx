@@ -3,7 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Star, MapPin, Globe } from "lucide-react";
+import { Search, Star, MapPin, Globe, CalendarIcon } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -151,6 +151,12 @@ export default function TherapistsPageContent() {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [tempRadius, setTempRadius] = useState(10);
   const [tempUnit, setTempUnit] = useState<"km" | "miles">("km");
+  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [selectedTime, setSelectedTime] = useState<string>("");
+  const [availabilities, setAvailabilities] = useState<
+    Record<string, string[]>
+  >({});
+  const [isDateTimeDialogOpen, setIsDateTimeDialogOpen] = useState(false);
 
   useEffect(() => {
     const fetchSpecialists = async () => {
@@ -212,6 +218,40 @@ export default function TherapistsPageContent() {
     };
     fetchSpecialists();
   }, []);
+
+  useEffect(() => {
+    const fetchAvailabilities = async () => {
+      if (!selectedDate) {
+        setAvailabilities({});
+        return;
+      }
+      try {
+        const res = await fetch(
+          `/api/specialists/availability?date=${selectedDate}`,
+          {
+            credentials: "include",
+          }
+        );
+        if (res.ok) {
+          const { availabilities } = await res.json();
+          const availabilityMap = availabilities.reduce(
+            (
+              acc: Record<string, string[]>,
+              { specialistId, slots }: { specialistId: string; slots: string[] }
+            ) => ({
+              ...acc,
+              [specialistId]: slots,
+            }),
+            {}
+          );
+          setAvailabilities(availabilityMap);
+        }
+      } catch (e) {
+        console.error("Error fetching availabilities:", e);
+      }
+    };
+    fetchAvailabilities();
+  }, [selectedDate]);
 
   const handleFilterChange = (key: string, value: string | number) => {
     setFilters((prev) => ({
@@ -378,6 +418,14 @@ export default function TherapistsPageContent() {
               <Globe className="h-6 w-6 text-[#F3CFC6]" />
               <span>Current Location</span>
             </Button>
+            <Button
+              variant="outline"
+              className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+              onClick={() => setIsDateTimeDialogOpen(true)}
+            >
+              <CalendarIcon className="h-6 w-6 text-[#F3CFC6]" />
+              <span>Choose Date & Time</span>
+            </Button>
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
                 <Button
@@ -444,7 +492,6 @@ export default function TherapistsPageContent() {
           </div>
         </CardContent>
       </Card>
-
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-black dark:text-white">
@@ -497,7 +544,6 @@ export default function TherapistsPageContent() {
           )}
         </CardContent>
       </Card>
-
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -541,6 +587,61 @@ export default function TherapistsPageContent() {
               </SelectContent>
             </Select>
             <Button onClick={applyRadiusFilter}>Apply Filter</Button>
+          </div>
+        </DialogContent>
+      </Dialog>
+
+      <Dialog
+        open={isDateTimeDialogOpen}
+        onOpenChange={setIsDateTimeDialogOpen}
+      >
+        <DialogContent className="max-w-lg bg-white dark:bg-gray-800">
+          <DialogHeader>
+            <DialogTitle className="text-black dark:text-white">
+              Select Date & Time
+            </DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div className="flex items-center space-x-2">
+              <CalendarIcon className="h-6 w-6 text-[#F3CFC6]" />
+              <Input
+                type="date"
+                value={selectedDate}
+                onChange={(e) => setSelectedDate(e.target.value)}
+                className="p-2 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
+              />
+            </div>
+            <Select onValueChange={setSelectedTime} value={selectedTime}>
+              <SelectTrigger className="p-2 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]">
+                <SelectValue placeholder="Select Time" />
+              </SelectTrigger>
+              <SelectContent className="bg-white dark:bg-gray-800">
+                {selectedDate && availabilities[selectedDate]?.length ? (
+                  availabilities[selectedDate].map((time) => (
+                    <SelectItem
+                      key={time}
+                      value={time}
+                      className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    >
+                      {time}
+                    </SelectItem>
+                  ))
+                ) : (
+                  <div className="px-4 py-2 text-gray-500">
+                    {selectedDate
+                      ? "No specialists have set availability for this date."
+                      : "Please select a date to view available times."}
+                  </div>
+                )}
+              </SelectContent>
+            </Select>
+            <Button
+              onClick={() => setIsDateTimeDialogOpen(false)}
+              className="bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80 dark:bg-[#C4C4C4] dark:text-white dark:hover:bg-[#C4C4C4]/80"
+              disabled={!selectedDate || !selectedTime}
+            >
+              Apply
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
