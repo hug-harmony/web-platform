@@ -358,7 +358,7 @@ export default function HomePage() {
             description: "Connect with certified specialists.",
           },
           {
-            href: "/dashboard/explore",
+            href: "/dashboard/users",
             label: "Explore Users",
             icon: <UserRoundSearch className="h-8 w-8 text-[#F3CFC6]" />,
             description: "Discover community members.",

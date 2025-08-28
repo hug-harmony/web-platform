@@ -330,7 +330,8 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                     className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full"
                   >
                     <Link href={`/dashboard/appointments/book/${profile._id}`}>
-                      <Book className="mr-2 h-4 w-4" /> book a in-person session
+                      <Book className="mr-2 h-4 w-4" /> book an in-person
+                      meeting
                     </Link>
                   </Button>
                   <Button
