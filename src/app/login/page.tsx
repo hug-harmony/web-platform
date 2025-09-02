@@ -29,6 +29,8 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
 
+import login from "../../../public/login.webp";
+
 const formSchema = z.object({
   email: z.string().email("Invalid email address"),
   password: z.string().min(6, "Password must be at least 6 characters"),
@@ -136,7 +138,7 @@ export default function LoginPage() {
                     <FormLabel className="text-sm font-medium">Email</FormLabel>
                     <FormControl>
                       <Input
-                        className="h-10 text-sm border-gray-300"
+                        className=" text-sm border-gray-300"
                         placeholder="Email"
                         type="email"
                         {...field}
@@ -156,7 +158,7 @@ export default function LoginPage() {
                     </FormLabel>
                     <FormControl>
                       <Input
-                        className="h-10 text-sm border-gray-300"
+                        className=" text-sm border-gray-300"
                         placeholder="Password"
                         type="password"
                         {...field}
@@ -166,16 +168,10 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-              <div className="flex items-center space-x-2">
-                <input
-                  type="checkbox"
-                  className="h-4 w-4 text-blue-600 focus:ring-blue-500 border-gray-300 rounded"
-                />
-                <label className="text-xs text-gray-600">Remember me</label>
-              </div>
+
               <Button
                 type="submit"
-                className="w-full bg-[#E7C4BB] text-black h-10 text-sm hover:bg-[#d4a8a0] transition-colors"
+                className="w-full bg-[#E7C4BB] text-black  text-sm hover:bg-[#d4a8a0] transition-colors"
                 disabled={isLoading}
               >
                 {isLoading ? "Logging in..." : "Login"}
@@ -186,7 +182,7 @@ export default function LoginPage() {
             <div className="text-right text-xs mt-2">
               <DialogTrigger asChild>
                 <Link href="#" className="text-red-600 hover:underline">
-                  Forgot Password
+                  Forgot Password?
                 </Link>
               </DialogTrigger>
             </div>
@@ -208,7 +204,7 @@ export default function LoginPage() {
                 />
                 <Button
                   type="submit"
-                  className="w-full h-10 text-sm"
+                  className="w-full  text-sm"
                   disabled={isLoading}
                 >
                   {isLoading ? "Sending..." : "Send Reset Email"}
@@ -228,7 +224,7 @@ export default function LoginPage() {
           <div className="flex justify-center space-x-3 mt-3">
             <Button
               type="button"
-              className="bg-white text-red-600 border border-gray-300 rounded-full h-10 w-full text-xs hover:bg-gray-50 flex items-center justify-center space-x-2"
+              className="bg-white text-black border border-gray-300  w-full text-xs hover:bg-gray-50 flex items-center justify-center space-x-2"
               onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
               disabled={isLoading}
             >
@@ -261,10 +257,9 @@ export default function LoginPage() {
         </div>
         <div className="hidden md:flex w-1/2 relative">
           <Image
-            src="/login.webp"
-            alt="bg-image"
+            src={login}
+            alt="Login background"
             fill
-            sizes="(max-width: 768px) 100vw, 50vw"
             style={{ objectFit: "cover" }}
           />
         </div>

@@ -2,9 +2,9 @@
 
 import Image from "next/image";
 import { Button } from "@/components/ui/button";
+import { useRouter } from "next/navigation";
 
 import icon from "../../public/hh-icon.png";
-import { useRouter } from "next/navigation";
 
 const LandingPage = () => {
   const router = useRouter();
