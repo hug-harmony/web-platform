@@ -1,43 +1,41 @@
 "use client";
 
-import React from "react";
-import { Button } from "@/components/ui/button";
-import { useRouter } from "next/navigation";
 import Image from "next/image";
+import { Button } from "@/components/ui/button";
 
-const Home = () => {
+import icon from "../../public/hh-icon.png";
+import { useRouter } from "next/navigation";
+
+const LandingPage = () => {
   const router = useRouter();
 
+  const handleStart = () => {
+    router.push("/register");
+  };
+
   return (
-    <div className="flex flex-col items-center justify-center min-h-screen bg-gray-100 px-4">
-      {/* Logo */}
-      <Image
-        src="/hug.png"
-        alt="Hug Harmony Logo"
-        width={128}
-        height={128}
-        className="mt-4 rounded-full object-cover"
-        priority
-      />
-
-      {/* Title */}
-      <h1 className="mt-6 text-2xl font-bold text-center">Hug Harmony</h1>
-
-      {/* Subtitle */}
-      <p className="mt-2 text-sm text-center text-gray-600 max-w-sm">
-        Short details for the users and their information. You can add more text
-        here to explain your app or its features.
+    <div className="h-screen max-w-3xl mx-auto flex flex-col items-center justify-center gap-4 text-center">
+      <div className="bg-white flex items-center justify-center p-8 rounded-full shadow-md">
+        <Image
+          src={icon}
+          width={300}
+          height={300}
+          alt="hug harmony icon"
+          className="h-30 w-30 object-contain"
+        />
+      </div>
+      <h1 className="text-4xl font-bold">Hug Harmony</h1>
+      <p>
+        Lorem, ipsum dolor sit amet consectetur adipisicing elit. Assumenda in
+        aperiam quaerat. Repellat quis omnis natus laboriosam, deserunt maiores
+        alias accusantium eligendi minus quaerat repellendus est, quod sed odio
+        eum.
       </p>
-
-      {/* Button */}
-      <Button
-        onClick={() => router.push("/register")}
-        className="mt-12 bg-[#E7C4BB] text-white px-6 py-3 rounded shadow-md hover:bg-[#d9b3a9] transition"
-      >
+      <Button onClick={handleStart} className="w-2/5 cursor-pointer">
         Start
       </Button>
     </div>
   );
 };
 
-export default Home;
+export default LandingPage;
