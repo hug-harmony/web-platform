@@ -129,7 +129,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
     const recordVisit = async () => {
       try {
         const { id } = await params;
-        const res = await fetch("/api/profile-visit", {
+        const res = await fetch("/api/profile-visits", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ specialistId: id }),

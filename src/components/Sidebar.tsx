@@ -124,7 +124,7 @@ export default function Sidebar() {
       ...(isSpecialist
         ? [
             {
-              href: "/dashboard/visits",
+              href: "/dashboard/profile-visits",
               label: "Profile Visits",
               icon: <Eye className="h-5 w-5" />,
             },
