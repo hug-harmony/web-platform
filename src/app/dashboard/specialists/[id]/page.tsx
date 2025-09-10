@@ -18,7 +18,7 @@ import {
 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
-import { useSession } from "next-auth/react"; // Added for session management
+import { useSession } from "next-auth/react";
 import { Skeleton } from "@/components/ui/skeleton";
 import {
   DropdownMenu,
@@ -27,6 +27,16 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent } from "@/components/ui/card";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogTrigger,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { cn } from "@/lib/utils"; // Assuming you have this utility from shadcn for class merging
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -44,14 +54,22 @@ interface Profile {
   role?: string;
   tags?: string;
   biography?: string;
-  education?: string;
-  license?: string;
+
   image?: string;
   location?: string;
   rating?: number;
   reviewCount?: number;
   rate?: number;
   type: "specialist";
+}
+
+interface Review {
+  id: string;
+  rating: number;
+  feedback: string;
+  reviewerId: string;
+  reviewerName: string;
+  createdAt: string;
 }
 
 interface Props {
@@ -61,10 +79,16 @@ interface Props {
 
 const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
+  const [reviews, setReviews] = useState<Review[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
+  const [isViewAllOpen, setIsViewAllOpen] = useState(false);
+  const [selectedRating, setSelectedRating] = useState(0);
+  const [feedback, setFeedback] = useState("");
+  const [submitError, setSubmitError] = useState<string | null>(null);
   const router = useRouter();
-  const { status: sessionStatus } = useSession(); // Updated for session management
+  const { status: sessionStatus } = useSession();
 
   useEffect(() => {
     if (sessionStatus === "unauthenticated") {
@@ -72,7 +96,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
       return;
     }
 
-    const fetchProfile = async () => {
+    const fetchProfileAndReviews = async () => {
       try {
         const { id } = await params;
         if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
@@ -80,21 +104,20 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
           notFound();
         }
 
-        const res = await fetch(`/api/specialists?id=${id}`, {
+        // Fetch profile
+        const profileRes = await fetch(`/api/specialists?id=${id}`, {
           cache: "no-store",
           credentials: "include",
         });
-
-        if (res.ok) {
-          const data = await res.json();
+        if (profileRes.ok) {
+          const data = await profileRes.json();
           setProfile({
             _id: data.id,
             name: data.name,
             role: data.role || "Licensed Therapist",
             tags: data.tags || "",
             biography: data.biography || "",
-            education: data.education || "",
-            license: data.license || "",
+
             image: data.image || "",
             location: data.location || "",
             rating: data.rating || 0,
@@ -103,24 +126,31 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
             type: "specialist",
           });
         } else {
-          console.error(
-            "Specialist API response:",
-            res.status,
-            await res.text()
-          );
-          if (res.status === 401) router.push("/login");
-          if (res.status === 404) notFound();
-          throw new Error(`Failed to fetch specialist: ${res.status}`);
+          if (profileRes.status === 401) router.push("/login");
+          if (profileRes.status === 404) notFound();
+          throw new Error(`Failed to fetch specialist: ${profileRes.status}`);
+        }
+
+        // Fetch reviews
+        const reviewsRes = await fetch(`/api/reviews?specialistId=${id}`, {
+          cache: "no-store",
+          credentials: "include",
+        });
+        if (reviewsRes.ok) {
+          const reviewsData = await reviewsRes.json();
+          setReviews(reviewsData);
+        } else {
+          throw new Error(`Failed to fetch reviews: ${reviewsRes.status}`);
         }
       } catch (err: any) {
-        console.error("Fetch Profile Error:", err.message, err.stack);
-        setError("Failed to load profile. Please try again.");
+        console.error("Fetch Error:", err.message, err.stack);
+        setError("Failed to load profile or reviews. Please try again.");
       } finally {
         setLoading(false);
       }
     };
 
-    fetchProfile();
+    fetchProfileAndReviews();
   }, [params, router, sessionStatus]);
 
   useEffect(() => {
@@ -129,16 +159,11 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
     const recordVisit = async () => {
       try {
         const { id } = await params;
-        const res = await fetch("/api/profile-visits", {
+        await fetch("/api/profile-visits", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ specialistId: id }),
         });
-        console.log(
-          "Profile visit API response:",
-          res.status,
-          await res.text()
-        );
       } catch (error) {
         console.error("Error recording profile visit:", error);
       }
@@ -146,9 +171,58 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
 
     recordVisit();
   }, [params, sessionStatus]);
+
+  const handleSubmitReview = async () => {
+    setSubmitError(null);
+    try {
+      const { id } = await params;
+      const res = await fetch("/api/reviews", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          specialistId: id,
+          rating: selectedRating,
+          feedback,
+        }),
+      });
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || "Failed to submit review");
+      }
+      // Refetch profile and reviews to update average rating and list
+      const profileRes = await fetch(`/api/specialists?id=${id}`);
+      if (profileRes.ok) setProfile(await profileRes.json());
+      const reviewsRes = await fetch(`/api/reviews?specialistId=${id}`);
+      if (reviewsRes.ok) setReviews(await reviewsRes.json());
+      setIsReviewDialogOpen(false);
+      setSelectedRating(0);
+      setFeedback("");
+    } catch (err: any) {
+      setSubmitError(err.message);
+    }
+  };
+
+  const renderStars = (
+    rating: number,
+    interactive = false,
+    onSelect?: (val: number) => void
+  ) => {
+    return Array.from({ length: 5 }, (_, i) => (
+      <Star
+        key={i}
+        className={cn(
+          "h-6 w-6 cursor-pointer",
+          i < rating ? "fill-yellow-400 stroke-yellow-400" : "stroke-gray-300"
+        )}
+        onClick={interactive ? () => onSelect?.(i + 1) : undefined}
+      />
+    ));
+  };
+
   if (loading) {
     return (
       <div className="p-4 space-y-6 max-w-7xl mx-auto">
+        {/* Existing skeleton code... */}
         <Card className="shadow-lg pt-0 overflow-hidden">
           <div className="relative h-64 sm:h-80">
             <Skeleton className="absolute inset-0 bg-[#C4C4C4]/50" />
@@ -289,36 +363,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                 <p className="text-sm sm:text-base">{profile.biography}</p>
               </div>
             )}
-            {(profile.education || profile.license) && (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {profile.education && (
-                  <div className="bg-[#F3CFC6]/10 dark:bg-[#C4C4C4]/10 p-4 rounded-lg shadow-sm text-left">
-                    <div className="flex items-center gap-2">
-                      <BookOpen className="h-5 w-5 text-[#F3CFC6]" />
-                      <h4 className="font-semibold text-sm sm:text-base text-black dark:text-white">
-                        Education
-                      </h4>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[#C4C4C4] mt-1">
-                      {profile.education}
-                    </p>
-                  </div>
-                )}
-                {profile.license && (
-                  <div className="bg-[#F3CFC6]/10 dark:bg-[#C4C4C4]/10 p-4 rounded-lg shadow-sm text-left">
-                    <div className="flex items-center gap-2">
-                      <FileText className="h-5 w-5 text-[#F3CFC6]" />
-                      <h4 className="font-semibold text-sm sm:text-base text-black dark:text-white">
-                        License Number
-                      </h4>
-                    </div>
-                    <p className="text-xs sm:text-sm text-[#C4C4C4] mt-1">
-                      {profile.license}
-                    </p>
-                  </div>
-                )}
-              </div>
-            )}
+
             {profile.rate !== undefined && (
               <div className="space-y-4">
                 <p className="text-lg font-semibold text-black dark:text-white">
@@ -373,6 +418,108 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
               </div>
             )}
           </motion.div>
+        </CardContent>
+      </Card>
+
+      {/* Reviews Section */}
+      <Card className="shadow-lg">
+        <CardContent className="pt-6">
+          <div className="flex justify-between items-center mb-4">
+            <h3 className="text-xl font-bold text-black dark:text-white">
+              Reviews
+            </h3>
+            <Dialog
+              open={isReviewDialogOpen}
+              onOpenChange={setIsReviewDialogOpen}
+            >
+              <DialogTrigger asChild>
+                <Button className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-4 py-2 rounded-full">
+                  Write a Review
+                </Button>
+              </DialogTrigger>
+              <DialogContent>
+                <DialogHeader>
+                  <DialogTitle>Write Your Review</DialogTitle>
+                </DialogHeader>
+                <div className="space-y-4">
+                  <div className="flex justify-center">
+                    {renderStars(selectedRating, true, setSelectedRating)}
+                  </div>
+                  <Textarea
+                    placeholder="Share your feedback..."
+                    value={feedback}
+                    onChange={(e) => setFeedback(e.target.value)}
+                  />
+                  {submitError && <p className="text-red-500">{submitError}</p>}
+                </div>
+                <DialogFooter>
+                  <Button
+                    onClick={handleSubmitReview}
+                    disabled={selectedRating === 0 || !feedback}
+                  >
+                    Submit
+                  </Button>
+                </DialogFooter>
+              </DialogContent>
+            </Dialog>
+          </div>
+          {reviews.length === 0 ? (
+            <p className="text-center text-gray-500">No reviews yet.</p>
+          ) : (
+            <>
+              {reviews.slice(0, 3).map((review) => (
+                <div key={review.id} className="border-b py-4 last:border-b-0">
+                  <div className="flex justify-between">
+                    <div>
+                      <p className="font-semibold">{review.reviewerName}</p>
+                      <p className="text-sm text-gray-500">
+                        {new Date(review.createdAt).toLocaleDateString()}
+                      </p>
+                    </div>
+                    <div className="flex">{renderStars(review.rating)}</div>
+                  </div>
+                  <p className="mt-2">{review.feedback}</p>
+                </div>
+              ))}
+              {reviews.length > 3 && (
+                <div className="text-center mt-4">
+                  <Dialog open={isViewAllOpen} onOpenChange={setIsViewAllOpen}>
+                    <DialogTrigger asChild>
+                      <Button variant="link">View All Reviews</Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>All Reviews</DialogTitle>
+                      </DialogHeader>
+                      {reviews.map((review) => (
+                        <div
+                          key={review.id}
+                          className="border-b py-4 last:border-b-0"
+                        >
+                          <div className="flex justify-between">
+                            <div>
+                              <p className="font-semibold">
+                                {review.reviewerName}
+                              </p>
+                              <p className="text-sm text-gray-500">
+                                {new Date(
+                                  review.createdAt
+                                ).toLocaleDateString()}
+                              </p>
+                            </div>
+                            <div className="flex">
+                              {renderStars(review.rating)}
+                            </div>
+                          </div>
+                          <p className="mt-2">{review.feedback}</p>
+                        </div>
+                      ))}
+                    </DialogContent>
+                  </Dialog>
+                </div>
+              )}
+            </>
+          )}
         </CardContent>
       </Card>
     </motion.div>

@@ -46,7 +46,7 @@
     "nodemailer": "^6.10.1",
     "react": "19.1.0",
     "react-chartjs-2": "^5.3.0",
-    "react-day-picker": "^9.8.1",
+    "react-day-picker": "^9.9.0",
     "react-dom": "19.1.0",
     "react-hook-form": "^7.62.0",
     "react-leaflet": "^5.0.0",

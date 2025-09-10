@@ -35,6 +35,7 @@ model User {
   VideoSession     VideoSession[]
   ProfileVisit     ProfileVisit[] @relation("Visitor")
   Proposal         Proposal[]     @relation
+  reviews      Review[]   @relation("UserReviews")
 }
 
 model PasswordResetToken {
@@ -91,6 +92,7 @@ model Specialist {
   availability     Availability[] @relation
   profileVisits    ProfileVisit[] @relation("Visitee")
   Proposal         Proposal[]     @relation
+  reviews      Review[]   @relation("SpecialistReviews")
 }
 
 model Post {
@@ -199,4 +201,15 @@ model Proposal {
   user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   messages     Message[]  @relation // New relation
+}
+
+model Review {
+  id           String   @id @default(auto()) @map("_id") @db.ObjectId
+  specialistId String   @db.ObjectId
+  reviewerId   String   @db.ObjectId
+  rating       Int
+  feedback     String
+  createdAt    DateTime @default(now())
+  specialist   Specialist @relation("SpecialistReviews", fields: [specialistId], references: [id], onDelete: Cascade)
+  reviewer     User       @relation("UserReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
 }

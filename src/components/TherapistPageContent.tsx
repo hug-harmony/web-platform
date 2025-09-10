@@ -23,6 +23,8 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
 import {
   Select,
@@ -31,6 +33,8 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { Calendar } from "@/components/ui/calendar";
+import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { MapContainer, TileLayer, Circle } from "react-leaflet";
 import { LatLngExpression } from "leaflet";
@@ -70,11 +74,12 @@ async function geocode(
 ): Promise<{ lat: number; lng: number } | null> {
   try {
     const res = await fetch(
-      `/api/geocode?location=${encodeURIComponent(location)}`
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(location)}`
     );
     if (!res.ok) return null;
     const data = await res.json();
-    return data;
+    if (data.length === 0) return null;
+    return { lat: parseFloat(data[0].lat), lng: parseFloat(data[0].lon) };
   } catch (e) {
     console.error("Geocoding error:", e);
     return null;
@@ -135,6 +140,58 @@ const DynamicMap = dynamic(
   { ssr: false }
 );
 
+// Generate all 30-minute time slots in AM/PM format
+const allTimeSlots = [
+  "12:00 AM",
+  "12:30 AM",
+  "1:00 AM",
+  "1:30 AM",
+  "2:00 AM",
+  "2:30 AM",
+  "3:00 AM",
+  "3:30 AM",
+  "4:00 AM",
+  "4:30 AM",
+  "5:00 AM",
+  "5:30 AM",
+  "6:00 AM",
+  "6:30 AM",
+  "7:00 AM",
+  "7:30 AM",
+  "8:00 AM",
+  "8:30 AM",
+  "9:00 AM",
+  "9:30 AM",
+  "10:00 AM",
+  "10:30 AM",
+  "11:00 AM",
+  "11:30 AM",
+  "12:00 PM",
+  "12:30 PM",
+  "1:00 PM",
+  "1:30 PM",
+  "2:00 PM",
+  "2:30 PM",
+  "3:00 PM",
+  "3:30 PM",
+  "4:00 PM",
+  "4:30 PM",
+  "5:00 PM",
+  "5:30 PM",
+  "6:00 PM",
+  "6:30 PM",
+  "7:00 PM",
+  "7:30 PM",
+  "8:00 PM",
+  "8:30 PM",
+  "9:00 PM",
+  "9:30 PM",
+  "10:00 PM",
+  "10:30 PM",
+  "11:00 PM",
+  "11:30 PM",
+];
+
 export default function TherapistsPageContent() {
   const [specialists, setSpecialists] = useState<Therapist[]>([]);
   const [loading, setLoading] = useState(true);
@@ -146,12 +203,12 @@ export default function TherapistsPageContent() {
     currentLat: undefined as number | undefined,
     currentLng: undefined as number | undefined,
     radius: undefined as number | undefined,
-    unit: "km" as "km" | "miles",
+    unit: "miles" as "km" | "miles",
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [tempRadius, setTempRadius] = useState(10);
-  const [tempUnit, setTempUnit] = useState<"km" | "miles">("km");
-  const [selectedDate, setSelectedDate] = useState<string>("");
+  const [tempUnit, setTempUnit] = useState<"km" | "miles">("miles");
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string>("");
   const [availabilities, setAvailabilities] = useState<
     Record<string, string[]>
@@ -226,8 +283,9 @@ export default function TherapistsPageContent() {
         return;
       }
       try {
+        const dateStr = selectedDate.toISOString().split("T")[0];
         const res = await fetch(
-          `/api/specialists/availability?date=${selectedDate}`,
+          `/api/specialists/availability?date=${dateStr}`,
           {
             credentials: "include",
           }
@@ -294,6 +352,23 @@ export default function TherapistsPageContent() {
     setIsDialogOpen(false);
   };
 
+  const handleDateSelect = (date: Date | undefined) => {
+    setSelectedDate(date);
+    setSelectedTime(""); // Reset time when date changes
+  };
+
+  const handleTimeSelect = (time: string) => {
+    setSelectedTime(time);
+  };
+
+  const applyDateTimeFilter = () => {
+    setIsDateTimeDialogOpen(false);
+  };
+
+  const isTimeAvailable = (time: string) => {
+    return Object.values(availabilities).some((slots) => slots.includes(time));
+  };
+
   const locations = Array.from(
     new Set(specialists.map((t) => t.location).filter(Boolean))
   ) as string[];
@@ -335,6 +410,12 @@ export default function TherapistsPageContent() {
       .filter((item) =>
         filters.minRating ? (item.rating || 0) >= filters.minRating : true
       )
+      .filter((item) => {
+        if (selectedDate && selectedTime) {
+          return (availabilities[item._id] || []).includes(selectedTime);
+        }
+        return true;
+      })
       .sort((a, b) => {
         if (filters.sortBy === "rating") {
           return (b.rating || 0) - (a.rating || 0);
@@ -349,6 +430,7 @@ export default function TherapistsPageContent() {
 
   const ratings = [4.5, 4.0, 3.5, 3.0];
   const sortOptions = ["rating", "name"];
+  const radiusOptions = [1, 5, 10, 25, 50, 100];
 
   return (
     <motion.div
@@ -548,9 +630,12 @@ export default function TherapistsPageContent() {
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Select Search Radius</DialogTitle>
+            <DialogDescription>
+              Choose a radius to filter professionals near your location.
+            </DialogDescription>
           </DialogHeader>
           <div className="space-y-4">
-            <div className="h-64">
+            <div className="h-64 rounded-lg overflow-hidden">
               {filters.currentLat && filters.currentLng ? (
                 <DynamicMap
                   lat={filters.currentLat}
@@ -565,28 +650,41 @@ export default function TherapistsPageContent() {
                 </p>
               )}
             </div>
-            <Input
-              type="number"
-              placeholder="Radius"
-              value={tempRadius}
-              onChange={(e) => setTempRadius(parseFloat(e.target.value) || 10)}
-              min={1}
-            />
+            <Select
+              onValueChange={(value) => setTempRadius(parseInt(value))}
+              defaultValue="10"
+            >
+              <SelectTrigger className="border-[#F3CFC6] text-black dark:text-white">
+                <SelectValue placeholder="Select Radius" />
+              </SelectTrigger>
+              <SelectContent>
+                {radiusOptions.map((opt) => (
+                  <SelectItem key={opt} value={opt.toString()}>
+                    {opt}
+                  </SelectItem>
+                ))}
+              </SelectContent>
+            </Select>
             <Select
               onValueChange={(value: string) =>
                 setTempUnit(value as "km" | "miles")
               }
               defaultValue={tempUnit}
             >
-              <SelectTrigger>
+              <SelectTrigger className="border-[#F3CFC6] text-black dark:text-white">
                 <SelectValue placeholder="Unit" />
               </SelectTrigger>
               <SelectContent>
-                <SelectItem value="km">Kilometers (km)</SelectItem>
                 <SelectItem value="miles">Miles</SelectItem>
+                <SelectItem value="km">Kilometers (km)</SelectItem>
               </SelectContent>
             </Select>
-            <Button onClick={applyRadiusFilter}>Apply Filter</Button>
+            <Button
+              onClick={applyRadiusFilter}
+              className="bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80 dark:bg-[#C4C4C4] dark:text-white dark:hover:bg-[#C4C4C4]/80"
+            >
+              Apply Filter
+            </Button>
           </div>
         </DialogContent>
       </Dialog>
@@ -600,49 +698,78 @@ export default function TherapistsPageContent() {
             <DialogTitle className="text-black dark:text-white">
               Select Date & Time
             </DialogTitle>
+            <DialogDescription className="text-gray-500 dark:text-gray-400">
+              Choose a date and time to filter professionals by their
+              availability.
+            </DialogDescription>
           </DialogHeader>
-          <div className="space-y-4">
-            <div className="flex items-center space-x-2">
-              <CalendarIcon className="h-6 w-6 text-[#F3CFC6]" />
-              <Input
-                type="date"
-                value={selectedDate}
-                onChange={(e) => setSelectedDate(e.target.value)}
-                className="p-2 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
+          <div className="space-y-6">
+            <div className="border rounded-lg p-4 bg-white dark:bg-gray-900">
+              <h4 className="text-sm font-semibold text-black dark:text-white mb-2">
+                Select a Date
+              </h4>
+              <Calendar
+                mode="single"
+                selected={selectedDate}
+                onSelect={handleDateSelect}
+                className="w-full"
+                classNames={{
+                  day_selected: "bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80",
+                  day_today: "border border-[#F3CFC6]",
+                  day: "text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20",
+                }}
               />
             </div>
-            <Select onValueChange={setSelectedTime} value={selectedTime}>
-              <SelectTrigger className="p-2 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]">
-                <SelectValue placeholder="Select Time" />
-              </SelectTrigger>
-              <SelectContent className="bg-white dark:bg-gray-800">
-                {selectedDate && availabilities[selectedDate]?.length ? (
-                  availabilities[selectedDate].map((time) => (
-                    <SelectItem
-                      key={time}
-                      value={time}
-                      className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                    >
-                      {time}
-                    </SelectItem>
-                  ))
-                ) : (
-                  <div className="px-4 py-2 text-gray-500">
-                    {selectedDate
-                      ? "No specialists have set availability for this date."
-                      : "Please select a date to view available times."}
-                  </div>
-                )}
-              </SelectContent>
-            </Select>
+            <div className="space-y-2">
+              <h4 className="text-sm font-semibold text-black dark:text-white">
+                Select a Time
+              </h4>
+              <div className="grid grid-cols-4 gap-2 max-h-60 overflow-y-auto p-2 border rounded-lg bg-gray-50 dark:bg-gray-900">
+                {allTimeSlots.map((time) => (
+                  <Button
+                    key={time}
+                    variant={selectedTime === time ? "default" : "outline"}
+                    className={cn(
+                      selectedTime === time
+                        ? "bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80 dark:bg-[#C4C4C4] dark:text-white dark:hover:bg-[#C4C4C4]/80"
+                        : "text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20",
+                      !isTimeAvailable(time) && "opacity-50 cursor-not-allowed"
+                    )}
+                    onClick={() => handleTimeSelect(time)}
+                    disabled={!isTimeAvailable(time)}
+                  >
+                    {time}
+                  </Button>
+                ))}
+              </div>
+              {!selectedDate && (
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  Please select a date to view available times.
+                </p>
+              )}
+              {selectedDate && Object.keys(availabilities).length === 0 && (
+                <p className="text-gray-500 dark:text-gray-400 text-sm">
+                  No professionals are available on this date.
+                </p>
+              )}
+            </div>
+          </div>
+          <DialogFooter>
             <Button
+              variant="outline"
               onClick={() => setIsDateTimeDialogOpen(false)}
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+            >
+              Cancel
+            </Button>
+            <Button
+              onClick={applyDateTimeFilter}
               className="bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80 dark:bg-[#C4C4C4] dark:text-white dark:hover:bg-[#C4C4C4]/80"
               disabled={!selectedDate || !selectedTime}
             >
               Apply
             </Button>
-          </div>
+          </DialogFooter>
         </DialogContent>
       </Dialog>
     </motion.div>
