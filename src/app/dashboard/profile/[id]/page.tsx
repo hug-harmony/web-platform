@@ -761,48 +761,66 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             </motion.div>
           )}
           {isOwnProfile && isSpecialist && (
-            <motion.div
-              variants={itemVariants}
-              whileHover={{
-                scale: 1.05,
-                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-              }}
-              transition={{ duration: 0.2 }}
-            >
-              <Dialog
-                open={openAvailability}
-                onOpenChange={setOpenAvailability}
+            <div className="flex gap-2">
+              <Button
+                variant="outline"
+                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+                disabled={status === "loading" || specialistStatusLoading}
+                onClick={() =>
+                  router.push(
+                    `/dashboard/discounts?specialistId=${specialistId}`
+                  )
+                }
               >
-                <DialogTrigger asChild>
-                  <Button
-                    variant="outline"
-                    className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
-                    disabled={status === "loading"}
-                  >
-                    Set Availability
-                  </Button>
-                </DialogTrigger>
-                <DialogContent>
-                  <DialogHeader>
-                    <DialogTitle>Set Daily Availability</DialogTitle>
-                  </DialogHeader>
-                  <Calendar mode="single" selected={date} onSelect={setDate} />
-                  <div className="grid grid-cols-3 gap-2">
-                    {allSlots.map((time) => (
-                      <div key={time} className="flex items-center space-x-2">
-                        <Checkbox
-                          id={time}
-                          checked={selectedSlots.includes(time)}
-                          onCheckedChange={() => toggleSlot(time)}
-                        />
-                        <Label htmlFor={time}>{time}</Label>
-                      </div>
-                    ))}
-                  </div>
-                  <Button onClick={handleSubmitAvailability}>Save</Button>
-                </DialogContent>
-              </Dialog>
-            </motion.div>
+                Manage Discounts
+              </Button>
+              <motion.div
+                variants={itemVariants}
+                whileHover={{
+                  scale: 1.05,
+                  boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+                }}
+                transition={{ duration: 0.2 }}
+              >
+                <Dialog
+                  open={openAvailability}
+                  onOpenChange={setOpenAvailability}
+                >
+                  <DialogTrigger asChild>
+                    <Button
+                      variant="outline"
+                      className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+                      disabled={status === "loading"}
+                    >
+                      Set Availability
+                    </Button>
+                  </DialogTrigger>
+                  <DialogContent>
+                    <DialogHeader>
+                      <DialogTitle>Set Daily Availability</DialogTitle>
+                    </DialogHeader>
+                    <Calendar
+                      mode="single"
+                      selected={date}
+                      onSelect={setDate}
+                    />
+                    <div className="grid grid-cols-3 gap-2">
+                      {allSlots.map((time) => (
+                        <div key={time} className="flex items-center space-x-2">
+                          <Checkbox
+                            id={time}
+                            checked={selectedSlots.includes(time)}
+                            onCheckedChange={() => toggleSlot(time)}
+                          />
+                          <Label htmlFor={time}>{time}</Label>
+                        </div>
+                      ))}
+                    </div>
+                    <Button onClick={handleSubmitAvailability}>Save</Button>
+                  </DialogContent>
+                </Dialog>
+              </motion.div>
+            </div>
           )}
         </CardContent>
       </Card>

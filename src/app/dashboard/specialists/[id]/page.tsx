@@ -2,7 +2,7 @@
 "use client";
 
 import React, { useEffect, useState } from "react";
-import { motion } from "framer-motion";
+import { motion, AnimatePresence } from "framer-motion";
 import Image from "next/image";
 import Link from "next/link";
 import { Button } from "@/components/ui/button";
@@ -13,6 +13,7 @@ import {
   StarIcon,
   Book,
   Video,
+  DollarSign,
 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
@@ -24,7 +25,7 @@ import {
   DropdownMenuItem,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { Card, CardContent } from "@/components/ui/card";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import {
   Dialog,
   DialogContent,
@@ -42,6 +43,11 @@ const containerVariants = {
 };
 
 const itemVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+};
+
+const cardVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
@@ -77,6 +83,19 @@ interface Review {
   createdAt: string;
 }
 
+interface Discount {
+  id: string;
+  name: string;
+  rate: number;
+  discount: number;
+  createdAt: string;
+  updatedAt: string;
+  specialist: {
+    id: string;
+    name: string;
+  };
+}
+
 interface Props {
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -85,6 +104,7 @@ interface Props {
 const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
+  const [discounts, setDiscounts] = useState<Discount[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
@@ -154,9 +174,23 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         } else {
           throw new Error(`Failed to fetch reviews: ${reviewsRes.status}`);
         }
+
+        // Fetch discounts
+        const discountsRes = await fetch(`/api/discounts/specialist/${id}`, {
+          cache: "no-store",
+          credentials: "include",
+        });
+        if (discountsRes.ok) {
+          const discountsData = await discountsRes.json();
+          setDiscounts(discountsData);
+        } else {
+          throw new Error(`Failed to fetch discounts: ${discountsRes.status}`);
+        }
       } catch (err: any) {
         console.error("Fetch Error:", err.message, err.stack);
-        setError("Failed to load profile or reviews. Please try again.");
+        setError(
+          "Failed to load profile, reviews, or discounts. Please try again."
+        );
       } finally {
         setLoading(false);
       }
@@ -424,7 +458,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                     className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full"
                   >
                     <Link href={`/dashboard/appointments/book/${profile._id}`}>
-                      <Book className="mr-2 h-4 w-4" /> book an in-person
+                      <Book className="mr-2 h-4 w-4" /> Book an in-person
                       meeting
                     </Link>
                   </Button>
@@ -433,7 +467,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                     className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full"
                   >
                     <Link href={`/dashboard/video-session/${profile._id}`}>
-                      <Video className="mr-2 h-4 w-4" /> book a virtual session
+                      <Video className="mr-2 h-4 w-4" /> Book a virtual session
                     </Link>
                   </Button>
                   <Button className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full">
@@ -467,6 +501,55 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
               </div>
             )}
           </motion.div>
+        </CardContent>
+      </Card>
+
+      {/* Discounts Section */}
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-lg font-semibold text-black dark:text-white">
+            Available Discounts
+          </CardTitle>
+        </CardHeader>
+        <CardContent>
+          {discounts.length > 0 ? (
+            <motion.div
+              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"
+              variants={containerVariants}
+            >
+              <AnimatePresence>
+                {discounts.map((discount) => (
+                  <motion.div
+                    key={discount.id}
+                    variants={cardVariants}
+                    whileHover={{
+                      scale: 1.05,
+                      boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+                    }}
+                    transition={{ duration: 0.2 }}
+                  >
+                    <Card className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors">
+                      <CardContent className="pt-4">
+                        <div className="flex items-center space-x-2">
+                          <DollarSign className="h-6 w-6 text-[#F3CFC6]" />
+                          <div>
+                            <h3 className="font-semibold">{discount.name}</h3>
+                            <p className="text-sm text-[#C4C4C4]">
+                              {discount.discount}% off ${discount.rate}
+                            </p>
+                          </div>
+                        </div>
+                      </CardContent>
+                    </Card>
+                  </motion.div>
+                ))}
+              </AnimatePresence>
+            </motion.div>
+          ) : (
+            <p className="text-center text-[#C4C4C4]">
+              No discounts available.
+            </p>
+          )}
         </CardContent>
       </Card>
 

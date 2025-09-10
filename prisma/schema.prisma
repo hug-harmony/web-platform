@@ -101,6 +101,7 @@ model Specialist {
   profileVisits    ProfileVisit[] @relation("Visitee")
   Proposal         Proposal[]     @relation
   reviews      Review[]   @relation("SpecialistReviews")
+  discounts    Discount[] @relation
 }
 
 model Post {
@@ -220,4 +221,15 @@ model Review {
   createdAt    DateTime @default(now())
   specialist   Specialist @relation("SpecialistReviews", fields: [specialistId], references: [id], onDelete: Cascade)
   reviewer     User       @relation("UserReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+}
+
+model Discount {
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  specialistId String    @db.ObjectId
+  name         String
+  rate         Float
+  discount     Float
+  createdAt    DateTime  @default(now())
+  updatedAt    DateTime  @updatedAt
+  specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
 }

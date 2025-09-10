@@ -50,6 +50,17 @@ export async function GET(
         location: true,
         rate: true,
         createdAt: true,
+        discounts: {
+          select: {
+            id: true,
+            name: true,
+            rate: true,
+            discount: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { createdAt: "desc" },
+        },
       },
     });
 
@@ -71,6 +82,14 @@ export async function GET(
       location: specialist.location || "",
       rate: specialist.rate || null,
       createdAt: specialist.createdAt,
+      discounts: specialist.discounts.map((discount) => ({
+        id: discount.id,
+        name: discount.name,
+        rate: discount.rate,
+        discount: discount.discount,
+        createdAt: discount.createdAt,
+        updatedAt: discount.updatedAt,
+      })),
     });
   } catch (error: any) {
     console.error("Error fetching specialist:", error);
