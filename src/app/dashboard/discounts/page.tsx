@@ -1,5 +1,6 @@
 "use client";
 
+import { Suspense } from "react"; // Import Suspense
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Plus, Edit, Trash, DollarSign } from "lucide-react";
@@ -37,7 +38,8 @@ const cardVariants = {
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
-export default function DiscountsPage() {
+// Create a component to handle useSearchParams with Suspense
+function DiscountsContent() {
   const { status } = useSession();
   const searchParams = useSearchParams();
   const specialistId = searchParams.get("specialistId");
@@ -59,7 +61,6 @@ export default function DiscountsPage() {
     const fetchSpecialistData = async () => {
       if (!specialistId) {
         toast.error("You are not an approved specialist.");
-
         redirect("/dashboard");
       }
 
@@ -76,13 +77,11 @@ export default function DiscountsPage() {
           application.specialistId !== specialistId
         ) {
           toast.error("You are not an approved specialist.");
-
           redirect("/dashboard");
         }
       } catch (error) {
         console.error("Error fetching specialist data:", error);
         toast.error("Failed to fetch specialist data.");
-
         redirect("/dashboard");
       }
     };
@@ -352,5 +351,15 @@ export default function DiscountsPage() {
         </CardContent>
       </Card>
     </motion.div>
+  );
+}
+
+export default function DiscountsPage() {
+  return (
+    <Suspense
+      fallback={<p className="text-center text-[#C4C4C4]">Loading...</p>}
+    >
+      <DiscountsContent />
+    </Suspense>
   );
 }
