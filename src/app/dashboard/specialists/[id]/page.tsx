@@ -9,8 +9,6 @@ import { Button } from "@/components/ui/button";
 import {
   MapPin,
   Star,
-  BookOpen,
-  FileText,
   MoreVertical,
   StarIcon,
   Book,
@@ -36,7 +34,7 @@ import {
   DialogFooter,
 } from "@/components/ui/dialog";
 import { Textarea } from "@/components/ui/textarea";
-import { cn } from "@/lib/utils"; // Assuming you have this utility from shadcn for class merging
+import { cn } from "@/lib/utils";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -54,13 +52,20 @@ interface Profile {
   role?: string;
   tags?: string;
   biography?: string;
-
   image?: string;
   location?: string;
   rating?: number;
   reviewCount?: number;
   rate?: number;
   type: "specialist";
+  relationshipStatus?: string;
+  orientation?: string;
+  height?: string;
+  ethnicity?: string;
+  zodiacSign?: string;
+  favoriteColor?: string;
+  favoriteMedia?: string;
+  petOwnership?: string;
 }
 
 interface Review {
@@ -117,13 +122,20 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
             role: data.role || "Licensed Therapist",
             tags: data.tags || "",
             biography: data.biography || "",
-
             image: data.image || "",
             location: data.location || "",
             rating: data.rating || 0,
             reviewCount: data.reviewCount || 0,
             rate: data.rate || 0,
             type: "specialist",
+            relationshipStatus: data.relationshipStatus || "",
+            orientation: data.orientation || "",
+            height: data.height || "",
+            ethnicity: data.ethnicity || "",
+            zodiacSign: data.zodiacSign || "",
+            favoriteColor: data.favoriteColor || "",
+            favoriteMedia: data.favoriteMedia || "",
+            petOwnership: data.petOwnership || "",
           });
         } else {
           if (profileRes.status === 401) router.push("/login");
@@ -222,7 +234,6 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
   if (loading) {
     return (
       <div className="p-4 space-y-6 max-w-7xl mx-auto">
-        {/* Existing skeleton code... */}
         <Card className="shadow-lg pt-0 overflow-hidden">
           <div className="relative h-64 sm:h-80">
             <Skeleton className="absolute inset-0 bg-[#C4C4C4]/50" />
@@ -363,7 +374,45 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                 <p className="text-sm sm:text-base">{profile.biography}</p>
               </div>
             )}
-
+            <div className="max-w-2xl mx-auto text-black dark:text-white">
+              <h3 className="text-lg font-semibold mb-2">
+                Personal Information
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm sm:text-base">
+                <div>
+                  <p className="font-medium">Relationship Status</p>
+                  <p>{profile.relationshipStatus || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Orientation</p>
+                  <p>{profile.orientation || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Height</p>
+                  <p>{profile.height || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Ethnicity</p>
+                  <p>{profile.ethnicity || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Zodiac Sign</p>
+                  <p>{profile.zodiacSign || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Favorite Color</p>
+                  <p>{profile.favoriteColor || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Favorite Movie/TV Show</p>
+                  <p>{profile.favoriteMedia || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Pet Ownership</p>
+                  <p>{profile.petOwnership || "Not specified"}</p>
+                </div>
+              </div>
+            </div>
             {profile.rate !== undefined && (
               <div className="space-y-4">
                 <p className="text-lg font-semibold text-black dark:text-white">

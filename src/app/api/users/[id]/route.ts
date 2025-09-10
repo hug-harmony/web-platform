@@ -12,8 +12,43 @@ const updateUserSchema = z.object({
   lastName: z.string().min(1, "Last name is required").optional(),
   phoneNumber: z.string().min(1, "Phone number is required").optional(),
   profileImage: z.string().url().nullable().optional(),
-  location: z.string().min(1, "Location is required").optional(),
-  biography: z.string().max(500, "Biography must be 500 characters or less").optional(), // Added biography
+  location: z
+    .string()
+    .max(100, "Location must be 100 characters or less")
+    .optional(),
+  biography: z
+    .string()
+    .max(500, "Biography must be 500 characters or less")
+    .optional(),
+  relationshipStatus: z
+    .string()
+    .max(50, "Relationship status must be 50 characters or less")
+    .optional(),
+  orientation: z
+    .string()
+    .max(50, "Orientation must be 50 characters or less")
+    .optional(),
+  height: z.string().max(20, "Height must be 20 characters or less").optional(),
+  ethnicity: z
+    .string()
+    .max(50, "Ethnicity must be 50 characters or less")
+    .optional(),
+  zodiacSign: z
+    .string()
+    .max(20, "Zodiac sign must be 20 characters or less")
+    .optional(),
+  favoriteColor: z
+    .string()
+    .max(30, "Favorite color must be 30 characters or less")
+    .optional(),
+  favoriteMedia: z
+    .string()
+    .max(100, "Favorite movie/TV show must be 100 characters or less")
+    .optional(),
+  petOwnership: z
+    .string()
+    .max(50, "Pet ownership must be 50 characters or less")
+    .optional(),
   status: z.enum(["active", "suspended"]).optional(),
 });
 
@@ -37,7 +72,15 @@ export async function GET(req: Request) {
         phoneNumber: true,
         profileImage: true,
         location: true,
-        biography: true, // Added biography
+        biography: true,
+        relationshipStatus: true,
+        orientation: true,
+        height: true,
+        ethnicity: true,
+        zodiacSign: true,
+        favoriteColor: true,
+        favoriteMedia: true,
+        petOwnership: true,
         status: true,
         createdAt: true,
       },
@@ -60,7 +103,15 @@ export async function GET(req: Request) {
       phoneNumber: user.phoneNumber || "",
       profileImage: user.profileImage || "",
       location: user.location || "",
-      biography: user.biography || "", // Added biography
+      biography: user.biography || "",
+      relationshipStatus: user.relationshipStatus || "",
+      orientation: user.orientation || "",
+      height: user.height || "",
+      ethnicity: user.ethnicity || "",
+      zodiacSign: user.zodiacSign || "",
+      favoriteColor: user.favoriteColor || "",
+      favoriteMedia: user.favoriteMedia || "",
+      petOwnership: user.petOwnership || "",
       status: user.status,
       createdAt: user.createdAt,
     });
@@ -118,17 +169,26 @@ export async function PATCH(req: Request) {
       phoneNumber: validatedData.phoneNumber,
       profileImage: validatedData.profileImage,
       location: validatedData.location,
-      biography: validatedData.biography, // Added biography
+      biography: validatedData.biography,
+      relationshipStatus: validatedData.relationshipStatus,
+      orientation: validatedData.orientation,
+      height: validatedData.height,
+      ethnicity: validatedData.ethnicity,
+      zodiacSign: validatedData.zodiacSign,
+      favoriteColor: validatedData.favoriteColor,
+      favoriteMedia: validatedData.favoriteMedia,
+      petOwnership: validatedData.petOwnership,
       status: validatedData.status,
     };
 
-    // Prepare data for Specialist update (only if name, profileImage, or biography is provided)
+    // Prepare data for Specialist update (only if name, profileImage, biography, or location is provided)
     const specialistUpdateData = {
       ...(validatedData.name && { name: validatedData.name }),
       ...(validatedData.profileImage !== undefined && {
         image: validatedData.profileImage ?? undefined, // Convert null to undefined
       }),
-      ...(validatedData.biography && { biography: validatedData.biography }), // Added biography
+      ...(validatedData.biography && { biography: validatedData.biography }),
+      ...(validatedData.location && { location: validatedData.location }),
     };
 
     // Update User and Specialist (if applicable) in a transaction
@@ -146,13 +206,24 @@ export async function PATCH(req: Request) {
           phoneNumber: true,
           profileImage: true,
           location: true,
-          biography: true, // Added biography
+          biography: true,
+          relationshipStatus: true,
+          orientation: true,
+          height: true,
+          ethnicity: true,
+          zodiacSign: true,
+          favoriteColor: true,
+          favoriteMedia: true,
+          petOwnership: true,
           status: true,
         },
       }),
-      // Update Specialist if it exists and name, profileImage, or biography is updated
+      // Update Specialist if it exists and relevant fields are updated
       ...(user.specialistApplication?.specialist &&
-      (validatedData.name || validatedData.profileImage !== undefined || validatedData.biography)
+      (validatedData.name ||
+        validatedData.profileImage !== undefined ||
+        validatedData.biography ||
+        validatedData.location)
         ? [
             prisma.specialist.update({
               where: { id: user.specialistApplication.specialistId! }, // Non-null assertion since specialist exists
@@ -177,7 +248,15 @@ export async function PATCH(req: Request) {
       phoneNumber: updatedUser.phoneNumber || "",
       profileImage: updatedUser.profileImage || "",
       location: updatedUser.location || "",
-      biography: updatedUser.biography || "", // Added biography
+      biography: updatedUser.biography || "",
+      relationshipStatus: updatedUser.relationshipStatus || "",
+      orientation: updatedUser.orientation || "",
+      height: updatedUser.height || "",
+      ethnicity: updatedUser.ethnicity || "",
+      zodiacSign: updatedUser.zodiacSign || "",
+      favoriteColor: updatedUser.favoriteColor || "",
+      favoriteMedia: updatedUser.favoriteMedia || "",
+      petOwnership: updatedUser.petOwnership || "",
       status: updatedUser.status,
     });
   } catch (error: any) {

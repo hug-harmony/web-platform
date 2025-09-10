@@ -34,10 +34,18 @@ interface Profile {
   name: string;
   image?: string;
   location?: string;
-  biography?: string; // Added biography
+  biography?: string;
   rating?: number;
   reviewCount?: number;
   type: "user";
+  relationshipStatus?: string;
+  orientation?: string;
+  height?: string;
+  ethnicity?: string;
+  zodiacSign?: string;
+  favoriteColor?: string;
+  favoriteMedia?: string;
+  petOwnership?: string;
 }
 
 interface Props {
@@ -77,10 +85,18 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                 : "Unknown User"),
             image: data.profileImage || "",
             location: data.location || "",
-            biography: data.biography || "", // Added biography
+            biography: data.biography || "",
             rating: data.rating || 0,
             reviewCount: data.reviewCount || 0,
             type: "user",
+            relationshipStatus: data.relationshipStatus || "",
+            orientation: data.orientation || "",
+            height: data.height || "",
+            ethnicity: data.ethnicity || "",
+            zodiacSign: data.zodiacSign || "",
+            favoriteColor: data.favoriteColor || "",
+            favoriteMedia: data.favoriteMedia || "",
+            petOwnership: data.petOwnership || "",
           });
         } else {
           console.error("User API response:", res.status, await res.text());
@@ -165,7 +181,8 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           <CardContent className="pt-6 space-y-4 text-center">
             <Skeleton className="h-8 w-64 mx-auto bg-[#C4C4C4]/50" />
             <Skeleton className="h-4 w-48 mx-auto bg-[#C4C4C4]/50" />
-            <Skeleton className="h-4 w-80 mx-auto bg-[#C4C4C4]/50" /> {/* Added for biography */}
+            <Skeleton className="h-4 w-80 mx-auto bg-[#C4C4C4]/50" />{" "}
+            {/* Added for biography */}
             <div className="flex justify-center gap-4">
               <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
               <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
@@ -234,13 +251,12 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                 {profile.name}
               </h2>
             </div>
-               {profile.biography && (
+            {profile.biography && (
               <div className="text-[#C4C4C4] max-w-2xl mx-auto">
                 <p>{profile.biography}</p>
               </div>
             )}
             <div className="flex items-center justify-center gap-2 text-[#C4C4C4]">
-
               {profile.location && (
                 <>
                   <MapPin className="h-4 w-4 text-[#F3CFC6]" />
@@ -248,7 +264,45 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                 </>
               )}
             </div>
-         
+            <div className="max-w-2xl mx-auto text-black dark:text-white">
+              <h3 className="text-lg font-semibold mb-2">
+                Personal Information
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm sm:text-base">
+                <div>
+                  <p className="font-medium">Relationship Status</p>
+                  <p>{profile.relationshipStatus || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Orientation</p>
+                  <p>{profile.orientation || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Height</p>
+                  <p>{profile.height || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Ethnicity</p>
+                  <p>{profile.ethnicity || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Zodiac Sign</p>
+                  <p>{profile.zodiacSign || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Favorite Color</p>
+                  <p>{profile.favoriteColor || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Favorite Movie/TV Show</p>
+                  <p>{profile.favoriteMedia || "Not specified"}</p>
+                </div>
+                <div>
+                  <p className="font-medium">Pet Ownership</p>
+                  <p>{profile.petOwnership || "Not specified"}</p>
+                </div>
+              </div>
+            </div>
             <div className="flex justify-center gap-4">
               <Button
                 onClick={handleStartChat}

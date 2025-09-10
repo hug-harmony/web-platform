@@ -20,6 +20,14 @@ model User {
   profileImage     String?        // Used for Specialist.image
   location         String?
   biography        String?        // Added biography
+  relationshipStatus String?
+  orientation        String?
+  height             String?
+  ethnicity          String?
+  zodiacSign         String?
+  favoriteColor      String?
+  favoriteMedia      String?
+  petOwnership       String?
   createdAt        DateTime       @default(now())
   PasswordResetToken PasswordResetToken[]
   appointments     Appointment[]  @relation("UserAppointments")
