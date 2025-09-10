@@ -1,8 +1,11 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
 import React, { useState, useEffect } from "react";
 import { useSession } from "next-auth/react";
-import { Calendar } from "@/components/ui/calendar";
+import FullCalendar from "@fullcalendar/react";
+import dayGridPlugin from "@fullcalendar/daygrid";
+import interactionPlugin, { DateClickArg } from "@fullcalendar/interaction";
 import {
   Dialog,
   DialogContent,
@@ -28,10 +31,11 @@ interface Therapist {
 
 interface TimeSlot {
   time: string;
+  formattedTime: string;
   available: boolean;
 }
 
-// Animation variants
+// Animations
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
@@ -58,6 +62,8 @@ const BookingPage: React.FC = () => {
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [disabledDates, setDisabledDates] = useState<Set<string>>(new Set());
+  const [hasNoAvailability, setHasNoAvailability] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
@@ -99,6 +105,7 @@ const BookingPage: React.FC = () => {
           rate: therapistData.rate || 50,
         });
         setTimeSlots(slotsData.slots || []);
+        setHasNoAvailability(slotsData.slots.length === 0);
       } catch (error) {
         const errorMessage =
           error instanceof Error
@@ -111,6 +118,65 @@ const BookingPage: React.FC = () => {
 
     fetchData();
   }, [therapistId, selectedDate, router]);
+
+  useEffect(() => {
+    if (therapistId) {
+      fetchAvailabilityForMonth(new Date());
+    }
+  }, [therapistId]);
+
+  const fetchAvailabilityForMonth = async (month: Date) => {
+    const start = new Date(month.getFullYear(), month.getMonth(), 1);
+    const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+    const dates = [];
+    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
+      dates.push(new Date(d));
+    }
+
+    let hasAnyAvailability = false;
+
+    await Promise.all(
+      dates.map(async (date) => {
+        const dateStr = date.toISOString().split("T")[0];
+        if (disabledDates.has(dateStr)) return;
+
+        try {
+          const res = await fetch(
+            `/api/specialists/booking?therapistId=${therapistId}&date=${date.toISOString()}`,
+            { cache: "no-store", credentials: "include" }
+          );
+          if (res.ok) {
+            const data = await res.json();
+            const hasAvailable = data.slots.some((s: TimeSlot) => s.available);
+            if (!hasAvailable) {
+              setDisabledDates((prev) => new Set([...prev, dateStr]));
+            } else {
+              hasAnyAvailability = true;
+            }
+          }
+        } catch (error) {
+          console.error("Availability fetch error:", error);
+        }
+      })
+    );
+
+    if (!hasAnyAvailability) {
+      setHasNoAvailability(true);
+    }
+  };
+
+  const handleDateClick = (arg: DateClickArg) => {
+    const clickedDate = new Date(arg.dateStr);
+    const today = new Date();
+    today.setHours(0, 0, 0, 0);
+
+    if (clickedDate < today) return;
+
+    const dateStr = clickedDate.toISOString().split("T")[0];
+    if (disabledDates.has(dateStr)) return;
+
+    setSelectedDate(clickedDate);
+  };
 
   const handleBookSession = async () => {
     if (
@@ -149,7 +215,6 @@ const BookingPage: React.FC = () => {
 
       const bookingId = data?.appointment?.id;
       if (!bookingId) {
-        console.error("Booking ID missing in response:", data);
         throw new Error("Booking ID not found in response");
       }
 
@@ -191,8 +256,8 @@ const BookingPage: React.FC = () => {
           <CardHeader>
             <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
           </CardHeader>
-          <CardContent className="flex flex-col lg:flex-row gap-4 pt-6">
-            <Skeleton className="h-64 w-80 rounded-md bg-[#C4C4C4]/50" />
+          <CardContent className="flex flex-col gap-4 pt-6">
+            <Skeleton className="h-64 w-full bg-[#C4C4C4]/50" />
             <div className="flex-1 space-y-4">
               <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
@@ -258,6 +323,57 @@ const BookingPage: React.FC = () => {
     );
   }
 
+  if (hasNoAvailability) {
+    return (
+      <motion.div
+        className="p-4 space-y-6 max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
+            <motion.div variants={itemVariants}>
+              <CardTitle className="text-2xl text-black dark:text-white">
+                Book Appointment with {therapist.name}
+              </CardTitle>
+              <p className="text-sm text-[#C4C4C4]">Schedule your session</p>
+            </motion.div>
+          </CardHeader>
+          <CardContent className="flex space-x-4">
+            <motion.div
+              variants={itemVariants}
+              whileHover={{
+                scale: 1.05,
+                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+              }}
+              transition={{ duration: 0.2 }}
+            >
+              <Button
+                asChild
+                variant="outline"
+                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+              >
+                <Link href="/dashboard">
+                  <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                  Back to Dashboard
+                </Link>
+              </Button>
+            </motion.div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-lg">
+          <CardContent className="flex items-center justify-center pt-6">
+            <p className="text-[#C4C4C4]">
+              No available time slots for {therapist.name}. Please try another
+              therapist or check back later.
+            </p>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       className="p-4 space-y-6 max-w-7xl mx-auto"
@@ -265,29 +381,22 @@ const BookingPage: React.FC = () => {
       initial="hidden"
       animate="visible"
     >
-      {/* Header Section */}
+      {/* Header */}
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
           <motion.div variants={itemVariants}>
             <CardTitle className="text-2xl text-black dark:text-white">
-              Book Appointment with {therapist.name}
+              Book Appointment with {therapist?.name}
             </CardTitle>
             <p className="text-sm text-[#C4C4C4]">Schedule your session</p>
           </motion.div>
         </CardHeader>
         <CardContent className="flex space-x-4">
-          <motion.div
-            variants={itemVariants}
-            whileHover={{
-              scale: 1.05,
-              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-            }}
-            transition={{ duration: 0.2 }}
-          >
+          <motion.div variants={itemVariants} whileHover={{ scale: 1.05 }}>
             <Button
               asChild
               variant="outline"
-              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+              className="text-[#F3CFC6] border-[#F3CFC6] rounded-full"
             >
               <Link href="/dashboard">
                 <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
@@ -305,19 +414,53 @@ const BookingPage: React.FC = () => {
             Select Date and Time
           </CardTitle>
         </CardHeader>
-        <CardContent className="flex flex-col lg:flex-row gap-4 pt-6">
-          <motion.div variants={itemVariants}>
-            <Calendar
-              mode="single"
-              selected={selectedDate}
-              onSelect={setSelectedDate}
-              className="rounded-md border border-[#F3CFC6]"
-              disabled={(date: Date) =>
-                new Date(date).setHours(0, 0, 0, 0) <
-                new Date().setHours(0, 0, 0, 0)
-              }
+        <CardContent className="flex flex-col gap-4 pt-6">
+          {/* FullCalendar */}
+          <motion.div variants={itemVariants} className="w-full">
+            <FullCalendar
+              plugins={[dayGridPlugin, interactionPlugin]}
+              initialView="dayGridMonth"
+              dateClick={handleDateClick}
+              locale="en-us"
+              height="auto"
+              selectable={true}
+              dayCellClassNames={(arg) => {
+                const dateStr = arg.date.toISOString().split("T")[0];
+                const today = new Date();
+                today.setHours(0, 0, 0, 0);
+
+                if (arg.date < today) return ["bg-gray-200 text-gray-400"];
+                if (disabledDates.has(dateStr))
+                  return ["bg-gray-300 text-gray-500"];
+                if (
+                  selectedDate &&
+                  dateStr === selectedDate.toISOString().split("T")[0]
+                )
+                  return ["bg-[#F3CFC6] text-black"];
+                return [];
+              }}
             />
+            <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+              <p>
+                <strong>Legend:</strong>
+              </p>
+              <div className="flex space-x-4">
+                <div className="flex items-center">
+                  <div className="w-4 h-4 bg-white border mr-2"></div>
+                  Available
+                </div>
+                <div className="flex items-center">
+                  <div className="w-4 h-4 bg-gray-300 mr-2"></div>
+                  Unavailable
+                </div>
+              </div>
+              <p className="mt-2">
+                Unavailable dates are greyed out and cannot be selected.
+              </p>
+            </div>
           </motion.div>
+
+          {/* Time Slots */}
           <div className="flex-1">
             <h3 className="text-md font-semibold mb-4 text-center text-black dark:text-white">
               Select Time
@@ -336,14 +479,19 @@ const BookingPage: React.FC = () => {
                     selectedTime === slot.time
                       ? "bg-[#F3CFC6] text-black dark:text-white"
                       : slot.available
-                        ? "bg-white dark:bg-gray-800 text-black dark:text-white border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                        ? "bg-white dark:bg-gray-800 text-black dark:text-white border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
                         : "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
                   )}
                 >
-                  {slot.time}
+                  {slot.formattedTime}
                 </button>
               ))}
             </motion.div>
+            {timeSlots.length === 0 && (
+              <p className="text-center text-gray-500">
+                No time slots available for this date.
+              </p>
+            )}
             <motion.div variants={itemVariants}>
               <Button
                 onClick={() => setIsDialogOpen(true)}
@@ -357,6 +505,7 @@ const BookingPage: React.FC = () => {
         </CardContent>
       </Card>
 
+      {/* Confirm Dialog */}
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="bg-white dark:bg-gray-800">
           <DialogTitle className="text-black dark:text-white">
@@ -374,7 +523,7 @@ const BookingPage: React.FC = () => {
               <strong>Time:</strong> {selectedTime || "N/A"}
             </p>
             <p className="text-black dark:text-white">
-              <strong>Amount:</strong> ${therapist.rate?.toFixed(2) || "50.00"}
+              <strong>Amount:</strong> ${therapist?.rate?.toFixed(2) || "50.00"}
             </p>
           </div>
           <DialogFooter>
@@ -388,26 +537,6 @@ const BookingPage: React.FC = () => {
           </DialogFooter>
         </DialogContent>
       </Dialog>
-
-      <style jsx global>{`
-        .rdp {
-          font-size: 1.1rem;
-          padding: 1rem;
-          max-width: 300px;
-        }
-        .rdp-day {
-          width: 2rem;
-          height: 2rem;
-          line-height: 2rem;
-        }
-        .rdp-day:not(.rdp-day_disabled):hover {
-          background-color: #f3cfc6;
-        }
-        .rdp-day_selected {
-          background-color: #f3cfc6 !important;
-          color: #000000 !important;
-        }
-      `}</style>
     </motion.div>
   );
 };
