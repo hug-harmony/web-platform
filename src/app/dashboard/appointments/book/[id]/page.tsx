@@ -1,7 +1,6 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
-import React, { useState, useEffect } from "react";
+import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import FullCalendar from "@fullcalendar/react";
 import dayGridPlugin from "@fullcalendar/daygrid";
@@ -35,7 +34,6 @@ interface TimeSlot {
   available: boolean;
 }
 
-// Animations
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
@@ -60,115 +58,149 @@ const BookingPage: React.FC = () => {
   );
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
+  const [breakDuration, setBreakDuration] = useState<number | null>(null);
   const [loading, setLoading] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [disabledDates, setDisabledDates] = useState<Set<string>>(new Set());
   const [hasNoAvailability, setHasNoAvailability] = useState(false);
+  const [availabilityCache, setAvailabilityCache] = useState<
+    Map<string, { slots: TimeSlot[]; breakDuration: number | null }>
+  >(new Map());
 
-  useEffect(() => {
-    const fetchData = async () => {
-      if (!therapistId) {
-        toast.error("No therapist selected");
+  const fetchData = useCallback(async () => {
+    if (!therapistId) {
+      toast.error("No therapist selected");
+      return;
+    }
+
+    const dateStr = selectedDate?.toISOString().split("T")[0];
+    if (!dateStr) return;
+
+    setLoading(true);
+    try {
+      if (availabilityCache.has(dateStr)) {
+        const cached = availabilityCache.get(dateStr)!;
+        setTimeSlots(cached.slots);
+        setBreakDuration(cached.breakDuration);
+        setLoading(false);
         return;
       }
 
-      try {
-        const [therapistRes, slotsRes] = await Promise.all([
-          fetch(`/api/specialists?therapistId=${therapistId}`, {
-            cache: "no-store",
-            credentials: "include",
-          }),
-          fetch(
-            `/api/specialists/booking?therapistId=${therapistId}&date=${selectedDate?.toISOString()}`,
-            {
-              cache: "no-store",
-              credentials: "include",
-            }
-          ),
-        ]);
+      const [therapistRes, bookingsRes] = await Promise.all([
+        fetch(`/api/specialists?id=${therapistId}`, {
+          cache: "no-store",
+          credentials: "include",
+        }),
+        fetch(
+          `/api/specialists/booking?specialistId=${therapistId}&date=${dateStr}`,
+          { cache: "no-store", credentials: "include" }
+        ),
+      ]);
 
-        if (!therapistRes.ok || !slotsRes.ok) {
-          if (therapistRes.status === 401 || slotsRes.status === 401) {
-            router.push("/login");
-          }
-          throw new Error(
-            `Failed to fetch data: Therapist(${therapistRes.status}), Slots(${slotsRes.status})`
-          );
+      if (!therapistRes.ok || !bookingsRes.ok) {
+        if (therapistRes.status === 401 || bookingsRes.status === 401) {
+          router.push("/login");
         }
+        throw new Error(
+          `Failed to fetch data: Therapist(${therapistRes.status}), Bookings(${bookingsRes.status})`
+        );
+      }
 
-        const therapistData = await therapistRes.json();
-        const slotsData = await slotsRes.json();
+      const therapistData = await therapistRes.json();
+      const bookingsData = await bookingsRes.json();
 
-        setTherapist({
-          _id: therapistData.id,
-          name: therapistData.name,
-          rate: therapistData.rate || 50,
+      setTherapist({
+        _id: therapistData.id,
+        name: therapistData.name,
+        rate: therapistData.rate || 50,
+      });
+      setTimeSlots(bookingsData.slots || []);
+      setBreakDuration(bookingsData.breakDuration || null);
+
+      setAvailabilityCache((prev) => {
+        const newCache = new Map(prev);
+        newCache.set(dateStr, {
+          slots: bookingsData.slots || [],
+          breakDuration: bookingsData.breakDuration || null,
         });
-        setTimeSlots(slotsData.slots || []);
-        setHasNoAvailability(slotsData.slots.length === 0);
+        return newCache;
+      });
+    } catch (error) {
+      const errorMessage =
+        error instanceof Error
+          ? error.message
+          : "Failed to load therapist or time slots";
+      console.error("Fetch error:", errorMessage);
+      toast.error(errorMessage);
+    } finally {
+      setLoading(false);
+    }
+  }, [therapistId, selectedDate, router, availabilityCache]);
+
+  const fetchAvailabilityForMonth = useCallback(
+    async (month: Date) => {
+      if (!therapistId) return;
+
+      const start = new Date(month.getFullYear(), month.getMonth(), 1);
+      const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
+      start.setUTCHours(0, 0, 0, 0);
+      end.setUTCHours(0, 0, 0, 0);
+
+      try {
+        const res = await fetch(
+          `/api/specialists/availability/range?specialistId=${therapistId}&startDate=${start.toISOString().split("T")[0]}&endDate=${end.toISOString().split("T")[0]}`,
+          { cache: "no-store", credentials: "include" }
+        );
+
+        if (res.ok) {
+          const data = await res.json();
+          const disabled = new Set<string>();
+          let hasAvailableSlots = false;
+
+          data.availabilities.forEach(
+            (avail: { date: string; slots: { available: boolean }[] }) => {
+              const hasAvailable = avail.slots.some((slot) => slot.available);
+              if (!hasAvailable) {
+                disabled.add(avail.date);
+              } else {
+                hasAvailableSlots = true;
+              }
+            }
+          );
+
+          setDisabledDates(disabled);
+          setHasNoAvailability(!hasAvailableSlots);
+        } else {
+          const errorData = await res.json();
+          throw new Error(errorData.error || "Failed to fetch availability");
+        }
       } catch (error) {
-        const errorMessage =
+        console.error("Bulk availability fetch error:", error);
+        toast.error(
           error instanceof Error
             ? error.message
-            : "Failed to load therapist or time slots";
-        console.error("Fetch error:", errorMessage);
-        toast.error(errorMessage);
+            : "Failed to fetch availability for the month"
+        );
       }
-    };
+    },
+    [therapistId] // dependencies
+  );
 
+  useEffect(() => {
     fetchData();
-  }, [therapistId, selectedDate, router]);
+  }, [fetchData]);
 
   useEffect(() => {
     if (therapistId) {
       fetchAvailabilityForMonth(new Date());
     }
-  }, [therapistId]);
-
-  const fetchAvailabilityForMonth = async (month: Date) => {
-    const start = new Date(month.getFullYear(), month.getMonth(), 1);
-    const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-    const dates = [];
-    for (let d = new Date(start); d <= end; d.setDate(d.getDate() + 1)) {
-      dates.push(new Date(d));
-    }
-
-    let hasAnyAvailability = false;
-
-    await Promise.all(
-      dates.map(async (date) => {
-        const dateStr = date.toISOString().split("T")[0];
-        if (disabledDates.has(dateStr)) return;
-
-        try {
-          const res = await fetch(
-            `/api/specialists/booking?therapistId=${therapistId}&date=${date.toISOString()}`,
-            { cache: "no-store", credentials: "include" }
-          );
-          if (res.ok) {
-            const data = await res.json();
-            const hasAvailable = data.slots.some((s: TimeSlot) => s.available);
-            if (!hasAvailable) {
-              setDisabledDates((prev) => new Set([...prev, dateStr]));
-            } else {
-              hasAnyAvailability = true;
-            }
-          }
-        } catch (error) {
-          console.error("Availability fetch error:", error);
-        }
-      })
-    );
-
-    if (!hasAnyAvailability) {
-      setHasNoAvailability(true);
-    }
-  };
+  }, [therapistId, fetchAvailabilityForMonth]);
 
   const handleDateClick = (arg: DateClickArg) => {
     const clickedDate = new Date(arg.dateStr);
+    clickedDate.setUTCHours(0, 0, 0, 0); // Normalize to UTC
     const today = new Date();
-    today.setHours(0, 0, 0, 0);
+    today.setUTCHours(0, 0, 0, 0);
 
     if (clickedDate < today) return;
 
@@ -176,6 +208,7 @@ const BookingPage: React.FC = () => {
     if (disabledDates.has(dateStr)) return;
 
     setSelectedDate(clickedDate);
+    setSelectedTime(null);
   };
 
   const handleBookSession = async () => {
@@ -197,8 +230,8 @@ const BookingPage: React.FC = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          therapistId,
-          date: selectedDate.toISOString(),
+          specialistId: therapistId,
+          date: selectedDate.toISOString().split("T")[0],
           time: selectedTime,
           userId: session.user.id,
         }),
@@ -209,7 +242,9 @@ const BookingPage: React.FC = () => {
 
       if (!response.ok) {
         throw new Error(
-          data.error || `Booking failed with status ${response.status}`
+          data.message ||
+            data.error ||
+            `Booking failed with status ${response.status}`
         );
       }
 
@@ -222,7 +257,13 @@ const BookingPage: React.FC = () => {
       router.push(`/dashboard/appointments/confirm/${bookingId}`);
     } catch (error) {
       const errorMessage =
-        error instanceof Error ? error.message : "Booking failed";
+        error instanceof Error
+          ? error.message.includes("SLOT_NOT_AVAILABLE")
+            ? "Selected time slot is no longer available"
+            : error.message.includes("SLOT_ALREADY_BOOKED")
+              ? "Selected time slot is already booked"
+              : error.message
+          : "Booking failed";
       console.error("Booking error:", errorMessage);
       toast.error(errorMessage);
     } finally {
@@ -388,7 +429,11 @@ const BookingPage: React.FC = () => {
             <CardTitle className="text-2xl text-black dark:text-white">
               Book Appointment with {therapist?.name}
             </CardTitle>
-            <p className="text-sm text-[#C4C4C4]">Schedule your session</p>
+            <p className="text-sm text-[#C4C4C4]">
+              Schedule your session
+              {breakDuration !== null &&
+                ` (Appointments have a ${breakDuration}-minute break between them)`}
+            </p>
           </motion.div>
         </CardHeader>
         <CardContent className="flex space-x-4">
@@ -437,7 +482,7 @@ const BookingPage: React.FC = () => {
                   dateStr === selectedDate.toISOString().split("T")[0]
                 )
                   return ["bg-[#F3CFC6] text-black"];
-                return [];
+                return ["bg-green-100"]; // Highlight available dates
               }}
             />
             <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
@@ -446,12 +491,16 @@ const BookingPage: React.FC = () => {
               </p>
               <div className="flex space-x-4">
                 <div className="flex items-center">
-                  <div className="w-4 h-4 bg-white border mr-2"></div>
+                  <div className="w-4 h-4 bg-green-100 border mr-2"></div>
                   Available
                 </div>
                 <div className="flex items-center">
                   <div className="w-4 h-4 bg-gray-300 mr-2"></div>
                   Unavailable
+                </div>
+                <div className="flex items-center">
+                  <div className="w-4 h-4 bg-[#F3CFC6] mr-2"></div>
+                  Selected
                 </div>
               </div>
               <p className="mt-2">
@@ -469,29 +518,30 @@ const BookingPage: React.FC = () => {
               variants={itemVariants}
               className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4"
             >
-              {timeSlots.map((slot) => (
-                <button
-                  key={slot.time}
-                  onClick={() => slot.available && setSelectedTime(slot.time)}
-                  disabled={!slot.available}
-                  className={cn(
-                    "py-2 rounded border text-center",
-                    selectedTime === slot.time
-                      ? "bg-[#F3CFC6] text-black dark:text-white"
-                      : slot.available
-                        ? "bg-white dark:bg-gray-800 text-black dark:text-white border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-                        : "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
-                  )}
-                >
-                  {slot.formattedTime}
-                </button>
-              ))}
+              {timeSlots.length > 0 ? (
+                timeSlots.map((slot) => (
+                  <button
+                    key={slot.time}
+                    onClick={() => slot.available && setSelectedTime(slot.time)}
+                    disabled={!slot.available}
+                    className={cn(
+                      "py-2 rounded border text-center",
+                      selectedTime === slot.time
+                        ? "bg-[#F3CFC6] text-black dark:text-white"
+                        : slot.available
+                          ? "bg-white dark:bg-gray-800 text-black dark:text-white border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                          : "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
+                    )}
+                  >
+                    {slot.formattedTime}
+                  </button>
+                ))
+              ) : (
+                <p className="text-center text-gray-500 col-span-full">
+                  No time slots available for this date.
+                </p>
+              )}
             </motion.div>
-            {timeSlots.length === 0 && (
-              <p className="text-center text-gray-500">
-                No time slots available for this date.
-              </p>
-            )}
             <motion.div variants={itemVariants}>
               <Button
                 onClick={() => setIsDialogOpen(true)}
@@ -525,6 +575,11 @@ const BookingPage: React.FC = () => {
             <p className="text-black dark:text-white">
               <strong>Amount:</strong> ${therapist?.rate?.toFixed(2) || "50.00"}
             </p>
+            {breakDuration !== null && (
+              <p className="text-black dark:text-white">
+                <strong>Break Duration:</strong> {breakDuration} minutes
+              </p>
+            )}
           </div>
           <DialogFooter>
             <Button

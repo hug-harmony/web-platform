@@ -168,6 +168,7 @@ model Availability {
   specialistId String   @db.ObjectId
   date         DateTime
   slots        String[]
+  breakDuration Int?
   specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
   @@unique([specialistId, date])
 }

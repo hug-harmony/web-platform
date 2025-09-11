@@ -31,6 +31,7 @@ import {
 import { Calendar } from "@/components/ui/calendar";
 import { Checkbox } from "@/components/ui/checkbox";
 import debounce from "lodash.debounce";
+import { allSlots } from "@/lib/constants";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -40,7 +41,6 @@ const itemVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
-
 interface Profile {
   id: string;
   name?: string | null;
@@ -66,17 +66,14 @@ interface Profile {
   favoriteMedia?: string | null;
   petOwnership?: string | null;
 }
-
 interface LocationSuggestion {
   display_name: string;
   lat: string;
   lon: string;
 }
-
 interface Props {
   params: Promise<{ id: string }>;
 }
-
 const ProfilePage: React.FC<Props> = ({ params }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -93,6 +90,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [openAvailability, setOpenAvailability] = useState(false);
+  const [breakDuration, setBreakDuration] = useState<number>(30);
   const [locationSuggestions, setLocationSuggestions] = useState<
     LocationSuggestion[]
   >([]);
@@ -104,7 +102,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
   const locationInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
-
   // Debounced function to fetch location suggestions from Nominatim
   const fetchLocationSuggestions = debounce(async (query: string) => {
     if (query.length < 3) {
@@ -138,7 +135,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       setIsLocationLoading(false);
     }
   }, 300);
-
   // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -152,7 +148,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
-
   // Validate location by geocoding on form submit
   const validateLocation = async (location: string): Promise<boolean> => {
     if (!location) return true; // Location is optional
@@ -174,7 +169,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       return false;
     }
   };
-
   // Validation functions
   const validateUserProfileForm = async (formData: FormData) => {
     const errors: Record<string, string> = {};
@@ -192,7 +186,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     const favoriteColor = formData.get("favoriteColor")?.toString() || "";
     const favoriteMedia = formData.get("favoriteMedia")?.toString() || "";
     const petOwnership = formData.get("petOwnership")?.toString() || "";
-
     if (!firstName) errors.firstName = "First name is required";
     else if (firstName.length > 50)
       errors.firstName = "First name must be 50 characters or less";
@@ -236,7 +229,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     }
     return errors;
   };
-
   const validateSpecialistProfileForm = async (formData: FormData) => {
     const errors: Record<string, string> = {};
     const role = formData.get("role")?.toString() || "";
@@ -244,7 +236,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     const biography = formData.get("biography")?.toString() || "";
     const location = formData.get("location")?.toString() || "";
     const rate = formData.get("rate")?.toString() || "";
-
     if (!role) errors.role = "Role is required";
     else if (role.length > 50)
       errors.role = "Role must be 50 characters or less";
@@ -264,7 +255,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     }
     return errors;
   };
-
   const fetchSpecialistStatus = async (
     retries = 3,
     delay = 1000
@@ -329,7 +319,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       setSpecialistStatusLoading(false);
     }
   };
-
   useEffect(() => {
     const fetchProfileAndSpecialistStatus = async () => {
       try {
@@ -384,15 +373,18 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   }, [params, router, searchParams]);
 
   useEffect(() => {
-    if (date && openAvailability) {
+    if (date && openAvailability && specialistId) {
       fetch(
-        `/api/specialists/availability?date=${date.toISOString().split("T")[0]}`
+        `/api/specialists/availability?specialistId=${specialistId}&date=${date.toISOString().split("T")[0]}`
       )
         .then((res) => res.json())
-        .then((data) => setSelectedSlots(data.slots || []))
+        .then((data) => {
+          setSelectedSlots(data.slots || []);
+          setBreakDuration(data.breakDuration || 30);
+        })
         .catch(() => toast.error("Failed to fetch availability"));
     }
-  }, [date, openAvailability]);
+  }, [date, openAvailability, specialistId]);
 
   const handleNewProfessional = async () => {
     if (status === "loading") {
@@ -401,7 +393,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     }
     router.push("professional-application");
   };
-
   const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setUpdating(true);
@@ -486,7 +477,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
-
   const handleUpdateSpecialist = async (
     e: React.FormEvent<HTMLFormElement>
   ) => {
@@ -557,6 +547,26 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       setUpdatingSpecialist(false);
     }
   };
+  const isSlotValidWithBreak = (
+    newSlot: string,
+    currentSlots: string[],
+    breakDuration: number
+  ) => {
+    const timeToMinutes = (time: string) => {
+      const [hourStr, period] = time.split(" ");
+      const [hour, minute] = hourStr.split(":").map(Number);
+      return ((hour % 12) + (period === "PM" ? 12 : 0)) * 60 + minute;
+    };
+    const newSlotMinutes = timeToMinutes(newSlot);
+    for (const slot of currentSlots) {
+      const slotMinutes = timeToMinutes(slot);
+      const gap = Math.abs(newSlotMinutes - slotMinutes);
+      if (gap < breakDuration && gap !== 0) {
+        return false; // Slot is too close to an existing slot
+      }
+    }
+    return true;
+  };
 
   const handleSubmitAvailability = async () => {
     if (!date) return;
@@ -567,6 +577,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         body: JSON.stringify({
           date: date.toISOString().split("T")[0],
           slots: selectedSlots,
+          breakDuration,
         }),
       });
       if (res.ok) {
@@ -584,64 +595,27 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   };
 
   const toggleSlot = (time: string) => {
-    setSelectedSlots((prev) =>
-      prev.includes(time) ? prev.filter((t) => t !== time) : [...prev, time]
-    );
+    setSelectedSlots((prev) => {
+      if (prev.includes(time)) {
+        return prev.filter((t) => t !== time);
+      } else {
+        if (isSlotValidWithBreak(time, prev, breakDuration)) {
+          return [...prev, time].sort((a, b) => {
+            const timeA = new Date(`1970-01-01 ${a}`);
+            const timeB = new Date(`1970-01-01 ${b}`);
+            return timeA.getTime() - timeB.getTime();
+          });
+        } else {
+          toast.error(
+            `Selected slot conflicts with ${breakDuration}-minute break requirement.`
+          );
+          return prev;
+        }
+      }
+    });
   };
 
-  const allSlots = [
-    "12:00 AM",
-    "12:30 AM",
-    "1:00 AM",
-    "1:30 AM",
-    "2:00 AM",
-    "2:30 AM",
-    "3:00 AM",
-    "3:30 AM",
-    "4:00 AM",
-    "4:30 AM",
-    "5:00 AM",
-    "5:30 AM",
-    "6:00 AM",
-    "6:30 AM",
-    "7:00 AM",
-    "7:30 AM",
-    "8:00 AM",
-    "8:30 AM",
-    "9:00 AM",
-    "9:30 AM",
-    "10:00 AM",
-    "10:30 AM",
-    "11:00 AM",
-    "11:30 AM",
-    "12:00 PM",
-    "12:30 PM",
-    "1:00 PM",
-    "1:30 PM",
-    "2:00 PM",
-    "2:30 PM",
-    "3:00 PM",
-    "3:30 PM",
-    "4:00 PM",
-    "4:30 PM",
-    "5:00 PM",
-    "5:30 PM",
-    "6:00 PM",
-    "6:30 PM",
-    "7:00 PM",
-    "7:30 PM",
-    "8:00 PM",
-    "8:30 PM",
-    "9:00 PM",
-    "9:30 PM",
-    "10:00 PM",
-    "10:30 PM",
-    "11:00 PM",
-    "11:30 PM",
-  ];
-
   const isOwnProfile = session?.user?.id === profile?.id;
-
   if (loading) {
     return (
       <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -695,7 +669,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       </div>
     );
   }
-
   if (error || !profile) {
     return (
       <div className="text-center p-6 text-red-500">
@@ -703,7 +676,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       </div>
     );
   }
-
   return (
     <motion.div
       className="p-4 space-y-6 max-w-7xl mx-auto"
@@ -799,24 +771,58 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     <DialogHeader>
                       <DialogTitle>Set Daily Availability</DialogTitle>
                     </DialogHeader>
-                    <Calendar
-                      mode="single"
-                      selected={date}
-                      onSelect={setDate}
-                    />
-                    <div className="grid grid-cols-3 gap-2">
-                      {allSlots.map((time) => (
-                        <div key={time} className="flex items-center space-x-2">
-                          <Checkbox
-                            id={time}
-                            checked={selectedSlots.includes(time)}
-                            onCheckedChange={() => toggleSlot(time)}
-                          />
-                          <Label htmlFor={time}>{time}</Label>
-                        </div>
-                      ))}
+                    <div className="space-y-4">
+                      <Calendar
+                        mode="single"
+                        selected={date}
+                        onSelect={setDate}
+                      />
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="breakDuration"
+                          className="text-black dark:text-white"
+                        >
+                          Break Duration Between Slots
+                        </Label>
+                        <Select
+                          value={breakDuration.toString()}
+                          onValueChange={(value) =>
+                            setBreakDuration(Number(value))
+                          }
+                        >
+                          <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
+                            <SelectValue placeholder="Select break duration" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="30">30 Minutes</SelectItem>
+                            <SelectItem value="60">1 Hour</SelectItem>
+                          </SelectContent>
+                        </Select>
+                      </div>
+                      <div className="grid grid-cols-3 gap-2">
+                        {allSlots.map((time) => (
+                          <div
+                            key={time}
+                            className="flex items-center space-x-2"
+                          >
+                            <Checkbox
+                              id={time}
+                              checked={selectedSlots.includes(time)}
+                              onCheckedChange={() => toggleSlot(time)}
+                              disabled={
+                                !isSlotValidWithBreak(
+                                  time,
+                                  selectedSlots,
+                                  breakDuration
+                                ) && !selectedSlots.includes(time)
+                              }
+                            />
+                            <Label htmlFor={time}>{time}</Label>
+                          </div>
+                        ))}
+                      </div>
+                      <Button onClick={handleSubmitAvailability}>Save</Button>
                     </div>
-                    <Button onClick={handleSubmitAvailability}>Save</Button>
                   </DialogContent>
                 </Dialog>
               </motion.div>
@@ -1130,7 +1136,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                       disabled={!isEditing || updating}
                       className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
                       aria-label="Height"
-                      placeholder="e.g., 5'10\"
+                      placeholder={`e.g., 5'10" or 178 cm`}
                       maxLength={20}
                     />
                     {formErrors.height && (
@@ -1695,5 +1701,4 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     </motion.div>
   );
 };
-
 export default ProfilePage;

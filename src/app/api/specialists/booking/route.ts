@@ -1,84 +1,79 @@
+// app/api/specialists/booking/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-import { format } from "date-fns";
+import { formatInTimeZone } from "date-fns-tz";
+import { parse } from "date-fns";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const therapistId = searchParams.get("therapistId");
+  const specialistId = searchParams.get("specialistId");
   const date = searchParams.get("date");
 
-  if (!therapistId || !date) {
+  if (!specialistId || !date) {
     return NextResponse.json(
-      { error: "Missing therapistId or date" },
+      { error: "Missing specialistId or date" },
+      { status: 400 }
+    );
+  }
+
+  const requestedDate = new Date(date);
+  requestedDate.setUTCHours(0, 0, 0, 0); // Normalize to UTC
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  if (requestedDate < today) {
+    return NextResponse.json(
+      { error: "Cannot fetch availability for past dates" },
       { status: 400 }
     );
   }
 
   try {
-    const therapist = await prisma.specialist.findUnique({
-      where: { id: therapistId },
+    const specialist = await prisma.specialist.findUnique({
+      where: { id: specialistId },
     });
-    if (!therapist) {
+    if (!specialist) {
       return NextResponse.json(
-        { error: "Therapist not found" },
+        { error: "Specialist not found" },
         { status: 404 }
       );
     }
 
+    const availability = await prisma.availability.findUnique({
+      where: {
+        specialistId_date: { specialistId, date: requestedDate },
+      },
+    });
+
     const appointments = await prisma.appointment.findMany({
       where: {
-        specialistId: therapistId,
-        date: {
-          gte: new Date(new Date(date).setHours(0, 0, 0, 0)),
-          lt: new Date(new Date(date).setHours(24, 0, 0, 0)),
-        },
+        specialistId,
+        date: requestedDate,
+        status: { in: ["upcoming", "pending"] },
       },
       select: { time: true },
     });
 
-    const availability = await prisma.availability.findUnique({
-      where: {
-        specialistId_date: {
-          specialistId: therapistId,
-          date: new Date(new Date(date).setHours(0, 0, 0, 0)),
-        },
-      },
-    });
-
-    // Generate 30-minute slots from 8:00 AM to 8:00 PM
-    const defaultSlots: string[] = [];
-    for (let hour = 8; hour <= 20; hour++) {
-      defaultSlots.push(`${hour}:00`, `${hour}:30`);
-    }
-
-    // Validate and sanitize slots
-    const availableSlots = (availability?.slots || defaultSlots).filter(
-      (time) => {
-        const [hour, minute] = time.split(":").map(Number);
-        return (
-          typeof time === "string" &&
-          time.match(/^\d{1,2}:\d{2}$/) &&
-          hour >= 8 &&
-          hour <= 20 &&
-          (minute === 0 || minute === 30)
-        );
+    const bookedTimes = appointments.map((appt) => appt.time);
+    const slots = (availability?.slots || []).map((time: string) => {
+      // Parse time string (e.g., "12:00 AM") to create a valid Date object
+      const parsedTime = parse(time, "h:mm a", new Date());
+      if (isNaN(parsedTime.getTime())) {
+        throw new Error(`Invalid time format: ${time}`);
       }
-    );
-
-    const slots = availableSlots.map((time) => {
-      // Parse time and format to AM/PM
-      const [hour, minute] = time.split(":").map(Number);
-      const timeDate = new Date(2000, 0, 1, hour, minute);
       return {
         time,
-        formattedTime: format(timeDate, "h:mm a"),
-        available: !appointments.some((appt) => appt.time === time),
+        formattedTime: formatInTimeZone(parsedTime, "UTC", "h:mm a"),
+        available: !bookedTimes.includes(time),
       };
     });
 
-    return NextResponse.json({ slots }, { status: 200 });
+    return NextResponse.json(
+      { slots, breakDuration: availability?.breakDuration || null },
+      { status: 200 }
+    );
   } catch (error) {
     console.error("Availability error:", error);
     return NextResponse.json(
@@ -94,11 +89,11 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { therapistId, date, time, userId } = await request.json();
+  const { specialistId, date, time, userId } = await request.json();
 
-  if (!therapistId || !date || !time || !userId) {
+  if (!specialistId || !date || !time || !userId) {
     return NextResponse.json(
-      { error: "Missing therapistId, date, time, or userId" },
+      { error: "Missing specialistId, date, time, or userId" },
       { status: 400 }
     );
   }
@@ -107,24 +102,55 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
+  const utcDate = new Date(date);
+  utcDate.setUTCHours(0, 0, 0, 0);
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  if (utcDate < today) {
+    return NextResponse.json(
+      { error: "Cannot book appointments for past dates" },
+      { status: 400 }
+    );
+  }
+
   try {
-    const therapist = await prisma.specialist.findUnique({
-      where: { id: therapistId },
+    const specialist = await prisma.specialist.findUnique({
+      where: { id: specialistId },
     });
-    if (!therapist) {
+    if (!specialist) {
       return NextResponse.json(
-        { error: "Therapist not found" },
+        { error: "Specialist not found" },
         { status: 404 }
       );
     }
 
+    const availability = await prisma.availability.findUnique({
+      where: {
+        specialistId_date: { specialistId, date: utcDate },
+      },
+    });
+
+    if (!availability || !availability.slots.includes(time)) {
+      return NextResponse.json(
+        { error: "SLOT_NOT_AVAILABLE", message: "Time slot not available" },
+        { status: 409 }
+      );
+    }
+
+    // Real-time validation: check if slot is still available
     const existingAppointment = await prisma.appointment.findFirst({
-      where: { specialistId: therapistId, date: new Date(date), time },
+      where: {
+        specialistId,
+        date: utcDate,
+        time,
+        status: { in: ["upcoming", "pending"] },
+      },
     });
 
     if (existingAppointment) {
       return NextResponse.json(
-        { error: "Time slot unavailable" },
+        { error: "SLOT_ALREADY_BOOKED", message: "Time slot already booked" },
         { status: 409 }
       );
     }
@@ -132,8 +158,8 @@ export async function POST(request: Request) {
     const appointment = await prisma.appointment.create({
       data: {
         userId,
-        specialistId: therapistId,
-        date: new Date(date),
+        specialistId,
+        date: utcDate,
         time,
         status: "upcoming",
       },
@@ -143,7 +169,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Booking error:", error);
     return NextResponse.json(
-      { error: "Failed to create booking" },
+      { error: "INTERNAL_SERVER_ERROR", message: "Failed to create booking" },
       { status: 500 }
     );
   }
