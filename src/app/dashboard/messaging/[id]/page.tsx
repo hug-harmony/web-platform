@@ -23,6 +23,7 @@ interface Message {
   userId: string;
   proposalId?: string;
   proposalStatus?: string;
+  initiator?: string;
 }
 
 interface Participant {
@@ -332,40 +333,51 @@ const MessageInterface: React.FC = () => {
       }
 
       const data = await res.json();
-      setProposalActionMessage(`Proposal ${action}`); // Set centered message
-      setTimeout(() => setProposalActionMessage(null), 3000); // Clear after 3s
+      setProposalActionMessage(`Proposal ${action}`);
+      setTimeout(() => setProposalActionMessage(null), 3000);
+
+      const proposal = data.proposal;
 
       if (action === "accepted") {
         const proposal = data.proposal;
         const appointmentId = data.appointmentId;
-        const specialistRes = await fetch(
-          `/api/specialists/${proposal.specialistId}`,
-          {
-            cache: "no-store",
-            credentials: "include",
-          }
-        );
-        if (!specialistRes.ok) {
-          throw new Error(
-            `Failed to fetch specialist details: ${specialistRes.status}`
+
+        // Only show ConfirmDialog if user is accepting specialist proposal
+        if (proposal.initiator === "specialist") {
+          const specialistRes = await fetch(
+            `/api/specialists/${proposal.specialistId}`,
+            { cache: "no-store", credentials: "include" }
           );
+
+          if (!specialistRes.ok) {
+            throw new Error(
+              `Failed to fetch specialist details: ${specialistRes.status}`
+            );
+          }
+          const specialist = await specialistRes.json();
+          setSelectedProposal({
+            id: proposal.id,
+            date: proposal.date,
+            time: proposal.time,
+            specialist: {
+              id: proposal.specialistId,
+              name: specialist.name,
+              rate: specialist.rate || 50,
+            },
+            appointmentId,
+          });
+          setConfirmDialogOpen(true);
+          toast.success("Proposal accepted - proceed to payment");
+        } else {
+          // Specialist accepting user request: No dialog, just success
+          toast.success("Appointment request accepted");
         }
-        const specialist = await specialistRes.json();
-        setSelectedProposal({
-          id: proposal.id,
-          date: proposal.date,
-          time: proposal.time,
-          specialist: {
-            id: proposal.specialistId,
-            name: specialist.name,
-            rate: specialist.rate || 50,
-          },
-          appointmentId,
-        });
-        setConfirmDialogOpen(true);
-        toast.success("Proposal accepted");
       } else {
-        toast.success("Proposal rejected");
+        toast.success(
+          proposal.initiator === "specialist"
+            ? "Proposal rejected"
+            : "Appointment request declined"
+        );
       }
       await fetchMessages();
     } catch (error: unknown) {

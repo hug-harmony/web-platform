@@ -199,18 +199,19 @@ model Message {
 }
 
 model Proposal {
-  id           String    @id @default(auto()) @map("_id") @db.ObjectId
-  specialistId String    @db.ObjectId
-  userId       String    @db.ObjectId
-  conversationId String  @db.ObjectId
-  date         DateTime
-  time         String
-  status       String    @default("pending") // pending, accepted, rejected
-  createdAt    DateTime  @default(now())
-  specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
-  user         User       @relation(fields: [userId], references: [id], onDelete: Cascade)
-  conversation Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  messages     Message[]  @relation // New relation
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  specialistId  String       @db.ObjectId
+  userId        String       @db.ObjectId
+  conversationId String      @db.ObjectId
+  date          DateTime
+  time          String
+  status        String       @default("pending") // pending, accepted, rejected
+  initiator     String       @default("specialist") // "specialist" or "user"
+  createdAt     DateTime     @default(now())
+  specialist    Specialist   @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation  Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  messages      Message[]    @relation // New relation
 }
 
 model Review {

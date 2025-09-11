@@ -51,7 +51,7 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
             >
               <DialogHeader>
                 <DialogTitle className="text-2xl font-semibold text-[#D8A7B1] dark:text-[#F3CFC6]">
-                  Schedule a Session
+                  Propose Session to User
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-6 flex flex-col sm:flex-row sm:space-x-6 sm:space-y-0 py-4">

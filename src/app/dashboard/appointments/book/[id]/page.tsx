@@ -14,7 +14,7 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { format } from "date-fns";
+import { format, parse } from "date-fns";
 import { toast } from "sonner";
 import { useRouter, useParams } from "next/navigation";
 import { MessageSquare } from "lucide-react";
@@ -226,35 +226,107 @@ const BookingPage: React.FC = () => {
 
     setLoading(true);
     try {
-      const response = await fetch("/api/specialists/booking", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          specialistId: therapistId,
-          date: selectedDate.toISOString().split("T")[0],
-          time: selectedTime,
-          userId: session.user.id,
-        }),
-        credentials: "include",
-      });
+      // Parse selected date and time
+      const selectedDateTimeStr = `${format(selectedDate, "yyyy-MM-dd")} ${selectedTime}`;
+      const selectedDateTime = parse(
+        selectedDateTimeStr,
+        "yyyy-MM-dd h:mm a",
+        new Date()
+      );
+      const now = new Date();
+      const timeDifference =
+        (selectedDateTime.getTime() - now.getTime()) / (1000 * 60 * 60); // Hours
 
-      const data = await response.json();
+      if (timeDifference > 24) {
+        // Direct booking (>24hr)
+        const response = await fetch("/api/specialists/booking", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            specialistId: therapistId,
+            date: selectedDate.toISOString().split("T")[0],
+            time: selectedTime,
+            userId: session.user.id,
+          }),
+          credentials: "include",
+        });
 
-      if (!response.ok) {
-        throw new Error(
-          data.message ||
-            data.error ||
-            `Booking failed with status ${response.status}`
+        const data = await response.json();
+
+        if (!response.ok) {
+          throw new Error(
+            data.message ||
+              data.error ||
+              `Booking failed with status ${response.status}`
+          );
+        }
+
+        const bookingId = data?.appointment?.id;
+        if (!bookingId) {
+          throw new Error("Booking ID not found in response");
+        }
+
+        toast.success("Booking confirmed");
+        router.push(`/dashboard/appointments/confirm/${bookingId}`);
+      } else {
+        // User-initiated request (<24hr)
+        // Step 1: Fetch specialist's user ID
+        const specialistUserRes = await fetch(
+          `/api/specialists/${therapistId}/user`,
+          {
+            cache: "no-store",
+            credentials: "include",
+          }
         );
-      }
+        const specialistUser = await specialistUserRes.json();
+        if (!specialistUserRes.ok || !specialistUser.userId) {
+          throw new Error("Failed to fetch specialist details");
+        }
 
-      const bookingId = data?.appointment?.id;
-      if (!bookingId) {
-        throw new Error("Booking ID not found in response");
-      }
+        // Step 2: Find/create conversation (recipient is specialist's user ID)
+        const convResponse = await fetch("/api/conversations", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ recipientId: specialistUser.userId }),
+          credentials: "include",
+        });
 
-      toast.success("Booking confirmed");
-      router.push(`/dashboard/appointments/confirm/${bookingId}`);
+        const convData = await convResponse.json();
+        if (!convResponse.ok) {
+          throw new Error(
+            convData.error || "Failed to create/find conversation"
+          );
+        }
+
+        const conversationId = convData.id;
+        if (!conversationId) {
+          throw new Error("Conversation ID not found");
+        }
+
+        // Step 3: Send user-initiated proposal (pass specialistId)
+        const proposalResponse = await fetch("/api/proposals", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            conversationId,
+            specialistId: therapistId,
+            date: selectedDate.toISOString().split("T")[0],
+            time: selectedTime,
+          }),
+          credentials: "include",
+        });
+
+        const proposalData = await proposalResponse.json();
+        if (!proposalResponse.ok) {
+          throw new Error(
+            proposalData.error || "Failed to send appointment request"
+          );
+        }
+
+        toast.success("Appointment request sent to specialist for approval");
+        setIsDialogOpen(false);
+        router.push(`/dashboard/messaging/${conversationId}`);
+      }
     } catch (error) {
       const errorMessage =
         error instanceof Error

@@ -1,33 +1,27 @@
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
-import { getServerSession } from "next-auth/next";
+import { getServerSession } from "next-auth";
+import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-
-const prisma = new PrismaClient();
+import { format } from "date-fns";
 
 export async function PATCH(
   req: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  { params }: { params: { id: string } }
 ) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { status: action } = await req.json();
+  if (!["accepted", "rejected"].includes(action)) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
+  }
+
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { id } = await params;
-    const { status } = await req.json();
-
-    if (!id || !["accepted", "rejected"].includes(status)) {
-      return NextResponse.json(
-        { error: "Invalid proposal ID or status" },
-        { status: 400 }
-      );
-    }
-
     const proposal = await prisma.proposal.findUnique({
-      where: { id },
-      include: { specialist: true },
+      where: { id: params.id },
+      include: { conversation: true, user: true, specialist: true },
     });
     if (!proposal) {
       return NextResponse.json(
@@ -36,62 +30,103 @@ export async function PATCH(
       );
     }
 
-    if (proposal.userId !== session.user.id) {
-      return NextResponse.json(
-        { error: "You are not authorized to respond to this proposal" },
-        { status: 403 }
-      );
+    // Validate updater based on initiator
+    let isValidUpdater = false;
+    if (proposal.initiator === "specialist") {
+      // User (recipient) should update
+      isValidUpdater = proposal.userId === session.user.id;
+    } else {
+      // Specialist (recipient) should update
+      const specialistApp = await prisma.specialistApplication.findFirst({
+        where: { specialistId: proposal.specialistId, status: "approved" },
+      });
+      isValidUpdater = specialistApp?.userId === session.user.id;
     }
 
-    if (proposal.status !== "pending") {
-      return NextResponse.json(
-        { error: "Proposal is no longer pending" },
-        { status: 400 }
-      );
+    if (!isValidUpdater) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
+    // Update status
     const updatedProposal = await prisma.proposal.update({
-      where: { id },
-      data: { status },
+      where: { id: params.id },
+      data: { status: action },
     });
 
-    let appointment = null;
-    if (status === "accepted") {
-      const existingAppointment = await prisma.appointment.findFirst({
-        where: {
-          specialistId: proposal.specialistId,
-          date: new Date(proposal.date),
-          time: proposal.time,
-        },
-      });
+    let appointmentId: string | undefined;
+    if (action === "accepted") {
+      // Optional: Add availability check here if desired (e.g., for user requests)
+      // For now, skip per spec
 
-      if (existingAppointment) {
-        return NextResponse.json(
-          { error: "Time slot unavailable" },
-          { status: 409 }
-        );
-      }
-
-      appointment = await prisma.appointment.create({
+      // Create appointment
+      const appointment = await prisma.appointment.create({
         data: {
           userId: proposal.userId,
           specialistId: proposal.specialistId,
-          date: new Date(proposal.date),
+          date: proposal.date,
           time: proposal.time,
           status: "upcoming",
+        },
+      });
+      appointmentId = appointment.id;
+
+      // Tailored notification message
+      const notifyText =
+        proposal.initiator === "specialist"
+          ? `Your proposal for ${format(proposal.date, "MMMM d, yyyy")} at ${proposal.time} has been accepted. Proceed to payment.`
+          : `Your appointment request for ${format(proposal.date, "MMMM d, yyyy")} at ${proposal.time} has been accepted.`;
+
+      const recipientId =
+        proposal.initiator === "specialist"
+          ? proposal.userId
+          : (
+              await prisma.specialistApplication.findFirst({
+                where: { specialistId: proposal.specialistId },
+              })
+            )?.userId!;
+      await prisma.message.create({
+        data: {
+          conversationId: proposal.conversationId,
+          senderId: session.user.id,
+          recipientId,
+          text: notifyText,
+          isAudio: false,
+          proposalId: proposal.id,
+        },
+      });
+    } else {
+      // Rejection message
+      const rejectText =
+        proposal.initiator === "specialist"
+          ? `Your proposal for ${format(proposal.date, "MMMM d, yyyy")} at ${proposal.time} has been rejected.`
+          : `Your appointment request for ${format(proposal.date, "MMMM d, yyyy")} at ${proposal.time} has been declined.`;
+
+      const recipientId =
+        proposal.initiator === "specialist"
+          ? proposal.userId
+          : (
+              await prisma.specialistApplication.findFirst({
+                where: { specialistId: proposal.specialistId },
+              })
+            )?.userId!;
+      await prisma.message.create({
+        data: {
+          conversationId: proposal.conversationId,
+          senderId: session.user.id,
+          recipientId,
+          text: rejectText,
+          isAudio: false,
+          proposalId: proposal.id,
         },
       });
     }
 
     return NextResponse.json(
-      {
-        proposal: updatedProposal,
-        appointmentId: appointment?.id,
-      },
+      { proposal: updatedProposal, appointmentId },
       { status: 200 }
     );
   } catch (error) {
-    console.error("Error updating proposal:", error);
+    console.error("Update proposal status error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   } finally {
     await prisma.$disconnect();
