@@ -18,7 +18,7 @@ const updateSpecialistSchema = z.object({
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: Promise<{ id: string }> } // Fixed: Changed from destructured params to context
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -29,7 +29,9 @@ export async function GET(
       );
     }
 
-    const { id } = await params; // Await params
+    const params = await context.params; // Fixed: Resolve the Promise first
+    const id = params.id; // Then access the id
+
     if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
       return NextResponse.json(
         { error: "Invalid specialist ID" },
