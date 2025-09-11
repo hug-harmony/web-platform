@@ -6,8 +6,11 @@ import { authOptions } from "@/lib/auth";
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: { id: string } }
+  context: { params: Promise<{ id: string }> } // Fixed: params is now a Promise
 ) {
+  const params = await context.params; // Resolve the Promise
+  const id = params.id; // Access the id
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -15,7 +18,7 @@ export async function GET(
 
   try {
     const app = await prisma.specialistApplication.findFirst({
-      where: { specialistId: params.id, status: "approved" },
+      where: { specialistId: id, status: "approved" },
       select: { userId: true },
     });
     if (!app) {
@@ -34,5 +37,7 @@ export async function GET(
   } catch (error) {
     console.error("Fetch specialist user error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
+  } finally {
+    await prisma.$disconnect();
   }
 }
