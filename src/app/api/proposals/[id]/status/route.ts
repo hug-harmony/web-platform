@@ -6,9 +6,8 @@ import { format } from "date-fns";
 
 export async function PATCH(
   req: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: { id: string } }
 ) {
-  const { params } = context;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -56,7 +55,7 @@ export async function PATCH(
 
     let appointmentId: string | undefined;
 
-    // figure out recipient (used for notifications)
+    // Figure out recipient (used for notifications)
     const specialistApp = await prisma.specialistApplication.findFirst({
       where: { specialistId: proposal.specialistId },
     });
