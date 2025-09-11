@@ -54,10 +54,25 @@ export async function PATCH(
     });
 
     let appointmentId: string | undefined;
-    if (action === "accepted") {
-      // Optional: Add availability check here if desired (e.g., for user requests)
-      // For now, skip per spec
 
+    // figure out recipient (used for notifications)
+    const specialistApp = await prisma.specialistApplication.findFirst({
+      where: { specialistId: proposal.specialistId },
+    });
+
+    const recipientId =
+      proposal.initiator === "specialist"
+        ? proposal.userId
+        : specialistApp?.userId;
+
+    if (!recipientId) {
+      return NextResponse.json(
+        { error: "Recipient not found" },
+        { status: 404 }
+      );
+    }
+
+    if (action === "accepted") {
       // Create appointment
       const appointment = await prisma.appointment.create({
         data: {
@@ -73,17 +88,15 @@ export async function PATCH(
       // Tailored notification message
       const notifyText =
         proposal.initiator === "specialist"
-          ? `Your proposal for ${format(proposal.date, "MMMM d, yyyy")} at ${proposal.time} has been accepted. Proceed to payment.`
-          : `Your appointment request for ${format(proposal.date, "MMMM d, yyyy")} at ${proposal.time} has been accepted.`;
+          ? `Your proposal for ${format(
+              proposal.date,
+              "MMMM d, yyyy"
+            )} at ${proposal.time} has been accepted. Proceed to payment.`
+          : `Your appointment request for ${format(
+              proposal.date,
+              "MMMM d, yyyy"
+            )} at ${proposal.time} has been accepted.`;
 
-      const recipientId =
-        proposal.initiator === "specialist"
-          ? proposal.userId
-          : (
-              await prisma.specialistApplication.findFirst({
-                where: { specialistId: proposal.specialistId },
-              })
-            )?.userId!;
       await prisma.message.create({
         data: {
           conversationId: proposal.conversationId,
@@ -98,17 +111,15 @@ export async function PATCH(
       // Rejection message
       const rejectText =
         proposal.initiator === "specialist"
-          ? `Your proposal for ${format(proposal.date, "MMMM d, yyyy")} at ${proposal.time} has been rejected.`
-          : `Your appointment request for ${format(proposal.date, "MMMM d, yyyy")} at ${proposal.time} has been declined.`;
+          ? `Your proposal for ${format(
+              proposal.date,
+              "MMMM d, yyyy"
+            )} at ${proposal.time} has been rejected.`
+          : `Your appointment request for ${format(
+              proposal.date,
+              "MMMM d, yyyy"
+            )} at ${proposal.time} has been declined.`;
 
-      const recipientId =
-        proposal.initiator === "specialist"
-          ? proposal.userId
-          : (
-              await prisma.specialistApplication.findFirst({
-                where: { specialistId: proposal.specialistId },
-              })
-            )?.userId!;
       await prisma.message.create({
         data: {
           conversationId: proposal.conversationId,
