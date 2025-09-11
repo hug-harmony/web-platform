@@ -6,8 +6,11 @@ import { format } from "date-fns";
 
 export async function PATCH(
   req: NextRequest,
-  context: { params: { id: string } } // Explicitly type the context
+  context: { params: Promise<{ id: string }> } // params is a Promise
 ) {
+  const params = await context.params; // Resolve the Promise
+  const id = params.id; // Access the id
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -20,7 +23,7 @@ export async function PATCH(
 
   try {
     const proposal = await prisma.proposal.findUnique({
-      where: { id: context.params.id }, // Use context.params.id
+      where: { id }, // Use resolved id
       include: { conversation: true, user: true, specialist: true },
     });
     if (!proposal) {
@@ -49,7 +52,7 @@ export async function PATCH(
 
     // Update status
     const updatedProposal = await prisma.proposal.update({
-      where: { id: context.params.id }, // Use context.params.id
+      where: { id }, // Use resolved id
       data: { status: action },
     });
 
