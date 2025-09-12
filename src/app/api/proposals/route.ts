@@ -89,8 +89,8 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     let conversationId: string;
     let recipientId: string;
-    let specialistId: string | undefined;
-    let userId: string | undefined;
+    let specialistId: string;
+    let userId: string;
     const date = new Date(body.date);
     const time = body.time;
 
@@ -111,30 +111,40 @@ export async function POST(req: NextRequest) {
       conversationId = body.conversationId;
       userId = body.userId; // Recipient user
       specialistId = isSpecialist.specialistId;
-      recipientId = userId;
+
       if (!conversationId || !userId) {
         return NextResponse.json(
           { error: "Missing conversationId or userId for specialist proposal" },
           { status: 400 }
         );
       }
+
+      recipientId = userId;
     } else {
       // User-initiated appointment request
       conversationId = body.conversationId;
       specialistId = body.specialistId; // Recipient specialist
       userId = session.user.id;
-      recipientId =
-        (
-          await prisma.specialistApplication.findFirst({
-            where: { specialistId, status: "approved" },
-          })
-        )?.userId || ""; // Get specialist's user ID for recipient
-      if (!conversationId || !specialistId || !recipientId) {
+
+      if (!conversationId || !specialistId) {
         return NextResponse.json(
           { error: "Missing conversationId or specialistId for user request" },
           { status: 400 }
         );
       }
+
+      const specialistUser = await prisma.specialistApplication.findFirst({
+        where: { specialistId, status: "approved" },
+      });
+
+      if (!specialistUser?.userId) {
+        return NextResponse.json(
+          { error: "Specialist not found" },
+          { status: 404 }
+        );
+      }
+
+      recipientId = specialistUser.userId;
     }
 
     // Verify conversation
@@ -157,8 +167,8 @@ export async function POST(req: NextRequest) {
 
     const proposal = await prisma.proposal.create({
       data: {
-        specialistId: specialistId!,
-        userId: userId!,
+        specialistId,
+        userId,
         conversationId,
         date,
         time,
