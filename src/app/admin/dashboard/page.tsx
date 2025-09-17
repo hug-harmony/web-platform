@@ -10,6 +10,7 @@ import {
   UserCheck,
   BarChart,
   Flag,
+  Calendar,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -61,6 +62,12 @@ export default function AdminDashboardPage() {
       icon: <Flag className="h-8 w-8 text-[#F3CFC6]" />,
       description: "View user-submitted reports and issues.",
     },
+    {
+      href: "/admin/dashboard/bookings-payments",
+      label: "Bookings & Payments",
+      icon: <Calendar className="h-8 w-8 text-[#F3CFC6]" />,
+      description: "Manage bookings and payments.",
+    },
   ];
 
   return (
@@ -90,7 +97,7 @@ export default function AdminDashboardPage() {
                 Welcome to Hug Harmony, {admin.name}
               </CardTitle>
               <p className="text-sm opacity-80">
-                Manage your application resources with ease.
+                Oversee Cuddlers, Clients, and Safety with Confidence.
               </p>
             </div>
           </motion.div>

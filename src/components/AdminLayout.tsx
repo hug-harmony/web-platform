@@ -24,6 +24,7 @@ import {
   UserCheck,
   BarChart,
   Flag,
+  Calendar,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
@@ -54,7 +55,7 @@ export default function AdminDashboardLayout({
   }
 
   if (!session || !session.user.isAdmin) {
-    return null; // Middleware should handle redirect, but this is a fallback
+    return null;
   }
 
   const sidebarVariants = {
@@ -145,6 +146,13 @@ export default function AdminDashboardLayout({
                         label: "Reports",
                         icon: (
                           <Flag className="h-5 w-5 text-black dark:text-white" />
+                        ),
+                      },
+                      {
+                        href: "/admin/dashboard/bookings-payments",
+                        label: "Bookings & Payments",
+                        icon: (
+                          <Calendar className="h-5 w-5 text-black dark:text-white" />
                         ),
                       },
                     ].map((item) => (

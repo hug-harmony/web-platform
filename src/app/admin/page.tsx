@@ -9,6 +9,9 @@ import { Label } from "@/components/ui/label";
 import { signIn, signOut } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import Image from "next/image";
+
+import icon from "../../../public/hh-icon.png";
 
 export default function AdminLoginPage() {
   const [email, setEmail] = useState("");
@@ -61,19 +64,32 @@ export default function AdminLoginPage() {
 
   return (
     <motion.div
-      className="flex items-center justify-center min-h-screen p-4"
+      className="flex items-center justify-center min-h-screen p-4 bg-[#F3CFC6]"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
       transition={{ duration: 0.5 }}
     >
-      <Card className="w-full max-w-md">
+      <Card className="w-full max-w-md bg-white border-[#C4C4C4] shadow-md rounded-lg">
         <CardHeader>
-          <CardTitle className="text-2xl">Admin Login</CardTitle>
+          <div className="flex items-center justify-center mb-4 w-24 h-24 mx-auto rounded-full bg-white shadow-md">
+            <Image
+              src={icon}
+              width={300}
+              height={300}
+              alt="hug harmony icon"
+              className="h-16 w-16 object-contain"
+            />
+          </div>
+          <CardTitle className="text-center text-2xl text-black">
+            Admin Login
+          </CardTitle>
         </CardHeader>
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="email">Email</Label>
+              <Label htmlFor="email" className="text-black">
+                Email
+              </Label>
               <Input
                 id="email"
                 type="email"
@@ -81,10 +97,13 @@ export default function AdminLoginPage() {
                 onChange={(e) => setEmail(e.target.value)}
                 required
                 disabled={loading}
+                className="border-[#C4C4C4] focus:border-[#F3CFC6] text-black"
               />
             </div>
             <div>
-              <Label htmlFor="password">Password</Label>
+              <Label htmlFor="password" className="text-black">
+                Password
+              </Label>
               <Input
                 id="password"
                 type="password"
@@ -92,13 +111,18 @@ export default function AdminLoginPage() {
                 onChange={(e) => setPassword(e.target.value)}
                 required
                 disabled={loading}
+                className="border-[#C4C4C4] focus:border-[#F3CFC6] text-black"
               />
             </div>
             {error && <p className="text-red-500 text-sm">{error}</p>}
-            <Button type="submit" className="w-full" disabled={loading}>
+            <Button
+              type="submit"
+              className="w-full bg-[#F3CFC6] text-black hover:bg-[#E3BFB6]"
+              disabled={loading}
+            >
               {loading ? (
                 <motion.div
-                  className="h-4 w-4 border-2 border-white border-t-transparent rounded-full mr-2"
+                  className="h-4 w-4 border-2 border-black border-t-transparent rounded-full mr-2"
                   animate={{ rotate: 360 }}
                   transition={{ repeat: Infinity, duration: 1, ease: "linear" }}
                 />

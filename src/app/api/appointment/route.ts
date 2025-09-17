@@ -1,9 +1,7 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-
-const prisma = new PrismaClient();
 
 export async function GET(req: Request) {
   try {
@@ -14,44 +12,39 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
+    const isAdminFetch = searchParams.get("admin") === "true";
 
-    // Check if user is admin if fetching for another user
+    let whereClause = {};
     if (userId) {
-      const currentUser = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { isAdmin: true },
-      });
-      if (!currentUser?.isAdmin) {
-        return NextResponse.json({ error: "Forbidden" }, { status: 403 });
-      }
+      whereClause = { userId };
+    } else if (isAdminFetch && session.user.isAdmin) {
+      // Fetch all for admin
+    } else {
+      whereClause = { userId: session.user.id };
+    }
+
+    if (userId && !session.user.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     const appointments = await prisma.appointment.findMany({
-      where: { userId: userId || session.user.id },
+      where: whereClause,
       include: {
-        specialist: {
-          include: {
-            application: { select: { userId: true } },
-          },
-        },
+        specialist: true,
         user: true,
+        payment: true, // Assume Payment relation added
       },
       orderBy: { createdAt: "desc" },
     });
 
     const formatted = appointments.map((appt) => ({
       _id: appt.id,
-      name: appt.user?.name || "Unknown",
-      specialistId: appt.specialistId,
-      specialistName: appt.specialist?.name || "Unknown Specialist",
       date: appt.date.toISOString().split("T")[0],
       time: appt.time,
-      location: appt.specialist?.location || "Unknown",
-      status: appt.status as "upcoming" | "completed" | "cancelled",
-      rating: appt.specialist?.rating ?? 0,
-      reviewCount: appt.specialist?.reviewCount ?? 0,
-      rate: appt.specialist?.rate ?? 0,
-      specialistUserId: appt.specialist?.application?.userId || "",
+      cuddlerName: appt.specialist?.name || "Unknown",
+      clientName: appt.user?.name || "Unknown",
+      status: appt.status, // booked (upcoming), canceled, no-show
+      paymentStatus: appt.payment?.status || "unknown",
     }));
 
     return NextResponse.json(formatted);
