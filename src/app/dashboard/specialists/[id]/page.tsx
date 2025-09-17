@@ -325,6 +325,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
       initial="hidden"
       animate="visible"
     >
+      {/* Header Card */}
       <Card className="shadow-lg pt-0 overflow-hidden">
         <div className="relative h-64 sm:h-80">
           <div
@@ -368,21 +369,21 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                 <p className="text-sm text-[#C4C4C4] mt-1">{profile.role}</p>
               )}
             </div>
-            <div className="flex items-center justify-center gap-2 text-[#C4C4C4]">
+            <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-[#C4C4C4]">
               {profile.location && (
-                <>
+                <div className="flex items-center gap-2">
                   <MapPin className="h-4 w-4 text-[#F3CFC6]" />
                   <span>{profile.location}</span>
-                </>
+                </div>
               )}
               {profile.rating !== undefined && (
-                <>
-                  <Star className="h-4 w-4 ml-4 text-[#F3CFC6]" />
+                <div className="flex items-center gap-2">
+                  <Star className="h-4 w-4 text-[#F3CFC6]" />
                   <span>
                     {profile.rating.toFixed(1)} ({profile.reviewCount || 0}{" "}
                     reviews)
                   </span>
-                </>
+                </div>
               )}
             </div>
             {tagsArray.length > 0 && (
@@ -402,60 +403,15 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                 )}
               </div>
             )}
-            {profile.biography && (
-              <div className="max-w-2xl mx-auto text-black dark:text-white">
-                <h3 className="text-lg font-semibold mb-2">Biography</h3>
-                <p className="text-sm sm:text-base">{profile.biography}</p>
-              </div>
-            )}
-            <div className="max-w-2xl mx-auto text-black dark:text-white">
-              <h3 className="text-lg font-semibold mb-2">
-                Personal Information
-              </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm sm:text-base">
-                <div>
-                  <p className="font-medium">Relationship Status</p>
-                  <p>{profile.relationshipStatus || "Not specified"}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Orientation</p>
-                  <p>{profile.orientation || "Not specified"}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Height</p>
-                  <p>{profile.height || "Not specified"}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Ethnicity</p>
-                  <p>{profile.ethnicity || "Not specified"}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Zodiac Sign</p>
-                  <p>{profile.zodiacSign || "Not specified"}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Favorite Color</p>
-                  <p>{profile.favoriteColor || "Not specified"}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Favorite Movie/TV Show</p>
-                  <p>{profile.favoriteMedia || "Not specified"}</p>
-                </div>
-                <div>
-                  <p className="font-medium">Pet Ownership</p>
-                  <p>{profile.petOwnership || "Not specified"}</p>
-                </div>
-              </div>
-            </div>
             {profile.rate !== undefined && (
               <div className="space-y-4">
                 <p className="text-lg font-semibold text-black dark:text-white">
                   ${profile.rate}/session
                 </p>
-                <div className="flex flex-col sm:flex-row justify-center gap-4">
+                <div className="flex flex-col sm:flex-row flex-wrap justify-center gap-4">
                   <Button
                     asChild
-                    className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full"
+                    className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full w-full sm:w-auto"
                   >
                     <Link href={`/dashboard/appointments/book/${profile._id}`}>
                       <Book className="mr-2 h-4 w-4" /> Book an in-person
@@ -464,20 +420,20 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                   </Button>
                   <Button
                     asChild
-                    className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full"
+                    className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full w-full sm:w-auto"
                   >
                     <Link href={`/dashboard/video-session/${profile._id}`}>
                       <Video className="mr-2 h-4 w-4" /> Book a virtual session
                     </Link>
                   </Button>
-                  <Button className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full">
+                  <Button className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full w-full sm:w-auto">
                     <StarIcon className="mr-2 h-4 w-4" /> Save to Favourites
                   </Button>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
                         variant="outline"
-                        className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 px-6 py-2 rounded-full"
+                        className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 px-6 py-2 rounded-full w-full sm:w-auto"
                       >
                         <MoreVertical className="h-4 w-4" />
                       </Button>
@@ -504,156 +460,268 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         </CardContent>
       </Card>
 
+      {/* About Professional Section */}
+      <motion.div variants={itemVariants}>
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-2xl font-bold text-black dark:text-white">
+              About the Professional
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="space-y-6">
+            {profile.biography && (
+              <div className="space-y-2">
+                <h4 className="text-lg font-semibold text-black dark:text-white">
+                  Biography
+                </h4>
+                <p className="text-sm sm:text-base text-black dark:text-white leading-relaxed">
+                  {profile.biography}
+                </p>
+              </div>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
+
+      {/* Personal Information Section */}
+      <motion.div variants={itemVariants}>
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-xl font-semibold text-black dark:text-white">
+              Personal Information
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4 text-sm sm:text-base">
+              <div>
+                <p className="font-medium text-black dark:text-white">
+                  Relationship Status
+                </p>
+                <p className="text-[#C4C4C4]">
+                  {profile.relationshipStatus || "Not specified"}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-black dark:text-white">
+                  Orientation
+                </p>
+                <p className="text-[#C4C4C4]">
+                  {profile.orientation || "Not specified"}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-black dark:text-white">Height</p>
+                <p className="text-[#C4C4C4]">
+                  {profile.height || "Not specified"}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-black dark:text-white">
+                  Ethnicity
+                </p>
+                <p className="text-[#C4C4C4]">
+                  {profile.ethnicity || "Not specified"}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-black dark:text-white">
+                  Zodiac Sign
+                </p>
+                <p className="text-[#C4C4C4]">
+                  {profile.zodiacSign || "Not specified"}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-black dark:text-white">
+                  Favorite Color
+                </p>
+                <p className="text-[#C4C4C4]">
+                  {profile.favoriteColor || "Not specified"}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-black dark:text-white">
+                  Favorite Movie/TV Show
+                </p>
+                <p className="text-[#C4C4C4]">
+                  {profile.favoriteMedia || "Not specified"}
+                </p>
+              </div>
+              <div>
+                <p className="font-medium text-black dark:text-white">
+                  Pet Ownership
+                </p>
+                <p className="text-[#C4C4C4]">
+                  {profile.petOwnership || "Not specified"}
+                </p>
+              </div>
+            </div>
+          </CardContent>
+        </Card>
+      </motion.div>
+
       {/* Discounts Section */}
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-lg font-semibold text-black dark:text-white">
-            Available Discounts
-          </CardTitle>
-        </CardHeader>
-        <CardContent>
-          {discounts.length > 0 ? (
-            <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"
-              variants={containerVariants}
-            >
-              <AnimatePresence>
-                {discounts.map((discount) => (
-                  <motion.div
-                    key={discount.id}
-                    variants={cardVariants}
-                    whileHover={{
-                      scale: 1.05,
-                      boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-                    }}
-                    transition={{ duration: 0.2 }}
-                  >
-                    <Card className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors">
-                      <CardContent className="pt-4">
-                        <div className="flex items-center space-x-2">
-                          <DollarSign className="h-6 w-6 text-[#F3CFC6]" />
-                          <div>
-                            <h3 className="font-semibold">{discount.name}</h3>
-                            <p className="text-sm text-[#C4C4C4]">
-                              {discount.discount}% off ${discount.rate}
-                            </p>
+      <motion.div variants={itemVariants}>
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-lg font-semibold text-black dark:text-white">
+              Available Discounts
+            </CardTitle>
+          </CardHeader>
+          <CardContent>
+            {discounts.length > 0 ? (
+              <motion.div
+                className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-6"
+                variants={containerVariants}
+              >
+                <AnimatePresence>
+                  {discounts.map((discount) => (
+                    <motion.div
+                      key={discount.id}
+                      variants={cardVariants}
+                      whileHover={{
+                        scale: 1.05,
+                        boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+                      }}
+                      transition={{ duration: 0.2 }}
+                    >
+                      <Card className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors">
+                        <CardContent className="pt-4">
+                          <div className="flex items-center space-x-2">
+                            <DollarSign className="h-6 w-6 text-[#F3CFC6]" />
+                            <div>
+                              <h3 className="font-semibold">{discount.name}</h3>
+                              <p className="text-sm text-[#C4C4C4]">
+                                {discount.discount}% off ${discount.rate}
+                              </p>
+                            </div>
                           </div>
-                        </div>
-                      </CardContent>
-                    </Card>
-                  </motion.div>
-                ))}
-              </AnimatePresence>
-            </motion.div>
-          ) : (
-            <p className="text-center text-[#C4C4C4]">
-              No discounts available.
-            </p>
-          )}
-        </CardContent>
-      </Card>
+                        </CardContent>
+                      </Card>
+                    </motion.div>
+                  ))}
+                </AnimatePresence>
+              </motion.div>
+            ) : (
+              <p className="text-center text-[#C4C4C4]">
+                No discounts available.
+              </p>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
 
       {/* Reviews Section */}
-      <Card className="shadow-lg">
-        <CardContent className="pt-6">
-          <div className="flex justify-between items-center mb-4">
-            <h3 className="text-xl font-bold text-black dark:text-white">
-              Reviews
-            </h3>
-            <Dialog
-              open={isReviewDialogOpen}
-              onOpenChange={setIsReviewDialogOpen}
-            >
-              <DialogTrigger asChild>
-                <Button className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-4 py-2 rounded-full">
-                  Write a Review
-                </Button>
-              </DialogTrigger>
-              <DialogContent>
-                <DialogHeader>
-                  <DialogTitle>Write Your Review</DialogTitle>
-                </DialogHeader>
-                <div className="space-y-4">
-                  <div className="flex justify-center">
-                    {renderStars(selectedRating, true, setSelectedRating)}
-                  </div>
-                  <Textarea
-                    placeholder="Share your feedback..."
-                    value={feedback}
-                    onChange={(e) => setFeedback(e.target.value)}
-                  />
-                  {submitError && <p className="text-red-500">{submitError}</p>}
-                </div>
-                <DialogFooter>
-                  <Button
-                    onClick={handleSubmitReview}
-                    disabled={selectedRating === 0 || !feedback}
-                  >
-                    Submit
+      <motion.div variants={itemVariants}>
+        <Card className="shadow-lg">
+          <CardContent className="pt-6">
+            <div className="flex flex-col sm:flex-row justify-between items-start sm:items-center mb-4 gap-4">
+              <h3 className="text-xl font-bold text-black dark:text-white">
+                Reviews
+              </h3>
+              <Dialog
+                open={isReviewDialogOpen}
+                onOpenChange={setIsReviewDialogOpen}
+              >
+                <DialogTrigger asChild>
+                  <Button className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-4 py-2 rounded-full w-full sm:w-auto">
+                    Write a Review
                   </Button>
-                </DialogFooter>
-              </DialogContent>
-            </Dialog>
-          </div>
-          {reviews.length === 0 ? (
-            <p className="text-center text-gray-500">No reviews yet.</p>
-          ) : (
-            <>
-              {reviews.slice(0, 3).map((review) => (
-                <div key={review.id} className="border-b py-4 last:border-b-0">
-                  <div className="flex justify-between">
-                    <div>
-                      <p className="font-semibold">{review.reviewerName}</p>
-                      <p className="text-sm text-gray-500">
-                        {new Date(review.createdAt).toLocaleDateString()}
-                      </p>
+                </DialogTrigger>
+                <DialogContent>
+                  <DialogHeader>
+                    <DialogTitle>Write Your Review</DialogTitle>
+                  </DialogHeader>
+                  <div className="space-y-4">
+                    <div className="flex justify-center">
+                      {renderStars(selectedRating, true, setSelectedRating)}
                     </div>
-                    <div className="flex">{renderStars(review.rating)}</div>
+                    <Textarea
+                      placeholder="Share your feedback..."
+                      value={feedback}
+                      onChange={(e) => setFeedback(e.target.value)}
+                    />
+                    {submitError && (
+                      <p className="text-red-500">{submitError}</p>
+                    )}
                   </div>
-                  <p className="mt-2">{review.feedback}</p>
-                </div>
-              ))}
-              {reviews.length > 3 && (
-                <div className="text-center mt-4">
-                  <Dialog open={isViewAllOpen} onOpenChange={setIsViewAllOpen}>
-                    <DialogTrigger asChild>
-                      <Button variant="link">View All Reviews</Button>
-                    </DialogTrigger>
-                    <DialogContent className="max-h-[80vh] overflow-y-auto">
-                      <DialogHeader>
-                        <DialogTitle>All Reviews</DialogTitle>
-                      </DialogHeader>
-                      {reviews.map((review) => (
-                        <div
-                          key={review.id}
-                          className="border-b py-4 last:border-b-0"
-                        >
-                          <div className="flex justify-between">
-                            <div>
-                              <p className="font-semibold">
-                                {review.reviewerName}
-                              </p>
-                              <p className="text-sm text-gray-500">
-                                {new Date(
-                                  review.createdAt
-                                ).toLocaleDateString()}
-                              </p>
+                  <DialogFooter>
+                    <Button
+                      onClick={handleSubmitReview}
+                      disabled={selectedRating === 0 || !feedback}
+                    >
+                      Submit
+                    </Button>
+                  </DialogFooter>
+                </DialogContent>
+              </Dialog>
+            </div>
+            {reviews.length === 0 ? (
+              <p className="text-center text-gray-500">No reviews yet.</p>
+            ) : (
+              <>
+                {reviews.slice(0, 3).map((review) => (
+                  <div
+                    key={review.id}
+                    className="border-b py-4 last:border-b-0"
+                  >
+                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                      <div>
+                        <p className="font-semibold">{review.reviewerName}</p>
+                        <p className="text-sm text-gray-500">
+                          {new Date(review.createdAt).toLocaleDateString()}
+                        </p>
+                      </div>
+                      <div className="flex">{renderStars(review.rating)}</div>
+                    </div>
+                    <p className="mt-2">{review.feedback}</p>
+                  </div>
+                ))}
+                {reviews.length > 3 && (
+                  <div className="text-center mt-4">
+                    <Dialog
+                      open={isViewAllOpen}
+                      onOpenChange={setIsViewAllOpen}
+                    >
+                      <DialogTrigger asChild>
+                        <Button variant="link">View All Reviews</Button>
+                      </DialogTrigger>
+                      <DialogContent className="max-h-[80vh] overflow-y-auto">
+                        <DialogHeader>
+                          <DialogTitle>All Reviews</DialogTitle>
+                        </DialogHeader>
+                        {reviews.map((review) => (
+                          <div
+                            key={review.id}
+                            className="border-b py-4 last:border-b-0"
+                          >
+                            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
+                              <div>
+                                <p className="font-semibold">
+                                  {review.reviewerName}
+                                </p>
+                                <p className="text-sm text-gray-500">
+                                  {new Date(
+                                    review.createdAt
+                                  ).toLocaleDateString()}
+                                </p>
+                              </div>
+                              <div className="flex">
+                                {renderStars(review.rating)}
+                              </div>
                             </div>
-                            <div className="flex">
-                              {renderStars(review.rating)}
-                            </div>
+                            <p className="mt-2">{review.feedback}</p>
                           </div>
-                          <p className="mt-2">{review.feedback}</p>
-                        </div>
-                      ))}
-                    </DialogContent>
-                  </Dialog>
-                </div>
-              )}
-            </>
-          )}
-        </CardContent>
-      </Card>
+                        ))}
+                      </DialogContent>
+                    </Dialog>
+                  </div>
+                )}
+              </>
+            )}
+          </CardContent>
+        </Card>
+      </motion.div>
     </motion.div>
   );
 };

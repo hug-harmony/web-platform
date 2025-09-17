@@ -7,6 +7,7 @@ import { Button } from "@/components/ui/button";
 import { useRouter, useParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import { MessageSquare } from "lucide-react";
 
 // Type definitions
 interface BookingDetails {
@@ -18,7 +19,7 @@ interface BookingDetails {
   totalAmount: string;
 }
 
-// Animation variants
+// Animation variants (same as booking page)
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
@@ -95,15 +96,70 @@ const BookingConfirmationPage: React.FC = () => {
     router.push("/dashboard/appointments");
   };
 
+  const handleAddToCalendar = () => {
+    if (!bookingId) {
+      toast.error("No booking ID available");
+      return;
+    }
+    // Trigger download of .ics file
+    window.location.href = `/api/appointment/${bookingId}/calendar`;
+  };
+
   if (loading) {
-    return <div className="p-4 text-center text-xl">Loading...</div>;
+    return (
+      <motion.div
+        className="p-4 space-y-6 max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
+            <motion.div variants={itemVariants}>
+              <CardTitle className="text-2xl text-black dark:text-white">
+                Booking Confirmation
+              </CardTitle>
+            </motion.div>
+          </CardHeader>
+          <CardContent>
+            <motion.div
+              variants={itemVariants}
+              className="text-center text-xl text-black dark:text-white"
+            >
+              Loading...
+            </motion.div>
+          </CardContent>
+        </Card>
+      </motion.div>
+    );
   }
 
   if (!bookingDetails) {
     return (
-      <div className="p-4 text-center text-xl">
-        Error: Unable to load booking details
-      </div>
+      <motion.div
+        className="p-4 space-y-6 max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
+            <motion.div variants={itemVariants}>
+              <CardTitle className="text-2xl text-black dark:text-white">
+                Booking Confirmation
+              </CardTitle>
+            </motion.div>
+          </CardHeader>
+          <CardContent>
+            <motion.div
+              variants={itemVariants}
+              className="text-center text-xl text-black dark:text-white"
+            >
+              Error: Unable to load booking details
+            </motion.div>
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   }
 
@@ -114,51 +170,113 @@ const BookingConfirmationPage: React.FC = () => {
       initial="hidden"
       animate="visible"
     >
-      <Card className="rounded-xl border border-gray-200">
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl font-semibold text-[#333] flex items-center">
+          <motion.div variants={itemVariants}>
+            <CardTitle className="text-2xl text-black dark:text-white">
+              Booking Confirmation
+            </CardTitle>
+            <p className="text-sm text-[#C4C4C4]">
+              Your appointment has been successfully booked
+            </p>
+          </motion.div>
+        </CardHeader>
+        <CardContent className="flex space-x-4">
+          <motion.div
+            variants={itemVariants}
+            whileHover={{
+              scale: 1.05,
+              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+            }}
+            transition={{ duration: 0.2 }}
+          >
+            <Button
+              asChild
+              variant="outline"
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+            >
+              <a href="/dashboard">
+                <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                Back to Dashboard
+              </a>
+            </Button>
+          </motion.div>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-black dark:text-white">
             Booking Details
           </CardTitle>
         </CardHeader>
         <CardContent className="p-4 sm:p-6 space-y-6">
           <motion.div variants={itemVariants} className="space-y-4">
-            <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
-              <p className="text-lg font-medium">Name</p>
-              <p className="text-lg text-gray-500">{bookingDetails.name}</p>
+            <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl">
+              <p className="text-lg font-medium text-black dark:text-white">
+                Name
+              </p>
+              <p className="text-lg text-gray-500 dark:text-gray-400">
+                {bookingDetails.name}
+              </p>
             </div>
-            <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
-              <p className="text-lg font-medium">Professional Name</p>
-              <p className="text-lg text-gray-500">
+            <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl">
+              <p className="text-lg font-medium text-black dark:text-white">
+                Professional Name
+              </p>
+              <p className="text-lg text-gray-500 dark:text-gray-400">
                 {bookingDetails.specialistName}
               </p>
             </div>
-            <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
-              <p className="text-lg font-medium">Date</p>
-              <p className="text-lg text-gray-500">{bookingDetails.date}</p>
+            <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl">
+              <p className="text-lg font-medium text-black dark:text-white">
+                Date
+              </p>
+              <p className="text-lg text-gray-500 dark:text-gray-400">
+                {bookingDetails.date}
+              </p>
             </div>
-            <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
-              <p className="text-lg font-medium">Time</p>
-              <p className="text-lg text-gray-500">{bookingDetails.time}</p>
+            <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl">
+              <p className="text-lg font-medium text-black dark:text-white">
+                Time
+              </p>
+              <p className="text-lg text-gray-500 dark:text-gray-400">
+                {bookingDetails.time}
+              </p>
             </div>
-            <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
-              <p className="text-lg font-medium">Payment Method</p>
-              <p className="text-lg text-gray-500">
+            <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl">
+              <p className="text-lg font-medium text-black dark:text-white">
+                Payment Method
+              </p>
+              <p className="text-lg text-gray-500 dark:text-gray-400">
                 {bookingDetails.paymentMethod}
               </p>
             </div>
-            <div className="flex items-center justify-between p-2 hover:bg-gray-50 rounded-xl">
-              <p className="text-lg font-medium">Total Amount</p>
-              <p className="text-lg text-gray-500">
+            <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl">
+              <p className="text-lg font-medium text-black dark:text-white">
+                Total Amount
+              </p>
+              <p className="text-lg text-gray-500 dark:text-gray-400">
                 {bookingDetails.totalAmount}
               </p>
             </div>
           </motion.div>
-          <motion.div variants={itemVariants} className="flex justify-end">
+          <motion.div
+            variants={itemVariants}
+            className="flex flex-col sm:flex-row justify-end gap-2"
+          >
+            <Button
+              onClick={handleAddToCalendar}
+              variant="outline"
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+            >
+              Add to Calendar
+            </Button>
             <Button
               onClick={handleBackToAppointments}
-              className="py-4 px-6 text-lg rounded-xl font-bold bg-[#E8C5BC] text-black hover:bg-[#DDB0A3]"
+              className="py-4 px-6 text-lg bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
             >
-              View all appointments
+              View All Appointments
             </Button>
           </motion.div>
         </CardContent>

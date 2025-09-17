@@ -18,6 +18,7 @@ import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 import { Card } from "@/components/ui/card";
+import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
 
 import register from "../../../public/register.webp";
@@ -31,10 +32,15 @@ const formSchema = z
     phoneNumber: z.string().min(10, "Phone number must be at least 10 digits"),
     password: z.string().min(6, "Password must be at least 6 characters"),
     confirmPassword: z.string().min(6, "Confirm password is required"),
+    ageVerification: z.boolean(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
     path: ["confirmPassword"],
+  })
+  .refine((data) => data.ageVerification === true, {
+    message: "You must confirm you are over 18 and agree to the terms",
+    path: ["ageVerification"],
   });
 
 export default function RegisterPage() {
@@ -51,6 +57,7 @@ export default function RegisterPage() {
       phoneNumber: "",
       password: "",
       confirmPassword: "",
+      ageVerification: false,
     },
   });
 
@@ -66,6 +73,7 @@ export default function RegisterPage() {
           email: values.email,
           phoneNumber: values.phoneNumber,
           password: values.password,
+          ageVerification: values.ageVerification,
         }),
       });
       const data = await res.json();
@@ -228,6 +236,35 @@ export default function RegisterPage() {
                       />
                     </FormControl>
                     <FormMessage className="text-xs" />
+                  </FormItem>
+                )}
+              />
+
+              <FormField
+                control={form.control}
+                name="ageVerification"
+                render={({ field }) => (
+                  <FormItem className="flex flex-row items-start space-x-3 space-y-0">
+                    <FormControl>
+                      <Checkbox
+                        checked={field.value}
+                        onCheckedChange={field.onChange}
+                      />
+                    </FormControl>
+                    <div className="space-y-1 leading-none">
+                      <FormLabel className="text-sm font-medium">
+                        <p>
+                          I confirm that I am over 18 years old and agree to the{" "}
+                          <Link
+                            href="/terms"
+                            className="text-blue-600 hover:underline"
+                          >
+                            Terms and Conditions
+                          </Link>
+                        </p>
+                      </FormLabel>
+                      <FormMessage className="text-xs" />
+                    </div>
                   </FormItem>
                 )}
               />

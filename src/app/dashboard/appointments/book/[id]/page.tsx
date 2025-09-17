@@ -183,7 +183,7 @@ const BookingPage: React.FC = () => {
         );
       }
     },
-    [therapistId] // dependencies
+    [therapistId]
   );
 
   useEffect(() => {
@@ -375,7 +375,7 @@ const BookingPage: React.FC = () => {
               <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {[...Array(6)].map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full bg-[#C4C4C4]/50" />
+                  <Skeleton key={i} className="h-10 w-full Bg-[#C4C4C4]/50" />
                 ))}
               </div>
               <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />

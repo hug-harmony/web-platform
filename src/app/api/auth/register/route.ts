@@ -16,7 +16,14 @@ export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
     console.log("Register request body:", body);
-    const { email, password, firstName, lastName, phoneNumber } = body;
+    const {
+      email,
+      password,
+      firstName,
+      lastName,
+      phoneNumber,
+      ageVerification,
+    } = body;
 
     if (
       !firstName ||
@@ -24,14 +31,23 @@ export async function POST(request: NextRequest) {
       !password ||
       !lastName ||
       !phoneNumber ||
+      !ageVerification ||
       typeof email !== "string" ||
       typeof password !== "string" ||
       typeof firstName !== "string" ||
       typeof lastName !== "string" ||
-      typeof phoneNumber !== "string"
+      typeof phoneNumber !== "string" ||
+      typeof ageVerification !== "boolean"
     ) {
       return NextResponse.json(
         { error: "All fields required" },
+        { status: 400 }
+      );
+    }
+
+    if (!ageVerification) {
+      return NextResponse.json(
+        { error: "You must confirm you are over 18 and agree to the terms" },
         { status: 400 }
       );
     }
