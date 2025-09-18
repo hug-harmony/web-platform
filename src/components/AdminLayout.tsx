@@ -25,6 +25,7 @@ import {
   BarChart,
   Flag,
   Calendar,
+  Settings,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
@@ -185,6 +186,14 @@ export default function AdminDashboardLayout({
                 )}
                 {isSidebarOpen &&
                   (theme === "dark" ? "Light Mode" : "Dark Mode")}
+              </Button>
+              <Button
+                variant="ghost"
+                className="w-full justify-start text-black dark:text-white"
+                onClick={() => router.push("/admin/dashboard/settings")}
+              >
+                <Settings className="h-4 w-4 mr-2" />
+                {isSidebarOpen && "Settings"}
               </Button>
               <Button
                 variant="ghost"
