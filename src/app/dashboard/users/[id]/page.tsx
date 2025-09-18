@@ -18,6 +18,22 @@ import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogHeader,
+  DialogTitle,
+  DialogFooter,
+} from "@/components/ui/dialog";
+import { Textarea } from "@/components/ui/textarea";
+import { Label } from "@/components/ui/label";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -57,6 +73,9 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
+  const [isReportOpen, setIsReportOpen] = useState(false);
+  const [reportReason, setReportReason] = useState("");
+  const [reportDetails, setReportDetails] = useState("");
   const router = useRouter();
   const { data: session, status } = useSession();
 
@@ -164,6 +183,33 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         error instanceof Error ? error.message : "Failed to start chat";
       console.error("Start chat error:", errorMessage);
       toast.error(errorMessage);
+    }
+  };
+
+  const handleSubmitReport = async () => {
+    if (!reportReason) {
+      toast.error("Please select a reason");
+      return;
+    }
+    try {
+      const { id } = await params;
+      const res = await fetch("/api/reports/user-reports", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          reportedUserId: id,
+          reason: reportReason,
+          details: reportDetails,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to submit report");
+      toast.success("Report submitted successfully");
+      setIsReportOpen(false);
+      setReportReason("");
+      setReportDetails("");
+    } catch (error) {
+      console.error("Submit report error:", error);
+      toast.error("Failed to submit report");
     }
   };
 
@@ -329,7 +375,10 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                   <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
                     Block
                   </DropdownMenuItem>
-                  <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
+                  <DropdownMenuItem
+                    onClick={() => setIsReportOpen(true)}
+                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  >
                     Report
                   </DropdownMenuItem>
                   <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
@@ -341,6 +390,48 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           </motion.div>
         </CardContent>
       </Card>
+
+      {/* Report Dialog */}
+      <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Report User</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="reason">Reason</Label>
+              <Select value={reportReason} onValueChange={setReportReason}>
+                <SelectTrigger>
+                  <SelectValue placeholder="Select reason" />
+                </SelectTrigger>
+                <SelectContent>
+                  <SelectItem value="abuse">Abuse/Harassment</SelectItem>
+                  <SelectItem value="spam">Spam</SelectItem>
+                  <SelectItem value="fake">Fake Account</SelectItem>
+                  <SelectItem value="inappropriate">
+                    Inappropriate Content
+                  </SelectItem>
+                  <SelectItem value="other">Other</SelectItem>
+                </SelectContent>
+              </Select>
+            </div>
+            <div>
+              <Label htmlFor="details">Details</Label>
+              <Textarea
+                id="details"
+                placeholder="Provide more details..."
+                value={reportDetails}
+                onChange={(e) => setReportDetails(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSubmitReport} disabled={!reportReason}>
+              Submit Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
     </motion.div>
   );
 };

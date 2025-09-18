@@ -44,6 +44,10 @@ model User {
   ProfileVisit     ProfileVisit[] @relation("Visitor")
   Proposal         Proposal[]     @relation
   reviews      Review[]   @relation("UserReviews")
+  surveyResponses  SurveyResponse[] @relation("UserSurveys")
+  securityLogs     SecurityLog[]  @relation("UserSecurityLogs")
+  reported         Report[]       @relation("ReportedUser")
+  reports          Report[]       @relation("Reporter")
 }
 
 model PasswordResetToken {
@@ -104,6 +108,7 @@ model Specialist {
   Proposal         Proposal[]     @relation
   reviews      Review[]   @relation("SpecialistReviews")
   discounts    Discount[] @relation
+  reported     Report[]       @relation("ReportedSpecialist")
 }
 
 model Post {
@@ -255,4 +260,38 @@ model CompanySettings {
   value     Float
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
+}
+
+model SurveyResponse {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId      String   @db.ObjectId
+  rating      Int      // 1-5
+  feedback    String?
+  createdAt   DateTime @default(now())
+  user        User     @relation("UserSurveys", fields: [userId], references: [id], onDelete: Cascade)
+  @@unique([userId])
+}
+
+model SecurityLog {
+  id         String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId     String?  @db.ObjectId
+  eventType  String   // e.g., "login_attempt", "threat_detected"
+  ipAddress  String?
+  details    String
+  timestamp  DateTime @default(now())
+  user       User?    @relation("UserSecurityLogs", fields: [userId], references: [id], onDelete: SetNull)
+}
+
+model Report {
+  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
+  reporterId          String   @db.ObjectId
+  reportedUserId      String?  @db.ObjectId
+  reportedSpecialistId String?  @db.ObjectId
+  reason              String
+  details             String?
+  status              String   @default("pending") // pending, reviewed, resolved
+  createdAt           DateTime @default(now())
+  reporter            User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser        User?    @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  reportedSpecialist  Specialist? @relation("ReportedSpecialist", fields: [reportedSpecialistId], references: [id], onDelete: SetNull)
 }

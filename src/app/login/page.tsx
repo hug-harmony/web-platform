@@ -28,7 +28,6 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
-
 import login from "../../../public/login.webp";
 
 const formSchema = z.object({
@@ -42,7 +41,6 @@ export default function LoginPage() {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
-
   const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -52,6 +50,32 @@ export default function LoginPage() {
       password: "",
     },
   });
+
+  const logSecurityEvent = async (
+    eventType: string,
+    details: string,
+    userId?: string
+  ) => {
+    try {
+      const ipAddress = await fetch("https://api.ipify.org?format=json")
+        .then((res) => res.json())
+        .then((data) => data.ip)
+        .catch(() => null);
+
+      await fetch("/api/reports/security-logs", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          userId,
+          eventType,
+          ipAddress,
+          details,
+        }),
+      });
+    } catch (err) {
+      console.error("Error logging security event:", err);
+    }
+  };
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
@@ -63,17 +87,58 @@ export default function LoginPage() {
       });
 
       if (result?.error) {
+        await logSecurityEvent(
+          "login_attempt",
+          `Failed login attempt for ${values.email}: ${result.error}`
+        );
         toast.error(result.error || "Invalid email or password");
-        setError(result.error);
+        setError(result.error || "Invalid email or password");
       } else {
+        await logSecurityEvent(
+          "login_attempt",
+          `Successful login for ${values.email}`,
+          values.email
+        );
         toast.success("Logged in successfully!");
         router.push("/dashboard");
       }
     } catch (error) {
+      await logSecurityEvent(
+        "login_attempt",
+        `Unexpected error during login for ${values.email}`
+      );
       toast.error("An unexpected error occurred");
       setError("An unexpected error occurred");
-      console.log(error);
-      console.log(resetMessage);
+      console.error(error);
+    } finally {
+      setIsLoading(false);
+    }
+  };
+
+  const handleGoogleLogin = async () => {
+    try {
+      setIsLoading(true);
+      const result = await signIn("google", { redirect: false });
+      if (result?.error) {
+        await logSecurityEvent(
+          "login_attempt",
+          `Failed Google login: ${result.error}`
+        );
+        toast.error(result.error || "Google login failed");
+        setError(result.error || "Google login failed");
+      } else {
+        await logSecurityEvent("login_attempt", "Successful Google login");
+        toast.success("Logged in successfully!");
+        router.push("/dashboard");
+      }
+    } catch (error) {
+      await logSecurityEvent(
+        "login_attempt",
+        "Unexpected error during Google login"
+      );
+      toast.error("An unexpected error occurred");
+      setError("An unexpected error occurred");
+      console.error(error);
     } finally {
       setIsLoading(false);
     }
@@ -92,6 +157,10 @@ export default function LoginPage() {
       const result = await res.json();
 
       if (!res.ok) {
+        await logSecurityEvent(
+          "password_reset_request",
+          `Failed password reset request for ${resetEmail}: ${result.error}`
+        );
         if (result.error === "This account uses Google login") {
           toast.error("Please use Google login for this account");
           setResetMessage(
@@ -101,16 +170,25 @@ export default function LoginPage() {
           return;
         }
         toast.error(result.error || "Failed to send reset email");
+        setResetMessage(result.error || "Failed to send reset email");
         throw new Error(result.error || "Failed to send reset email");
       }
 
+      await logSecurityEvent(
+        "password_reset_request",
+        `Password reset email sent for ${resetEmail}`
+      );
       toast.success("Password reset email sent!");
       setResetMessage("Check your email for reset instructions");
       setIsDialogOpen(false);
     } catch (err: any) {
-      console.log(err);
+      await logSecurityEvent(
+        "password_reset_request",
+        `Error during password reset for ${resetEmail}: ${err.message}`
+      );
       toast.error(err.message || "Failed to send reset email");
       setResetMessage(err.message || "Failed to send reset email");
+      console.error(err);
     } finally {
       setIsLoading(false);
     }
@@ -138,7 +216,7 @@ export default function LoginPage() {
                     <FormLabel className="text-sm font-medium">Email</FormLabel>
                     <FormControl>
                       <Input
-                        className=" text-sm border-gray-300"
+                        className="text-sm border-gray-300"
                         placeholder="Email"
                         type="email"
                         {...field}
@@ -158,7 +236,7 @@ export default function LoginPage() {
                     </FormLabel>
                     <FormControl>
                       <Input
-                        className=" text-sm border-gray-300"
+                        className="text-sm border-gray-300"
                         placeholder="Password"
                         type="password"
                         {...field}
@@ -168,10 +246,9 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
-
               <Button
                 type="submit"
-                className="w-full bg-[#E7C4BB] text-black  text-sm hover:bg-[#d4a8a0] transition-colors"
+                className="w-full bg-[#E7C4BB] text-black text-sm hover:bg-[#d4a8a0] transition-colors"
                 disabled={isLoading}
               >
                 {isLoading ? "Logging in..." : "Login"}
@@ -190,8 +267,9 @@ export default function LoginPage() {
               <DialogHeader>
                 <DialogTitle>Reset Password</DialogTitle>
                 <DialogDescription>
-                  You will recieve an email with a link to reset password
+                  You will receive an email with a link to reset password
                 </DialogDescription>
+                <p className="opacity-0">{resetMessage}</p>
               </DialogHeader>
               <form onSubmit={handleResetPassword} className="space-y-2">
                 <Input
@@ -204,7 +282,7 @@ export default function LoginPage() {
                 />
                 <Button
                   type="submit"
-                  className="w-full  text-sm"
+                  className="w-full text-sm"
                   disabled={isLoading}
                 >
                   {isLoading ? "Sending..." : "Send Reset Email"}
@@ -224,8 +302,8 @@ export default function LoginPage() {
           <div className="flex justify-center space-x-3 mt-3">
             <Button
               type="button"
-              className="bg-white text-black border border-gray-300  w-full text-xs hover:bg-gray-50 flex items-center justify-center space-x-2"
-              onClick={() => signIn("google", { callbackUrl: "/dashboard" })}
+              className="bg-white text-black border border-gray-300 w-full text-xs hover:bg-gray-50 flex items-center justify-center space-x-2"
+              onClick={handleGoogleLogin}
               disabled={isLoading}
             >
               <svg
@@ -235,7 +313,7 @@ export default function LoginPage() {
                 xmlns="http://www.w3.org/2000/svg"
               >
                 <path
-                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  d="M22.56 12.25c0-.78-.07-1.53-.20-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                   fill="#4285F4"
                 />
                 <path
