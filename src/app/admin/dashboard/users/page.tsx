@@ -18,7 +18,7 @@ import { useState, useEffect } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface User {
-  _id: string;
+  id: string;
   name: string;
   email: string;
   profileImage: string;
@@ -121,7 +121,7 @@ export default function UsersPage() {
                 <AnimatePresence>
                   {filteredUsers.map((user) => (
                     <motion.div
-                      key={user._id}
+                      key={user.id}
                       variants={itemVariants}
                       initial="hidden"
                       animate="visible"
@@ -168,7 +168,7 @@ export default function UsersPage() {
                         size="sm"
                         className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
                       >
-                        <Link href={`/admin/dashboard/users/${user._id}`}>
+                        <Link href={`/admin/dashboard/users/${user.id}`}>
                           View
                         </Link>
                       </Button>
