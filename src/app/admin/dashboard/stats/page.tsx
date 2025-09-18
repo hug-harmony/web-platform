@@ -76,6 +76,9 @@ export default function StatsPage() {
     { name: "Specialists", value: 0 },
     { name: "Appointments", value: 0 },
     { name: "Reports", value: 0 },
+    { name: "Completed Sessions", value: 0 },
+    { name: "Total Earnings", value: 0 },
+    { name: "Company Cut", value: 0 },
   ]);
   const [loading, setLoading] = useState(true);
 
@@ -106,12 +109,48 @@ export default function StatsPage() {
         ? appointments.length
         : 0;
 
+      // Compute totals from appointments
+      const isAppointment = (
+        appt: unknown
+      ): appt is { paymentStatus: string; amount?: number } => {
+        return (
+          typeof appt === "object" &&
+          appt !== null &&
+          "paymentStatus" in appt &&
+          "amount" in appt
+        );
+      };
+
+      const completedSessions = appointments.filter(
+        (appt: unknown): appt is { paymentStatus: string } =>
+          isAppointment(appt) && appt.paymentStatus === "successful"
+      ).length;
+
+      const totalEarnings = appointments.reduce(
+        (sum: number, appt: unknown) => {
+          if (isAppointment(appt)) {
+            return sum + (appt.amount ?? 0);
+          }
+          return sum;
+        },
+        0
+      );
+
+      // Fetch company cut percentage
+      const cutRes = await fetch("/api/settings/company-cut");
+      if (!cutRes.ok) throw new Error("Failed to fetch company cut");
+      const { companyCutPercentage } = await cutRes.json();
+      const companyCutAmount = totalEarnings * (companyCutPercentage / 100);
+
       // Set stats data
       setStatsData([
         { name: "Users", value: userCount },
         { name: "Specialists", value: specialistCount },
         { name: "Appointments", value: appointmentCount },
         { name: "Reports", value: 0 },
+        { name: "Completed Sessions", value: completedSessions },
+        { name: "Total Earnings", value: totalEarnings },
+        { name: "Company Cut", value: companyCutAmount },
       ]);
     } catch (error) {
       console.error("Fetch Stats Error:", error);
@@ -183,7 +222,7 @@ export default function StatsPage() {
                   {stat.name}
                 </h3>
                 <p className="text-2xl font-bold text-[#F3CFC6]">
-                  {loading ? "..." : stat.value}
+                  {loading ? "..." : stat.value.toFixed(2)}
                 </p>
               </CardContent>
             </Card>

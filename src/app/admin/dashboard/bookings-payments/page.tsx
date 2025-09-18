@@ -113,6 +113,7 @@ export default function BookingsPaymentsPage() {
         toast.success("Dispute resolved");
         setPayments(payments.filter((p) => p.id !== paymentId));
         setSelectedPayment(null);
+        console.log(selectedPayment);
         setNotes("");
       } else {
         throw new Error("Failed to resolve dispute");

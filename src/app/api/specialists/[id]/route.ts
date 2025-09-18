@@ -18,7 +18,7 @@ const updateSpecialistSchema = z.object({
 
 export async function GET(
   req: Request,
-  context: { params: Promise<{ id: string }> } // Fixed: Changed from destructured params to context
+  context: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -29,8 +29,8 @@ export async function GET(
       );
     }
 
-    const params = await context.params; // Fixed: Resolve the Promise first
-    const id = params.id; // Then access the id
+    const params = await context.params;
+    const id = params.id;
 
     if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
       return NextResponse.json(
@@ -73,6 +73,30 @@ export async function GET(
       );
     }
 
+    // Compute metrics
+    const completedAppointments = await prisma.appointment.findMany({
+      where: {
+        specialistId: id,
+        payment: { status: "successful" },
+      },
+      select: {
+        payment: {
+          select: { amount: true },
+        },
+      },
+    });
+
+    const completedSessions = completedAppointments.length;
+    const totalEarnings = completedAppointments.reduce(
+      (sum, appt) => sum + (appt.payment?.amount || 0),
+      0
+    );
+
+    const setting = await prisma.companySettings.findUnique({
+      where: { key: "companyCutPercentage" },
+    });
+    const companyCutPercentage = setting ? setting.value : 20;
+
     return NextResponse.json({
       id: specialist.id,
       name: specialist.name || "Unknown Specialist",
@@ -92,6 +116,12 @@ export async function GET(
         createdAt: discount.createdAt,
         updatedAt: discount.updatedAt,
       })),
+      metrics: {
+        totalEarnings,
+        companyCutPercentage,
+        completedSessions,
+        hourlyRate: specialist.rate || 0,
+      },
     });
   } catch (error: any) {
     console.error("Error fetching specialist:", error);

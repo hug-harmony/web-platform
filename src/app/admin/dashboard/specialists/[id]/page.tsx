@@ -10,13 +10,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Button } from "@/components/ui/button";
 import { Stethoscope, Calendar, Video, ArrowLeft } from "lucide-react";
 import Link from "next/link";
-import {
-  Select,
-  SelectContent,
-  SelectItem,
-  SelectTrigger,
-  SelectValue,
-} from "@/components/ui/select";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 
@@ -28,7 +21,15 @@ interface Specialist {
   biography: string;
   education: string;
   license: string;
-  status: "pending" | "reviewed" | "approved" | "rejected";
+  rate: number;
+  image?: string;
+  metrics: {
+    totalEarnings: number;
+    companyCutPercentage: number;
+    completedSessions: number;
+    hourlyRate: number;
+  };
+  status: "approved";
 }
 
 interface Appointment {
@@ -47,7 +48,6 @@ interface VideoSession {
   status: "upcoming" | "completed" | "cancelled";
 }
 
-// Dummy video sessions data
 const dummyVideoSessions: VideoSession[] = [
   {
     id: "vid_1",
@@ -90,9 +90,19 @@ export default function SpecialistDetailPage() {
   useEffect(() => {
     async function fetchData() {
       try {
-        // Fetch specialist
-        const specialistResponse = await fetch(
+        // Fetch specialistApplication to get specialistId
+        const applicationResponse = await fetch(
           `/api/specialists/application?id=${id}`
+        );
+        if (!applicationResponse.ok)
+          throw new Error("Failed to fetch specialist application");
+        const applicationData = await applicationResponse.json();
+        if (!applicationData.specialistId)
+          throw new Error("Specialist ID not found in application");
+
+        // Fetch specialist with metrics using specialistId
+        const specialistResponse = await fetch(
+          `/api/specialists/${applicationData.specialistId}`
         );
         if (!specialistResponse.ok)
           throw new Error("Failed to fetch specialist");
@@ -101,15 +111,19 @@ export default function SpecialistDetailPage() {
           id: specialistData.id,
           name: specialistData.name,
           specialty: specialistData.role,
-          status: specialistData.status,
           location: specialistData.location,
           biography: specialistData.biography,
-          education: specialistData.education, // Fixed typo
+          education: specialistData.education,
           license: specialistData.license,
+          rate: specialistData.rate,
+          metrics: specialistData.metrics,
+          status: "approved",
         });
 
         // Fetch appointments for the specific specialist
-        const apptResponse = await fetch(`/api/appointment?specialistId=${id}`);
+        const apptResponse = await fetch(
+          `/api/appointment?specialistId=${applicationData.specialistId}`
+        );
         if (!apptResponse.ok) throw new Error("Failed to fetch appointments");
         const apptData = await apptResponse.json();
         setAppointments(apptData);
@@ -125,30 +139,14 @@ export default function SpecialistDetailPage() {
     if (id) fetchData();
   }, [id]);
 
-  // Handle status update
-  const handleStatusChange = async (
-    newStatus: "pending" | "reviewed" | "approved" | "rejected"
-  ) => {
-    try {
-      const response = await fetch("/api/specialists/application", {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ id, status: newStatus }),
-      });
-      if (!response.ok) throw new Error("Failed to update status");
-      const updatedApplication = await response.json();
-      setSpecialist((prev) =>
-        prev ? { ...prev, status: updatedApplication.status } : prev
-      );
-      toast.success("Status updated successfully");
-    } catch (error) {
-      toast.error("Failed to update status");
-    }
-  };
-
   if (loading) return <div className="p-4 text-center">Loading...</div>;
   if (!specialist)
     return <div className="p-4 text-center">Professional not found</div>;
+
+  const cutAmount =
+    specialist.metrics.totalEarnings *
+    (specialist.metrics.companyCutPercentage / 100);
+  const netEarnings = specialist.metrics.totalEarnings - cutAmount;
 
   return (
     <motion.div
@@ -175,13 +173,16 @@ export default function SpecialistDetailPage() {
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 border-2 border-white">
               <AvatarImage
-                src="/assets/images/avatar-placeholder.png"
+                src={
+                  specialist.image || "/assets/images/avatar-placeholder.png"
+                }
                 alt={specialist.name}
               />
               <AvatarFallback className="bg-[#C4C4C4] text-black">
                 {specialist.name[0]}
               </AvatarFallback>
             </Avatar>
+
             <div>
               <CardTitle className="text-2xl font-bold flex items-center">
                 <Stethoscope className="mr-2 h-6 w-6" />
@@ -196,37 +197,8 @@ export default function SpecialistDetailPage() {
             <p>Speciality: {specialist.specialty}</p>
             <p>
               Status:{" "}
-              <span
-                className={
-                  specialist.status === "approved"
-                    ? "text-green-500"
-                    : specialist.status === "rejected"
-                      ? "text-red-500"
-                      : "text-yellow-500"
-                }
-              >
-                {specialist.status}
-              </span>
+              <span className="text-green-500">{specialist.status}</span>
             </p>
-          </div>
-          <div className="flex gap-2">
-            <Select
-              value={specialist.status}
-              onValueChange={handleStatusChange}
-            >
-              <SelectTrigger
-                className="w-[140px] border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-                aria-label="Update specialist status"
-              >
-                <SelectValue />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="pending">Pending</SelectItem>
-                <SelectItem value="reviewed">Reviewed</SelectItem>
-                <SelectItem value="approved">Approved</SelectItem>
-                <SelectItem value="rejected">Rejected</SelectItem>
-              </SelectContent>
-            </Select>
           </div>
         </CardContent>
       </Card>
@@ -254,6 +226,12 @@ export default function SpecialistDetailPage() {
               >
                 Video Sessions
               </TabsTrigger>
+              <TabsTrigger
+                value="metrics"
+                className="data-[state=active]:bg-[#F3CFC6] data-[state=active]:text-black dark:data-[state=active]:text-white"
+              >
+                Metrics
+              </TabsTrigger>
             </TabsList>
             <TabsContent value="details">
               <div className="p-4 space-y-2 text-black dark:text-white">
@@ -262,19 +240,10 @@ export default function SpecialistDetailPage() {
                 <p>Location: {specialist.location}</p>
                 <p>Education: {specialist.education}</p>
                 <p>License: {specialist.license}</p>
+                <p>Hourly Rate: ${specialist.rate}</p>
                 <p>
                   Status:{" "}
-                  <span
-                    className={
-                      specialist.status === "approved"
-                        ? "text-green-500"
-                        : specialist.status === "rejected"
-                          ? "text-red-500"
-                          : "text-yellow-500"
-                    }
-                  >
-                    {specialist.status}
-                  </span>
+                  <span className="text-green-500">{specialist.status}</span>
                 </p>
               </div>
             </TabsContent>
@@ -327,6 +296,23 @@ export default function SpecialistDetailPage() {
                   )}
                 </AnimatePresence>
               </ScrollArea>
+            </TabsContent>
+            <TabsContent value="metrics">
+              <div className="p-4 space-y-2 text-black dark:text-white">
+                <p>Hourly Rate: ${specialist.metrics.hourlyRate}</p>
+                <p>
+                  Completed Sessions: {specialist.metrics.completedSessions}
+                </p>
+                <p>
+                  Total Earnings (Gross): ${specialist.metrics.totalEarnings}
+                </p>
+                <p>
+                  Company Cut Percentage:{" "}
+                  {specialist.metrics.companyCutPercentage}%
+                </p>
+                <p>Company Cut Amount: ${cutAmount.toFixed(2)}</p>
+                <p>Net Earnings: ${netEarnings.toFixed(2)}</p>
+              </div>
             </TabsContent>
           </Tabs>
         </CardContent>

@@ -45,6 +45,8 @@ export async function GET(req: Request) {
       clientName: appt.user?.name || "Unknown",
       status: appt.status, // booked (upcoming), canceled, no-show
       paymentStatus: appt.payment?.status || "unknown",
+      amount: appt.payment?.amount || 0, // Added for earnings calculations
+      specialistId: appt.specialistId, // Added for potential grouping
     }));
 
     return NextResponse.json(formatted);
