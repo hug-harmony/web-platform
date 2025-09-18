@@ -94,6 +94,7 @@ model Specialist {
   biography        String?
   education        String?
   license          String?
+  companyCutPercentage Float? 
   createdAt        DateTime     @default(now())
   appointments     Appointment[] @relation("SpecialistAppointments")
   application      SpecialistApplication? @relation
@@ -246,4 +247,12 @@ model Payment {
   createdAt      DateTime  @default(now())
   notes          String?
   appointment    Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+}
+
+model CompanySettings {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  key       String   @unique
+  value     Float
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
 }
