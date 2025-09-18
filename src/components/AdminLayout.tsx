@@ -27,14 +27,20 @@ import {
   Calendar,
   Settings,
   MessageCircle,
+  Bell,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useTheme } from "next-themes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
-import { useEffect } from "react";
+import { Badge } from "@/components/ui/badge";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
 
 export default function AdminDashboardLayout({
   children,
@@ -46,6 +52,28 @@ export default function AdminDashboardLayout({
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const router = useRouter();
 
+  // Dummy notification data (replace with real data in production)
+  const [notifications, setNotifications] = useState([
+    {
+      id: 1,
+      type: "report",
+      message: "New user report submitted",
+      time: "2h ago",
+    },
+    {
+      id: 2,
+      type: "verification",
+      message: "Specialist verification pending",
+      time: "1h ago",
+    },
+    {
+      id: 3,
+      type: "report",
+      message: "Content flagged for review",
+      time: "30m ago",
+    },
+  ]);
+
   useEffect(() => {
     if (status === "unauthenticated" || (session && !session.user.isAdmin)) {
       router.push("/admin");
@@ -53,7 +81,11 @@ export default function AdminDashboardLayout({
   }, [status, session, router]);
 
   if (status === "loading") {
-    return <div>Loading...</div>;
+    return (
+      <div className="flex items-center justify-center min-h-screen text-black dark:text-white">
+        Loading...
+      </div>
+    );
   }
 
   if (!session || !session.user.isAdmin) {
@@ -169,7 +201,7 @@ export default function AdminDashboardLayout({
                         <SidebarMenuButton asChild>
                           <Link
                             href={item.href}
-                            className="flex items-center gap-2 text-black dark:text-white"
+                            className="flex items-center gap-2 text-black dark:text-white hover:bg-[#E8A8A2] dark:hover:bg-[#A0A0A0] rounded-md transition-colors"
                           >
                             {item.icon}
                             {isSidebarOpen && <span>{item.label}</span>}
@@ -184,7 +216,7 @@ export default function AdminDashboardLayout({
             <SidebarFooter className="p-4 border-t border-[#C4C4C4] dark:border-black">
               <Button
                 variant="ghost"
-                className="w-full justify-start text-black dark:text-white"
+                className="w-full justify-start text-black dark:text-white hover:bg-[#E8A8A2] dark:hover:bg-[#A0A0A0]"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
               >
                 {theme === "dark" ? (
@@ -197,7 +229,7 @@ export default function AdminDashboardLayout({
               </Button>
               <Button
                 variant="ghost"
-                className="w-full justify-start text-black dark:text-white"
+                className="w-full justify-start text-black dark:text-white hover:bg-[#E8A8A2] dark:hover:bg-[#A0A0A0]"
                 onClick={() => router.push("/admin/dashboard/settings")}
               >
                 <Settings className="h-4 w-4 mr-2" />
@@ -205,7 +237,7 @@ export default function AdminDashboardLayout({
               </Button>
               <Button
                 variant="ghost"
-                className="w-full justify-start text-black dark:text-white"
+                className="w-full justify-start text-black dark:text-white hover:bg-[#E8A8A2] dark:hover:bg-[#A0A0A0]"
                 onClick={() => signOut({ callbackUrl: "/admin" })}
               >
                 <LogOut className="h-4 w-4 mr-2" />
@@ -223,6 +255,46 @@ export default function AdminDashboardLayout({
                 Hug Harmony Admin
               </h1>
               <div className="flex items-center gap-4">
+                {/* Notification Bell */}
+                <Popover>
+                  <PopoverTrigger asChild>
+                    <Button
+                      variant="ghost"
+                      className="relative text-black dark:text-white"
+                    >
+                      <Bell className="h-5 w-5" />
+                      {notifications.length > 0 && (
+                        <Badge className="absolute -top-1 -right-1 bg-red-500 text-white rounded-full h-5 w-5 flex items-center justify-center">
+                          {notifications.length}
+                        </Badge>
+                      )}
+                    </Button>
+                  </PopoverTrigger>
+                  <PopoverContent className="w-80 bg-white dark:bg-[#1A1A1A] border-[#C4C4C4] dark:border-black">
+                    <div className="flex flex-col gap-2">
+                      <h3 className="text-sm font-semibold text-black dark:text-white">
+                        Notifications
+                      </h3>
+                      {notifications.length === 0 ? (
+                        <p className="text-sm text-gray-500 dark:text-gray-400">
+                          No new notifications
+                        </p>
+                      ) : (
+                        notifications.map((notification) => (
+                          <div
+                            key={notification.id}
+                            className="p-2 rounded-md bg-[#F3CFC6] dark:bg-[#C4C4C4] text-black dark:text-white"
+                          >
+                            <p className="text-sm">{notification.message}</p>
+                            <p className="text-xs text-gray-600 dark:text-gray-400">
+                              {notification.time}
+                            </p>
+                          </div>
+                        ))
+                      )}
+                    </div>
+                  </PopoverContent>
+                </Popover>
                 <Avatar className="h-10 w-10 border-2 border-[#F3CFC6]">
                   <AvatarImage
                     src={
