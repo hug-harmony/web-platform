@@ -10,34 +10,68 @@ export async function GET() {
   }
 
   try {
-    const conversations = await prisma.conversation.findMany({
-      where: {
-        OR: [{ userId1: session.user.id }, { userId2: session.user.id }],
-      },
-      include: {
-        user1: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            profileImage: true,
-          },
-        },
-        user2: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            profileImage: true,
-          },
-        },
-        messages: {
-          orderBy: { createdAt: "desc" },
-          take: 1,
-          select: { text: true, createdAt: true },
-        },
-      },
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isAdmin: true },
     });
+
+    let conversations;
+    if (user?.isAdmin) {
+      conversations = await prisma.conversation.findMany({
+        include: {
+          user1: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              profileImage: true,
+            },
+          },
+          user2: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              profileImage: true,
+            },
+          },
+          messages: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { text: true, createdAt: true },
+          },
+        },
+      });
+    } else {
+      conversations = await prisma.conversation.findMany({
+        where: {
+          OR: [{ userId1: session.user.id }, { userId2: session.user.id }],
+        },
+        include: {
+          user1: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              profileImage: true,
+            },
+          },
+          user2: {
+            select: {
+              id: true,
+              firstName: true,
+              lastName: true,
+              profileImage: true,
+            },
+          },
+          messages: {
+            orderBy: { createdAt: "desc" },
+            take: 1,
+            select: { text: true, createdAt: true },
+          },
+        },
+      });
+    }
 
     const formattedConversations = conversations.map((conv) => ({
       id: conv.id,

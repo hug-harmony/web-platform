@@ -47,10 +47,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isAdmin: true },
+    });
+
     const isUserParticipant =
       conversation.userId1 === session.user.id ||
       conversation.userId2 === session.user.id;
-    if (!isUserParticipant) {
+    if (!isUserParticipant && !user?.isAdmin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 

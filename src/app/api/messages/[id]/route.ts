@@ -29,10 +29,15 @@ export async function GET(request: NextRequest) {
       );
     }
 
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { isAdmin: true },
+    });
+
     const isUserParticipant =
       conversation.userId1 === session.user.id ||
       conversation.userId2 === session.user.id;
-    if (!isUserParticipant) {
+    if (!isUserParticipant && !user?.isAdmin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
@@ -41,12 +46,21 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "asc" },
       include: {
         senderUser: { select: { firstName: true, lastName: true } },
+        proposal: { select: { status: true } },
       },
     });
 
     return NextResponse.json(
       messages.map((msg) => ({
-        ...msg,
+        id: msg.id,
+        text: msg.text,
+        imageUrl: msg.imageUrl,
+        createdAt: msg.createdAt.toISOString(), // Ensure string output
+        senderId: msg.senderId,
+        userId: msg.recipientId,
+        isAudio: msg.isAudio,
+        proposalId: msg.proposalId,
+        proposalStatus: msg.proposal?.status,
         sender: {
           name:
             `${msg.senderUser?.firstName || ""} ${msg.senderUser?.lastName || ""}`.trim() ||

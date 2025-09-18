@@ -26,6 +26,7 @@ import {
   Flag,
   Calendar,
   Settings,
+  MessageCircle,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
@@ -154,6 +155,13 @@ export default function AdminDashboardLayout({
                         label: "Bookings & Payments",
                         icon: (
                           <Calendar className="h-5 w-5 text-black dark:text-white" />
+                        ),
+                      },
+                      {
+                        href: "/admin/dashboard/messaging",
+                        label: "Messaging Oversight",
+                        icon: (
+                          <MessageCircle className="h-5 w-5 text-black dark:text-white" />
                         ),
                       },
                     ].map((item) => (
