@@ -101,10 +101,17 @@ export const authOptions: NextAuthOptions = {
         if (existingUserByEmail) {
           console.log("Existing user by email:", existingUserByEmail.email);
           if (!existingUserByEmail.googleId) {
+            const fullName =
+              googleProfile.given_name && googleProfile.family_name
+                ? `${googleProfile.given_name} ${googleProfile.family_name}`
+                : googleProfile.given_name ||
+                  googleProfile.family_name ||
+                  user.email;
             await prisma.user.update({
               where: { email: user.email! },
               data: {
                 googleId: account.providerAccountId,
+                name: fullName,
                 firstName:
                   googleProfile.given_name || existingUserByEmail.firstName,
                 lastName:
@@ -118,10 +125,19 @@ export const authOptions: NextAuthOptions = {
           user.isAdmin = existingUserByEmail.isAdmin; // Ensure isAdmin is set
           return true;
         }
+
+        const fullName =
+          googleProfile.given_name && googleProfile.family_name
+            ? `${googleProfile.given_name} ${googleProfile.family_name}`
+            : googleProfile.given_name ||
+              googleProfile.family_name ||
+              user.email;
+
         const newUser = await prisma.user.create({
           data: {
             email: user.email!,
             googleId: account.providerAccountId,
+            name: fullName,
             firstName: googleProfile.given_name || "",
             lastName: googleProfile.family_name || "",
             profileImage: googleProfile.picture || "",

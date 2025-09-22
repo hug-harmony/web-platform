@@ -64,14 +64,17 @@ export default function AppointmentsPage() {
     }
 
     try {
-      // Fetch specialist status
+      // Fetch specialist status FIRST and wait for it
       const specialistRes = await fetch("/api/specialists/application/me", {
         cache: "no-store",
         credentials: "include",
       });
+
+      let specialistStatus = false;
       if (specialistRes.ok) {
         const { status: appStatus } = await specialistRes.json();
-        setIsSpecialist(appStatus === "approved");
+        specialistStatus = appStatus === "approved";
+        setIsSpecialist(specialistStatus);
       } else {
         console.error(
           "Failed to fetch specialist status:",
@@ -111,18 +114,23 @@ export default function AppointmentsPage() {
           : []
       );
 
-      // Fetch client appointments if specialist
-      if (isSpecialist) {
+      // Fetch client appointments if specialist - use the local variable, not state
+      if (specialistStatus) {
+        console.log("Fetching client appointments for specialist...");
         const clientRes = await fetch("/api/appointment/clients", {
           cache: "no-store",
           credentials: "include",
         });
         if (!clientRes.ok) {
+          console.error(
+            `Failed to fetch client appointments: ${clientRes.status}`
+          );
           throw new Error(
             `Failed to fetch client appointments: ${clientRes.status}`
           );
         }
         const clientData = await clientRes.json();
+        console.log("Client appointments data:", clientData);
         setClientAppointments(
           Array.isArray(clientData)
             ? clientData.map((appt: any) => ({
@@ -318,13 +326,13 @@ export default function AppointmentsPage() {
                   value="my-appointments"
                   className="data-[state=active]:bg-[#F3CFC6] data-[state=active]:text-black dark:data-[state=active]:text-white"
                 >
-                  My Appointments
+                  My Appointments ({filteredAppointments.length})
                 </TabsTrigger>
                 <TabsTrigger
                   value="client-appointments"
                   className="data-[state=active]:bg-[#F3CFC6] data-[state=active]:text-black dark:data-[state=active]:text-white"
                 >
-                  Client Appointments
+                  Client Appointments ({filteredClientAppointments.length})
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="my-appointments">
