@@ -2,6 +2,29 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
+
+type ReportWithRelations = Prisma.ReportGetPayload<{
+  include: {
+    reporter: {
+      select: { id: true; firstName: true; lastName: true; email: true };
+    };
+    reportedUser: {
+      select: { id: true; firstName: true; lastName: true; email: true };
+    };
+    reportedSpecialist: {
+      select: {
+        id: true;
+        name: true;
+        application: {
+          select: {
+            user: { select: { location: true } };
+          };
+        };
+      };
+    };
+  };
+}>;
 
 export async function GET() {
   const session = await getServerSession(authOptions);
@@ -10,7 +33,7 @@ export async function GET() {
   }
 
   try {
-    const reports = await prisma.report.findMany({
+    const reports: ReportWithRelations[] = await prisma.report.findMany({
       include: {
         reporter: {
           select: { id: true, firstName: true, lastName: true, email: true },
@@ -19,12 +42,33 @@ export async function GET() {
           select: { id: true, firstName: true, lastName: true, email: true },
         },
         reportedSpecialist: {
-          select: { id: true, name: true, location: true },
+          select: {
+            id: true,
+            name: true,
+            application: {
+              select: {
+                user: { select: { location: true } },
+              },
+            },
+          },
         },
       },
       orderBy: { createdAt: "desc" },
     });
-    return NextResponse.json(reports);
+
+    const formattedReports = reports.map((report) => ({
+      ...report,
+      reportedSpecialist: report.reportedSpecialist
+        ? {
+            ...report.reportedSpecialist,
+            location:
+              report.reportedSpecialist.application?.user?.location ||
+              "Unknown",
+          }
+        : null,
+    }));
+
+    return NextResponse.json(formattedReports);
   } catch (error) {
     console.error("Fetch reports error:", error);
     return NextResponse.json(
