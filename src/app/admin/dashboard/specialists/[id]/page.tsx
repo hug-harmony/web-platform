@@ -16,11 +16,9 @@ import { toast } from "sonner";
 interface Specialist {
   id: string;
   name: string;
-  specialty: string;
-  location: string;
+
   biography: string;
-  education: string;
-  license: string;
+
   rate: number;
   image?: string;
   metrics: {
@@ -110,11 +108,9 @@ export default function SpecialistDetailPage() {
         setSpecialist({
           id: specialistData.id,
           name: specialistData.name,
-          specialty: specialistData.role,
-          location: specialistData.location,
+
           biography: specialistData.biography,
-          education: specialistData.education,
-          license: specialistData.license,
+
           rate: specialistData.rate,
           metrics: specialistData.metrics,
           status: "approved",
@@ -194,7 +190,6 @@ export default function SpecialistDetailPage() {
         </CardHeader>
         <CardContent className="flex items-center justify-between">
           <div className="space-y-2">
-            <p>Speciality: {specialist.specialty}</p>
             <p>
               Status:{" "}
               <span className="text-green-500">{specialist.status}</span>
@@ -236,10 +231,7 @@ export default function SpecialistDetailPage() {
             <TabsContent value="details">
               <div className="p-4 space-y-2 text-black dark:text-white">
                 <p>Name: {specialist.name}</p>
-                <p>Specialty: {specialist.specialty}</p>
-                <p>Location: {specialist.location}</p>
-                <p>Education: {specialist.education}</p>
-                <p>License: {specialist.license}</p>
+
                 <p>Hourly Rate: ${specialist.rate}</p>
                 <p>
                   Status:{" "}

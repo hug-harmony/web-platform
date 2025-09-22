@@ -12,12 +12,8 @@ import { useState, useEffect } from "react";
 interface Application {
   id: string;
   name: string;
-  location: string;
+
   biography: string;
-  education: string;
-  license: string;
-  role: string;
-  tags: string;
   status: "pending" | "reviewed" | "approved" | "rejected";
   createdAt: string;
 }
@@ -160,23 +156,9 @@ export default function ApplicationDetailPage() {
         <CardContent className="space-y-4">
           <div className="space-y-2">
             <p className="text-black dark:text-white">
-              <strong>Role:</strong> {application.role}
-            </p>
-            <p className="text-black dark:text-white">
-              <strong>Location:</strong> {application.location}
-            </p>
-            <p className="text-black dark:text-white">
               <strong>Biography:</strong> {application.biography}
             </p>
-            <p className="text-black dark:text-white">
-              <strong>Education:</strong> {application.education}
-            </p>
-            <p className="text-black dark:text-white">
-              <strong>License:</strong> {application.license}
-            </p>
-            <p className="text-black dark:text-white">
-              <strong>Tags:</strong> {application.tags}
-            </p>
+
             <p className="text-black dark:text-white">
               <strong>Submitted:</strong>{" "}
               {new Date(application.createdAt).toLocaleDateString()}
