@@ -168,7 +168,9 @@ export async function GET(req: Request) {
     const applications = await prisma.specialistApplication.findMany({
       where: {
         ...(status !== "all" && { status }),
-        user: { name: { contains: search, mode: "insensitive" } },
+        ...(search
+          ? { user: { name: { contains: search, mode: "insensitive" } } }
+          : {}), // only filter by name if search provided
       },
       select: {
         id: true,
@@ -181,7 +183,7 @@ export async function GET(req: Request) {
 
     const formattedApplications = applications.map((app) => ({
       id: app.id,
-      name: app.user.name || "Unknown",
+      name: app.user?.name || "Unknown", // fallback if name is null
       status: app.status,
       createdAt: app.createdAt,
     }));
