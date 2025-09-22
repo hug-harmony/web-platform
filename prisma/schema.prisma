@@ -66,6 +66,9 @@ model Appointment {
   date             DateTime
   time             String
   status           String    @default("upcoming")
+  disputeStatus    String    @default("none")
+  disputeReason    String?
+  adminNotes       String?
   createdAt        DateTime  @default(now())
   user             User      @relation("UserAppointments", fields: [userId], references: [id], onDelete: Cascade)
   specialist       Specialist @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)

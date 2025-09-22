@@ -1,3 +1,4 @@
+// app/api/appointment/clients/route.ts
 import { NextResponse } from "next/server";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
@@ -14,11 +15,6 @@ type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
         rating: true;
         reviewCount: true;
         rate: true;
-        application: {
-          select: {
-            user: { select: { location: true } };
-          };
-        };
       };
     };
   };
@@ -59,11 +55,6 @@ export async function GET() {
               rating: true,
               reviewCount: true,
               rate: true,
-              application: {
-                select: {
-                  user: { select: { location: true } },
-                },
-              },
             },
           },
         },
@@ -77,13 +68,21 @@ export async function GET() {
       specialistName: appt.specialist?.name || "Unknown Specialist",
       date: appt.date.toISOString().split("T")[0],
       time: appt.time,
-      location: appt.specialist?.application?.user?.location || "Unknown",
-      status: appt.status as "upcoming" | "completed" | "cancelled",
+      status: appt.status as
+        | "upcoming"
+        | "completed"
+        | "cancelled"
+        | "disputed",
       rating: appt.specialist?.rating ?? 0,
       reviewCount: appt.specialist?.reviewCount ?? 0,
       rate: appt.specialist?.rate ?? 0,
       clientId: appt.userId,
+      disputeStatus: appt.disputeStatus || "none",
     }));
+
+    console.log(
+      `Fetching client appointments for specialistId: ${specialistApplication.specialistId}, found: ${appointments.length}`
+    );
 
     return NextResponse.json(formatted);
   } catch (error) {

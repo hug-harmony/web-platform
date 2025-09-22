@@ -1,3 +1,4 @@
+// app/api/appointment/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
@@ -30,9 +31,17 @@ export async function GET(req: Request) {
     const appointments = await prisma.appointment.findMany({
       where: whereClause,
       include: {
-        specialist: true,
-        user: true,
-        payment: true, // Assume Payment relation added
+        specialist: {
+          select: {
+            name: true,
+            rating: true,
+            reviewCount: true,
+            rate: true,
+            userId: true,
+          },
+        },
+        user: { select: { name: true, id: true } },
+        payment: { select: { status: true, amount: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -41,13 +50,23 @@ export async function GET(req: Request) {
       _id: appt.id,
       date: appt.date.toISOString().split("T")[0],
       time: appt.time,
-      cuddlerName: appt.specialist?.name || "Unknown",
-      clientName: appt.user?.name || "Unknown",
-      status: appt.status, // booked (upcoming), canceled, no-show
+      cuddlerName: appt.specialist?.name || "Unknown Specialist",
+      clientName: appt.user?.name || "Unknown Client",
+      status: appt.status as
+        | "upcoming"
+        | "completed"
+        | "cancelled"
+        | "disputed",
       paymentStatus: appt.payment?.status || "unknown",
-      amount: appt.payment?.amount || 0, // Added for earnings calculations
-      specialistId: appt.specialistId, // Added for potential grouping
+      amount: appt.payment?.amount || 0,
+      specialistId: appt.specialistId,
+      specialistUserId: appt.specialist?.userId || "",
+      disputeStatus: appt.disputeStatus || "none",
     }));
+
+    console.log(
+      `Fetching appointments for userId: ${session.user.id}, found: ${appointments.length}`
+    );
 
     return NextResponse.json(formatted);
   } catch (error) {
