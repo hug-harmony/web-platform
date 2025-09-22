@@ -1,0 +1,19 @@
+{
+  "functions": {
+    "src/app/api/cron/update-appointments.ts": {
+      "maxDuration": 30
+    }
+  },
+  "crons": [
+    {
+      "path": "/api/cron/update-appointments",
+      "schedule": "*/5 * * * *"
+    }
+  ],
+  "rewrites": [
+    {
+      "source": "/api/cron/:path*",
+      "destination": "/api/cron/:path*"
+    }
+  ]
+}
