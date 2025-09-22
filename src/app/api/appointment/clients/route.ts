@@ -1,9 +1,28 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
 const prisma = new PrismaClient();
+
+type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
+  include: {
+    user: { select: { name: true; id: true } };
+    specialist: {
+      select: {
+        name: true;
+        rating: true;
+        reviewCount: true;
+        rate: true;
+        application: {
+          select: {
+            user: { select: { location: true } };
+          };
+        };
+      };
+    };
+  };
+}>;
 
 export async function GET() {
   try {
@@ -29,11 +48,27 @@ export async function GET() {
       );
     }
 
-    const appointments = await prisma.appointment.findMany({
-      where: { specialistId: specialistApplication.specialistId },
-      include: { user: true, specialist: true },
-      orderBy: { createdAt: "desc" },
-    });
+    const appointments: AppointmentWithRelations[] =
+      await prisma.appointment.findMany({
+        where: { specialistId: specialistApplication.specialistId },
+        include: {
+          user: { select: { name: true, id: true } },
+          specialist: {
+            select: {
+              name: true,
+              rating: true,
+              reviewCount: true,
+              rate: true,
+              application: {
+                select: {
+                  user: { select: { location: true } },
+                },
+              },
+            },
+          },
+        },
+        orderBy: { createdAt: "desc" },
+      });
 
     const formatted = appointments.map((appt) => ({
       _id: appt.id,
@@ -42,12 +77,12 @@ export async function GET() {
       specialistName: appt.specialist?.name || "Unknown Specialist",
       date: appt.date.toISOString().split("T")[0],
       time: appt.time,
-      location: appt.specialist?.location || "Unknown",
+      location: appt.specialist?.application?.user?.location || "Unknown",
       status: appt.status as "upcoming" | "completed" | "cancelled",
       rating: appt.specialist?.rating ?? 0,
       reviewCount: appt.specialist?.reviewCount ?? 0,
       rate: appt.specialist?.rate ?? 0,
-      clientId: appt.userId, // Explicitly include userId as clientId
+      clientId: appt.userId,
     }));
 
     return NextResponse.json(formatted);
