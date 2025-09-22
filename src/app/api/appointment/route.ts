@@ -1,4 +1,3 @@
-// app/api/appointment/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
@@ -37,7 +36,7 @@ export async function GET(req: Request) {
             rating: true,
             reviewCount: true,
             rate: true,
-            userId: true,
+            application: { select: { userId: true } }, // Fetch userId from SpecialistApplication
           },
         },
         user: { select: { name: true, id: true } },
@@ -60,7 +59,7 @@ export async function GET(req: Request) {
       paymentStatus: appt.payment?.status || "unknown",
       amount: appt.payment?.amount || 0,
       specialistId: appt.specialistId,
-      specialistUserId: appt.specialist?.userId || "",
+      specialistUserId: appt.specialist?.application?.userId || "", // Use application.userId
       disputeStatus: appt.disputeStatus || "none",
     }));
 
