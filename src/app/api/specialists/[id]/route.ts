@@ -4,17 +4,54 @@ import { getServerSession } from "next-auth/next";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { Prisma } from "@prisma/client";
 
 // Validation schema for updating specialist data
 const updateSpecialistSchema = z.object({
-  role: z.string().min(1, "Role is required").optional(),
-  tags: z.string().min(1, "Tags are required").optional(),
   biography: z.string().min(1, "Biography is required").optional(),
-  education: z.string().min(1, "Education is required").optional(),
-  license: z.string().min(1, "License is required").optional(),
   location: z.string().min(1, "Location is required").optional(),
   rate: z.number().nullable().optional(),
 });
+
+type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    biography: true;
+    rate: true;
+    createdAt: true;
+    application: {
+      select: {
+        user: { select: { location: true } };
+      };
+    };
+    discounts: {
+      select: {
+        id: true;
+        name: true;
+        rate: true;
+        discount: true;
+        createdAt: true;
+        updatedAt: true;
+      };
+      orderBy: { createdAt: "desc" };
+    };
+  };
+}>;
+
+type UpdatedSpecialistWithRelations = Prisma.SpecialistGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    biography: true;
+    rate: true;
+    application: {
+      select: {
+        user: { select: { location: true } };
+      };
+    };
+  };
+}>;
 
 export async function GET(
   req: Request,
@@ -39,32 +76,33 @@ export async function GET(
       );
     }
 
-    const specialist = await prisma.specialist.findUnique({
-      where: { id },
-      select: {
-        id: true,
-        name: true,
-        role: true,
-        tags: true,
-        biography: true,
-        education: true,
-        license: true,
-        location: true,
-        rate: true,
-        createdAt: true,
-        discounts: {
-          select: {
-            id: true,
-            name: true,
-            rate: true,
-            discount: true,
-            createdAt: true,
-            updatedAt: true,
+    const specialist: SpecialistWithRelations | null =
+      await prisma.specialist.findUnique({
+        where: { id },
+        select: {
+          id: true,
+          name: true,
+          biography: true,
+          rate: true,
+          createdAt: true,
+          application: {
+            select: {
+              user: { select: { location: true } },
+            },
           },
-          orderBy: { createdAt: "desc" },
+          discounts: {
+            select: {
+              id: true,
+              name: true,
+              rate: true,
+              discount: true,
+              createdAt: true,
+              updatedAt: true,
+            },
+            orderBy: { createdAt: "desc" },
+          },
         },
-      },
-    });
+      });
 
     if (!specialist) {
       return NextResponse.json(
@@ -100,12 +138,8 @@ export async function GET(
     return NextResponse.json({
       id: specialist.id,
       name: specialist.name || "Unknown Specialist",
-      role: specialist.role || "",
-      tags: specialist.tags || "",
       biography: specialist.biography || "",
-      education: specialist.education || "",
-      license: specialist.license || "",
-      location: specialist.location || "",
+      location: specialist.application?.user?.location || "",
       rate: specialist.rate || null,
       createdAt: specialist.createdAt,
       discounts: specialist.discounts.map((discount) => ({
@@ -170,40 +204,40 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const validatedData = updateSpecialistSchema.parse(body);
 
-    // Update the Specialist model
-    const updatedSpecialist = await prisma.specialist.update({
-      where: { id },
-      data: {
-        role: validatedData.role,
-        tags: validatedData.tags,
-        biography: validatedData.biography,
-        education: validatedData.education,
-        license: validatedData.license,
-        location: validatedData.location,
-        rate: validatedData.rate,
-      },
-      select: {
-        id: true,
-        name: true,
-        role: true,
-        tags: true,
-        biography: true,
-        education: true,
-        license: true,
-        location: true,
-        rate: true,
-      },
-    });
+    // Update Specialist model
+    const updatedSpecialist: UpdatedSpecialistWithRelations =
+      await prisma.specialist.update({
+        where: { id },
+        data: {
+          biography: validatedData.biography,
+          rate: validatedData.rate,
+        },
+        select: {
+          id: true,
+          name: true,
+          biography: true,
+          rate: true,
+          application: {
+            select: {
+              user: { select: { location: true } },
+            },
+          },
+        },
+      });
+
+    // Update location in the associated User model if provided
+    if (validatedData.location) {
+      await prisma.user.update({
+        where: { id: application.userId },
+        data: { location: validatedData.location },
+      });
+    }
 
     return NextResponse.json({
       id: updatedSpecialist.id,
       name: updatedSpecialist.name || "Unknown Specialist",
-      role: updatedSpecialist.role || "",
-      tags: updatedSpecialist.tags || "",
       biography: updatedSpecialist.biography || "",
-      education: updatedSpecialist.education || "",
-      license: updatedSpecialist.license || "",
-      location: updatedSpecialist.location || "",
+      location: updatedSpecialist.application?.user?.location || "",
       rate: updatedSpecialist.rate || null,
     });
   } catch (error: any) {
