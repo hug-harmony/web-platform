@@ -1,10 +1,27 @@
-// app/api/appointment/[id]/calendar/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { createEvent, EventStatus, ActionType } from "ics";
 import { addMinutes, isValid, parse } from "date-fns";
+import { Prisma } from "@prisma/client";
+
+type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
+  include: {
+    user: { select: { name: true; email: true } };
+    specialist: {
+      select: {
+        name: true;
+        rate: true;
+        application: {
+          select: {
+            user: { select: { location: true } };
+          };
+        };
+      };
+    };
+  };
+}>;
 
 export async function GET(request: Request) {
   const session = await getServerSession(authOptions);
@@ -20,13 +37,24 @@ export async function GET(request: Request) {
   }
 
   try {
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: bookingId },
-      include: {
-        user: { select: { name: true, email: true } },
-        specialist: { select: { name: true, rate: true, location: true } },
-      },
-    });
+    const appointment: AppointmentWithRelations | null =
+      await prisma.appointment.findUnique({
+        where: { id: bookingId },
+        include: {
+          user: { select: { name: true, email: true } },
+          specialist: {
+            select: {
+              name: true,
+              rate: true,
+              application: {
+                select: {
+                  user: { select: { location: true } },
+                },
+              },
+            },
+          },
+        },
+      });
 
     if (!appointment) {
       console.error(`Appointment not found for ID: ${bookingId}`);
@@ -81,7 +109,8 @@ export async function GET(request: Request) {
       description: `Appointment with ${appointment.specialist?.name || "Specialist"} for ${
         appointment.user?.name || "Client"
       }. Rate: $${appointment.specialist?.rate?.toFixed(2) || "50.00"}`,
-      location: appointment.specialist?.location || "Virtual",
+      location:
+        appointment.specialist?.application?.user?.location || "Virtual",
       organizer: {
         name: appointment.specialist?.name || "Specialist",
         email: "no-reply@yourapp.com",
@@ -95,7 +124,7 @@ export async function GET(request: Request) {
       status: "CONFIRMED" as EventStatus,
       alarms: [
         {
-          action: "display" as ActionType, // Explicitly type as ActionType
+          action: "display" as ActionType,
           description: "Reminder: Upcoming appointment",
           trigger: { hours: 1, before: true },
         },
