@@ -7,19 +7,24 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
-import { MessageSquare, User } from "lucide-react";
+import { MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Dialog,
+  DialogContent,
+  DialogDescription,
+  DialogFooter,
+  DialogHeader,
+  DialogTitle,
+} from "@/components/ui/dialog";
+import { toast } from "sonner";
 
 interface SpecialistApplication {
-  location: string;
   biography: string;
-  education: string;
-  license: string;
-  role: string;
-  tags: string;
+  rate: string;
 }
 
 const containerVariants = {
@@ -38,22 +43,18 @@ const itemVariants = {
 
 export default function ProfessionalApplicationPage() {
   const [formData, setFormData] = useState<SpecialistApplication>({
-    location: "",
     biography: "",
-    education: "",
-    license: "",
-    role: "",
-    tags: "",
+    rate: "",
   });
+  const [isDialogOpen, setIsDialogOpen] = useState(false);
 
   const { data: session, status } = useSession();
-
   const router = useRouter();
 
   const handleSubmit = async () => {
     if (!session?.user?.name) {
       console.error("Error: User must have a name to submit application");
-      // Optionally, show a toast notification here
+      toast.error("User must have a name to submit application");
       return;
     }
 
@@ -70,6 +71,7 @@ export default function ProfessionalApplicationPage() {
       if (!response.ok) {
         const errorData = await response.json();
         console.error("Specialist API error:", response.status, errorData);
+        toast.error(`Failed to submit application: ${errorData.error}`);
         if (response.status === 401) {
           router.push("/login");
         }
@@ -78,10 +80,17 @@ export default function ProfessionalApplicationPage() {
 
       const result = await response.json();
       console.log("Application submitted successfully:", result);
-      router.push("/dashboard");
+      toast.success("Application submitted successfully!");
+      setIsDialogOpen(true);
     } catch (error) {
       console.error("Error submitting application:", error);
+      toast.error("Error submitting application");
     }
+  };
+
+  const handleDialogClose = () => {
+    setIsDialogOpen(false);
+    router.push("/dashboard");
   };
 
   if (status === "loading") {
@@ -96,16 +105,15 @@ export default function ProfessionalApplicationPage() {
           </CardHeader>
           <CardContent className="flex space-x-4">
             <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
-            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
           </CardContent>
         </Card>
         <Card className="shadow-lg">
           <CardContent className="space-y-4 pt-6">
-            {[...Array(6)].map((_, index) => (
+            {[...Array(2)].map((_, index) => (
               <div key={index} className="space-y-2">
                 <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
                 <Skeleton
-                  className={`h-${index === 3 || index === 5 ? 20 : 10} w-full bg-[#C4C4C4]/50`}
+                  className={`h-${index === 0 ? 20 : 10} w-full bg-[#C4C4C4]/50`}
                 />
               </div>
             ))}
@@ -122,41 +130,28 @@ export default function ProfessionalApplicationPage() {
   }
 
   return (
-    <motion.div
-      className="p-4 space-y-6 max-w-7xl mx-auto"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* Header Section */}
-      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
-        <CardHeader>
-          <motion.div variants={itemVariants}>
-            <CardTitle className="text-2xl text-black dark:text-white">
-              Professional Application
-            </CardTitle>
-            <p className="text-sm text-black">
-              Apply to become a specialist. Your name (
-              {session?.user?.name || "Not set"}) and profile picture will be
-              used for your specialist profile.
-            </p>
-          </motion.div>
-        </CardHeader>
-        <CardContent className="flex space-x-4">
-          {[
-            {
-              href: "/dashboard",
-              label: "Back to Dashboard",
-              icon: <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />,
-            },
-            {
-              href: "/profile",
-              label: "Back to Profile",
-              icon: <User className="mr-2 h-4 w-4 text-[#F3CFC6]" />,
-            },
-          ].map((item) => (
+    <>
+      <motion.div
+        className="p-4 space-y-6 max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
+            <motion.div variants={itemVariants}>
+              <CardTitle className="text-2xl text-black dark:text-white">
+                Professional Application
+              </CardTitle>
+              <p className="text-sm text-black">
+                Apply to become a specialist. Your name (
+                {session?.user?.name || "Not set"}) and profile picture will be
+                used for your specialist profile.
+              </p>
+            </motion.div>
+          </CardHeader>
+          <CardContent className="flex space-x-4">
             <motion.div
-              key={item.href}
               variants={itemVariants}
               whileHover={{
                 scale: 1.05,
@@ -169,119 +164,81 @@ export default function ProfessionalApplicationPage() {
                 variant="outline"
                 className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
               >
-                <Link href={item.href}>
-                  {item.icon} {item.label}
+                <Link href="/dashboard">
+                  <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                  Back to Dashboard
                 </Link>
               </Button>
             </motion.div>
-          ))}
-        </CardContent>
-      </Card>
-
-      {/* Content Section */}
-      <Card className="shadow-lg">
-        <CardContent className="space-y-4 pt-6">
-          <motion.div variants={itemVariants} className="space-y-4">
-            <div className="space-y-2">
-              <Label htmlFor="location" className="text-black dark:text-white">
-                Location
-              </Label>
-              <Input
-                id="location"
-                value={formData.location}
-                onChange={(e) =>
-                  setFormData({ ...formData, location: e.target.value })
-                }
-                placeholder="Enter your location"
-                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                aria-label="Location"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="role" className="text-black dark:text-white">
-                Role
-              </Label>
-              <Input
-                id="role"
-                value={formData.role}
-                onChange={(e) =>
-                  setFormData({ ...formData, role: e.target.value })
-                }
-                placeholder="Enter your professional role"
-                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                aria-label="Role"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="tags" className="text-black dark:text-white">
-                Specialty Tags
-              </Label>
-              <Input
-                id="tags"
-                value={formData.tags}
-                onChange={(e) =>
-                  setFormData({ ...formData, tags: e.target.value })
-                }
-                placeholder="Enter tags (e.g., therapy, counseling)"
-                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                aria-label="Specialty Tags"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="education" className="text-black dark:text-white">
-                Education
-              </Label>
-              <Textarea
-                id="education"
-                value={formData.education}
-                onChange={(e) =>
-                  setFormData({ ...formData, education: e.target.value })
-                }
-                placeholder="Enter your educational background"
-                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                aria-label="Education"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="license" className="text-black dark:text-white">
-                License
-              </Label>
-              <Input
-                id="license"
-                value={formData.license}
-                onChange={(e) =>
-                  setFormData({ ...formData, license: e.target.value })
-                }
-                placeholder="Enter your license details"
-                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                aria-label="License"
-              />
-            </div>
-            <div className="space-y-2">
-              <Label htmlFor="biography" className="text-black dark:text-white">
-                Biography
-              </Label>
-              <Textarea
-                id="biography"
-                value={formData.biography}
-                onChange={(e) =>
-                  setFormData({ ...formData, biography: e.target.value })
-                }
-                placeholder="Enter your professional biography"
-                className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                aria-label="Biography"
-              />
-            </div>
+          </CardContent>
+        </Card>
+        <Card className="shadow-lg">
+          <CardContent className="space-y-4 pt-6">
+            <motion.div variants={itemVariants} className="space-y-4">
+              <div className="space-y-2">
+                <Label
+                  htmlFor="biography"
+                  className="text-black dark:text-white"
+                >
+                  Biography
+                </Label>
+                <Textarea
+                  id="biography"
+                  value={formData.biography}
+                  onChange={(e) =>
+                    setFormData({ ...formData, biography: e.target.value })
+                  }
+                  placeholder="Enter your professional biography"
+                  className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                  aria-label="Biography"
+                />
+              </div>
+              <div className="space-y-2">
+                <Label htmlFor="rate" className="text-black dark:text-white">
+                  Rate ($)
+                </Label>
+                <Input
+                  id="rate"
+                  value={formData.rate}
+                  onChange={(e) =>
+                    setFormData({ ...formData, rate: e.target.value })
+                  }
+                  placeholder="Enter your rate (e.g., 50)"
+                  className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                  aria-label="Rate"
+                  type="number"
+                />
+              </div>
+              <Button
+                onClick={handleSubmit}
+                className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+                disabled={!session?.user?.name}
+              >
+                Submit Application
+              </Button>
+            </motion.div>
+          </CardContent>
+        </Card>
+      </motion.div>
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Application Submitted</DialogTitle>
+            <DialogDescription>
+              Your application has been successfully submitted. You will be
+              notified when it is approved by the admin.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
             <Button
-              onClick={handleSubmit}
+              onClick={handleDialogClose}
               className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
-              disabled={!session?.user?.name}
             >
-              Submit Application
+              Close
             </Button>
-          </motion.div>
-        </CardContent>
-      </Card>
-    </motion.div>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 }

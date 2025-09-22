@@ -7,12 +7,13 @@ import { z } from "zod";
 
 // Validation schemas
 const specialistApplicationSchema = z.object({
-  location: z.string().min(1, "Location is required"),
   biography: z.string().min(1, "Biography is required"),
-  education: z.string().min(1, "Education is required"),
-  license: z.string().min(1, "License is required"),
-  role: z.string().min(1, "Role is required"),
-  tags: z.string().min(1, "Tags are required"),
+  rate: z
+    .string()
+    .transform((val) => parseFloat(val))
+    .refine((val) => !isNaN(val) && val >= 0, {
+      message: "Rate must be a valid non-negative number",
+    }),
 });
 
 export async function POST(req: Request) {
@@ -87,12 +88,8 @@ export async function POST(req: Request) {
       console.log("Creating new application for user:", session.user.id);
       const createData = {
         userId: session.user.id,
-        location: validatedData.location,
         biography: validatedData.biography,
-        education: validatedData.education,
-        license: validatedData.license,
-        role: validatedData.role,
-        tags: validatedData.tags,
+        rate: validatedData.rate,
         status: "pending",
       };
       console.log("Data sent to create SpecialistApplication:", createData);
@@ -172,7 +169,6 @@ export async function GET(req: Request) {
       where: {
         ...(status !== "all" && { status }),
         user: { name: { contains: search, mode: "insensitive" } },
-        userId: { not: session.user.id },
       },
       select: {
         id: true,
@@ -264,12 +260,8 @@ export async function PATCH(req: Request) {
           const specialist = await tx.specialist.create({
             data: {
               name: application.user.name,
-              location: application.location,
               biography: application.biography,
-              education: application.education,
-              license: application.license,
-              role: application.role,
-              tags: application.tags,
+              rate: application.rate,
               image: application.user.profileImage || null,
             },
           });

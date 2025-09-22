@@ -112,12 +112,23 @@ export default function UsersPage() {
       </div>
 
       <Card>
-        <CardContent className="p-0">
+        <CardContent className="p-4">
           <ScrollArea className="h-[500px]">
             {loading ? (
-              <div className="p-4 text-center">Loading...</div>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {[...Array(6)].map((_, i) => (
+                  <div
+                    key={i}
+                    className="h-32 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"
+                  />
+                ))}
+              </div>
+            ) : filteredUsers.length === 0 ? (
+              <div className="p-4 text-center text-[#C4C4C4]">
+                No users found
+              </div>
             ) : (
-              <div className="divide-y divide-[#C4C4C4]">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <AnimatePresence>
                   {filteredUsers.map((user) => (
                     <motion.div
@@ -126,7 +137,7 @@ export default function UsersPage() {
                       initial="hidden"
                       animate="visible"
                       exit={{ opacity: 0, x: -20 }}
-                      className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
+                      className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors border border-[#C4C4C4] rounded"
                     >
                       <div className="flex items-center gap-4">
                         <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center text-black dark:text-white">

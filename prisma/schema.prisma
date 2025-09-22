@@ -89,15 +89,10 @@ model Specialist {
   id               String         @id @default(auto()) @map("_id") @db.ObjectId
   name             String       // Populated from User.name
   image            String?      // Populated from User.profileImage
-  location         String
   rating           Float?
   reviewCount      Int?
   rate             Float?
-  role             String?
-  tags             String?
   biography        String?
-  education        String?
-  license          String?
   companyCutPercentage Float? 
   createdAt        DateTime     @default(now())
   appointments     Appointment[] @relation("SpecialistAppointments")
@@ -106,9 +101,9 @@ model Specialist {
   availability     Availability[] @relation
   profileVisits    ProfileVisit[] @relation("Visitee")
   Proposal         Proposal[]     @relation
-  reviews      Review[]   @relation("SpecialistReviews")
-  discounts    Discount[] @relation
-  reported     Report[]       @relation("ReportedSpecialist")
+  reviews          Review[]   @relation("SpecialistReviews")
+  discounts        Discount[] @relation
+  reported         Report[]       @relation("ReportedSpecialist")
 }
 
 model Post {
@@ -140,12 +135,8 @@ model Reply {
 model SpecialistApplication {
   id           String      @id @default(auto()) @map("_id") @db.ObjectId
   userId       String      @unique @db.ObjectId
-  location     String
   biography    String
-  education    String
-  license      String
-  role         String
-  tags         String
+  rate         Float       // Renamed from charges to rate
   status       String      @default("pending") // pending, reviewed, approved, rejected
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt

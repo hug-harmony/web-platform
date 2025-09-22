@@ -26,12 +26,10 @@ import {
   DialogContent,
   DialogHeader,
   DialogTitle,
-  DialogTrigger,
+  DialogDescription,
+  DialogFooter,
 } from "@/components/ui/dialog";
-import { Calendar } from "@/components/ui/calendar";
-import { Checkbox } from "@/components/ui/checkbox";
 import debounce from "lodash.debounce";
-import { allSlots } from "@/lib/constants";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -41,6 +39,7 @@ const itemVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
+
 interface Profile {
   id: string;
   name?: string | null;
@@ -66,14 +65,17 @@ interface Profile {
   favoriteMedia?: string | null;
   petOwnership?: string | null;
 }
+
 interface LocationSuggestion {
   display_name: string;
   lat: string;
   lon: string;
 }
+
 interface Props {
   params: Promise<{ id: string }>;
 }
+
 const ProfilePage: React.FC<Props> = ({ params }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isEditing, setIsEditing] = useState(false);
@@ -87,21 +89,19 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   const [isSpecialist, setIsSpecialist] = useState(false);
   const [specialistId, setSpecialistId] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
-  const [openAvailability, setOpenAvailability] = useState(false);
-  const [breakDuration, setBreakDuration] = useState<number>(30);
   const [locationSuggestions, setLocationSuggestions] = useState<
     LocationSuggestion[]
   >([]);
   const [isLocationLoading, setIsLocationLoading] = useState(false);
   const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
+  const [isApplicationDialogOpen, setIsApplicationDialogOpen] = useState(false);
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status, update } = useSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
   const locationInputRef = useRef<HTMLInputElement>(null);
   const dropdownRef = useRef<HTMLDivElement>(null);
+
   // Debounced function to fetch location suggestions from Nominatim
   const fetchLocationSuggestions = debounce(async (query: string) => {
     if (query.length < 3) {
@@ -135,6 +135,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       setIsLocationLoading(false);
     }
   }, 300);
+
   // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {
@@ -148,6 +149,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     document.addEventListener("mousedown", handleClickOutside);
     return () => document.removeEventListener("mousedown", handleClickOutside);
   }, []);
+
   // Validate location by geocoding on form submit
   const validateLocation = async (location: string): Promise<boolean> => {
     if (!location) return true; // Location is optional
@@ -169,6 +171,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       return false;
     }
   };
+
   // Validation functions
   const validateUserProfileForm = async (formData: FormData) => {
     const errors: Record<string, string> = {};
@@ -186,6 +189,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     const favoriteColor = formData.get("favoriteColor")?.toString() || "";
     const favoriteMedia = formData.get("favoriteMedia")?.toString() || "";
     const petOwnership = formData.get("petOwnership")?.toString() || "";
+
     if (!firstName) errors.firstName = "First name is required";
     else if (firstName.length > 50)
       errors.firstName = "First name must be 50 characters or less";
@@ -229,25 +233,17 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     }
     return errors;
   };
+
   const validateSpecialistProfileForm = async (formData: FormData) => {
     const errors: Record<string, string> = {};
-    const role = formData.get("role")?.toString() || "";
-    const tags = formData.get("tags")?.toString() || "";
     const biography = formData.get("biography")?.toString() || "";
-    const location = formData.get("location")?.toString() || "";
     const rate = formData.get("rate")?.toString() || "";
-    if (!role) errors.role = "Role is required";
-    else if (role.length > 50)
-      errors.role = "Role must be 50 characters or less";
-    if (tags && tags.length > 100)
-      errors.tags = "Tags must be 100 characters or less";
-    if (biography && biography.length > 500)
+
+    if (!biography) errors.biography = "Biography is required";
+    else if (biography.length > 500)
       errors.biography = "Biography must be 500 characters or less";
-    if (location && location.length > 100)
-      errors.location = "Location must be 100 characters or less";
-    else if (location && !(await validateLocation(location)))
-      errors.location = "Please select a valid location from the suggestions";
-    if (rate) {
+    if (!rate) errors.rate = "Rate is required";
+    else {
       const rateNum = parseFloat(rate);
       if (isNaN(rateNum) || rateNum <= 0)
         errors.rate = "Rate must be a positive number";
@@ -255,6 +251,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     }
     return errors;
   };
+
   const fetchSpecialistStatus = async (
     retries = 3,
     delay = 1000
@@ -288,12 +285,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                 ? {
                     ...prev,
                     type: "specialist",
-                    role: specialistData.role,
-                    tags: specialistData.tags,
                     biography: specialistData.biography,
-                    location: specialistData.location,
-                    rating: specialistData.rating,
-                    reviewCount: specialistData.reviewCount,
                     rate: specialistData.rate,
                   }
                 : prev
@@ -319,6 +311,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       setSpecialistStatusLoading(false);
     }
   };
+
   useEffect(() => {
     const fetchProfileAndSpecialistStatus = async () => {
       try {
@@ -368,31 +361,35 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       }
     };
     fetchProfileAndSpecialistStatus();
-    const fromApplication = searchParams.get("fromApplication");
-    if (fromApplication) fetchSpecialistStatus();
-  }, [params, router, searchParams]);
-
-  useEffect(() => {
-    if (date && openAvailability && specialistId) {
-      fetch(
-        `/api/specialists/availability?specialistId=${specialistId}&date=${date.toISOString().split("T")[0]}`
-      )
-        .then((res) => res.json())
-        .then((data) => {
-          setSelectedSlots(data.slots || []);
-          setBreakDuration(data.breakDuration || 30);
-        })
-        .catch(() => toast.error("Failed to fetch availability"));
-    }
-  }, [date, openAvailability, specialistId]);
+  }, [params, router]);
 
   const handleNewProfessional = async () => {
     if (status === "loading") {
       toast.error("Please wait while we check your session");
       return;
     }
-    router.push("professional-application");
+    try {
+      const specialistRes = await fetch("/api/specialists/application/me", {
+        cache: "no-store",
+        credentials: "include",
+      });
+      if (!specialistRes.ok) {
+        throw new Error(
+          `Failed to fetch specialist status: ${specialistRes.status}`
+        );
+      }
+      const { status: appStatus } = await specialistRes.json();
+      if (appStatus === "pending" || appStatus === "reviewed") {
+        setIsApplicationDialogOpen(true);
+      } else {
+        router.push("professional-application");
+      }
+    } catch (err) {
+      console.error("Check Specialist Status Error:", err);
+      toast.error("Failed to check specialist status. Please try again.");
+    }
   };
+
   const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setUpdating(true);
@@ -477,6 +474,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       if (fileInputRef.current) fileInputRef.current.value = "";
     }
   };
+
   const handleUpdateSpecialist = async (
     e: React.FormEvent<HTMLFormElement>
   ) => {
@@ -492,10 +490,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     }
     setFormErrors({});
     const data = {
-      role: formData.get("role")?.toString(),
-      tags: formData.get("tags")?.toString(),
       biography: formData.get("biography")?.toString(),
-      location: formData.get("location")?.toString(),
       rate: parseFloat(formData.get("rate")?.toString() || "0") || null,
     };
     try {
@@ -519,10 +514,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           prev
             ? {
                 ...prev,
-                role: updatedSpecialist.role,
-                tags: updatedSpecialist.tags,
                 biography: updatedSpecialist.biography,
-                location: updatedSpecialist.location,
                 rate: updatedSpecialist.rate,
               }
             : prev
@@ -547,75 +539,13 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       setUpdatingSpecialist(false);
     }
   };
-  const isSlotValidWithBreak = (
-    newSlot: string,
-    currentSlots: string[],
-    breakDuration: number
-  ) => {
-    const timeToMinutes = (time: string) => {
-      const [hourStr, period] = time.split(" ");
-      const [hour, minute] = hourStr.split(":").map(Number);
-      return ((hour % 12) + (period === "PM" ? 12 : 0)) * 60 + minute;
-    };
-    const newSlotMinutes = timeToMinutes(newSlot);
-    for (const slot of currentSlots) {
-      const slotMinutes = timeToMinutes(slot);
-      const gap = Math.abs(newSlotMinutes - slotMinutes);
-      if (gap < breakDuration && gap !== 0) {
-        return false; // Slot is too close to an existing slot
-      }
-    }
-    return true;
-  };
 
-  const handleSubmitAvailability = async () => {
-    if (!date) return;
-    try {
-      const res = await fetch("/api/specialists/availability", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: date.toISOString().split("T")[0],
-          slots: selectedSlots,
-          breakDuration,
-        }),
-      });
-      if (res.ok) {
-        toast.success("Availability updated");
-        setOpenAvailability(false);
-      } else {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to update availability");
-      }
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update availability"
-      );
-    }
-  };
-
-  const toggleSlot = (time: string) => {
-    setSelectedSlots((prev) => {
-      if (prev.includes(time)) {
-        return prev.filter((t) => t !== time);
-      } else {
-        if (isSlotValidWithBreak(time, prev, breakDuration)) {
-          return [...prev, time].sort((a, b) => {
-            const timeA = new Date(`1970-01-01 ${a}`);
-            const timeB = new Date(`1970-01-01 ${b}`);
-            return timeA.getTime() - timeB.getTime();
-          });
-        } else {
-          toast.error(
-            `Selected slot conflicts with ${breakDuration}-minute break requirement.`
-          );
-          return prev;
-        }
-      }
-    });
+  const handleDialogClose = () => {
+    setIsApplicationDialogOpen(false);
   };
 
   const isOwnProfile = session?.user?.id === profile?.id;
+
   if (loading) {
     return (
       <div className="p-4 space-y-6 max-w-7xl mx-auto">
@@ -669,6 +599,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       </div>
     );
   }
+
   if (error || !profile) {
     return (
       <div className="text-center p-6 text-red-500">
@@ -676,76 +607,45 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       </div>
     );
   }
+
   return (
-    <motion.div
-      className="p-4 space-y-6 max-w-7xl mx-auto"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
-        <CardHeader>
-          <motion.div
-            variants={itemVariants}
-            className="flex items-center space-x-4"
-          >
-            <Avatar className="h-16 w-16 border-2 border-white">
-              <AvatarImage
-                src={profile.profileImage || "/register.jpg"}
-                alt={profile.name || "User"}
-              />
-              <AvatarFallback className="bg-[#C4C4C4] text-black">
-                {profile.name?.[0] || "U"}
-              </AvatarFallback>
-            </Avatar>
-            <div>
-              <CardTitle className="text-2xl text-black dark:text-white">
-                {profile.name || "User"}
-              </CardTitle>
-              <p className="text-black text-sm">{profile.email}</p>
-              {isSpecialist && (
-                <span className="mt-1 inline-block bg-black text-[#F3CFC6] text-xs font-medium px-2 py-1 rounded">
-                  Professional
-                </span>
-              )}
-            </div>
-          </motion.div>
-        </CardHeader>
-        <CardContent className="flex space-x-4">
-          {!isSpecialist && (
+    <>
+      <motion.div
+        className="p-4 space-y-6 max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
             <motion.div
               variants={itemVariants}
-              whileHover={{
-                scale: 1.05,
-                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-              }}
-              transition={{ duration: 0.2 }}
+              className="flex items-center space-x-4"
             >
-              <Button
-                variant="outline"
-                onClick={handleNewProfessional}
-                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
-                disabled={status === "loading"}
-              >
-                <Gem className="w-4 h-4 mr-2 text-[#F3CFC6]" /> Become a
-                Professional
-              </Button>
+              <Avatar className="h-16 w-16 border-2 border-white">
+                <AvatarImage
+                  src={profile.profileImage || "/register.jpg"}
+                  alt={profile.name || "User"}
+                />
+                <AvatarFallback className="bg-[#C4C4C4] text-black">
+                  {profile.name?.[0] || "U"}
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <CardTitle className="text-2xl text-black dark:text-white">
+                  {profile.name || "User"}
+                </CardTitle>
+                <p className="text-black text-sm">{profile.email}</p>
+                {isSpecialist && (
+                  <span className="mt-1 inline-block bg-black text-[#F3CFC6] text-xs font-medium px-2 py-1 rounded">
+                    Professional
+                  </span>
+                )}
+              </div>
             </motion.div>
-          )}
-          {isOwnProfile && isSpecialist && (
-            <div className="flex gap-2">
-              <Button
-                variant="outline"
-                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
-                disabled={status === "loading" || specialistStatusLoading}
-                onClick={() =>
-                  router.push(
-                    `/dashboard/discounts?specialistId=${specialistId}`
-                  )
-                }
-              >
-                Manage Discounts
-              </Button>
+          </CardHeader>
+          <CardContent className="flex space-x-4">
+            {!isSpecialist && (
               <motion.div
                 variants={itemVariants}
                 whileHover={{
@@ -754,763 +654,193 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                 }}
                 transition={{ duration: 0.2 }}
               >
-                <Dialog
-                  open={openAvailability}
-                  onOpenChange={setOpenAvailability}
+                <Button
+                  variant="outline"
+                  onClick={handleNewProfessional}
+                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+                  disabled={status === "loading"}
                 >
-                  <DialogTrigger asChild>
-                    <Button
-                      variant="outline"
-                      className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
-                      disabled={status === "loading"}
-                    >
-                      Set Availability
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent>
-                    <DialogHeader>
-                      <DialogTitle>Set Daily Availability</DialogTitle>
-                    </DialogHeader>
-                    <div className="space-y-4">
-                      <Calendar
-                        mode="single"
-                        selected={date}
-                        onSelect={setDate}
-                      />
-                      <div className="space-y-2">
-                        <Label
-                          htmlFor="breakDuration"
-                          className="text-black dark:text-white"
-                        >
-                          Break Duration Between Slots
-                        </Label>
-                        <Select
-                          value={breakDuration.toString()}
-                          onValueChange={(value) =>
-                            setBreakDuration(Number(value))
-                          }
-                        >
-                          <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
-                            <SelectValue placeholder="Select break duration" />
-                          </SelectTrigger>
-                          <SelectContent>
-                            <SelectItem value="30">30 Minutes</SelectItem>
-                            <SelectItem value="60">1 Hour</SelectItem>
-                          </SelectContent>
-                        </Select>
-                      </div>
-                      <div className="grid grid-cols-3 gap-2">
-                        {allSlots.map((time) => (
-                          <div
-                            key={time}
-                            className="flex items-center space-x-2"
-                          >
-                            <Checkbox
-                              id={time}
-                              checked={selectedSlots.includes(time)}
-                              onCheckedChange={() => toggleSlot(time)}
-                              disabled={
-                                !isSlotValidWithBreak(
-                                  time,
-                                  selectedSlots,
-                                  breakDuration
-                                ) && !selectedSlots.includes(time)
-                              }
-                            />
-                            <Label htmlFor={time}>{time}</Label>
-                          </div>
-                        ))}
-                      </div>
-                      <Button onClick={handleSubmitAvailability}>Save</Button>
-                    </div>
-                  </DialogContent>
-                </Dialog>
+                  <Gem className="w-4 h-4 mr-2 text-[#F3CFC6]" /> Become a
+                  Professional
+                </Button>
               </motion.div>
-            </div>
-          )}
-        </CardContent>
-      </Card>
-      <div className="flex gap-6">
-        <Card className="grow">
-          <CardContent className="space-y-4 pt-6">
-            <h2 className="text-xl text-black dark:text-white">
-              Personal Details
-            </h2>
-            <motion.div variants={itemVariants} className="space-y-4">
-              {isEditing ? (
-                <form onSubmit={handleUpdateProfile} className="space-y-4">
-                  <div className="space-y-2 max-w-2xl">
-                    <Label
-                      htmlFor="profileImage"
-                      className="text-black dark:text-white"
-                    >
-                      Profile Picture
-                    </Label>
-                    <div className="flex items-center space-x-2">
-                      <Input
-                        id="profileImage"
-                        type="file"
-                        accept="image/jpeg,image/png"
-                        ref={fileInputRef}
-                        className="hidden"
-                        disabled={!isEditing || updating}
-                        onChange={(e) =>
-                          setSelectedFile(e.target.files?.[0] || null)
-                        }
-                      />
-                      <Button
-                        type="button"
-                        variant="outline"
-                        disabled={!isEditing || updating}
-                        onClick={() => fileInputRef.current?.click()}
-                        className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
-                      >
-                        <Upload className="w-4 h-4 mr-2 text-[#F3CFC6]" />{" "}
-                        {selectedFile ? "Replace" : "Upload Image"}
-                      </Button>
-                      {selectedFile && (
-                        <span className="text-sm text-[#C4C4C4] truncate max-w-xs">
-                          {selectedFile.name}
-                        </span>
-                      )}
-                    </div>
-                    {formErrors.profileImage && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.profileImage}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="firstName"
-                      className="text-black dark:text-white"
-                    >
-                      First Name
-                    </Label>
-                    <Input
-                      id="firstName"
-                      name="firstName"
-                      value={profile.firstName || ""}
-                      onChange={(e) =>
-                        setProfile({ ...profile, firstName: e.target.value })
-                      }
-                      disabled={!isEditing || updating}
-                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                      aria-label="First Name"
-                      required
-                      maxLength={50}
-                    />
-                    {formErrors.firstName && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.firstName}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="lastName"
-                      className="text-black dark:text-white"
-                    >
-                      Last Name
-                    </Label>
-                    <Input
-                      id="lastName"
-                      name="lastName"
-                      value={profile.lastName || ""}
-                      onChange={(e) =>
-                        setProfile({ ...profile, lastName: e.target.value })
-                      }
-                      disabled={!isEditing || updating}
-                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                      aria-label="Last Name"
-                      required
-                      maxLength={50}
-                    />
-                    {formErrors.lastName && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.lastName}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="phoneNumber"
-                      className="text-black dark:text-white"
-                    >
-                      Phone Number
-                    </Label>
-                    <Input
-                      id="phoneNumber"
-                      name="phoneNumber"
-                      value={profile.phoneNumber || ""}
-                      onChange={(e) =>
-                        setProfile({ ...profile, phoneNumber: e.target.value })
-                      }
-                      disabled={!isEditing || updating}
-                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                      aria-label="Phone Number"
-                      pattern="\+?[\d\s-()]{7,15}"
-                      title="Phone number should be 7-15 digits, may include +, -, (), or spaces"
-                    />
-                    {formErrors.phoneNumber && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.phoneNumber}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2 relative" ref={dropdownRef}>
-                    <Label
-                      htmlFor="location"
-                      className="text-black dark:text-white"
-                    >
-                      Location
-                    </Label>
-                    <Input
-                      id="location"
-                      name="location"
-                      ref={locationInputRef}
-                      value={profile.location || ""}
-                      onChange={(e) => {
-                        const value = e.target.value;
-                        setProfile({ ...profile, location: value });
-                        if (isEditing) {
-                          setIsLocationDropdownOpen(true);
-                          fetchLocationSuggestions(value);
-                        }
-                      }}
-                      onFocus={() =>
-                        isEditing && setIsLocationDropdownOpen(true)
-                      }
-                      disabled={!isEditing || updating}
-                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                      aria-label="Location"
-                      maxLength={100}
-                      placeholder="Type a city or address"
-                    />
-                    {isLocationDropdownOpen && isEditing && (
-                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-[#F3CFC6] rounded-md shadow-lg max-h-60 overflow-auto">
-                        {isLocationLoading ? (
-                          <p className="p-2 text-gray-500">Loading...</p>
-                        ) : locationSuggestions.length === 0 ? (
-                          <p className="p-2 text-gray-500">No results found</p>
-                        ) : (
-                          locationSuggestions.map((sug) => (
-                            <button
-                              key={sug.display_name}
-                              type="button"
-                              className="w-full text-left px-4 py-2 text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                              onClick={() => {
-                                setProfile({
-                                  ...profile,
-                                  location: sug.display_name,
-                                });
-                                setLocationSuggestions([]);
-                                setIsLocationDropdownOpen(false);
-                              }}
-                            >
-                              {sug.display_name}
-                            </button>
-                          ))
-                        )}
-                      </div>
-                    )}
-                    {formErrors.location && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.location}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="biography"
-                      className="text-black dark:text-white"
-                    >
-                      Biography
-                    </Label>
-                    <Textarea
-                      id="biography"
-                      name="biography"
-                      value={profile.biography || ""}
-                      onChange={(e) =>
-                        setProfile({ ...profile, biography: e.target.value })
-                      }
-                      disabled={!isEditing || updating}
-                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                      aria-label="Biography"
-                      maxLength={500}
-                    />
-                    {formErrors.biography && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.biography}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="relationshipStatus"
-                      className="text-black dark:text-white"
-                    >
-                      Relationship Status
-                    </Label>
-                    <Select
-                      name="relationshipStatus"
-                      value={profile.relationshipStatus || ""}
-                      onValueChange={(value) =>
-                        setProfile({ ...profile, relationshipStatus: value })
-                      }
-                      disabled={!isEditing || updating}
-                    >
-                      <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
-                        <SelectValue placeholder="Select relationship status" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Single">Single</SelectItem>
-                        <SelectItem value="In a relationship">
-                          In a relationship
-                        </SelectItem>
-                        <SelectItem value="Married">Married</SelectItem>
-                        <SelectItem value="Divorced">Divorced</SelectItem>
-                        <SelectItem value="Widowed">Widowed</SelectItem>
-                        <SelectItem value="Prefer not to say">
-                          Prefer not to say
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {formErrors.relationshipStatus && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.relationshipStatus}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="orientation"
-                      className="text-black dark:text-white"
-                    >
-                      Orientation
-                    </Label>
-                    <Select
-                      name="orientation"
-                      value={profile.orientation || ""}
-                      onValueChange={(value) =>
-                        setProfile({ ...profile, orientation: value })
-                      }
-                      disabled={!isEditing || updating}
-                    >
-                      <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
-                        <SelectValue placeholder="Select orientation" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Heterosexual">
-                          Heterosexual
-                        </SelectItem>
-                        <SelectItem value="Homosexual">Homosexual</SelectItem>
-                        <SelectItem value="Bisexual">Bisexual</SelectItem>
-                        <SelectItem value="Asexual">Asexual</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                        <SelectItem value="Prefer not to say">
-                          Prefer not to say
-                        </SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {formErrors.orientation && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.orientation}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="height"
-                      className="text-black dark:text-white"
-                    >
-                      Height
-                    </Label>
-                    <Input
-                      id="height"
-                      name="height"
-                      value={profile.height || ""}
-                      onChange={(e) =>
-                        setProfile({ ...profile, height: e.target.value })
-                      }
-                      disabled={!isEditing || updating}
-                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                      aria-label="Height"
-                      placeholder={`e.g., 5'10" or 178 cm`}
-                      maxLength={20}
-                    />
-                    {formErrors.height && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.height}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="ethnicity"
-                      className="text-black dark:text-white"
-                    >
-                      Ethnicity
-                    </Label>
-                    <Input
-                      id="ethnicity"
-                      name="ethnicity"
-                      value={profile.ethnicity || ""}
-                      onChange={(e) =>
-                        setProfile({ ...profile, ethnicity: e.target.value })
-                      }
-                      disabled={!isEditing || updating}
-                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                      aria-label="Ethnicity"
-                      maxLength={50}
-                    />
-                    {formErrors.ethnicity && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.ethnicity}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="zodiacSign"
-                      className="text-black dark:text-white"
-                    >
-                      Zodiac Sign
-                    </Label>
-                    <Select
-                      name="zodiacSign"
-                      value={profile.zodiacSign || ""}
-                      onValueChange={(value) =>
-                        setProfile({ ...profile, zodiacSign: value })
-                      }
-                      disabled={!isEditing || updating}
-                    >
-                      <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
-                        <SelectValue placeholder="Select zodiac sign" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Aries">Aries</SelectItem>
-                        <SelectItem value="Taurus">Taurus</SelectItem>
-                        <SelectItem value="Gemini">Gemini</SelectItem>
-                        <SelectItem value="Cancer">Cancer</SelectItem>
-                        <SelectItem value="Leo">Leo</SelectItem>
-                        <SelectItem value="Virgo">Virgo</SelectItem>
-                        <SelectItem value="Libra">Libra</SelectItem>
-                        <SelectItem value="Scorpio">Scorpio</SelectItem>
-                        <SelectItem value="Sagittarius">Sagittarius</SelectItem>
-                        <SelectItem value="Capricorn">Capricorn</SelectItem>
-                        <SelectItem value="Aquarius">Aquarius</SelectItem>
-                        <SelectItem value="Pisces">Pisces</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {formErrors.zodiacSign && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.zodiacSign}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="favoriteColor"
-                      className="text-black dark:text-white"
-                    >
-                      Favorite Color
-                    </Label>
-                    <Input
-                      id="favoriteColor"
-                      name="favoriteColor"
-                      value={profile.favoriteColor || ""}
-                      onChange={(e) =>
-                        setProfile({
-                          ...profile,
-                          favoriteColor: e.target.value,
-                        })
-                      }
-                      disabled={!isEditing || updating}
-                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                      aria-label="Favorite Color"
-                      maxLength={30}
-                    />
-                    {formErrors.favoriteColor && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.favoriteColor}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="favoriteMedia"
-                      className="text-black dark:text-white"
-                    >
-                      Favorite Movie/TV Show
-                    </Label>
-                    <Input
-                      id="favoriteMedia"
-                      name="favoriteMedia"
-                      value={profile.favoriteMedia || ""}
-                      onChange={(e) =>
-                        setProfile({
-                          ...profile,
-                          favoriteMedia: e.target.value,
-                        })
-                      }
-                      disabled={!isEditing || updating}
-                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                      aria-label="Favorite Movie/TV Show"
-                      maxLength={100}
-                    />
-                    {formErrors.favoriteMedia && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.favoriteMedia}
-                      </p>
-                    )}
-                  </div>
-                  <div className="space-y-2">
-                    <Label
-                      htmlFor="petOwnership"
-                      className="text-black dark:text-white"
-                    >
-                      Pet Ownership
-                    </Label>
-                    <Select
-                      name="petOwnership"
-                      value={profile.petOwnership || ""}
-                      onValueChange={(value) =>
-                        setProfile({ ...profile, petOwnership: value })
-                      }
-                      disabled={!isEditing || updating}
-                    >
-                      <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
-                        <SelectValue placeholder="Select pet ownership" />
-                      </SelectTrigger>
-                      <SelectContent>
-                        <SelectItem value="Dog">Dog</SelectItem>
-                        <SelectItem value="Cat">Cat</SelectItem>
-                        <SelectItem value="Other">Other</SelectItem>
-                        <SelectItem value="None">None</SelectItem>
-                      </SelectContent>
-                    </Select>
-                    {formErrors.petOwnership && (
-                      <p className="text-red-500 text-sm">
-                        {formErrors.petOwnership}
-                      </p>
-                    )}
-                  </div>
-                  <div className="flex space-x-4 mt-4">
-                    <Button
-                      variant="outline"
-                      type="button"
-                      onClick={() => {
-                        setIsEditing(false);
-                        setLocationSuggestions([]);
-                        setIsLocationDropdownOpen(false);
-                      }}
-                      disabled={!isEditing || updating}
-                      className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
-                    >
-                      Cancel
-                    </Button>
-                    <Button
-                      type="submit"
-                      disabled={!isEditing || updating}
-                      className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
-                    >
-                      {updating ? "Saving..." : "Save"}
-                    </Button>
-                  </div>
-                </form>
-              ) : (
-                <div className="space-y-4">
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">First Name</p>
-                    <p className="text-black dark:text-white">
-                      {profile.firstName || "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">Last Name</p>
-                    <p className="text-black dark:text-white">
-                      {profile.lastName || "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">Phone Number</p>
-                    <p className="text-black dark:text-white">
-                      {profile.phoneNumber || "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">Location</p>
-                    <p className="text-black dark:text-white">
-                      {profile.location || "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">Biography</p>
-                    <p className="text-black dark:text-white">
-                      {profile.biography || "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">
-                      Relationship Status
-                    </p>
-                    <p className="text-black dark:text-white">
-                      {profile.relationshipStatus || "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">Orientation</p>
-                    <p className="text-black dark:text-white">
-                      {profile.orientation || "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">Height</p>
-                    <p className="text-black dark:text-white">
-                      {profile.height || "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">Ethnicity</p>
-                    <p className="text-black dark:text-white">
-                      {profile.ethnicity || "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">Zodiac Sign</p>
-                    <p className="text-black dark:text-white">
-                      {profile.zodiacSign || "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">Favorite Color</p>
-                    <p className="text-black dark:text-white">
-                      {profile.favoriteColor || "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">
-                      Favorite Movie/TV Show
-                    </p>
-                    <p className="text-black dark:text-white">
-                      {profile.favoriteMedia || "Not provided"}
-                    </p>
-                  </div>
-                  <div>
-                    <p className="text-sm text-[#C4C4C4]">Pet Ownership</p>
-                    <p className="text-black dark:text-white">
-                      {profile.petOwnership || "Not provided"}
-                    </p>
-                  </div>
-                  {isOwnProfile && (
-                    <Button
-                      variant="outline"
-                      onClick={() => setIsEditing(true)}
-                      className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
-                    >
-                      Edit
-                    </Button>
-                  )}
-                </div>
-              )}
-            </motion.div>
+            )}
+            {isOwnProfile && isSpecialist && (
+              <div className="flex gap-2">
+                <motion.div
+                  variants={itemVariants}
+                  whileHover={{
+                    scale: 1.05,
+                    boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+                  }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Button
+                    variant="outline"
+                    className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+                    disabled={status === "loading" || specialistStatusLoading}
+                    onClick={() =>
+                      router.push(
+                        `/dashboard/discounts?specialistId=${specialistId}`
+                      )
+                    }
+                  >
+                    Manage Discounts
+                  </Button>
+                </motion.div>
+                <motion.div
+                  variants={itemVariants}
+                  whileHover={{
+                    scale: 1.05,
+                    boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+                  }}
+                  transition={{ duration: 0.2 }}
+                >
+                  <Button
+                    variant="outline"
+                    className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+                    disabled={status === "loading" || specialistStatusLoading}
+                    onClick={() =>
+                      router.push(
+                        `/dashboard/availability?specialistId=${specialistId}`
+                      )
+                    }
+                  >
+                    Manage Availability
+                  </Button>
+                </motion.div>
+              </div>
+            )}
           </CardContent>
         </Card>
-        {isSpecialist && (
+        <div className="flex gap-6">
           <Card className="grow">
             <CardContent className="space-y-4 pt-6">
               <h2 className="text-xl text-black dark:text-white">
-                Professional Profile Details
+                Personal Details
               </h2>
               <motion.div variants={itemVariants} className="space-y-4">
-                {isEditingSpecialist ? (
-                  <form onSubmit={handleUpdateSpecialist} className="space-y-4">
-                    <div className="space-y-2">
+                {isEditing ? (
+                  <form onSubmit={handleUpdateProfile} className="space-y-4">
+                    <div className="space-y-2 max-w-2xl">
                       <Label
-                        htmlFor="role"
+                        htmlFor="profileImage"
                         className="text-black dark:text-white"
                       >
-                        Role
+                        Profile Picture
+                      </Label>
+                      <div className="flex items-center space-x-2">
+                        <Input
+                          id="profileImage"
+                          type="file"
+                          accept="image/jpeg,image/png"
+                          ref={fileInputRef}
+                          className="hidden"
+                          disabled={!isEditing || updating}
+                          onChange={(e) =>
+                            setSelectedFile(e.target.files?.[0] || null)
+                          }
+                        />
+                        <Button
+                          type="button"
+                          variant="outline"
+                          disabled={!isEditing || updating}
+                          onClick={() => fileInputRef.current?.click()}
+                          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+                        >
+                          <Upload className="w-4 h-4 mr-2 text-[#F3CFC6]" />{" "}
+                          {selectedFile ? "Replace" : "Upload Image"}
+                        </Button>
+                        {selectedFile && (
+                          <span className="text-sm text-[#C4C4C4] truncate max-w-xs">
+                            {selectedFile.name}
+                          </span>
+                        )}
+                      </div>
+                      {formErrors.profileImage && (
+                        <p className="text-red-500 text-sm">
+                          {formErrors.profileImage}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="firstName"
+                        className="text-black dark:text-white"
+                      >
+                        First Name
                       </Label>
                       <Input
-                        id="role"
-                        name="role"
-                        value={profile.role || ""}
+                        id="firstName"
+                        name="firstName"
+                        value={profile.firstName || ""}
                         onChange={(e) =>
-                          setProfile({ ...profile, role: e.target.value })
+                          setProfile({ ...profile, firstName: e.target.value })
                         }
-                        disabled={
-                          !isEditingSpecialist ||
-                          updatingSpecialist ||
-                          specialistStatusLoading
-                        }
+                        disabled={!isEditing || updating}
                         className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                        aria-label="Role"
+                        aria-label="First Name"
                         required
                         maxLength={50}
                       />
-                      {formErrors.role && (
+                      {formErrors.firstName && (
                         <p className="text-red-500 text-sm">
-                          {formErrors.role}
+                          {formErrors.firstName}
                         </p>
                       )}
                     </div>
                     <div className="space-y-2">
                       <Label
-                        htmlFor="tags"
+                        htmlFor="lastName"
                         className="text-black dark:text-white"
                       >
-                        Specialty Tags
+                        Last Name
                       </Label>
                       <Input
-                        id="tags"
-                        name="tags"
-                        value={profile.tags || ""}
+                        id="lastName"
+                        name="lastName"
+                        value={profile.lastName || ""}
                         onChange={(e) =>
-                          setProfile({ ...profile, tags: e.target.value })
+                          setProfile({ ...profile, lastName: e.target.value })
                         }
-                        disabled={
-                          !isEditingSpecialist ||
-                          updatingSpecialist ||
-                          specialistStatusLoading
-                        }
+                        disabled={!isEditing || updating}
                         className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                        aria-label="Specialty Tags"
-                        maxLength={100}
+                        aria-label="Last Name"
+                        required
+                        maxLength={50}
                       />
-                      {formErrors.tags && (
+                      {formErrors.lastName && (
                         <p className="text-red-500 text-sm">
-                          {formErrors.tags}
+                          {formErrors.lastName}
                         </p>
                       )}
                     </div>
                     <div className="space-y-2">
                       <Label
-                        htmlFor="biography"
+                        htmlFor="phoneNumber"
                         className="text-black dark:text-white"
                       >
-                        Biography
+                        Phone Number
                       </Label>
-                      <Textarea
-                        id="biography"
-                        name="biography"
-                        value={profile.biography || ""}
+                      <Input
+                        id="phoneNumber"
+                        name="phoneNumber"
+                        value={profile.phoneNumber || ""}
                         onChange={(e) =>
-                          setProfile({ ...profile, biography: e.target.value })
+                          setProfile({
+                            ...profile,
+                            phoneNumber: e.target.value,
+                          })
                         }
-                        disabled={
-                          !isEditingSpecialist ||
-                          updatingSpecialist ||
-                          specialistStatusLoading
-                        }
+                        disabled={!isEditing || updating}
                         className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                        aria-label="Biography"
-                        maxLength={500}
+                        aria-label="Phone Number"
+                        pattern="\+?[\d\s-()]{7,15}"
+                        title="Phone number should be 7-15 digits, may include +, -, (), or spaces"
                       />
-                      {formErrors.biography && (
+                      {formErrors.phoneNumber && (
                         <p className="text-red-500 text-sm">
-                          {formErrors.biography}
+                          {formErrors.phoneNumber}
                         </p>
                       )}
                     </div>
@@ -1529,25 +859,21 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                         onChange={(e) => {
                           const value = e.target.value;
                           setProfile({ ...profile, location: value });
-                          if (isEditingSpecialist) {
+                          if (isEditing) {
                             setIsLocationDropdownOpen(true);
                             fetchLocationSuggestions(value);
                           }
                         }}
                         onFocus={() =>
-                          isEditingSpecialist && setIsLocationDropdownOpen(true)
+                          isEditing && setIsLocationDropdownOpen(true)
                         }
-                        disabled={
-                          !isEditingSpecialist ||
-                          updatingSpecialist ||
-                          specialistStatusLoading
-                        }
+                        disabled={!isEditing || updating}
                         className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
                         aria-label="Location"
                         maxLength={100}
                         placeholder="Type a city or address"
                       />
-                      {isLocationDropdownOpen && isEditingSpecialist && (
+                      {isLocationDropdownOpen && isEditing && (
                         <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-[#F3CFC6] rounded-md shadow-lg max-h-60 overflow-auto">
                           {isLocationLoading ? (
                             <p className="p-2 text-gray-500">Loading...</p>
@@ -1584,36 +910,279 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     </div>
                     <div className="space-y-2">
                       <Label
-                        htmlFor="rate"
+                        htmlFor="biography"
                         className="text-black dark:text-white"
                       >
-                        Rate (per session)
+                        Biography
+                      </Label>
+                      <Textarea
+                        id="biography"
+                        name="biography"
+                        value={profile.biography || ""}
+                        onChange={(e) =>
+                          setProfile({ ...profile, biography: e.target.value })
+                        }
+                        disabled={!isEditing || updating}
+                        className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                        aria-label="Biography"
+                        maxLength={500}
+                      />
+                      {formErrors.biography && (
+                        <p className="text-red-500 text-sm">
+                          {formErrors.biography}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="relationshipStatus"
+                        className="text-black dark:text-white"
+                      >
+                        Relationship Status
+                      </Label>
+                      <Select
+                        name="relationshipStatus"
+                        value={profile.relationshipStatus || ""}
+                        onValueChange={(value) =>
+                          setProfile({ ...profile, relationshipStatus: value })
+                        }
+                        disabled={!isEditing || updating}
+                      >
+                        <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
+                          <SelectValue placeholder="Select relationship status" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Single">Single</SelectItem>
+                          <SelectItem value="In a relationship">
+                            In a relationship
+                          </SelectItem>
+                          <SelectItem value="Married">Married</SelectItem>
+                          <SelectItem value="Divorced">Divorced</SelectItem>
+                          <SelectItem value="Widowed">Widowed</SelectItem>
+                          <SelectItem value="Prefer not to say">
+                            Prefer not to say
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {formErrors.relationshipStatus && (
+                        <p className="text-red-500 text-sm">
+                          {formErrors.relationshipStatus}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="orientation"
+                        className="text-black dark:text-white"
+                      >
+                        Orientation
+                      </Label>
+                      <Select
+                        name="orientation"
+                        value={profile.orientation || ""}
+                        onValueChange={(value) =>
+                          setProfile({ ...profile, orientation: value })
+                        }
+                        disabled={!isEditing || updating}
+                      >
+                        <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
+                          <SelectValue placeholder="Select orientation" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Heterosexual">
+                            Heterosexual
+                          </SelectItem>
+                          <SelectItem value="Homosexual">Homosexual</SelectItem>
+                          <SelectItem value="Bisexual">Bisexual</SelectItem>
+                          <SelectItem value="Asexual">Asexual</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                          <SelectItem value="Prefer not to say">
+                            Prefer not to say
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {formErrors.orientation && (
+                        <p className="text-red-500 text-sm">
+                          {formErrors.orientation}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="height"
+                        className="text-black dark:text-white"
+                      >
+                        Height
                       </Label>
                       <Input
-                        id="rate"
-                        name="rate"
-                        type="number"
-                        value={profile.rate || ""}
+                        id="height"
+                        name="height"
+                        value={profile.height || ""}
+                        onChange={(e) =>
+                          setProfile({ ...profile, height: e.target.value })
+                        }
+                        disabled={!isEditing || updating}
+                        className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                        aria-label="Height"
+                        placeholder={`e.g., 5'10" or 178 cm`}
+                        maxLength={20}
+                      />
+                      {formErrors.height && (
+                        <p className="text-red-500 text-sm">
+                          {formErrors.height}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="ethnicity"
+                        className="text-black dark:text-white"
+                      >
+                        Ethnicity
+                      </Label>
+                      <Input
+                        id="ethnicity"
+                        name="ethnicity"
+                        value={profile.ethnicity || ""}
+                        onChange={(e) =>
+                          setProfile({ ...profile, ethnicity: e.target.value })
+                        }
+                        disabled={!isEditing || updating}
+                        className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                        aria-label="Ethnicity"
+                        maxLength={50}
+                      />
+                      {formErrors.ethnicity && (
+                        <p className="text-red-500 text-sm">
+                          {formErrors.ethnicity}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="zodiacSign"
+                        className="text-black dark:text-white"
+                      >
+                        Zodiac Sign
+                      </Label>
+                      <Select
+                        name="zodiacSign"
+                        value={profile.zodiacSign || ""}
+                        onValueChange={(value) =>
+                          setProfile({ ...profile, zodiacSign: value })
+                        }
+                        disabled={!isEditing || updating}
+                      >
+                        <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
+                          <SelectValue placeholder="Select zodiac sign" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Aries">Aries</SelectItem>
+                          <SelectItem value="Taurus">Taurus</SelectItem>
+                          <SelectItem value="Gemini">Gemini</SelectItem>
+                          <SelectItem value="Cancer">Cancer</SelectItem>
+                          <SelectItem value="Leo">Leo</SelectItem>
+                          <SelectItem value="Virgo">Virgo</SelectItem>
+                          <SelectItem value="Libra">Libra</SelectItem>
+                          <SelectItem value="Scorpio">Scorpio</SelectItem>
+                          <SelectItem value="Sagittarius">
+                            Sagittarius
+                          </SelectItem>
+                          <SelectItem value="Capricorn">Capricorn</SelectItem>
+                          <SelectItem value="Aquarius">Aquarius</SelectItem>
+                          <SelectItem value="Pisces">Pisces</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {formErrors.zodiacSign && (
+                        <p className="text-red-500 text-sm">
+                          {formErrors.zodiacSign}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="favoriteColor"
+                        className="text-black dark:text-white"
+                      >
+                        Favorite Color
+                      </Label>
+                      <Input
+                        id="favoriteColor"
+                        name="favoriteColor"
+                        value={profile.favoriteColor || ""}
                         onChange={(e) =>
                           setProfile({
                             ...profile,
-                            rate: parseFloat(e.target.value) || null,
+                            favoriteColor: e.target.value,
                           })
                         }
-                        disabled={
-                          !isEditingSpecialist ||
-                          updatingSpecialist ||
-                          specialistStatusLoading
-                        }
+                        disabled={!isEditing || updating}
                         className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                        aria-label="Rate"
-                        min={0}
-                        max={10000}
-                        step={0.01}
+                        aria-label="Favorite Color"
+                        maxLength={30}
                       />
-                      {formErrors.rate && (
+                      {formErrors.favoriteColor && (
                         <p className="text-red-500 text-sm">
-                          {formErrors.rate}
+                          {formErrors.favoriteColor}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="favoriteMedia"
+                        className="text-black dark:text-white"
+                      >
+                        Favorite Movie/TV Show
+                      </Label>
+                      <Input
+                        id="favoriteMedia"
+                        name="favoriteMedia"
+                        value={profile.favoriteMedia || ""}
+                        onChange={(e) =>
+                          setProfile({
+                            ...profile,
+                            favoriteMedia: e.target.value,
+                          })
+                        }
+                        disabled={!isEditing || updating}
+                        className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                        aria-label="Favorite Movie/TV Show"
+                        maxLength={100}
+                      />
+                      {formErrors.favoriteMedia && (
+                        <p className="text-red-500 text-sm">
+                          {formErrors.favoriteMedia}
+                        </p>
+                      )}
+                    </div>
+                    <div className="space-y-2">
+                      <Label
+                        htmlFor="petOwnership"
+                        className="text-black dark:text-white"
+                      >
+                        Pet Ownership
+                      </Label>
+                      <Select
+                        name="petOwnership"
+                        value={profile.petOwnership || ""}
+                        onValueChange={(value) =>
+                          setProfile({ ...profile, petOwnership: value })
+                        }
+                        disabled={!isEditing || updating}
+                      >
+                        <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
+                          <SelectValue placeholder="Select pet ownership" />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="Dog">Dog</SelectItem>
+                          <SelectItem value="Cat">Cat</SelectItem>
+                          <SelectItem value="Other">Other</SelectItem>
+                          <SelectItem value="None">None</SelectItem>
+                        </SelectContent>
+                      </Select>
+                      {formErrors.petOwnership && (
+                        <p className="text-red-500 text-sm">
+                          {formErrors.petOwnership}
                         </p>
                       )}
                     </div>
@@ -1622,50 +1191,42 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                         variant="outline"
                         type="button"
                         onClick={() => {
-                          setIsEditingSpecialist(false);
+                          setIsEditing(false);
                           setLocationSuggestions([]);
                           setIsLocationDropdownOpen(false);
                         }}
-                        disabled={
-                          !isEditingSpecialist ||
-                          updatingSpecialist ||
-                          specialistStatusLoading
-                        }
+                        disabled={!isEditing || updating}
                         className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
                       >
                         Cancel
                       </Button>
                       <Button
                         type="submit"
-                        disabled={
-                          !isEditingSpecialist ||
-                          updatingSpecialist ||
-                          specialistStatusLoading
-                        }
+                        disabled={!isEditing || updating}
                         className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
                       >
-                        {updatingSpecialist ? "Saving..." : "Save Specialist"}
+                        {updating ? "Saving..." : "Save"}
                       </Button>
                     </div>
                   </form>
                 ) : (
                   <div className="space-y-4">
                     <div>
-                      <p className="text-sm text-[#C4C4C4]">Role</p>
+                      <p className="text-sm text-[#C4C4C4]">First Name</p>
                       <p className="text-black dark:text-white">
-                        {profile.role || "Not provided"}
+                        {profile.firstName || "Not provided"}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-[#C4C4C4]">Specialty Tags</p>
+                      <p className="text-sm text-[#C4C4C4]">Last Name</p>
                       <p className="text-black dark:text-white">
-                        {profile.tags || "Not provided"}
+                        {profile.lastName || "Not provided"}
                       </p>
                     </div>
                     <div>
-                      <p className="text-sm text-[#C4C4C4]">Biography</p>
+                      <p className="text-sm text-[#C4C4C4]">Phone Number</p>
                       <p className="text-black dark:text-white">
-                        {profile.biography || "Not provided"}
+                        {profile.phoneNumber || "Not provided"}
                       </p>
                     </div>
                     <div>
@@ -1675,20 +1236,70 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                       </p>
                     </div>
                     <div>
+                      <p className="text-sm text-[#C4C4C4]">Biography</p>
+                      <p className="text-black dark:text-white">
+                        {profile.biography || "Not provided"}
+                      </p>
+                    </div>
+                    <div>
                       <p className="text-sm text-[#C4C4C4]">
-                        Rate (per session)
+                        Relationship Status
                       </p>
                       <p className="text-black dark:text-white">
-                        {profile.rate ? `$${profile.rate}` : "Not provided"}
+                        {profile.relationshipStatus || "Not provided"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#C4C4C4]">Orientation</p>
+                      <p className="text-black dark:text-white">
+                        {profile.orientation || "Not provided"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#C4C4C4]">Height</p>
+                      <p className="text-black dark:text-white">
+                        {profile.height || "Not provided"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#C4C4C4]">Ethnicity</p>
+                      <p className="text-black dark:text-white">
+                        {profile.ethnicity || "Not provided"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#C4C4C4]">Zodiac Sign</p>
+                      <p className="text-black dark:text-white">
+                        {profile.zodiacSign || "Not provided"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#C4C4C4]">Favorite Color</p>
+                      <p className="text-black dark:text-white">
+                        {profile.favoriteColor || "Not provided"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#C4C4C4]">
+                        Favorite Movie/TV Show
+                      </p>
+                      <p className="text-black dark:text-white">
+                        {profile.favoriteMedia || "Not provided"}
+                      </p>
+                    </div>
+                    <div>
+                      <p className="text-sm text-[#C4C4C4]">Pet Ownership</p>
+                      <p className="text-black dark:text-white">
+                        {profile.petOwnership || "Not provided"}
                       </p>
                     </div>
                     {isOwnProfile && (
                       <Button
                         variant="outline"
-                        onClick={() => setIsEditingSpecialist(true)}
+                        onClick={() => setIsEditing(true)}
                         className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
                       >
-                        Edit Specialist
+                        Edit
                       </Button>
                     )}
                   </div>
@@ -1696,9 +1307,175 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
               </motion.div>
             </CardContent>
           </Card>
-        )}
-      </div>
-    </motion.div>
+          {isSpecialist && (
+            <Card className="grow">
+              <CardContent className="space-y-4 pt-6">
+                <h2 className="text-xl text-black dark:text-white">
+                  Professional Profile Details
+                </h2>
+                <motion.div variants={itemVariants} className="space-y-4">
+                  {isEditingSpecialist ? (
+                    <form
+                      onSubmit={handleUpdateSpecialist}
+                      className="space-y-4"
+                    >
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="biography"
+                          className="text-black dark:text-white"
+                        >
+                          Biography
+                        </Label>
+                        <Textarea
+                          id="biography"
+                          name="biography"
+                          value={profile.biography || ""}
+                          onChange={(e) =>
+                            setProfile({
+                              ...profile,
+                              biography: e.target.value,
+                            })
+                          }
+                          disabled={
+                            !isEditingSpecialist ||
+                            updatingSpecialist ||
+                            specialistStatusLoading
+                          }
+                          className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                          aria-label="Biography"
+                          maxLength={500}
+                          required
+                        />
+                        {formErrors.biography && (
+                          <p className="text-red-500 text-sm">
+                            {formErrors.biography}
+                          </p>
+                        )}
+                      </div>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="rate"
+                          className="text-black dark:text-white"
+                        >
+                          Rate (per session)
+                        </Label>
+                        <Input
+                          id="rate"
+                          name="rate"
+                          type="number"
+                          value={profile.rate || ""}
+                          onChange={(e) =>
+                            setProfile({
+                              ...profile,
+                              rate: parseFloat(e.target.value) || null,
+                            })
+                          }
+                          disabled={
+                            !isEditingSpecialist ||
+                            updatingSpecialist ||
+                            specialistStatusLoading
+                          }
+                          className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
+                          aria-label="Rate"
+                          min={0}
+                          max={10000}
+                          step={0.01}
+                          required
+                        />
+                        {formErrors.rate && (
+                          <p className="text-red-500 text-sm">
+                            {formErrors.rate}
+                          </p>
+                        )}
+                      </div>
+                      <div className="flex space-x-4 mt-4">
+                        <Button
+                          variant="outline"
+                          type="button"
+                          onClick={() => {
+                            setIsEditingSpecialist(false);
+                            setLocationSuggestions([]);
+                            setIsLocationDropdownOpen(false);
+                          }}
+                          disabled={
+                            !isEditingSpecialist ||
+                            updatingSpecialist ||
+                            specialistStatusLoading
+                          }
+                          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+                        >
+                          Cancel
+                        </Button>
+                        <Button
+                          type="submit"
+                          disabled={
+                            !isEditingSpecialist ||
+                            updatingSpecialist ||
+                            specialistStatusLoading
+                          }
+                          className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+                        >
+                          {updatingSpecialist ? "Saving..." : "Save Specialist"}
+                        </Button>
+                      </div>
+                    </form>
+                  ) : (
+                    <div className="space-y-4">
+                      <div>
+                        <p className="text-sm text-[#C4C4C4]">Biography</p>
+                        <p className="text-black dark:text-white">
+                          {profile.biography || "Not provided"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-[#C4C4C4]">
+                          Rate (per session)
+                        </p>
+                        <p className="text-black dark:text-white">
+                          {profile.rate ? `$${profile.rate}` : "Not provided"}
+                        </p>
+                      </div>
+                      {isOwnProfile && (
+                        <Button
+                          variant="outline"
+                          onClick={() => setIsEditingSpecialist(true)}
+                          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+                        >
+                          Edit Specialist
+                        </Button>
+                      )}
+                    </div>
+                  )}
+                </motion.div>
+              </CardContent>
+            </Card>
+          )}
+        </div>
+      </motion.div>
+      <Dialog
+        open={isApplicationDialogOpen}
+        onOpenChange={setIsApplicationDialogOpen}
+      >
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Application Under Review</DialogTitle>
+            <DialogDescription>
+              Your specialist application is currently under review. You will be
+              notified when it is approved by the admin.
+            </DialogDescription>
+          </DialogHeader>
+          <DialogFooter>
+            <Button
+              onClick={handleDialogClose}
+              className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+            >
+              Close
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+    </>
   );
 };
+
 export default ProfilePage;
