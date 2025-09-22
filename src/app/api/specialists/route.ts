@@ -1,9 +1,27 @@
 import { NextResponse } from "next/server";
-import { PrismaClient } from "@prisma/client";
+import { PrismaClient, Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 
 const prisma = new PrismaClient();
+
+type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
+  select: {
+    id: true;
+    name: true;
+    image: true;
+    rating: true;
+    reviewCount: true;
+    rate: true;
+    biography: true;
+    createdAt: true;
+    application: {
+      select: {
+        user: { select: { location: true } };
+      };
+    };
+  };
+}>;
 
 export async function GET(req: Request) {
   try {
@@ -23,9 +41,25 @@ export async function GET(req: Request) {
           { status: 400 }
         );
       }
-      const specialist = await prisma.specialist.findUnique({
-        where: { id },
-      });
+      const specialist: SpecialistWithRelations | null =
+        await prisma.specialist.findUnique({
+          where: { id },
+          select: {
+            id: true,
+            name: true,
+            image: true,
+            rating: true,
+            reviewCount: true,
+            rate: true,
+            biography: true,
+            createdAt: true,
+            application: {
+              select: {
+                user: { select: { location: true } },
+              },
+            },
+          },
+        });
       if (!specialist) {
         console.log("Specialist not found for ID:", id);
         return NextResponse.json(
@@ -37,15 +71,11 @@ export async function GET(req: Request) {
         id: specialist.id,
         name: specialist.name,
         image: specialist.image,
-        location: specialist.location,
+        location: specialist.application?.user?.location || null,
         rating: specialist.rating,
         reviewCount: specialist.reviewCount,
         rate: specialist.rate,
-        role: specialist.role,
-        tags: specialist.tags,
         biography: specialist.biography,
-        education: specialist.education,
-        license: specialist.license,
         createdAt: specialist.createdAt,
       });
     }
@@ -59,30 +89,42 @@ export async function GET(req: Request) {
       select: { specialistId: true },
     });
 
-    const specialists = await prisma.specialist.findMany({
-      where: userApplication?.specialistId
-        ? {
-            id: {
-              not: userApplication.specialistId, // Only include if specialistId exists
+    const specialists: SpecialistWithRelations[] =
+      await prisma.specialist.findMany({
+        where: userApplication?.specialistId
+          ? {
+              id: {
+                not: userApplication.specialistId,
+              },
+            }
+          : {},
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          rating: true,
+          reviewCount: true,
+          rate: true,
+          biography: true,
+          createdAt: true,
+          application: {
+            select: {
+              user: { select: { location: true } },
             },
-          }
-        : {}, // No filter if user has no specialist profile
-    });
+          },
+        },
+      });
 
     return NextResponse.json({
       specialists: specialists.map((specialist) => ({
         id: specialist.id,
         name: specialist.name,
         image: specialist.image,
-        location: specialist.location,
+        location: specialist.application?.user?.location || null,
         rating: specialist.rating,
         reviewCount: specialist.reviewCount,
         rate: specialist.rate,
-        role: specialist.role,
-        tags: specialist.tags,
         biography: specialist.biography,
-        education: specialist.education,
-        license: specialist.license,
         createdAt: specialist.createdAt,
       })),
     });
@@ -96,23 +138,17 @@ export async function GET(req: Request) {
 
 export async function POST(req: Request) {
   try {
-    const {
-      name,
-      image,
-      location,
-      rating,
-      reviewCount,
-      rate,
-      role,
-      tags,
-      biography,
-      education,
-      license,
-    } = await req.json();
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (!name || !role || !tags || !biography || !education || !license) {
+    const { name, image, location, rating, reviewCount, rate, biography } =
+      await req.json();
+
+    if (!name || !biography) {
       return NextResponse.json(
-        { error: "Required fields missing" },
+        { error: "Required fields (name, biography) missing" },
         { status: 400 }
       );
     }
@@ -121,17 +157,31 @@ export async function POST(req: Request) {
       data: {
         name,
         image,
-        location,
         rating,
         reviewCount,
         rate,
-        role,
-        tags,
         biography,
-        education,
-        license,
       },
     });
+
+    // Create SpecialistApplication to link to the authenticated user
+    await prisma.specialistApplication.create({
+      data: {
+        userId: session.user.id,
+        specialistId: specialist.id,
+        biography,
+        rate,
+        status: "pending",
+      },
+    });
+
+    // Update location in the User model if provided
+    if (location) {
+      await prisma.user.update({
+        where: { id: session.user.id },
+        data: { location },
+      });
+    }
 
     console.log("Specialist created:", specialist);
     return NextResponse.json(
@@ -139,15 +189,11 @@ export async function POST(req: Request) {
         id: specialist.id,
         name: specialist.name,
         image: specialist.image,
-        location: specialist.location,
+        location,
         rating: specialist.rating,
         reviewCount: specialist.reviewCount,
         rate: specialist.rate,
-        role: specialist.role,
-        tags: specialist.tags,
         biography: specialist.biography,
-        education: specialist.education,
-        license: specialist.license,
         createdAt: specialist.createdAt,
       },
       { status: 201 }
@@ -162,32 +208,17 @@ export async function POST(req: Request) {
 
 export async function PATCH(req: Request) {
   try {
-    const {
-      id,
-      name,
-      image,
-      location,
-      rating,
-      reviewCount,
-      rate,
-      role,
-      tags,
-      biography,
-      education,
-      license,
-    } = await req.json();
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
-    if (
-      !id ||
-      !name ||
-      !role ||
-      !tags ||
-      !biography ||
-      !education ||
-      !license
-    ) {
+    const { id, name, image, location, rating, reviewCount, rate, biography } =
+      await req.json();
+
+    if (!id || !name || !biography) {
       return NextResponse.json(
-        { error: "ID and required fields missing" },
+        { error: "ID, name, and biography are required" },
         { status: 400 }
       );
     }
@@ -197,44 +228,64 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     }
 
-    const specialist = await prisma.specialist.update({
+    // Check if the user is authorized to update this specialist
+    const application = await prisma.specialistApplication.findFirst({
+      where: { specialistId: id, userId: session.user.id, status: "approved" },
+    });
+    if (!application) {
+      return NextResponse.json(
+        {
+          error:
+            "Unauthorized: You can only update your own approved specialist profile",
+        },
+        { status: 403 }
+      );
+    }
+
+    const specialist: SpecialistWithRelations = await prisma.specialist.update({
       where: { id },
       data: {
         name,
         image,
-        location,
         rating,
         reviewCount,
         rate,
-        role,
-        tags,
         biography,
-        education,
-        license,
+      },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        rating: true,
+        reviewCount: true,
+        rate: true,
+        biography: true,
+        createdAt: true,
+        application: {
+          select: {
+            user: { select: { location: true } },
+          },
+        },
       },
     });
 
-    if (!specialist) {
-      console.log("Specialist not found for ID:", id);
-      return NextResponse.json(
-        { error: "Specialist not found" },
-        { status: 404 }
-      );
+    // Update location in the User model if provided
+    if (location) {
+      await prisma.user.update({
+        where: { id: application.userId },
+        data: { location },
+      });
     }
 
     return NextResponse.json({
       id: specialist.id,
       name: specialist.name,
       image: specialist.image,
-      location: specialist.location,
+      location: specialist.application?.user?.location || null,
       rating: specialist.rating,
       reviewCount: specialist.reviewCount,
       rate: specialist.rate,
-      role: specialist.role,
-      tags: specialist.tags,
       biography: specialist.biography,
-      education: specialist.education,
-      license: specialist.license,
       createdAt: specialist.createdAt,
     });
   } catch (error) {
@@ -259,16 +310,13 @@ export async function DELETE(req: Request) {
 
     const specialist = await prisma.specialist.delete({
       where: { id },
+      select: {
+        id: true,
+        name: true,
+      },
     });
 
-    if (!specialist) {
-      console.log("Specialist not found for ID:", id);
-      return NextResponse.json(
-        { error: "Specialist not found" },
-        { status: 404 }
-      );
-    }
-
+    console.log("Specialist deleted:", specialist);
     return NextResponse.json({ message: "Specialist deleted" });
   } catch (error) {
     console.error("DELETE Error:", error);
