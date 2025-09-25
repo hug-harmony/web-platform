@@ -7,7 +7,7 @@
   "crons": [
     {
       "path": "/api/cron/update-appointments",
-      "schedule": "*/1 * * * *"
+      "schedule": "0 0 * * *"
     }
   ],
   "rewrites": [
