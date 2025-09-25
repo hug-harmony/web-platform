@@ -12,6 +12,7 @@ import { toast } from "sonner";
 import { motion } from "framer-motion";
 import { MessageSquare } from "lucide-react";
 import Link from "next/link";
+import { supabase } from "@/lib/supabase";
 
 // Type definitions based on schema
 interface User {
@@ -27,6 +28,7 @@ interface Conversation {
   user2?: User | null;
   lastMessage?: { text: string; createdAt: string } | null;
   messageCount: number;
+  unreadCount: number;
 }
 
 interface ConversationsListProps {
@@ -92,11 +94,85 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
     fetchConversations();
   }, [status, router]);
 
-  const handleConversationClick = (convId: string) => {
+  // Real-time subscription for new messages via Supabase notifications
+  useEffect(() => {
+    if (status !== "authenticated" || !session?.user?.id) return;
+
+    const channel = supabase
+      .channel("notifications")
+      .on(
+        "postgres_changes",
+        {
+          event: "INSERT",
+          schema: "public",
+          table: "notifications",
+          filter: `userId=eq.${session.user.id}`, // Filter by recipient userId
+        },
+        (payload) => {
+          const newNotification = payload.new as {
+            id: string;
+            type: string;
+            content: string;
+            timestamp: string;
+            unread: boolean;
+            relatedid: string;
+            senderId: string;
+            userId: string;
+          };
+
+          if (
+            newNotification.type === "message" &&
+            newNotification.senderId !== session.user.id &&
+            newNotification.userId === session.user.id
+          ) {
+            setConversations((prev) =>
+              prev.map((conv) =>
+                conv.id === newNotification.relatedid
+                  ? { ...conv, unreadCount: conv.unreadCount + 1 }
+                  : conv
+              )
+            );
+          }
+        }
+      )
+      .subscribe();
+
+    return () => {
+      supabase.removeChannel(channel);
+    };
+  }, [status, session?.user?.id]);
+
+  const handleConversationClick = async (convId: string) => {
     if (!/^[0-9a-fA-F]{24}$/.test(convId)) {
       toast.error("Invalid conversation ID");
       return;
     }
+
+    // Optimistic update
+    setConversations((prev) =>
+      prev.map((c) => (c.id === convId ? { ...c, unreadCount: 0 } : c))
+    );
+
+    try {
+      const res = await fetch(`/api/conversations/${convId}/mark-read`, {
+        method: "PATCH",
+        credentials: "include",
+      });
+      if (!res.ok) {
+        throw new Error("Failed to mark as read");
+      }
+    } catch (err) {
+      console.error("Mark as read error:", err);
+      toast.error("Failed to mark conversation as read");
+      // Revert optimistic update if needed
+      setConversations(
+        (prev) =>
+          prev.map((c) =>
+            c.id === convId ? { ...c, unreadCount: c.unreadCount + 1 } : c
+          ) // Approximate revert
+      );
+    }
+
     router.push(`/dashboard/messaging/${convId}`);
   };
 
@@ -323,6 +399,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                 const isActive =
                   conv.id === activeConversationId ||
                   pathname === `/dashboard/messaging/${conv.id}`;
+                const isUnread = conv.unreadCount > 0;
 
                 return (
                   <Button
@@ -332,7 +409,9 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                       "w-full flex items-center gap-3 p-4 rounded-none h-auto",
                       isActive
                         ? "bg-[#F3CFC6]/20 text-black dark:text-white"
-                        : "hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10"
+                        : isUnread
+                          ? "bg-[#F3CFC6] text-black dark:text-white" // Millennial pink for unread
+                          : "bg-[#C4C4C4]/20 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 text-black dark:text-white" // Gray for read
                     )}
                     onClick={() => handleConversationClick(conv.id)}
                   >
@@ -362,9 +441,9 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                         {conv.lastMessage?.text || "No messages"}
                       </p>
                     </div>
-                    {conv.messageCount > 0 && (
-                      <span className="bg-[#F3CFC6] text-black dark:text-white text-xs rounded-full px-2 py-1">
-                        {conv.messageCount}
+                    {conv.unreadCount > 0 && (
+                      <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1">
+                        {conv.unreadCount}
                       </span>
                     )}
                   </Button>

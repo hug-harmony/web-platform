@@ -73,13 +73,39 @@ export async function GET() {
       });
     }
 
-    const formattedConversations = conversations.map((conv) => ({
-      id: conv.id,
-      user1: conv.user1,
-      user2: conv.user2,
-      lastMessage: conv.messages[0],
-      messageCount: conv.messages.length,
-    }));
+    const formattedConversations = await Promise.all(
+      conversations.map(async (conv) => {
+        const readBy = (conv.readBy as Record<string, string> | null) || {};
+        const lastRead = readBy[session.user.id]
+          ? new Date(readBy[session.user.id])
+          : null;
+        const unreadCount = lastRead
+          ? await prisma.message.count({
+              where: {
+                conversationId: conv.id,
+                createdAt: { gt: lastRead },
+                senderId: { not: session.user.id },
+              },
+            })
+          : await prisma.message.count({
+              where: {
+                conversationId: conv.id,
+                senderId: { not: session.user.id },
+              },
+            });
+
+        return {
+          id: conv.id,
+          user1: conv.user1,
+          user2: conv.user2,
+          lastMessage: conv.messages[0],
+          messageCount: await prisma.message.count({
+            where: { conversationId: conv.id },
+          }), // Fixed total count
+          unreadCount,
+        };
+      })
+    );
 
     return NextResponse.json(formattedConversations);
   } catch (error) {

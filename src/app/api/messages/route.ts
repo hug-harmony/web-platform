@@ -87,6 +87,8 @@ export async function POST(request: NextRequest) {
         timestamp: new Date().toISOString(),
         unread: true,
         relatedid: conversationId,
+        senderId: session.user.id,
+        userId: recipientId, // Added to target the recipient
       };
       const { error } = await supabase
         .from("notifications")

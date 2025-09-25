@@ -84,7 +84,7 @@ model Conversation {
   user1            User         @relation("User1Conversations", fields: [userId1], references: [id], onDelete: Cascade)
   user2            User         @relation("User2Conversations", fields: [userId2], references: [id], onDelete: Cascade)
   messages         Message[]    @relation("ConversationMessages")
-
+  readBy           Json?        // Map of userId -> last read timestamp (e.g., { "userId1": "2025-09-25T12:00:00Z" })
   Proposal Proposal[] @relation
 }
 
