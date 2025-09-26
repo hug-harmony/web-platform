@@ -330,12 +330,14 @@ export default function HomePage() {
             variants={itemVariants}
             className="flex items-center space-x-4"
           >
-            <Avatar className="h-16 w-16 border-2 border-white">
-              <AvatarImage src={user.profileImage || ""} alt={user.name} />
-              <AvatarFallback className="bg-[#C4C4C4] text-black">
-                {user.name[0] || "?"}
-              </AvatarFallback>
-            </Avatar>
+            <div onClick={() => router.push(`/dashboard/profile/${user.id}`)}>
+              <Avatar className="h-16 w-16 border-2 border-white">
+                <AvatarImage src={user.profileImage || ""} alt={user.name} />
+                <AvatarFallback className="bg-[#C4C4C4] text-black">
+                  {user.name[0] || "?"}
+                </AvatarFallback>
+              </Avatar>
+            </div>
             <div>
               <CardTitle className="text-2xl font-bold">
                 Welcome to Hug Harmony, {user.name}!
