@@ -60,8 +60,17 @@ interface Therapist {
 }
 
 const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, staggerChildren: 0.2 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
 };
 
 const cardVariants = {
@@ -441,16 +450,18 @@ export default function TherapistsPageContent() {
     >
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black dark:text-white shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">
-            Professional Directory
-          </CardTitle>
-          <p className="text-sm opacity-80">
-            Find and connect with certified professionals
-          </p>
+          <motion.div variants={itemVariants}>
+            <CardTitle className="text-2xl font-bold">
+              Professional Directory
+            </CardTitle>
+            <p className="text-sm opacity-80">
+              Find and connect with certified professionals
+            </p>
+          </motion.div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center mb-6 w-full space-x-2">
-            <div className="relative flex-grow">
+          <div className="flex flex-col md:flex-row items-center mb-6 w-full space-y-2 md:space-y-0 md:space-x-2">
+            <div className="relative flex-grow w-full">
               <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#fff]" />
               <Input
                 type="text"
@@ -464,7 +475,7 @@ export default function TherapistsPageContent() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full md:w-auto"
                 >
                   <MapPin className="h-6 w-6 text-[#F3CFC6]" />
                   <span>Location</span>
@@ -494,7 +505,7 @@ export default function TherapistsPageContent() {
             </DropdownMenu>
             <Button
               variant="outline"
-              className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+              className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full md:w-auto"
               onClick={handleCurrentLocation}
             >
               <Globe className="h-6 w-6 text-[#F3CFC6]" />
@@ -502,7 +513,7 @@ export default function TherapistsPageContent() {
             </Button>
             <Button
               variant="outline"
-              className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+              className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full md:w-auto"
               onClick={() => setIsDateTimeDialogOpen(true)}
             >
               <CalendarIcon className="h-6 w-6 text-[#F3CFC6]" />
@@ -512,7 +523,7 @@ export default function TherapistsPageContent() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full md:w-auto"
                 >
                   <Star className="h-6 w-6 text-[#F3CFC6]" />
                   <span>Rating</span>
@@ -544,7 +555,7 @@ export default function TherapistsPageContent() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full md:w-auto"
                 >
                   <span>Sort By</span>
                 </Button>
@@ -582,7 +593,7 @@ export default function TherapistsPageContent() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
               {[...Array(4)].map((_, index) => (
                 <Skeleton
                   key={index}
@@ -592,7 +603,7 @@ export default function TherapistsPageContent() {
             </div>
           ) : filteredSpecialists.length > 0 ? (
             <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
               variants={containerVariants}
             >
               <AnimatePresence>
@@ -724,7 +735,7 @@ export default function TherapistsPageContent() {
               <h4 className="text-sm font-semibold text-black dark:text-white">
                 Select a Time
               </h4>
-              <div className="grid grid-cols-4 gap-2 max-h-60 overflow-y-auto p-2 border rounded-lg bg-gray-50 dark:bg-gray-900">
+              <div className="grid grid-cols-2 md:grid-cols-4 gap-2 max-h-60 overflow-y-auto p-2 border rounded-lg bg-gray-50 dark:bg-gray-900">
                 {allTimeSlots.map((time) => (
                   <Button
                     key={time}

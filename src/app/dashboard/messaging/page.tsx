@@ -4,7 +4,7 @@ import React from "react";
 const messageList = () => {
   return (
     <div>
-      <ConversationsList></ConversationsList>
+      <ConversationsList />
     </div>
   );
 };

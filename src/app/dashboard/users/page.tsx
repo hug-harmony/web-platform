@@ -17,6 +17,7 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Skeleton } from "@/components/ui/skeleton";
 import UserCard from "@/components/UserCard";
 
 interface Therapist {
@@ -29,8 +30,17 @@ interface Therapist {
 }
 
 const containerVariants = {
-  hidden: { opacity: 0 },
-  visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5, staggerChildren: 0.2 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 10 },
+  visible: { opacity: 1, y: 0 },
 };
 
 const cardVariants = {
@@ -124,15 +134,17 @@ export default function ExplorePage() {
     >
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black dark:text-white shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">
-            Explore Hug Harmony Users
-          </CardTitle>
-          <p className="text-sm opacity-80">Find and connect with users</p>
+          <motion.div variants={itemVariants}>
+            <CardTitle className="text-2xl font-bold">
+              Explore Hug Harmony Users
+            </CardTitle>
+            <p className="text-sm opacity-80">Find and connect with users</p>
+          </motion.div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center mb-6 w-full space-x-2">
-            <div className="relative flex-grow">
-              <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#F3CFC6]" />
+          <div className="flex flex-col sm:flex-row items-center mb-6 w-full space-y-2 sm:space-y-0 sm:space-x-2">
+            <div className="relative flex-grow w-full">
+              <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#fff]" />
               <Input
                 type="text"
                 placeholder="Search users..."
@@ -145,7 +157,7 @@ export default function ExplorePage() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                 >
                   <MapPin className="h-6 w-6 text-[#F3CFC6]" />
                   <span>Location</span>
@@ -185,10 +197,17 @@ export default function ExplorePage() {
         </CardHeader>
         <CardContent>
           {loading ? (
-            <p className="text-center text-[#C4C4C4]">Loading...</p>
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(4)].map((_, index) => (
+                <Skeleton
+                  key={index}
+                  className="h-64 w-full rounded-lg bg-[#C4C4C4]/50"
+                />
+              ))}
+            </div>
           ) : filteredUsers.length > 0 ? (
             <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-6"
+              className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6"
               variants={containerVariants}
             >
               <AnimatePresence>

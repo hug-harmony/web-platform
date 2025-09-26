@@ -6,11 +6,20 @@ import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search } from "lucide-react";
+import { Search, Filter } from "lucide-react";
 import { Input } from "@/components/ui/input";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuLabel,
+  DropdownMenuSeparator,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import ProposalCard from "@/components/ProposalCard";
 
 interface Proposal {
@@ -34,6 +43,11 @@ const containerVariants = {
   },
 };
 
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+};
+
 export default function ProposalsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
@@ -42,18 +56,14 @@ export default function ProposalsPage() {
   const [receivedProposals, setReceivedProposals] = useState<Proposal[]>([]);
   const [sentProposals, setSentProposals] = useState<Proposal[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
+  const [statusFilter, setStatusFilter] = useState<string>("");
 
   useEffect(() => {
     const fetchProposals = async () => {
-      if (!session?.user?.id) {
-        console.log("No session or user ID");
-        return;
-      }
+      if (!session?.user?.id) return;
       setLoading(true);
       try {
-        // Fetch received proposals (role=user)
         const userQuery = new URLSearchParams({ role: "user" });
-        console.log("Fetching with query:", userQuery.toString());
         const userRes = await fetch(`/api/proposals?${userQuery}`, {
           cache: "no-store",
           credentials: "include",
@@ -61,7 +71,6 @@ export default function ProposalsPage() {
 
         if (!userRes.ok) {
           if (userRes.status === 401) {
-            console.log("Unauthorized, redirecting to login");
             router.push("/login");
             return;
           }
@@ -71,17 +80,13 @@ export default function ProposalsPage() {
         }
 
         const userData = await userRes.json();
-        console.log("User Data:", userData);
         setIsSpecialist(userData.isSpecialist);
-        setReceivedProposals(userData.proposals);
+        setReceivedProposals(
+          Array.isArray(userData.proposals) ? userData.proposals : []
+        );
 
-        // Fetch sent proposals if specialist
         if (userData.isSpecialist) {
           const specialistQuery = new URLSearchParams({ role: "specialist" });
-          console.log(
-            "Fetching specialist proposals with query:",
-            specialistQuery.toString()
-          );
           const specialistRes = await fetch(
             `/api/proposals?${specialistQuery}`,
             {
@@ -92,7 +97,6 @@ export default function ProposalsPage() {
 
           if (!specialistRes.ok) {
             if (specialistRes.status === 403) {
-              console.log("Forbidden: Not authorized to view sent proposals");
               toast.error("You are not authorized to view sent proposals");
               return;
             }
@@ -102,8 +106,11 @@ export default function ProposalsPage() {
           }
 
           const specialistData = await specialistRes.json();
-          console.log("Specialist Data:", specialistData);
-          setSentProposals(specialistData.proposals);
+          setSentProposals(
+            Array.isArray(specialistData.proposals)
+              ? specialistData.proposals
+              : []
+          );
         }
       } catch (error: any) {
         console.error("Fetch error:", error);
@@ -114,7 +121,6 @@ export default function ProposalsPage() {
     };
 
     if (status === "authenticated") {
-      console.log("Session:", session);
       fetchProposals();
     }
   }, [status, session, router]);
@@ -158,19 +164,26 @@ export default function ProposalsPage() {
     setSearchQuery(e.target.value);
   };
 
-  const filterProposals = (proposals: Proposal[], isReceived: boolean) => {
-    const filtered = proposals.filter((proposal) =>
-      searchQuery
-        ? isReceived
-          ? proposal.specialist.name
-              .toLowerCase()
-              .includes(searchQuery.toLowerCase())
-          : proposal.user.name.toLowerCase().includes(searchQuery.toLowerCase())
-        : true
-    );
-    console.log("Filtered Proposals:", filtered);
-    return filtered;
+  const handleStatusFilterChange = (value: string) => {
+    setStatusFilter(value);
   };
+
+  const filterProposals = (proposals: Proposal[], isReceived: boolean) =>
+    proposals
+      .filter((proposal) =>
+        searchQuery
+          ? isReceived
+            ? proposal.specialist.name
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase())
+            : proposal.user.name
+                .toLowerCase()
+                .includes(searchQuery.toLowerCase())
+          : true
+      )
+      .filter((proposal) =>
+        statusFilter ? proposal.status === statusFilter : true
+      );
 
   const filteredReceivedProposals = filterProposals(receivedProposals, true);
   const filteredSentProposals = filterProposals(sentProposals, false);
@@ -178,7 +191,7 @@ export default function ProposalsPage() {
   if (status === "loading" || loading) {
     return (
       <motion.div
-        className="p-4 space-y-6 max-w-7xl mx-auto"
+        className="space-y-6 w-full max-w-7xl mx-auto"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -186,23 +199,23 @@ export default function ProposalsPage() {
         <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
           <CardHeader>
             <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
-            <Skeleton className="h-4 w-64 bg-[#C4C4C4]/50" />
+            <Skeleton className="h-4 w-64 mt-2 bg-[#C4C4C4]/50" />
           </CardHeader>
-          <CardContent className="flex space-x-4">
-            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
-            <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
+          <CardContent className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+            <Skeleton className="h-10 w-full sm:w-2/3 bg-[#C4C4C4]/50" />
+            <Skeleton className="h-10 w-full sm:w-1/3 bg-[#C4C4C4]/50" />
           </CardContent>
         </Card>
         <Card className="shadow-lg">
           <CardHeader>
             <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
           </CardHeader>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
+          <CardContent className="space-y-4 pt-6">
+            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
+              {[...Array(3)].map((_, i) => (
                 <Skeleton
                   key={i}
-                  className="h-48 w-full bg-[#C4C4C4]/50 rounded-lg"
+                  className="h-24 w-full bg-[#C4C4C4]/50 rounded-lg"
                 />
               ))}
             </div>
@@ -212,7 +225,7 @@ export default function ProposalsPage() {
     );
   }
 
-  if (!session) {
+  if (status === "unauthenticated") {
     router.push("/login");
     return null;
   }
@@ -224,36 +237,73 @@ export default function ProposalsPage() {
       initial="hidden"
       animate="visible"
     >
-      {/* Header Section */}
-      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black dark:text-white shadow-lg">
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
-          <CardTitle className="text-2xl font-bold">Proposals</CardTitle>
-          <p className="text-sm opacity-80">
-            {filteredReceivedProposals.length} received
-            {isSpecialist ? `, ${filteredSentProposals.length} sent` : ""}
-          </p>
+          <motion.div variants={cardVariants}>
+            <CardTitle className="text-2xl font-bold text-black dark:text-white">
+              Your Proposals
+            </CardTitle>
+            <p className="text-sm opacity-80">
+              {filteredReceivedProposals.length} received
+              {isSpecialist ? `, ${filteredSentProposals.length} sent` : ""}
+            </p>
+          </motion.div>
         </CardHeader>
         <CardContent>
-          <div className="flex items-center mb-6 w-full">
-            <div className="relative flex-grow">
-              <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#F3CFC6]" />
+          <div className="flex flex-col sm:flex-row items-center mb-6 w-full space-y-2 sm:space-y-0 sm:space-x-2">
+            <div className="relative flex-grow w-full">
+              <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#fff]" />
               <Input
                 type="text"
-                placeholder="Search proposals..."
+                placeholder="Search by name..."
                 value={searchQuery}
                 onChange={handleSearchChange}
                 className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
               />
             </div>
+            <div className="flex space-x-2 w-full sm:w-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
+                  >
+                    <Filter className="h-6 w-6 text-[#F3CFC6]" />
+                    <span>Status</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
+                  <DropdownMenuLabel className="text-black dark:text-white">
+                    Filter by Status
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => handleStatusFilterChange("")}
+                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  >
+                    All
+                  </DropdownMenuItem>
+                  {["pending", "accepted", "rejected"].map((status) => (
+                    <DropdownMenuItem
+                      key={status}
+                      onClick={() => handleStatusFilterChange(status)}
+                      className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    >
+                      {status.charAt(0).toUpperCase() + status.slice(1)}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
           </div>
         </CardContent>
       </Card>
 
-      {/* Proposals Content */}
-      <Card className="shadow-lg gap-2">
+      <Card className="shadow-lg">
         <CardHeader>
-          <CardTitle className="text-lg font-semibold text-black dark:text-white">
-            Proposals
+          <CardTitle className="flex items-center text-black dark:text-white">
+            <Filter className="mr-2 h-6 w-6 text-[#F3CFC6]" />
+            All Proposals
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-6">
@@ -278,24 +328,38 @@ export default function ProposalsPage() {
             </TabsList>
             <TabsContent value="received">
               {filteredReceivedProposals.length === 0 ? (
-                <p className="text-center text-[#C4C4C4]">
+                <motion.div
+                  variants={cardVariants}
+                  initial="hidden"
+                  animate="visible"
+                  className="text-center text-[#C4C4C4]"
+                >
                   No received proposals found.
-                </p>
+                </motion.div>
               ) : (
                 <motion.div
-                  className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                  className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6"
                   variants={containerVariants}
                 >
                   <AnimatePresence>
                     {filteredReceivedProposals.map((proposal) => (
-                      <ProposalCard
+                      <motion.div
                         key={proposal.id}
-                        proposal={proposal}
-                        isReceived={true}
-                        isSpecialist={isSpecialist}
-                        onStatusUpdate={handleStatusUpdate}
-                        onViewConversation={handleViewConversation}
-                      />
+                        variants={cardVariants}
+                        whileHover={{
+                          scale: 1.05,
+                          boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+                        }}
+                        transition={{ duration: 0.2 }}
+                      >
+                        <ProposalCard
+                          proposal={proposal}
+                          isReceived={true}
+                          isSpecialist={isSpecialist}
+                          onStatusUpdate={handleStatusUpdate}
+                          onViewConversation={handleViewConversation}
+                        />
+                      </motion.div>
                     ))}
                   </AnimatePresence>
                 </motion.div>
@@ -304,24 +368,38 @@ export default function ProposalsPage() {
             {isSpecialist && (
               <TabsContent value="sent">
                 {filteredSentProposals.length === 0 ? (
-                  <p className="text-center text-[#C4C4C4]">
+                  <motion.div
+                    variants={cardVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="text-center text-[#C4C4C4]"
+                  >
                     No sent proposals found.
-                  </p>
+                  </motion.div>
                 ) : (
                   <motion.div
-                    className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
+                    className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-3 gap-6"
                     variants={containerVariants}
                   >
                     <AnimatePresence>
                       {filteredSentProposals.map((proposal) => (
-                        <ProposalCard
+                        <motion.div
                           key={proposal.id}
-                          proposal={proposal}
-                          isReceived={false}
-                          isSpecialist={isSpecialist}
-                          onStatusUpdate={handleStatusUpdate}
-                          onViewConversation={handleViewConversation}
-                        />
+                          variants={cardVariants}
+                          whileHover={{
+                            scale: 1.05,
+                            boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+                          }}
+                          transition={{ duration: 0.2 }}
+                        >
+                          <ProposalCard
+                            proposal={proposal}
+                            isReceived={false}
+                            isSpecialist={isSpecialist}
+                            onStatusUpdate={handleStatusUpdate}
+                            onViewConversation={handleViewConversation}
+                          />
+                        </motion.div>
                       ))}
                     </AnimatePresence>
                   </motion.div>

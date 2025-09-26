@@ -24,7 +24,6 @@ import {
 import { Textarea } from "@/components/ui/textarea";
 import { Skeleton } from "@/components/ui/skeleton";
 
-// Type definitions
 interface User {
   id: string;
   name: string;
@@ -34,10 +33,7 @@ interface User {
 
 interface ForumPost {
   id: string;
-  user: {
-    name: string;
-    avatar: string;
-  };
+  user: { name: string; avatar: string };
   title: string;
   content: string;
   category: string;
@@ -45,22 +41,23 @@ interface ForumPost {
   replies: number;
 }
 
-// Animation variants
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: {
-      duration: 0.5,
-      staggerChildren: 0.2,
-    },
+    transition: { duration: 0.5, staggerChildren: 0.2 },
   },
 };
 
 const itemVariants = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0 },
+};
+
+const cardVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
 export default function ForumPage() {
@@ -78,68 +75,49 @@ export default function ForumPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Fetch user and posts
   useEffect(() => {
     const fetchData = async () => {
-      if (status === "loading") return;
-      if (status === "unauthenticated") {
-        router.push("/login");
-        return;
-      }
+      if (status !== "authenticated") return;
 
+      setLoading(true);
+      setError(null);
       try {
-        // Fetch user data
         const id = session?.user?.id;
         if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
-          console.error("Invalid user ID format:", id);
-          notFound();
+          throw new Error("Invalid user ID format");
         }
 
         const userRes = await fetch(`/api/users/${id}`, {
           cache: "no-store",
           credentials: "include",
         });
-
-        if (userRes.ok) {
-          const userData = await userRes.json();
-          setUser({
-            id: userData.id,
-            name:
-              userData.firstName && userData.lastName
-                ? `${userData.firstName} ${userData.lastName}`
-                : userData.name || "User",
-            email: userData.email || "user@example.com",
-            profileImage: userData.profileImage || null,
-          });
-        } else {
-          console.error(
-            "User API response:",
-            userRes.status,
-            await userRes.text()
-          );
+        if (!userRes.ok) {
           if (userRes.status === 401) router.push("/login");
           if (userRes.status === 404) notFound();
           throw new Error(`Failed to fetch user: ${userRes.status}`);
         }
+        const userData = await userRes.json();
+        setUser({
+          id: userData.id,
+          name:
+            userData.firstName && userData.lastName
+              ? `${userData.firstName} ${userData.lastName}`
+              : userData.name || "User",
+          email: userData.email || "user@example.com",
+          profileImage: userData.profileImage || null,
+        });
 
-        // Fetch posts
         const postsRes = await fetch("/api/posts", {
           cache: "no-store",
           credentials: "include",
         });
-        if (postsRes.ok) {
-          const postsData = await postsRes.json();
-          setPosts(postsData);
-        } else {
-          console.error(
-            "Posts API response:",
-            postsRes.status,
-            await postsRes.text()
-          );
+        if (!postsRes.ok) {
           throw new Error(`Failed to fetch posts: ${postsRes.status}`);
         }
+        const postsData = await postsRes.json();
+        setPosts(Array.isArray(postsData) ? postsData : []);
       } catch (err: any) {
-        console.error("Fetch Error:", err.message, err.stack);
+        console.error("Fetch Error:", err.message);
         setError("Failed to load forum data. Please try again.");
       } finally {
         setLoading(false);
@@ -149,10 +127,58 @@ export default function ForumPage() {
     fetchData();
   }, [status, session, router]);
 
-  // Skeleton UI
+  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    setSearchQuery(e.target.value);
+  };
+
+  const handleCategoryFilterChange = (value: string) => {
+    setCategoryFilter(value);
+  };
+
+  const handlePostSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    if (!newPost.title || !newPost.content || !newPost.category) return;
+
+    try {
+      const response = await fetch("/api/posts", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          ...newPost,
+          user: {
+            name: user!.name,
+            avatar: user!.profileImage || "/register.jpg",
+          },
+        }),
+      });
+      if (!response.ok) {
+        throw new Error(`Failed to create post: ${response.status}`);
+      }
+      const newForumPost = await response.json();
+      setPosts([newForumPost, ...posts]);
+      setNewPost({ title: "", content: "", category: "" });
+    } catch (err: any) {
+      console.error("Post Submission Error:", err.message);
+      setError("Failed to create post. Please try again.");
+    }
+  };
+
+  const categories = Array.from(new Set(posts.map((post) => post.category)));
+  const filteredPosts = posts
+    .filter((post) =>
+      searchQuery
+        ? post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          post.content.toLowerCase().includes(searchQuery.toLowerCase()) ||
+          post.user.name.toLowerCase().includes(searchQuery.toLowerCase())
+        : true
+    )
+    .filter((post) =>
+      categoryFilter ? post.category === categoryFilter : true
+    );
+
   const renderSkeleton = () => (
     <motion.div
-      className="p-4 space-y-6 max-w-7xl mx-auto"
+      className="space-y-6 w-full max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
@@ -167,10 +193,9 @@ export default function ForumPage() {
             </div>
           </div>
         </CardHeader>
-        <CardContent className="flex space-x-4">
-          <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
-          <Skeleton className="h-10 w-32 bg-[#C4C4C4]/50" />
-          <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
+        <CardContent className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+          <Skeleton className="h-10 w-full sm:w-2/3 bg-[#C4C4C4]/50" />
+          <Skeleton className="h-10 w-full sm:w-1/3 bg-[#C4C4C4]/50" />
         </CardContent>
       </Card>
       <Card className="shadow-lg">
@@ -180,10 +205,7 @@ export default function ForumPage() {
         <CardContent className="space-y-4 pt-6">
           <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
           <Skeleton className="h-24 w-full bg-[#C4C4C4]/50" />
-          <div className="flex space-x-4">
-            <Skeleton className="h-10 w-40 bg-[#C4C4C4]/50" />
-            <Skeleton className="h-10 w-24 bg-[#C4C4C4]/50" />
-          </div>
+          <Skeleton className="h-10 w-40 bg-[#C4C4C4]/50" />
         </CardContent>
       </Card>
       <Card className="shadow-lg">
@@ -191,32 +213,19 @@ export default function ForumPage() {
           <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
         </CardHeader>
         <CardContent className="space-y-4 pt-6">
-          <ScrollArea className="h-[400px]">
+          <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             {[...Array(3)].map((_, i) => (
-              <div key={i} className="p-4 border rounded-md mb-4">
-                <div className="flex items-start space-x-4">
-                  <Skeleton className="h-10 w-10 rounded-full bg-[#C4C4C4]/50" />
-                  <div className="flex-1 space-y-2">
-                    <div className="flex items-center justify-between">
-                      <Skeleton className="h-5 w-48 bg-[#C4C4C4]/50" />
-                      <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
-                    </div>
-                    <Skeleton className="h-4 w-full bg-[#C4C4C4]/50" />
-                    <div className="flex space-x-2">
-                      <Skeleton className="h-4 w-20 bg-[#C4C4C4]/50" />
-                      <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
-                    </div>
-                  </div>
-                </div>
-              </div>
+              <Skeleton
+                key={i}
+                className="h-24 w-full bg-[#C4C4C4]/50 rounded-lg"
+              />
             ))}
-          </ScrollArea>
+          </div>
         </CardContent>
       </Card>
     </motion.div>
   );
 
-  // Authentication and error handling
   if (status === "loading" || loading) {
     return renderSkeleton();
   }
@@ -229,108 +238,55 @@ export default function ForumPage() {
   if (error || !user) {
     return (
       <motion.div
-        className="p-4 space-y-6 max-w-7xl mx-auto"
+        className="space-y-6 w-full max-w-7xl mx-auto"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
       >
         <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
           <CardHeader>
-            <motion.div variants={itemVariants}>
-              <CardTitle className="text-2xl text-black dark:text-white">
-                Community Forum
-              </CardTitle>
-              <p className="text-sm text-[#C4C4C4]">
-                Connect, share, and support
-              </p>
-            </motion.div>
-          </CardHeader>
-          <CardContent className="flex space-x-4">
             <motion.div
               variants={itemVariants}
-              whileHover={{
-                scale: 1.05,
-                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-              }}
-              transition={{ duration: 0.2 }}
+              className="flex items-center space-x-4"
             >
-              <Button
-                asChild
-                variant="outline"
-                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
-              >
-                <Link href="/dashboard">
-                  <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                  Back to Dashboard
-                </Link>
-              </Button>
+              <Avatar className="h-16 w-16 border-2 border-white">
+                <AvatarFallback className="bg-[#C4C4C4] text-black flex items-center justify-center">
+                  <User className="h-10 w-10 text-[#F3CFC6]" />
+                </AvatarFallback>
+              </Avatar>
+              <div>
+                <CardTitle className="text-2xl text-black dark:text-white">
+                  Community Forum
+                </CardTitle>
+                <p className="text-sm opacity-80">
+                  Connect, share, and support
+                </p>
+              </div>
             </motion.div>
+          </CardHeader>
+          <CardContent className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
+            <Skeleton className="h-10 w-full sm:w-2/3 bg-[#C4C4C4]/50" />
+            <Skeleton className="h-10 w-full sm:w-1/3 bg-[#C4C4C4]/50" />
           </CardContent>
         </Card>
         <Card className="shadow-lg">
           <CardContent className="flex items-center justify-center pt-6">
-            <p className="text-red-500">{error || "User data not found."}</p>
+            <p className="text-red-500 text-sm">
+              {error || "User data not found."}
+            </p>
           </CardContent>
         </Card>
       </motion.div>
     );
   }
 
-  // Filter posts
-  const categories = Array.from(new Set(posts.map((post) => post.category)));
-  const filteredPosts = posts
-    .filter((post) =>
-      searchQuery
-        ? post.title.toLowerCase().includes(searchQuery.toLowerCase()) ||
-          post.content.toLowerCase().includes(searchQuery.toLowerCase())
-        : true
-    )
-    .filter((post) =>
-      categoryFilter ? post.category === categoryFilter : true
-    );
-
-  // Handle new post submission
-  const handlePostSubmit = async (e: React.FormEvent) => {
-    e.preventDefault();
-    if (newPost.title && newPost.content) {
-      try {
-        const response = await fetch("/api/posts", {
-          method: "POST",
-          headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({
-            ...newPost,
-            user: {
-              name: user.name,
-              avatar: user.profileImage || "/register.jpg",
-            },
-          }),
-        });
-        if (response.ok) {
-          const newForumPost = await response.json();
-          setPosts([newForumPost, ...posts]);
-          setNewPost({ title: "", content: "", category: "" });
-        } else {
-          console.error(
-            "Post submission failed:",
-            response.status,
-            await response.text()
-          );
-          throw new Error("Failed to create post");
-        }
-      } catch (err: any) {
-        console.error("Post Submission Error:", err.message, err.stack);
-      }
-    }
-  };
-
   return (
     <motion.div
-      className="p-4 space-y-6 max-w-7xl mx-auto"
+      className="space-y-6 w-full max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
-      {/* Header Section */}
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
           <motion.div
@@ -347,81 +303,63 @@ export default function ForumPage() {
               )}
             </Avatar>
             <div>
-              <CardTitle className="text-2xl text-black dark:text-white">
+              <CardTitle className="text-2xl font-bold text-black dark:text-white">
                 Community Forum
               </CardTitle>
-              <p className="text-sm text-[#C4C4C4]">
-                Connect, share, and support
-              </p>
+              <p className="text-sm opacity-80">Connect, share, and support</p>
             </div>
           </motion.div>
         </CardHeader>
-        <CardContent className="flex space-x-4 w-full">
-          <motion.div
-            variants={itemVariants}
-            className="flex items-center space-x-4 w-full"
-            whileHover={{
-              scale: 1.0,
-            }}
-            transition={{ duration: 0.2 }}
-          >
-            <div className="relative flex-grow">
-              <Search className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#fff]" />
+        <CardContent>
+          <div className="flex flex-col sm:flex-row items-center mb-6 w-full space-y-2 sm:space-y-0 sm:space-x-2">
+            <div className="relative flex-grow w-full">
+              <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#fff]" />
               <Input
                 type="text"
-                placeholder="Search forum posts..."
+                placeholder="Search posts by title, content, or author..."
                 value={searchQuery}
-                onChange={(e) => setSearchQuery(e.target.value)}
+                onChange={handleSearchChange}
                 className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
               />
             </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full flex items-center space-x-2"
-                >
-                  <MessageSquare className="h-5 w-5 text-[#F3CFC6]" />
-                  <span>Category</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
-                <DropdownMenuLabel className="text-black dark:text-white">
-                  Filter by Category
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => setCategoryFilter("")}
-                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20"
-                >
-                  All
-                </DropdownMenuItem>
-                {categories.map((category) => (
-                  <DropdownMenuItem
-                    key={category}
-                    onClick={() => setCategoryFilter(category)}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20"
+            <div className="flex space-x-2 w-full sm:w-auto">
+              <DropdownMenu>
+                <DropdownMenuTrigger asChild>
+                  <Button
+                    variant="outline"
+                    className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                   >
-                    {category}
+                    <MessageSquare className="h-6 w-6 text-[#F3CFC6]" />
+                    <span>Category</span>
+                  </Button>
+                </DropdownMenuTrigger>
+                <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
+                  <DropdownMenuLabel className="text-black dark:text-white">
+                    Filter by Category
+                  </DropdownMenuLabel>
+                  <DropdownMenuSeparator />
+                  <DropdownMenuItem
+                    onClick={() => handleCategoryFilterChange("")}
+                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  >
+                    All
                   </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              asChild
-              variant="outline"
-              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
-            >
-              <Link href="/dashboard">
-                <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                Back to Dashboard
-              </Link>
-            </Button>
-          </motion.div>
+                  {categories.map((category) => (
+                    <DropdownMenuItem
+                      key={category}
+                      onClick={() => handleCategoryFilterChange(category)}
+                      className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    >
+                      {category}
+                    </DropdownMenuItem>
+                  ))}
+                </DropdownMenuContent>
+              </DropdownMenu>
+            </div>
+          </div>
         </CardContent>
       </Card>
 
-      {/* Create New Post */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-black dark:text-white">
@@ -451,12 +389,12 @@ export default function ForumPage() {
               }
               className="w-full text-black dark:text-white border-[#F3CFC6] focus:ring-[#F3CFC6]"
             />
-            <div className="flex items-center gap-4">
+            <div className="flex flex-col sm:flex-row items-center gap-4">
               <DropdownMenu>
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full sm:w-auto text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+                    className="w-full sm:w-auto text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
                   >
                     {newPost.category || "Select Category"}
                   </Button>
@@ -470,7 +408,7 @@ export default function ForumPage() {
                     <DropdownMenuItem
                       key={category}
                       onClick={() => setNewPost({ ...newPost, category })}
-                      className="text-black dark:text-white hover:bg-[#F3CFC6]/20"
+                      className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
                     >
                       {category}
                     </DropdownMenuItem>
@@ -479,7 +417,7 @@ export default function ForumPage() {
               </DropdownMenu>
               <Button
                 type="submit"
-                className="w-full sm:w-auto bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+                className="w-full sm:w-auto bg-[#F3CFC6] hover:bg-[#F3CFC6]/80 text-black dark:text-white"
               >
                 <Send className="mr-2 h-4 w-4" />
                 Post
@@ -489,11 +427,10 @@ export default function ForumPage() {
         </CardContent>
       </Card>
 
-      {/* Forum Posts */}
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="flex items-center text-black dark:text-white">
-            <MessageSquare className="mr-2 h-5 w-5 text-[#F3CFC6]" />
+            <MessageSquare className="mr-2 h-6 w-6 text-[#F3CFC6]" />
             Forum Posts
           </CardTitle>
         </CardHeader>
@@ -505,11 +442,13 @@ export default function ForumPage() {
                   filteredPosts.map((post) => (
                     <motion.div
                       key={post.id}
-                      variants={itemVariants}
-                      initial="hidden"
-                      animate="visible"
-                      exit={{ opacity: 0, x: -20 }}
-                      className="p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md border border-[#F3CFC6]"
+                      variants={cardVariants}
+                      whileHover={{
+                        scale: 1.05,
+                        boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+                      }}
+                      transition={{ duration: 0.2 }}
+                      className="p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
                     >
                       <Link href={`/dashboard/forum/${post.id}`}>
                         <div className="flex items-start space-x-4">
@@ -531,7 +470,7 @@ export default function ForumPage() {
                                 {post.timestamp}
                               </p>
                             </div>
-                            <p className="text-sm text-[#C4C4C4] mt-1">
+                            <p className="text-sm text-[#C4C4C4] mt-1 truncate">
                               {post.content}
                             </p>
                             <div className="flex items-center space-x-2 mt-2">
@@ -548,7 +487,14 @@ export default function ForumPage() {
                     </motion.div>
                   ))
                 ) : (
-                  <p className="text-[#C4C4C4] text-center">No posts found.</p>
+                  <motion.div
+                    variants={itemVariants}
+                    initial="hidden"
+                    animate="visible"
+                    className="text-[#C4C4C4] text-center"
+                  >
+                    No posts found.
+                  </motion.div>
                 )}
               </AnimatePresence>
             </motion.div>
