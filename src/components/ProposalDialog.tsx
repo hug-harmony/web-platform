@@ -22,6 +22,11 @@ interface ProposalDialogProps {
   sending: boolean;
 }
 
+const cardVariants = {
+  hidden: { opacity: 0, scale: 0.95 },
+  visible: { opacity: 1, scale: 1, transition: { duration: 0.2 } },
+};
+
 const ProposalDialog: React.FC<ProposalDialogProps> = ({
   isOpen,
   setIsOpen,
@@ -35,23 +40,23 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
   const allSlots = Array.from({ length: 13 }, (_, i) => `${i + 8}:00`);
 
   const toggleSlot = (time: string) => {
-    setSelectedSlots([time]); // Set only the selected time
+    setSelectedSlots([time]);
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <AnimatePresence>
         {isOpen && (
-          <DialogContent className="bg-gradient-to-br from-[#FCF0ED] to-[#F3CFC6]/50 dark:from-gray-800 dark:to-gray-700 sm:max-w-[600px] rounded-xl shadow-lg">
+          <DialogContent className="bg-white dark:bg-gray-800 sm:max-w-[600px] rounded-xl shadow-lg">
             <motion.div
-              initial={{ opacity: 0, scale: 0.95 }}
-              animate={{ opacity: 1, scale: 1 }}
-              exit={{ opacity: 0, scale: 0.95 }}
-              transition={{ duration: 0.2 }}
+              variants={cardVariants}
+              initial="hidden"
+              animate="visible"
+              exit="hidden"
             >
               <DialogHeader>
-                <DialogTitle className="text-2xl font-semibold text-[#D8A7B1] dark:text-[#F3CFC6]">
-                  Propose Session to User
+                <DialogTitle className="text-2xl font-semibold text-black dark:text-white">
+                  Propose Session
                 </DialogTitle>
               </DialogHeader>
               <div className="space-y-6 flex flex-col sm:flex-row sm:space-x-6 sm:space-y-0 py-4">
@@ -83,8 +88,8 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
                           }
                           className={`w-full text-sm ${
                             selectedSlots.includes(time)
-                              ? "bg-[#D8A7B1] text-white hover:bg-[#C68E9C]"
-                              : "text-[#D8A7B1] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                              ? "bg-[#F3CFC6] text-black dark:text-white hover:bg-[#C4C4C4]"
+                              : "text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
                           } transition-colors duration-200`}
                           onClick={() => toggleSlot(time)}
                         >
@@ -99,14 +104,14 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
                 <Button
                   variant="outline"
                   onClick={() => setIsOpen(false)}
-                  className="text-[#D8A7B1] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:text-[#F3CFC6] dark:hover:bg-gray-700"
+                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
                 >
                   Cancel
                 </Button>
                 <Button
                   onClick={handleSendProposal}
                   disabled={sending || !proposalDate || !selectedSlots.length}
-                  className="bg-[#D8A7B1] hover:bg-[#C68E9C] text-white rounded-full px-6"
+                  className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white"
                 >
                   {sending ? "Sending..." : "Send Proposal"}
                 </Button>

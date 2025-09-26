@@ -3,9 +3,10 @@
 import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useParams, useRouter } from "next/navigation";
-import { Card, CardHeader, CardContent } from "@/components/ui/card";
+import { Card, CardContent } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
 import ChatHeader from "@/components/ChatHeader";
 import MessageList from "@/components/MessageList";
 import MessageInput from "@/components/MessageInput";
@@ -45,6 +46,15 @@ interface Specialist {
   name: string;
   rate?: number;
 }
+
+const containerVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.5 },
+  },
+};
 
 const MessageInterface: React.FC = () => {
   const { data: session, status } = useSession();
@@ -111,7 +121,7 @@ const MessageInterface: React.FC = () => {
       }
 
       const msgData = await msgRes.json();
-      setMessages(msgData);
+      setMessages(Array.isArray(msgData) ? msgData : []);
     } catch {
       toast.error("Failed to load messages");
     }
@@ -146,7 +156,7 @@ const MessageInterface: React.FC = () => {
         const msgData = await msgRes.json();
 
         setConversation(convData);
-        setMessages(msgData);
+        setMessages(Array.isArray(msgData) ? msgData : []);
       } catch {
         toast.error("Failed to load conversation or messages");
       } finally {
@@ -157,10 +167,7 @@ const MessageInterface: React.FC = () => {
     fetchConversationAndMessages();
 
     const pollingInterval = setInterval(fetchMessages, 5000);
-
-    return () => {
-      clearInterval(pollingInterval);
-    };
+    return () => clearInterval(pollingInterval);
   }, [status, conversationId, router, fetchMessages]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -310,6 +317,7 @@ const MessageInterface: React.FC = () => {
     }
   };
 
+  /*
   const handleProposalAction = async (
     proposalId: string,
     action: "accepted" | "rejected"
@@ -337,17 +345,17 @@ const MessageInterface: React.FC = () => {
       setProposalActionMessage(`Proposal ${action}`);
       setTimeout(() => setProposalActionMessage(null), 3000);
 
-      const proposal = data.proposal;
-
       if (action === "accepted") {
         const proposal = data.proposal;
         const appointmentId = data.appointmentId;
 
-        // Only show ConfirmDialog if user is accepting specialist proposal
         if (proposal.initiator === "specialist") {
           const specialistRes = await fetch(
             `/api/specialists/${proposal.specialistId}`,
-            { cache: "no-store", credentials: "include" }
+            {
+              cache: "no-store",
+              credentials: "include",
+            }
           );
 
           if (!specialistRes.ok) {
@@ -370,7 +378,6 @@ const MessageInterface: React.FC = () => {
           setConfirmDialogOpen(true);
           toast.success("Proposal accepted - proceed to payment");
         } else {
-          // Specialist accepting user request: No dialog, just success
           toast.success("Appointment request accepted");
         }
       } else {
@@ -380,6 +387,98 @@ const MessageInterface: React.FC = () => {
             : "Appointment request declined"
         );
       }
+      await fetchMessages();
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : `Failed to ${action} proposal`;
+      toast.error(errorMessage);
+    } finally {
+      setSending(false);
+    }
+  };
+  */
+
+  const handleProposalAction = async (
+    proposalId: string,
+    action: "accepted" | "rejected"
+  ) => {
+    if (!session?.user?.id) {
+      toast.error("Please log in to respond to the proposal");
+      return;
+    }
+
+    setSending(true);
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: action }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || `Failed to ${action} proposal`);
+      }
+
+      const data = await res.json();
+
+      // 🔑 make these available to both branches
+      const proposal = data.proposal as {
+        id: string;
+        date: string;
+        time: string;
+        initiator: "specialist" | "client";
+        specialistId: string;
+      };
+      const appointmentId: string | undefined = data.appointmentId;
+
+      setProposalActionMessage(`Proposal ${action}`);
+      setTimeout(() => setProposalActionMessage(null), 3000);
+
+      if (action === "accepted") {
+        if (proposal.initiator === "specialist") {
+          const specialistRes = await fetch(
+            `/api/specialists/${proposal.specialistId}`,
+            {
+              cache: "no-store",
+              credentials: "include",
+            }
+          );
+
+          if (!specialistRes.ok) {
+            throw new Error(
+              `Failed to fetch specialist details: ${specialistRes.status}`
+            );
+          }
+          const specialist = await specialistRes.json();
+
+          setSelectedProposal({
+            id: proposal.id,
+            date: proposal.date,
+            time: proposal.time,
+            specialist: {
+              id: proposal.specialistId,
+              name: specialist.name,
+              rate: specialist.rate || 50,
+            },
+            appointmentId,
+          });
+
+          setConfirmDialogOpen(true);
+          toast.success("Proposal accepted - proceed to payment");
+        } else {
+          toast.success("Appointment request accepted");
+        }
+      } else {
+        // ✅ now proposal is in scope here
+        toast.success(
+          proposal.initiator === "specialist"
+            ? "Proposal rejected"
+            : "Appointment request declined"
+        );
+      }
+
       await fetchMessages();
     } catch (error: unknown) {
       const errorMessage =
@@ -404,51 +503,64 @@ const MessageInterface: React.FC = () => {
 
   if (status === "loading" || loading) {
     return (
-      <Card className="px-4 max-w-7xl mx-auto h-[calc(100vh-2rem)] flex flex-col">
-        <CardHeader className="p-4 border-b">
-          <div className="flex items-center space-x-2">
-            <Skeleton className="w-10 h-10 rounded-full" />
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-32" />
-              <Skeleton className="h-3 w-16" />
-            </div>
+      <motion.div
+        className="space-y-6 w-full max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="h-[calc(100vh-2rem)] flex flex-col shadow-lg">
+          <Skeleton className="p-4 border-b h-16 bg-[#F3CFC6]/20" />
+          <CardContent className="p-4 flex-1 overflow-y-auto space-y-2">
+            {[...Array(5)].map((_, i) => (
+              <div
+                key={i}
+                className={`flex ${i % 2 === 0 ? "justify-start" : "justify-end"}`}
+              >
+                <Skeleton className="h-12 w-48 rounded-lg bg-[#C4C4C4]/50" />
+              </div>
+            ))}
+          </CardContent>
+          <div className="p-4 border-t flex items-center">
+            <Skeleton className="flex-1 h-10 mr-2 bg-[#C4C4C4]/50" />
+            <Skeleton className="h-10 w-20 bg-[#C4C4C4]/50" />
           </div>
-        </CardHeader>
-        <CardContent className="p-4 flex-1 overflow-y-auto space-y-2">
-          {[...Array(5)].map((_, i) => (
-            <div
-              key={i}
-              className={`flex ${i % 2 === 0 ? "justify-start" : "justify-end"}`}
-            >
-              <Skeleton className="h-12 w-48 rounded-lg" />
-            </div>
-          ))}
-        </CardContent>
-        <div className="p-4 border-t flex items-center">
-          <Skeleton className="flex-1 h-10 mr-2" />
-          <Skeleton className="h-10 w-20" />
-        </div>
-      </Card>
+        </Card>
+      </motion.div>
     );
   }
 
   if (!session) {
     return (
-      <Card className="w-full h-[calc(100vh-2rem)] flex flex-col">
-        <CardContent className="flex-1 flex items-center justify-center">
-          <p>Please log in to view messages.</p>
-        </CardContent>
-      </Card>
+      <motion.div
+        className="space-y-6 w-full max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="h-[calc(100vh-2rem)] flex flex-col shadow-lg">
+          <CardContent className="flex-1 flex items-center justify-center text-[#C4C4C4]">
+            Please log in to view messages.
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   }
 
   if (!conversation) {
     return (
-      <Card className="w-full h-[calc(100vh-2rem)] flex flex-col">
-        <CardContent className="flex-1 flex items-center justify-center">
-          <p>Conversation not found.</p>
-        </CardContent>
-      </Card>
+      <motion.div
+        className="space-y-6 w-full max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        <Card className="h-[calc(100vh-2rem)] flex flex-col shadow-lg">
+          <CardContent className="flex-1 flex items-center justify-center text-[#C4C4C4]">
+            Conversation not found.
+          </CardContent>
+        </Card>
+      </motion.div>
     );
   }
 
@@ -458,8 +570,13 @@ const MessageInterface: React.FC = () => {
       : conversation.user1;
 
   return (
-    <div className="px-4 max-w-7xl mx-auto">
-      <Card className="w-full h-[calc(100vh-2rem)] flex flex-col">
+    <motion.div
+      className="space-y-6 w-full max-w-7xl mx-auto"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <Card className="h-[calc(100vh-2rem)] flex flex-col shadow-lg">
         <ChatHeader otherUser={otherUser} sessionUserId={session.user.id} />
         <MessageList
           messages={messages}
@@ -498,7 +615,7 @@ const MessageInterface: React.FC = () => {
         sending={sending}
         sessionUserName={session.user.name}
       />
-    </div>
+    </motion.div>
   );
 };
 

@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useState, useEffect } from "react";
@@ -11,7 +10,6 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { motion, AnimatePresence } from "framer-motion";
 import { MessageSquare, Search, Filter } from "lucide-react";
-import Link from "next/link";
 import { supabase } from "@/lib/supabase";
 import { Input } from "@/components/ui/input";
 import {
@@ -390,8 +388,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                       key={conv.id}
                       variants={cardVariants}
                       whileHover={{
-                        scale: 1.05,
-                        boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+                        scale: 1.0,
                       }}
                       transition={{ duration: 0.2 }}
                     >

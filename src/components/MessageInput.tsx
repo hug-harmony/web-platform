@@ -2,7 +2,7 @@ import React, { useRef } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import Image from "next/image";
-import { ImageIcon, Plus } from "lucide-react";
+import { ImageIcon, Plus, Send } from "lucide-react";
 
 interface MessageInputProps {
   input: string;
@@ -30,7 +30,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   const fileInputRef = useRef<HTMLInputElement>(null);
 
   return (
-    <div className="p-4 border-t flex flex-col space-y-2 bg-gradient-to-t from-[#F3CFC6]/10 to-transparent">
+    <div className="p-4 sm:p-6 border-t flex flex-col space-y-4 bg-[#F3CFC6]/10 dark:bg-[#C4C4C4]/10">
       {imagePreview && (
         <div className="relative w-32 h-32">
           <Image
@@ -51,27 +51,27 @@ const MessageInput: React.FC<MessageInputProps> = ({
           </button>
         </div>
       )}
-      <div className="flex items-center space-x-2">
+
+      <div className="flex items-center space-x-2 w-full">
         {isSpecialist && (
           <Button
             variant="outline"
             size="icon"
             onClick={() => setIsProposalDialogOpen(true)}
-            className="h-10 w-10 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+            className="h-10 w-10 rounded-full border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/20"
           >
-            <Plus className="h-4 w-4" />
+            <Plus className="h-5 w-5" />
           </Button>
         )}
-        <Input
-          type="text"
-          value={input}
-          onChange={(e) => setInput(e.target.value)}
-          placeholder="Write a message..."
-          className="flex-1 h-10"
-          disabled={sending || !!imagePreview}
-        />
-        <label htmlFor="file-input" className="cursor-pointer">
-          <ImageIcon className="h-10 w-10 text-gray-500" />
+
+        <Button
+          variant="outline"
+          size="icon"
+          className="h-10 w-10 rounded-full border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/20"
+          onClick={() => fileInputRef.current?.click()}
+          disabled={sending}
+        >
+          <ImageIcon className="h-5 w-5" />
           <Input
             id="file-input"
             type="file"
@@ -81,13 +81,30 @@ const MessageInput: React.FC<MessageInputProps> = ({
             disabled={sending}
             onChange={handleFileChange}
           />
-        </label>
+        </Button>
+
+        <Input
+          type="text"
+          value={input}
+          onChange={(e) => setInput(e.target.value)}
+          placeholder="Write a message..."
+          className="flex-1 h-10 border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
+          disabled={sending || !!imagePreview}
+        />
+
         <Button
           onClick={handleSend}
-          className="bg-[#D8A7B1] hover:bg-[#C68E9C] text-white h-10 w-20"
+          className="h-10 w-10 sm:w-20 rounded-full sm:rounded-xl bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white flex items-center justify-center"
           disabled={sending}
         >
-          {sending ? <span className="animate-pulse">Sending...</span> : "Send"}
+          {sending ? (
+            <span className="animate-pulse text-sm">...</span>
+          ) : (
+            <>
+              <Send className="h-5 w-5 sm:hidden" />
+              <span className="hidden sm:inline">Send</span>
+            </>
+          )}
         </Button>
       </div>
     </div>

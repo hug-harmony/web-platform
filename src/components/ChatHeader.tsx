@@ -28,18 +28,21 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ otherUser }) => {
     .toUpperCase();
 
   return (
-    <CardHeader className="p-4 border-b flex flex-row justify-between items-center bg-gradient-to-r from-[#F3CFC6]/20 to-[#FCF0ED]/20">
-      <div className="flex items-center space-x-2">
-        <Avatar className="w-10 h-10">
-          <AvatarImage src={profileImage} alt={otherUserName} />
-          <AvatarFallback className="bg-purple-500 text-white">
-            {initials}
-          </AvatarFallback>
-        </Avatar>
-        <div className="space-y-2">
-          <p className="font-semibold h-4">{otherUserName}</p>
-          <p className="text-xs text-gray-500 h-3">Online</p>
-        </div>
+    <CardHeader className="p-4 sm:p-6 border-b bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20 flex items-center space-x-2">
+      <Avatar className="h-10 w-10 border-2 border-white">
+        <AvatarImage
+          src={profileImage || "/assets/images/avatar-placeholder.png"}
+          alt={otherUserName}
+        />
+        <AvatarFallback className="bg-[#C4C4C4] text-black">
+          {initials}
+        </AvatarFallback>
+      </Avatar>
+      <div>
+        <p className="font-semibold text-black dark:text-white">
+          {otherUserName}
+        </p>
+        <p className="text-xs text-[#C4C4C4]">Online</p>
       </div>
     </CardHeader>
   );
