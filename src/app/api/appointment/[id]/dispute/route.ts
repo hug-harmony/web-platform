@@ -1,4 +1,3 @@
-// app/api/appointment/[id]/dispute/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -12,13 +11,13 @@ const disputeSchema = z.object({
 
 export async function POST(
   request: Request,
-  context: { params: { id: string } }
+  context: { params: Record<string, string> } // ✅ fix typing
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-  const { id } = context.params;
+  const { id } = context.params; // ✅ works fine now
 
   try {
     const { reason } = disputeSchema.parse(await request.json());
@@ -42,16 +41,19 @@ export async function POST(
         { error: "Appointment not found" },
         { status: 404 }
       );
+
     if (appt.specialistId !== specialistApp.specialistId)
       return NextResponse.json(
         { error: "Unauthorized: Not your appointment" },
         { status: 403 }
       );
+
     if (appt.status !== "completed")
       return NextResponse.json(
         { error: "Can only dispute completed appointments" },
         { status: 400 }
       );
+
     if (appt.disputeStatus !== "none")
       return NextResponse.json(
         { error: "Appointment already disputed" },
@@ -83,6 +85,7 @@ export async function POST(
         ],
       },
     });
+
     if (conversation) {
       await sendSystemMessage({
         conversationId: conversation.id,
