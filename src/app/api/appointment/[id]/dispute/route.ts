@@ -1,5 +1,5 @@
 // app/api/appointment/[id]/dispute/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -11,7 +11,7 @@ const disputeSchema = z.object({
 });
 
 export async function POST(
-  request: Request,
+  request: NextRequest,
   { params }: { params: { id: string } } // ✅ correct signature
 ) {
   const session = await getServerSession(authOptions);
