@@ -14,6 +14,20 @@ export const metadata: Metadata = {
   title: "Hug Harmony",
   description:
     "Connect with cuddlers, book appointments, and enjoy meaningful interactions",
+  applicationName: "HugHarmony",
+  appleWebApp: {
+    capable: true,
+    statusBarStyle: "default",
+    title: "HugHarmony",
+  },
+  formatDetection: { telephone: false },
+  other: {
+    "mobile-web-app-capable": "yes",
+    "msapplication-TileColor": "#ffffff",
+    "msapplication-tap-highlight": "no",
+    "theme-color": "#ffffff",
+  },
+  manifest: "/manifest.json", // Reference manifest
 };
 
 export default function RootLayout({
@@ -23,6 +37,11 @@ export default function RootLayout({
 }>) {
   return (
     <html lang="en" suppressHydrationWarning>
+      <head>
+        <link rel="manifest" href="/manifest.json" />
+        <link rel="apple-touch-icon" href="/hh-icon.png" />
+        <meta name="theme-color" content="#ffffff" />
+      </head>
       <body className={`${manrope.className} antialiased`}>
         <ThemeProvider
           attribute="class"

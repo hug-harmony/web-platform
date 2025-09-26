@@ -1,4 +1,5 @@
 import type { NextConfig } from "next";
+import withPWA from "@ducanh2912/next-pwa";
 
 const nextConfig: NextConfig = {
   images: {
@@ -12,4 +13,26 @@ const nextConfig: NextConfig = {
   },
 };
 
-export default nextConfig;
+// Named export to satisfy ESLint import/no-anonymous-default-export
+const pwaConfig = withPWA({
+  dest: "public",
+  register: true,
+  disable: process.env.NODE_ENV === "development", // Skip in dev for Turbopack
+  cacheOnFrontEndNav: true, // Cache on client navigation (/dashboard/[id])
+  aggressiveFrontEndNavCaching: true, // Smoother UX
+  reloadOnOnline: true, // Reload on reconnect
+
+  workboxOptions: {
+    disableDevLogs: true, // Cleaner logs
+  },
+})(nextConfig);
+
+// Named export to fix ESLint
+const config = (phase: string) => {
+  if (phase === "phase-development" || phase === "phase-production-build") {
+    return pwaConfig;
+  }
+  return nextConfig;
+};
+
+export default config;
