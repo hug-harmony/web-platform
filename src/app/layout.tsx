@@ -27,7 +27,7 @@ export const metadata: Metadata = {
     "msapplication-tap-highlight": "no",
     "theme-color": "#ffffff",
   },
-  manifest: "/manifest.json", // Reference manifest
+  manifest: "/manifest.json",
 };
 
 export default function RootLayout({
@@ -41,6 +41,11 @@ export default function RootLayout({
         <link rel="manifest" href="/manifest.json" />
         <link rel="apple-touch-icon" href="/hh-icon.png" />
         <meta name="theme-color" content="#ffffff" />
+        {/* Add viewport meta tag to disable zoom */}
+        <meta
+          name="viewport"
+          content="width=device-width, initial-scale=1, maximum-scale=1, user-scalable=no"
+        />
       </head>
       <body className={`${manrope.className} antialiased`}>
         <ThemeProvider
