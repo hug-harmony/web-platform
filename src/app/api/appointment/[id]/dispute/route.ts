@@ -12,14 +12,14 @@ const disputeSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: { id: string } } // ✅ correct signature
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = params; // ✅ param available
+  const { id } = params;
 
   try {
     const { reason } = disputeSchema.parse(await request.json());
@@ -77,7 +77,6 @@ export async function POST(
       include: { user: true, specialist: { include: { application: true } } },
     });
 
-    // System message into chat
     const conversation = await prisma.conversation.findFirst({
       where: {
         OR: [
