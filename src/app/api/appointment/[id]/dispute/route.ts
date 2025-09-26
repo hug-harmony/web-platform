@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/api/appointment/[id]/dispute/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -10,16 +11,13 @@ const disputeSchema = z.object({
   reason: z.string().min(10, "Reason must be at least 10 characters"),
 });
 
-export async function POST(
-  request: NextRequest,
-  context: { params: { id: string } }
-) {
+export async function POST(request: NextRequest, { params }: any) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = context.params;
+  const { id } = params;
 
   try {
     const { reason } = disputeSchema.parse(await request.json());
