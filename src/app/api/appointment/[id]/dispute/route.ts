@@ -1,3 +1,4 @@
+// app/api/appointment/[id]/dispute/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -11,13 +12,14 @@ const disputeSchema = z.object({
 
 export async function POST(
   request: Request,
-  context: { params: Record<string, string> } // ✅ fix typing
+  { params }: { params: { id: string } } // ✅ correct signature
 ) {
   const session = await getServerSession(authOptions);
-  if (!session?.user?.id)
+  if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-  const { id } = context.params; // ✅ works fine now
+  const { id } = params; // ✅ param available
 
   try {
     const { reason } = disputeSchema.parse(await request.json());
@@ -26,39 +28,44 @@ export async function POST(
       where: { userId: session.user.id, status: "approved" },
       select: { specialistId: true },
     });
-    if (!specialistApp?.specialistId)
+    if (!specialistApp?.specialistId) {
       return NextResponse.json(
         { error: "User is not an approved specialist" },
         { status: 403 }
       );
+    }
 
     const appt = await prisma.appointment.findUnique({
       where: { id },
       include: { user: true, specialist: { include: { application: true } } },
     });
-    if (!appt)
+    if (!appt) {
       return NextResponse.json(
         { error: "Appointment not found" },
         { status: 404 }
       );
+    }
 
-    if (appt.specialistId !== specialistApp.specialistId)
+    if (appt.specialistId !== specialistApp.specialistId) {
       return NextResponse.json(
         { error: "Unauthorized: Not your appointment" },
         { status: 403 }
       );
+    }
 
-    if (appt.status !== "completed")
+    if (appt.status !== "completed") {
       return NextResponse.json(
         { error: "Can only dispute completed appointments" },
         { status: 400 }
       );
+    }
 
-    if (appt.disputeStatus !== "none")
+    if (appt.disputeStatus !== "none") {
       return NextResponse.json(
         { error: "Appointment already disputed" },
         { status: 400 }
       );
+    }
 
     const updated = await prisma.appointment.update({
       where: { id },
@@ -70,7 +77,7 @@ export async function POST(
       include: { user: true, specialist: { include: { application: true } } },
     });
 
-    // System message
+    // System message into chat
     const conversation = await prisma.conversation.findFirst({
       where: {
         OR: [
