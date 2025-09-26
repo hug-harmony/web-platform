@@ -69,6 +69,9 @@ model Appointment {
   disputeStatus    String    @default("none")
   disputeReason    String?
   adminNotes       String?
+  rate           Float?     // snapshot rate at booking
+  adjustedRate   Float?     // modified rate if applied
+  modificationHistory Json? // keep history of changes (reschedule, rate adjust)
   createdAt        DateTime  @default(now())
   user             User      @relation("UserAppointments", fields: [userId], references: [id], onDelete: Cascade)
   specialist       Specialist @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)
@@ -187,6 +190,7 @@ model Message {
   id               String       @id @default(auto()) @map("_id") @db.ObjectId
   text             String
   isAudio          Boolean      @default(false)
+  isSystem         Boolean      @default(false)
   imageUrl         String?
   senderId         String       @db.ObjectId
   recipientId      String       @db.ObjectId

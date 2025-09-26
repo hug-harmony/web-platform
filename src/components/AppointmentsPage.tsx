@@ -4,13 +4,9 @@
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Input } from "@/components/ui/input";
-import { Calendar, MessageSquare } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
-import Link from "next/link";
-import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import AppointmentCard from "@/components/AppointmentCard";
@@ -31,19 +27,19 @@ interface Appointment {
   disputeStatus: string;
 }
 
-const containerVariants = {
-  hidden: { opacity: 0, y: 20 },
-  visible: {
-    opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, staggerChildren: 0.2 },
-  },
-};
+// const containerVariants = {
+//   hidden: { opacity: 0, y: 20 },
+//   visible: {
+//     opacity: 1,
+//     y: 0,
+//     transition: { duration: 0.5, staggerChildren: 0.2 },
+//   },
+// };
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0 },
-};
+// const itemVariants = {
+//   hidden: { opacity: 0, y: 10 },
+//   visible: { opacity: 1, y: 0 },
+// };
 
 export default function AppointmentsPage() {
   const router = useRouter();
@@ -211,40 +207,15 @@ export default function AppointmentsPage() {
 
   if (status === "loading" || loading) {
     return (
-      <motion.div
-        className="p-4 space-y-6 max-w-7xl mx-auto"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <motion.div className="p-4 space-y-6 max-w-7xl mx-auto">
         <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
           <CardHeader>
-            <motion.div variants={itemVariants}>
-              <CardTitle className="text-2xl text-black dark:text-white">
-                Appointments
-              </CardTitle>
-              <p className="text-sm text-black">Manage your appointments</p>
-            </motion.div>
+            <CardTitle className="text-2xl">Appointments</CardTitle>
           </CardHeader>
           <CardContent className="flex space-x-4">
             <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
             <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
             <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
-          </CardContent>
-        </Card>
-        <Card className="shadow-lg">
-          <CardHeader>
-            <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
-          </CardHeader>
-          <CardContent className="pt-6">
-            <div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
-              {[...Array(4)].map((_, i) => (
-                <Skeleton
-                  key={i}
-                  className="h-48 w-full bg-[#C4C4C4]/50 rounded-lg"
-                />
-              ))}
-            </div>
           </CardContent>
         </Card>
       </motion.div>
@@ -257,62 +228,11 @@ export default function AppointmentsPage() {
   }
 
   return (
-    <motion.div
-      className="p-4 space-y-6 max-w-7xl mx-auto"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
+    <motion.div className="p-4 space-y-6 max-w-7xl mx-auto">
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
-          <motion.div variants={itemVariants}>
-            <CardTitle className="text-2xl text-black dark:text-white">
-              Appointments
-            </CardTitle>
-            <p className="text-sm text-[#C4C4C4]">Manage your appointments</p>
-          </motion.div>
+          <CardTitle className="text-2xl">Appointments</CardTitle>
         </CardHeader>
-        <CardContent className="flex space-x-4">
-          <motion.div
-            variants={itemVariants}
-            whileHover={{
-              scale: 1.05,
-              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-            }}
-            transition={{ duration: 0.2 }}
-          >
-            <Button
-              asChild
-              variant="outline"
-              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
-            >
-              <Link href="/dashboard">
-                <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                Back to Dashboard
-              </Link>
-            </Button>
-          </motion.div>
-          <div className="relative flex-grow">
-            <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#fff]" />
-            <Input
-              type="date"
-              placeholder="Start Date"
-              value={dateRange.start}
-              onChange={(e) => handleDateRangeChange("start", e.target.value)}
-              className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
-            />
-          </div>
-          <div className="relative flex-grow">
-            <Calendar className="absolute left-3 top-1/2 h-5 w-5 -translate-y-1/2 text-[#fff]" />
-            <Input
-              type="date"
-              placeholder="End Date"
-              value={dateRange.end}
-              onChange={(e) => handleDateRangeChange("end", e.target.value)}
-              className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
-            />
-          </div>
-        </CardContent>
       </Card>
 
       <Card className="shadow-lg">
@@ -321,128 +241,101 @@ export default function AppointmentsPage() {
             <p className="text-center text-red-500">{error}</p>
           ) : isSpecialist ? (
             <Tabs defaultValue="my-appointments" className="w-full">
-              <TabsList className="grid w-full grid-cols-2 bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20">
-                <TabsTrigger
-                  value="my-appointments"
-                  className="data-[state=active]:bg-[#F3CFC6] data-[state=active]:text-black dark:data-[state=active]:text-white"
-                >
+              <TabsList className="grid w-full grid-cols-2">
+                <TabsTrigger value="my-appointments">
                   My Appointments ({filteredAppointments.length})
                 </TabsTrigger>
-                <TabsTrigger
-                  value="client-appointments"
-                  className="data-[state=active]:bg-[#F3CFC6] data-[state=active]:text-black dark:data-[state=active]:text-white"
-                >
+                <TabsTrigger value="client-appointments">
                   Client Appointments ({filteredClientAppointments.length})
                 </TabsTrigger>
               </TabsList>
               <TabsContent value="my-appointments">
                 {filteredAppointments.length > 0 ? (
-                  <motion.div
-                    className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-                    variants={containerVariants}
-                  >
+                  <motion.div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <AnimatePresence>
                       {filteredAppointments.map((appointment) => (
-                        <motion.div
+                        <AppointmentCard
                           key={appointment._id}
-                          variants={itemVariants}
-                        >
-                          <AppointmentCard
-                            appointmentId={appointment._id}
-                            specialistName={appointment.specialistName}
-                            date={appointment.date}
-                            time={appointment.time}
-                            rating={appointment.rating || 0}
-                            reviewCount={appointment.reviewCount || 0}
-                            rate={appointment.rate || 0}
-                            status={appointment.status}
-                            disputeStatus={appointment.disputeStatus}
-                            isSpecialist={isSpecialist}
-                            onMessage={() =>
-                              handleMessageClick(
-                                appointment.specialistUserId || ""
-                              )
-                            }
-                            onDispute={fetchData}
-                          />
-                        </motion.div>
+                          appointmentId={appointment._id}
+                          specialistName={appointment.specialistName}
+                          date={appointment.date}
+                          time={appointment.time}
+                          rating={appointment.rating || 0}
+                          reviewCount={appointment.reviewCount || 0}
+                          rate={appointment.rate || 0}
+                          status={appointment.status}
+                          disputeStatus={appointment.disputeStatus}
+                          isSpecialist={isSpecialist}
+                          isOwnerSpecialist={false}
+                          onMessage={() =>
+                            handleMessageClick(
+                              appointment.specialistUserId || ""
+                            )
+                          }
+                          onDispute={fetchData}
+                        />
                       ))}
                     </AnimatePresence>
                   </motion.div>
                 ) : (
-                  <p className="text-center text-[#C4C4C4]">
-                    No appointments found.
-                  </p>
+                  <p>No appointments found.</p>
                 )}
               </TabsContent>
               <TabsContent value="client-appointments">
                 {filteredClientAppointments.length > 0 ? (
-                  <motion.div
-                    className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-                    variants={containerVariants}
-                  >
+                  <motion.div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
                     <AnimatePresence>
                       {filteredClientAppointments.map((appointment) => (
-                        <motion.div
+                        <AppointmentCard
                           key={appointment._id}
-                          variants={itemVariants}
-                        >
-                          <AppointmentCard
-                            appointmentId={appointment._id}
-                            specialistName={appointment.name}
-                            date={appointment.date}
-                            time={appointment.time}
-                            rating={appointment.rating || 0}
-                            reviewCount={appointment.reviewCount || 0}
-                            rate={appointment.rate || 0}
-                            status={appointment.status}
-                            disputeStatus={appointment.disputeStatus}
-                            isSpecialist={isSpecialist}
-                            onMessage={() =>
-                              handleMessageClick(appointment.clientId || "")
-                            }
-                            onDispute={fetchData}
-                          />
-                        </motion.div>
+                          appointmentId={appointment._id}
+                          specialistName={appointment.name}
+                          date={appointment.date}
+                          time={appointment.time}
+                          rating={appointment.rating || 0}
+                          reviewCount={appointment.reviewCount || 0}
+                          rate={appointment.rate || 0}
+                          status={appointment.status}
+                          disputeStatus={appointment.disputeStatus}
+                          isSpecialist={isSpecialist}
+                          isOwnerSpecialist={true}
+                          onMessage={() =>
+                            handleMessageClick(appointment.clientId || "")
+                          }
+                          onDispute={fetchData}
+                        />
                       ))}
                     </AnimatePresence>
                   </motion.div>
                 ) : (
-                  <p className="text-center text-[#C4C4C4]">
-                    No client appointments found.
-                  </p>
+                  <p>No client appointments found.</p>
                 )}
               </TabsContent>
             </Tabs>
-          ) : filteredAppointments.length > 0 ? (
-            <motion.div
-              className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4"
-              variants={containerVariants}
-            >
+          ) : (
+            <motion.div className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 lg:grid-cols-4 gap-4">
               <AnimatePresence>
                 {filteredAppointments.map((appointment) => (
-                  <motion.div key={appointment._id} variants={itemVariants}>
-                    <AppointmentCard
-                      appointmentId={appointment._id}
-                      specialistName={appointment.specialistName}
-                      date={appointment.date}
-                      time={appointment.time}
-                      rating={appointment.rating || 0}
-                      reviewCount={appointment.reviewCount || 0}
-                      rate={appointment.rate || 0}
-                      status={appointment.status}
-                      disputeStatus={appointment.disputeStatus}
-                      isSpecialist={isSpecialist}
-                      onMessage={() =>
-                        handleMessageClick(appointment.specialistUserId || "")
-                      }
-                    />
-                  </motion.div>
+                  <AppointmentCard
+                    key={appointment._id}
+                    appointmentId={appointment._id}
+                    specialistName={appointment.specialistName}
+                    date={appointment.date}
+                    time={appointment.time}
+                    rating={appointment.rating || 0}
+                    reviewCount={appointment.reviewCount || 0}
+                    rate={appointment.rate || 0}
+                    status={appointment.status}
+                    disputeStatus={appointment.disputeStatus}
+                    isSpecialist={isSpecialist}
+                    isOwnerSpecialist={false}
+                    onMessage={() =>
+                      handleMessageClick(appointment.specialistUserId || "")
+                    }
+                  />
                 ))}
               </AnimatePresence>
             </motion.div>
-          ) : (
-            <p className="text-center text-[#C4C4C4]">No appointments found.</p>
           )}
         </CardContent>
       </Card>

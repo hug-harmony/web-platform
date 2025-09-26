@@ -1,7 +1,10 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// app/api/appointment/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { buildDisplayName } from "@/lib/utils"; // ✅ import helper
 
 export async function GET(req: Request) {
   try {
@@ -14,11 +17,11 @@ export async function GET(req: Request) {
     const userId = searchParams.get("userId");
     const isAdminFetch = searchParams.get("admin") === "true";
 
-    let whereClause = {};
+    let whereClause: any = {};
     if (userId) {
       whereClause = { userId };
     } else if (isAdminFetch && session.user.isAdmin) {
-      // Fetch all for admin
+      whereClause = {}; // fetch all for admin
     } else {
       whereClause = { userId: session.user.id };
     }
@@ -36,32 +39,70 @@ export async function GET(req: Request) {
             rating: true,
             reviewCount: true,
             rate: true,
-            application: { select: { userId: true } }, // Fetch userId from SpecialistApplication
+            application: {
+              select: {
+                userId: true,
+                user: {
+                  select: { name: true, firstName: true, lastName: true },
+                },
+              },
+            },
           },
         },
-        user: { select: { name: true, id: true } },
+        user: {
+          select: { name: true, firstName: true, lastName: true, id: true },
+        },
         payment: { select: { status: true, amount: true } },
       },
       orderBy: { createdAt: "desc" },
     });
 
-    const formatted = appointments.map((appt) => ({
-      _id: appt.id,
-      date: appt.date.toISOString().split("T")[0],
-      time: appt.time,
-      cuddlerName: appt.specialist?.name || "Unknown Specialist",
-      clientName: appt.user?.name || "Unknown Client",
-      status: appt.status as
-        | "upcoming"
-        | "completed"
-        | "cancelled"
-        | "disputed",
-      paymentStatus: appt.payment?.status || "unknown",
-      amount: appt.payment?.amount || 0,
-      specialistId: appt.specialistId,
-      specialistUserId: appt.specialist?.application?.userId || "", // Use application.userId
-      disputeStatus: appt.disputeStatus || "none",
-    }));
+    const now = new Date();
+    const formatted = await Promise.all(
+      appointments.map(async (appt) => {
+        let effectiveStatus = appt.status as
+          | "upcoming"
+          | "completed"
+          | "cancelled"
+          | "disputed";
+
+        if (
+          effectiveStatus === "upcoming" &&
+          appt.date.getTime() < now.getTime()
+        ) {
+          effectiveStatus = "completed";
+          try {
+            await prisma.appointment.update({
+              where: { id: appt.id },
+              data: { status: "completed" },
+            });
+          } catch (err) {
+            console.error(`Failed to auto-update appointment ${appt.id}`, err);
+          }
+        }
+
+        return {
+          _id: appt.id,
+          date: appt.date.toISOString().split("T")[0],
+          time: appt.time,
+          cuddlerName:
+            appt.specialist?.name ||
+            buildDisplayName(appt.specialist?.application?.user),
+          clientName: buildDisplayName(appt.user),
+          status: effectiveStatus,
+          paymentStatus: appt.payment?.status || "unknown",
+          amount:
+            appt.adjustedRate ??
+            appt.rate ??
+            appt.payment?.amount ??
+            appt.specialist?.rate ??
+            0,
+          specialistId: appt.specialistId,
+          specialistUserId: appt.specialist?.application?.userId || "",
+          disputeStatus: appt.disputeStatus || "none",
+        };
+      })
+    );
 
     console.log(
       `Fetching appointments for userId: ${session.user.id}, found: ${appointments.length}`

@@ -17,6 +17,7 @@ interface Message {
   id: string;
   text: string;
   isAudio: boolean;
+  isSystem?: boolean;
   imageUrl?: string;
   createdAt: string;
   sender: { name?: string };

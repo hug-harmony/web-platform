@@ -8,6 +8,7 @@ interface Message {
   id: string;
   text: string;
   isAudio: boolean;
+  isSystem?: boolean; // ✅ NEW
   imageUrl?: string;
   createdAt: string;
   sender: { name?: string };
@@ -74,15 +75,28 @@ const MessageList: React.FC<MessageListProps> = ({
           </motion.div>
         )}
       </AnimatePresence>
-      {messages.map((msg) => (
-        <MessageBubble
-          key={msg.id}
-          message={msg}
-          isSender={msg.senderId === sessionUserId}
-          handleProposalAction={handleProposalAction}
-          sending={sending}
-        />
-      ))}
+
+      {messages.map((msg) =>
+        msg.isSystem ? (
+          <div key={msg.id} className="flex justify-center my-2">
+            <div
+              className="bg-gray-200 dark:bg-gray-700 text-gray-700 dark:text-gray-300
+                            text-sm italic px-3 py-1 rounded-md max-w-md text-center"
+            >
+              {msg.text}
+            </div>
+          </div>
+        ) : (
+          <MessageBubble
+            key={msg.id}
+            message={msg}
+            isSender={msg.senderId === sessionUserId}
+            handleProposalAction={handleProposalAction}
+            sending={sending}
+          />
+        )
+      )}
+
       <div ref={messagesEndRef} />
     </CardContent>
   );

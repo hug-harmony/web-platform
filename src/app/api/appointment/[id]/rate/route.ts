@@ -1,16 +1,19 @@
-// app/api/appointment/[id]/dispute/route.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// app/api/appointment/[id]/rate/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
+import { transporter } from "@/lib/email";
 import { sendSystemMessage } from "@/lib/messages";
 
-const disputeSchema = z.object({
-  reason: z.string().min(10, "Reason must be at least 10 characters"),
+const schema = z.object({
+  adjustedRate: z.number().min(1, "Rate must be greater than 0"),
+  note: z.string().optional(),
 });
 
-export async function POST(
+export async function PATCH(
   request: Request,
   context: { params: { id: string } }
 ) {
@@ -21,7 +24,7 @@ export async function POST(
   const { id } = context.params;
 
   try {
-    const { reason } = disputeSchema.parse(await request.json());
+    const { adjustedRate, note } = schema.parse(await request.json());
 
     const specialistApp = await prisma.specialistApplication.findFirst({
       where: { userId: session.user.id, status: "approved" },
@@ -29,7 +32,7 @@ export async function POST(
     });
     if (!specialistApp?.specialistId)
       return NextResponse.json(
-        { error: "User is not an approved specialist" },
+        { error: "Not an approved specialist" },
         { status: 403 }
       );
 
@@ -43,29 +46,33 @@ export async function POST(
         { status: 404 }
       );
     if (appt.specialistId !== specialistApp.specialistId)
-      return NextResponse.json(
-        { error: "Unauthorized: Not your appointment" },
-        { status: 403 }
-      );
-    if (appt.status !== "completed")
-      return NextResponse.json(
-        { error: "Can only dispute completed appointments" },
-        { status: 400 }
-      );
-    if (appt.disputeStatus !== "none")
-      return NextResponse.json(
-        { error: "Appointment already disputed" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+
+    const prevHistory = (appt.modificationHistory as Record<string, any>) || {};
 
     const updated = await prisma.appointment.update({
       where: { id },
       data: {
-        status: "disputed",
-        disputeReason: reason,
-        disputeStatus: "disputed",
+        adjustedRate,
+        modificationHistory: {
+          ...prevHistory,
+          [`rateChange_${new Date().toISOString()}`]: {
+            oldRate: appt.adjustedRate ?? appt.rate,
+            newRate: adjustedRate,
+            note,
+          },
+        },
+        adminNotes: note ?? appt.adminNotes,
       },
       include: { user: true, specialist: { include: { application: true } } },
+    });
+
+    // Email
+    await transporter.sendMail({
+      from: process.env.GMAIL_USER,
+      to: updated.user.email,
+      subject: "Appointment Rate Adjusted",
+      text: `Rate updated to $${adjustedRate}. Note: ${note || "N/A"}`,
     });
 
     // System message
@@ -88,16 +95,13 @@ export async function POST(
         conversationId: conversation.id,
         senderId: session.user.id,
         recipientId: updated.userId,
-        text: `⚠️ This appointment was disputed: "${reason}"`,
+        text: `📢 The session rate was updated to $${adjustedRate}.`,
       });
     }
 
-    return NextResponse.json({
-      message: "Appointment disputed successfully",
-      appointment: updated,
-    });
+    return NextResponse.json({ message: "Rate updated successfully", updated });
   } catch (err) {
-    console.error("Dispute appointment error:", err);
+    console.error("Rate update error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
