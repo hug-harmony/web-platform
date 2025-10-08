@@ -50,9 +50,22 @@ export async function GET(request: NextRequest) {
   if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
+  const searchParams = request.nextUrl.searchParams;
+  const targetType = searchParams.get("targetType");
+  const targetId = searchParams.get("targetId");
+
   try {
+    const whereClause: any = { authorId: session.user.id };
+    if (targetType && targetId) {
+      if (targetType === "user") {
+        whereClause.targetUserId = targetId;
+      } else if (targetType === "professional") {
+        whereClause.targetSpecialistId = targetId;
+      }
+    }
+
     const notes = await prisma.note.findMany({
-      where: { authorId: session.user.id },
+      where: whereClause,
       include: {
         targetUser: { select: { name: true } },
         targetSpecialist: { select: { name: true } },
@@ -60,7 +73,6 @@ export async function GET(request: NextRequest) {
       orderBy: { createdAt: "desc" },
     });
 
-    // Map to include targetType and targetName
     const formattedNotes = notes.map((note) => ({
       id: note.id,
       content: note.content,
