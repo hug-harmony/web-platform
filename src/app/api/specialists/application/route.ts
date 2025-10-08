@@ -91,6 +91,7 @@ export async function POST(req: Request) {
         biography: validatedData.biography,
         rate: validatedData.rate,
         status: "pending",
+        specialistId: null,
       };
       console.log("Data sent to create SpecialistApplication:", createData);
 
