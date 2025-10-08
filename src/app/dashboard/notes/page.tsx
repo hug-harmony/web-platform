@@ -6,6 +6,7 @@ import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Search, Filter, Notebook } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image"; // Added for image handling
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -26,6 +27,7 @@ interface Target {
   id: string;
   type: "user" | "professional";
   name: string;
+  image: string | null; // Added for profile image
   noteCount: number;
 }
 
@@ -233,17 +235,34 @@ export default function NotesPage() {
                       >
                         <Card className="shadow-md hover:shadow-lg transition-shadow cursor-pointer">
                           <CardContent className="p-4 space-y-4">
-                            <div className="flex justify-between items-center">
-                              <p className="font-semibold text-black dark:text-white">
-                                {target.name}
-                              </p>
-                              <Badge
-                                variant="outline"
-                                className="text-xs text-[#F3CFC6] border-[#F3CFC6]"
-                              >
-                                {target.type.charAt(0).toUpperCase() +
-                                  target.type.slice(1)}
-                              </Badge>
+                            <div className="flex items-center space-x-4">
+                              {target.image ? (
+                                <div className="w-12 h-12 rounded-full overflow-hidden">
+                                  <Image
+                                    src={target.image}
+                                    alt={target.name}
+                                    width={48}
+                                    height={48}
+                                    className="object-cover"
+                                  />
+                                </div>
+                              ) : (
+                                <div className="w-12 h-12 rounded-full bg-[#F3CFC6] flex items-center justify-center text-black text-xl font-bold">
+                                  {target.name.charAt(0).toUpperCase()}
+                                </div>
+                              )}
+                              <div>
+                                <p className="font-semibold text-black dark:text-white">
+                                  {target.name}
+                                </p>
+                                <Badge
+                                  variant="outline"
+                                  className="mt-1 text-xs text-[#F3CFC6] border-[#F3CFC6]"
+                                >
+                                  {target.type.charAt(0).toUpperCase() +
+                                    target.type.slice(1)}
+                                </Badge>
+                              </div>
                             </div>
                             <p className="text-sm text-[#C4C4C4]">
                               {target.noteCount} note

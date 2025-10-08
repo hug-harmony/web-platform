@@ -22,6 +22,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Badge } from "@/components/ui/badge";
 import Link from "next/link";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 
 interface Note {
   id: string;
@@ -30,6 +31,11 @@ interface Note {
   targetType: "user" | "professional";
   targetName: string;
   targetId: string;
+}
+
+interface TargetDetails {
+  name: string;
+  image: string | null;
 }
 
 const containerVariants = {
@@ -51,7 +57,10 @@ export default function NoteDetailPage() {
   const targetType = params.targetType as "user" | "professional";
   const targetId = params.targetId as string;
   const [notes, setNotes] = useState<Note[]>([]);
-  const [targetName, setTargetName] = useState("Unknown");
+  const [targetDetails, setTargetDetails] = useState<TargetDetails>({
+    name: "Unknown",
+    image: null,
+  });
   const [loading, setLoading] = useState(true);
   const [isAddOpen, setIsAddOpen] = useState(false);
   const [newContent, setNewContent] = useState("");
@@ -65,35 +74,55 @@ export default function NoteDetailPage() {
 
   useEffect(() => {
     if (status === "authenticated") {
-      fetchNotes();
+      const fetchData = async () => {
+        setLoading(true);
+        try {
+          // Fetch target details
+          const apiEndpoint =
+            targetType === "user"
+              ? `/api/users/${targetId}`
+              : `/api/specialists/${targetId}`;
+          const targetRes = await fetch(apiEndpoint, {
+            cache: "no-store",
+            credentials: "include",
+          });
+          if (!targetRes.ok) {
+            throw new Error(
+              `Failed to fetch target details: ${targetRes.status}`
+            );
+          }
+          const targetData = await targetRes.json();
+          setTargetDetails({
+            name: targetData.name || "Unknown",
+            image:
+              targetType === "user"
+                ? targetData.profileImage
+                : targetData.image || null,
+          });
+
+          // Fetch notes
+          const notesRes = await fetch(
+            `/api/notes?targetType=${targetType}&targetId=${targetId}`,
+            {
+              cache: "no-store",
+              credentials: "include",
+            }
+          );
+          if (!notesRes.ok) {
+            throw new Error(`Failed to fetch notes: ${notesRes.status}`);
+          }
+          const notesData = await notesRes.json();
+          setNotes(Array.isArray(notesData) ? notesData : []);
+        } catch (error) {
+          console.error("Error fetching data:", error);
+          toast.error("Failed to fetch notes or profile details");
+        } finally {
+          setLoading(false);
+        }
+      };
+      fetchData();
     }
   }, [status, targetType, targetId]);
-
-  const fetchNotes = async () => {
-    setLoading(true);
-    try {
-      const res = await fetch(
-        `/api/notes?targetType=${targetType}&targetId=${targetId}`,
-        {
-          cache: "no-store",
-          credentials: "include",
-        }
-      );
-      if (!res.ok) {
-        throw new Error(`Failed to fetch notes: ${res.status}`);
-      }
-      const notesData = await res.json();
-      setNotes(Array.isArray(notesData) ? notesData : []);
-      if (notesData.length > 0) {
-        setTargetName(notesData[0].targetName);
-      }
-    } catch (error) {
-      console.error("Error fetching notes:", error);
-      toast.error("Failed to fetch notes");
-    } finally {
-      setLoading(false);
-    }
-  };
 
   const handleAdd = async () => {
     if (!newContent) return;
@@ -112,7 +141,7 @@ export default function NoteDetailPage() {
       toast.success("Note added successfully");
       setIsAddOpen(false);
       setNewContent("");
-      fetchNotes();
+      fetchNotes(); // Refetch notes
     } catch (error) {
       console.error("Add note error:", error);
       toast.error("Failed to add note");
@@ -136,7 +165,7 @@ export default function NoteDetailPage() {
       if (!res.ok) throw new Error("Failed to update note");
       toast.success("Note updated successfully");
       setIsEditOpen(false);
-      fetchNotes();
+      fetchNotes(); // Refetch notes
     } catch (error) {
       console.error("Edit note error:", error);
       toast.error("Failed to update note");
@@ -157,10 +186,30 @@ export default function NoteDetailPage() {
       if (!res.ok) throw new Error("Failed to delete note");
       toast.success("Note deleted successfully");
       setIsDeleteOpen(false);
-      fetchNotes();
+      fetchNotes(); // Refetch notes
     } catch (error) {
       console.error("Delete note error:", error);
       toast.error("Failed to delete note");
+    }
+  };
+
+  const fetchNotes = async () => {
+    try {
+      const res = await fetch(
+        `/api/notes?targetType=${targetType}&targetId=${targetId}`,
+        {
+          cache: "no-store",
+          credentials: "include",
+        }
+      );
+      if (!res.ok) {
+        throw new Error(`Failed to fetch notes: ${res.status}`);
+      }
+      const notesData = await res.json();
+      setNotes(Array.isArray(notesData) ? notesData : []);
+    } catch (error) {
+      console.error("Error fetching notes:", error);
+      toast.error("Failed to fetch notes");
     }
   };
 
@@ -204,18 +253,47 @@ export default function NoteDetailPage() {
       initial="hidden"
       animate="visible"
     >
-      <Card className="shadow-lg">
-        <CardHeader className="flex flex-row items-center justify-between">
-          <CardTitle className="flex items-center text-black dark:text-white">
-            <Notebook className="mr-2 h-6 w-6 text-[#F3CFC6]" />
-            Notes for {targetName} ({notes.length})
-          </CardTitle>
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+        <CardHeader>
+          <motion.div
+            variants={cardVariants}
+            className="flex items-center space-x-4"
+          >
+            <Avatar className="h-16 w-16 border-2 border-white">
+              <AvatarImage
+                src={targetDetails.image || ""}
+                alt={targetDetails.name}
+              />
+              <AvatarFallback className="bg-[#C4C4C4] text-black flex items-center justify-center">
+                {targetDetails.name.charAt(0).toUpperCase()}
+              </AvatarFallback>
+            </Avatar>
+            <div>
+              <CardTitle className="text-2xl font-bold text-black dark:text-white">
+                Notes for {targetDetails.name}
+              </CardTitle>
+              <p className="text-sm opacity-80">
+                Manage your notes for this {targetType}
+              </p>
+            </div>
+          </motion.div>
+        </CardHeader>
+        <CardContent className="flex justify-end">
           <Button
             onClick={() => setIsAddOpen(true)}
             className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white"
           >
             <Plus className="mr-2 h-4 w-4" /> Add New
           </Button>
+        </CardContent>
+      </Card>
+
+      <Card className="shadow-lg">
+        <CardHeader>
+          <CardTitle className="flex items-center text-black dark:text-white">
+            <Notebook className="mr-2 h-6 w-6 text-[#F3CFC6]" />
+            Notes ({notes.length})
+          </CardTitle>
         </CardHeader>
         <CardContent className="pt-6">
           <motion.div className="space-y-6" variants={containerVariants}>
