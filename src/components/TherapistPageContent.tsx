@@ -3,7 +3,14 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, Star, MapPin, Globe, CalendarIcon } from "lucide-react";
+import {
+  Search,
+  Star,
+  MapPin,
+  Globe,
+  CalendarIcon,
+  Filter as FilterIcon,
+} from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -15,6 +22,7 @@ import {
   DropdownMenuLabel,
   DropdownMenuSeparator,
   DropdownMenuTrigger,
+  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -40,6 +48,15 @@ import { MapContainer, TileLayer, Circle } from "react-leaflet";
 import { LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import SpecialistCard from "@/components/SpecialistCard";
+import { Checkbox } from "@/components/ui/checkbox";
+import { Label } from "@/components/ui/label";
+import { Badge } from "./ui/badge";
+import {
+  Accordion,
+  AccordionContent,
+  AccordionItem,
+  AccordionTrigger,
+} from "./ui/accordion";
 
 interface Therapist {
   _id: string;
@@ -57,6 +74,15 @@ interface Therapist {
   createdAt?: string;
   lat?: number;
   lng?: number;
+  age?: number; // Added for age filter
+  gender?: "male" | "female" | "other"; // Added
+  race?: string; // Added
+  ethnicity?: string; // From schema
+  bodyType?: string; // Added
+  personalityType?: string; // Added
+  lastOnline?: string; // Timestamp for online status
+  venuePreferences?: string[]; // Host, Guest, Common location
+  type?: "user" | "professional"; // Added
 }
 
 const containerVariants = {
@@ -213,6 +239,17 @@ export default function TherapistsPageContent() {
     currentLng: undefined as number | undefined,
     radius: undefined as number | undefined,
     unit: "miles" as "km" | "miles",
+    minAge: undefined as number | undefined,
+    maxAge: undefined as number | undefined,
+    gender: "" as "" | "male" | "female",
+    hasProfilePic: "" as "" | "yes" | "no",
+    onlineStatus: "" as "" | "24hrs" | "1day" | "1week" | "1month" | "1year",
+    venue: [] as string[],
+    type: "" as "" | "user" | "professional",
+    race: "",
+    ethnicity: "",
+    bodyType: "",
+    personalityType: "",
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [tempRadius, setTempRadius] = useState(10);
@@ -223,6 +260,7 @@ export default function TherapistsPageContent() {
     Record<string, string[]>
   >({});
   const [isDateTimeDialogOpen, setIsDateTimeDialogOpen] = useState(false);
+  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   useEffect(() => {
     const fetchSpecialists = async () => {
@@ -260,6 +298,17 @@ export default function TherapistsPageContent() {
                 education: s.education || "",
                 license: s.license || "",
                 createdAt: s.createdAt,
+                age: s.age || Math.floor(Math.random() * 50) + 20, // Mock data; replace with real
+                gender: s.gender || (Math.random() > 0.5 ? "male" : "female"), // Mock
+                race: s.race || "Unknown", // Mock
+                ethnicity: s.ethnicity || "Unknown", // From schema
+                bodyType: s.bodyType || "Average", // Mock
+                personalityType: s.personalityType || "Introvert", // Mock
+                lastOnline: new Date(
+                  Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000
+                ).toISOString(), // Mock timestamp
+                venuePreferences: s.venuePreferences || ["Host", "Guest"], // Mock array
+                type: "professional", // Assume all are professionals
               }))
           : [];
 
@@ -320,7 +369,7 @@ export default function TherapistsPageContent() {
     fetchAvailabilities();
   }, [selectedDate]);
 
-  const handleFilterChange = (key: string, value: string | number) => {
+  const handleFilterChange = (key: string, value: any) => {
     setFilters((prev) => ({
       ...prev,
       [key]: value,
@@ -382,6 +431,19 @@ export default function TherapistsPageContent() {
     new Set(specialists.map((t) => t.location).filter(Boolean))
   ) as string[];
 
+  const ratings = [4.5, 4.0, 3.5, 3.0];
+  const sortOptions = ["rating", "name"];
+  const radiusOptions = [1, 5, 10, 25, 50, 100];
+  const genders = ["male", "female"];
+  const onlineStatuses = ["24hrs", "1day", "1week", "1month", "1year"];
+  const venues = ["Host", "Guest", "Common location"];
+  const types = ["user", "professional"];
+  // Mock options for advanced filters (replace with real data sources if available)
+  const races = ["Asian", "Black", "White", "Hispanic", "Other"];
+  const ethnicities = ["Hispanic", "Non-Hispanic", "Other"];
+  const bodyTypes = ["Slim", "Athletic", "Average", "Curvy", "Other"];
+  const personalityTypes = ["Introvert", "Extrovert", "Ambivert", "Other"];
+
   const filterAndSort = (data: Therapist[]) =>
     data
       .filter((item) => item._id)
@@ -425,6 +487,70 @@ export default function TherapistsPageContent() {
         }
         return true;
       })
+      .filter((item) => {
+        if (filters.minAge !== undefined && item.age) {
+          return item.age >= filters.minAge;
+        }
+        return true;
+      })
+      .filter((item) => {
+        if (filters.maxAge !== undefined && item.age) {
+          return item.age <= filters.maxAge;
+        }
+        return true;
+      })
+      .filter((item) =>
+        filters.gender ? item.gender === filters.gender : true
+      )
+      .filter((item) => {
+        if (filters.hasProfilePic === "yes") return !!item.image;
+        if (filters.hasProfilePic === "no") return !item.image;
+        return true;
+      })
+      .filter((item) => {
+        if (filters.onlineStatus && item.lastOnline) {
+          const lastOnlineDate = new Date(item.lastOnline);
+          const now = new Date();
+          let threshold = 0;
+          switch (filters.onlineStatus) {
+            case "24hrs":
+              threshold = 24 * 60 * 60 * 1000;
+              break;
+            case "1day":
+              threshold = 24 * 60 * 60 * 1000;
+              break;
+            case "1week":
+              threshold = 7 * 24 * 60 * 60 * 1000;
+              break;
+            case "1month":
+              threshold = 30 * 24 * 60 * 60 * 1000;
+              break;
+            case "1year":
+              threshold = 365 * 24 * 60 * 60 * 1000;
+              break;
+          }
+          return now.getTime() - lastOnlineDate.getTime() <= threshold;
+        }
+        return true;
+      })
+      .filter((item) =>
+        filters.venue.length > 0
+          ? filters.venue.every((v) => item.venuePreferences?.includes(v))
+          : true
+      )
+      .filter((item) => (filters.type ? item.type === filters.type : true))
+      .filter((item) => (filters.race ? item.race === filters.race : true))
+      .filter((item) =>
+        filters.ethnicity ? item.ethnicity === filters.ethnicity : true
+      )
+      .filter((item) =>
+        filters.bodyType ? item.bodyType === filters.bodyType : true
+      )
+      .filter((item) =>
+        filters.personalityType
+          ? item.personalityType === filters.personalityType
+          : true
+      )
       .sort((a, b) => {
         if (filters.sortBy === "rating") {
           return (b.rating || 0) - (a.rating || 0);
@@ -436,10 +562,6 @@ export default function TherapistsPageContent() {
       });
 
   const filteredSpecialists = filterAndSort(specialists);
-
-  const ratings = [4.5, 4.0, 3.5, 3.0];
-  const sortOptions = ["rating", "name"];
-  const radiusOptions = [1, 5, 10, 25, 50, 100];
 
   return (
     <motion.div
@@ -459,130 +581,276 @@ export default function TherapistsPageContent() {
             </p>
           </motion.div>
         </CardHeader>
-        <CardContent>
-          <div className="flex flex-col md:flex-row items-center mb-6 w-full space-y-2 md:space-y-0 md:space-x-2">
-            <div className="relative flex-grow w-full">
-              <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#fff]" />
-              <Input
-                type="text"
-                placeholder="Search Professionals..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
-              />
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full md:w-auto"
-                >
-                  <MapPin className="h-6 w-6 text-[#F3CFC6]" />
-                  <span>Location</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
-                <DropdownMenuLabel className="text-black dark:text-white">
-                  Location
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => handleFilterChange("location", "")}
-                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                >
-                  All
-                </DropdownMenuItem>
-                {locations.map((location) => (
-                  <DropdownMenuItem
-                    key={location}
-                    onClick={() => handleFilterChange("location", location)}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                  >
-                    {location}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <Button
-              variant="outline"
-              className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full md:w-auto"
-              onClick={handleCurrentLocation}
-            >
-              <Globe className="h-6 w-6 text-[#F3CFC6]" />
-              <span>Current Location</span>
-            </Button>
-            <Button
-              variant="outline"
-              className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full md:w-auto"
-              onClick={() => setIsDateTimeDialogOpen(true)}
-            >
-              <CalendarIcon className="h-6 w-6 text-[#F3CFC6]" />
-              <span>Choose Date & Time</span>
-            </Button>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full md:w-auto"
-                >
-                  <Star className="h-6 w-6 text-[#F3CFC6]" />
-                  <span>Rating</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
-                <DropdownMenuLabel className="text-black dark:text-white">
-                  Minimum Rating
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => handleFilterChange("minRating", 0)}
-                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                >
-                  All
-                </DropdownMenuItem>
-                {ratings.map((rating) => (
-                  <DropdownMenuItem
-                    key={rating}
-                    onClick={() => handleFilterChange("minRating", rating)}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                  >
-                    {rating}+
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full md:w-auto"
-                >
-                  <span>Sort By</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
-                <DropdownMenuLabel className="text-black dark:text-white">
-                  Sort By
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => handleFilterChange("sortBy", "")}
-                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                >
-                  None
-                </DropdownMenuItem>
-                {sortOptions.map((option) => (
-                  <DropdownMenuItem
-                    key={option}
-                    onClick={() => handleFilterChange("sortBy", option)}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                  >
-                    {option.charAt(0).toUpperCase() + option.slice(1)}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
+        <CardContent className="space-y-6">
+          {/* --- Search Bar --- */}
+          <div className="relative">
+            <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5" />
+            <Input
+              type="text"
+              placeholder="Search Professionals..."
+              value={searchQuery}
+              onChange={handleSearchChange}
+              className="pl-12 pr-10 py-3 rounded-full border border-[#F3CFC6] focus:ring-2 focus:ring-[#F3CFC6]/50 text-black dark:text-white"
+            />
           </div>
+
+          {/* --- Filters Accordion --- */}
+          <Accordion
+            type="single"
+            collapsible
+            className="w-full bg-white/50 px-4 rounded-lg shadow-sm"
+          >
+            <AccordionItem value="filters">
+              <AccordionTrigger className="cursor-pointer">
+                Filters
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="space-y-6">
+                  {/* --- Basic Filters Group --- */}
+                  <div className="bg-white/5 dark:bg-black/10 rounded-xl p-4 shadow-sm">
+                    <h3 className="text-lg font-semibold mb-4">
+                      Basic Filters
+                    </h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
+                      {/* Min Age */}
+                      <div className="space-y-2">
+                        <Label>Min Age</Label>
+                        <Input
+                          type="number"
+                          placeholder="Min"
+                          value={filters.minAge || ""}
+                          onChange={(e) =>
+                            handleFilterChange(
+                              "minAge",
+                              parseInt(e.target.value) || undefined
+                            )
+                          }
+                          className="border-[#F3CFC6]"
+                        />
+                      </div>
+
+                      {/* Max Age */}
+                      <div className="space-y-2">
+                        <Label>Max Age</Label>
+                        <Input
+                          type="number"
+                          placeholder="Max"
+                          value={filters.maxAge || ""}
+                          onChange={(e) =>
+                            handleFilterChange(
+                              "maxAge",
+                              parseInt(e.target.value) || undefined
+                            )
+                          }
+                          className="border-[#F3CFC6]"
+                        />
+                      </div>
+
+                      {/* Gender */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={`w-full ${filters.gender ? "border-[#F3CFC6] bg-[#F3CFC6]/10" : ""}`}
+                          >
+                            Gender: {filters.gender || "All"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() => handleFilterChange("gender", "")}
+                          >
+                            All
+                          </DropdownMenuItem>
+                          {genders.map((g) => (
+                            <DropdownMenuItem
+                              key={g}
+                              onClick={() => handleFilterChange("gender", g)}
+                            >
+                              {g.charAt(0).toUpperCase() + g.slice(1)}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      {/* Location */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={`w-full flex items-center ${filters.location ? "border-[#F3CFC6] bg-[#F3CFC6]/10" : ""}`}
+                          >
+                            <MapPin className="mr-2 h-4 w-4" />
+                            Location: {filters.location || "All"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() => handleFilterChange("location", "")}
+                          >
+                            All
+                          </DropdownMenuItem>
+                          {locations.map((loc) => (
+                            <DropdownMenuItem
+                              key={loc}
+                              onClick={() =>
+                                handleFilterChange("location", loc)
+                              }
+                            >
+                              {loc}
+                            </DropdownMenuItem>
+                          ))}
+                          <DropdownMenuItem onClick={handleCurrentLocation}>
+                            Current Location
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                  {/* --- Additional Filters Group --- */}
+                  <div className="bg-white/5 dark:bg-black/10 rounded-xl p-4 shadow-sm">
+                    <h3 className="text-lg font-semibold mb-4">More Filters</h3>
+                    <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+                      {/* Profile Picture */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={`w-full ${filters.hasProfilePic ? "border-[#F3CFC6] bg-[#F3CFC6]/10" : ""}`}
+                          >
+                            Profile Pic: {filters.hasProfilePic || "All"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleFilterChange("hasProfilePic", "")
+                            }
+                          >
+                            All
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleFilterChange("hasProfilePic", "yes")
+                            }
+                          >
+                            With Pic
+                          </DropdownMenuItem>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleFilterChange("hasProfilePic", "no")
+                            }
+                          >
+                            Without Pic
+                          </DropdownMenuItem>
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      {/* Online Status */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={`w-full ${filters.onlineStatus ? "border-[#F3CFC6] bg-[#F3CFC6]/10" : ""}`}
+                          >
+                            Online: {filters.onlineStatus || "All"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleFilterChange("onlineStatus", "")
+                            }
+                          >
+                            All
+                          </DropdownMenuItem>
+                          {onlineStatuses.map((status) => (
+                            <DropdownMenuItem
+                              key={status}
+                              onClick={() =>
+                                handleFilterChange("onlineStatus", status)
+                              }
+                            >
+                              Last {status.replace(/(\d+)([a-z]+)/, "$1 $2")}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      {/* Venue */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={`w-full ${filters.venue.length ? "border-[#F3CFC6] bg-[#F3CFC6]/10" : ""}`}
+                          >
+                            Venue:{" "}
+                            {filters.venue.length
+                              ? filters.venue.join(", ")
+                              : "All"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          {venues.map((v) => (
+                            <DropdownMenuCheckboxItem
+                              key={v}
+                              checked={filters.venue.includes(v)}
+                              onCheckedChange={(checked) => {
+                                const newVenues = checked
+                                  ? [...filters.venue, v]
+                                  : filters.venue.filter((item) => item !== v);
+                                handleFilterChange("venue", newVenues);
+                              }}
+                            >
+                              {v}
+                            </DropdownMenuCheckboxItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      {/* Type */}
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={`w-full ${filters.type ? "border-[#F3CFC6] bg-[#F3CFC6]/10" : ""}`}
+                          >
+                            Type: {filters.type || "All"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() => handleFilterChange("type", "")}
+                          >
+                            All
+                          </DropdownMenuItem>
+                          {types.map((t) => (
+                            <DropdownMenuItem
+                              key={t}
+                              onClick={() => handleFilterChange("type", t)}
+                            >
+                              {t.charAt(0).toUpperCase() + t.slice(1)}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+                  </div>
+
+                  {/* --- Advanced Filters Button --- */}
+                  <Button
+                    variant="default"
+                    onClick={() => setIsAdvancedOpen(true)}
+                    className="w-full bg-[#F3CFC6] text-black hover:bg-[#f8b8aa] transition"
+                  >
+                    <FilterIcon className="mr-2 h-4 w-4" />
+                    Advanced Filters
+                  </Button>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
+          </Accordion>
         </CardContent>
       </Card>
       <Card className="shadow-lg">
@@ -780,6 +1048,108 @@ export default function TherapistsPageContent() {
             >
               Apply
             </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Advanced Filters Dialog */}
+      <Dialog open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen}>
+        <DialogContent className="max-w-lg">
+          <DialogHeader>
+            <DialogTitle>Advanced Filters</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full">
+                  Race: {filters.race || "All"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  onClick={() => handleFilterChange("race", "")}
+                >
+                  All
+                </DropdownMenuItem>
+                {races.map((r) => (
+                  <DropdownMenuItem
+                    key={r}
+                    onClick={() => handleFilterChange("race", r)}
+                  >
+                    {r}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full">
+                  Ethnicity: {filters.ethnicity || "All"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  onClick={() => handleFilterChange("ethnicity", "")}
+                >
+                  All
+                </DropdownMenuItem>
+                {ethnicities.map((e) => (
+                  <DropdownMenuItem
+                    key={e}
+                    onClick={() => handleFilterChange("ethnicity", e)}
+                  >
+                    {e}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full">
+                  Body Type: {filters.bodyType || "All"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  onClick={() => handleFilterChange("bodyType", "")}
+                >
+                  All
+                </DropdownMenuItem>
+                {bodyTypes.map((b) => (
+                  <DropdownMenuItem
+                    key={b}
+                    onClick={() => handleFilterChange("bodyType", b)}
+                  >
+                    {b}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button variant="outline" className="w-full">
+                  Personality Type: {filters.personalityType || "All"}
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent>
+                <DropdownMenuItem
+                  onClick={() => handleFilterChange("personalityType", "")}
+                >
+                  All
+                </DropdownMenuItem>
+                {personalityTypes.map((p) => (
+                  <DropdownMenuItem
+                    key={p}
+                    onClick={() => handleFilterChange("personalityType", p)}
+                  >
+                    {p}
+                  </DropdownMenuItem>
+                ))}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          </div>
+          <DialogFooter>
+            <Button onClick={() => setIsAdvancedOpen(false)}>Apply</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
