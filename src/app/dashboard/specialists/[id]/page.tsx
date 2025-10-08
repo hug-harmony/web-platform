@@ -124,6 +124,8 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
+  const [isNoteOpen, setIsNoteOpen] = useState(false); // New state for note dialog
+  const [noteContent, setNoteContent] = useState(""); // New state for note content
   const router = useRouter();
   const { status: sessionStatus } = useSession();
 
@@ -284,6 +286,31 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
     } catch (error) {
       console.error("Submit report error:", error);
       toast.error("Failed to submit report");
+    }
+  };
+
+  const handleSubmitNote = async () => {
+    if (!noteContent) {
+      toast.error("Please enter note content");
+      return;
+    }
+    try {
+      const { id } = await params;
+      const res = await fetch("/api/notes", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          targetSpecialistId: id, // For specialist profile
+          content: noteContent,
+        }),
+      });
+      if (!res.ok) throw new Error("Failed to save note");
+      toast.success("Note saved successfully");
+      setIsNoteOpen(false);
+      setNoteContent("");
+    } catch (error) {
+      console.error("Submit note error:", error);
+      toast.error("Failed to save note");
     }
   };
 
@@ -490,7 +517,10 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                       >
                         Report
                       </DropdownMenuItem>
-                      <DropdownMenuItem className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20">
+                      <DropdownMenuItem
+                        onClick={() => setIsNoteOpen(true)} // Trigger note dialog
+                        className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                      >
                         Make a Note
                       </DropdownMenuItem>
                     </DropdownMenuContent>
@@ -539,6 +569,31 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
           <DialogFooter>
             <Button onClick={handleSubmitReport} disabled={!reportReason}>
               Submit Report
+            </Button>
+          </DialogFooter>
+        </DialogContent>
+      </Dialog>
+
+      {/* Note Dialog (New) */}
+      <Dialog open={isNoteOpen} onOpenChange={setIsNoteOpen}>
+        <DialogContent>
+          <DialogHeader>
+            <DialogTitle>Make a Note</DialogTitle>
+          </DialogHeader>
+          <div className="space-y-4">
+            <div>
+              <Label htmlFor="noteContent">Note</Label>
+              <Textarea
+                id="noteContent"
+                placeholder="Write your note here..."
+                value={noteContent}
+                onChange={(e) => setNoteContent(e.target.value)}
+              />
+            </div>
+          </div>
+          <DialogFooter>
+            <Button onClick={handleSubmitNote} disabled={!noteContent}>
+              Save Note
             </Button>
           </DialogFooter>
         </DialogContent>

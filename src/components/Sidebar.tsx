@@ -102,8 +102,8 @@ export default function Sidebar() {
         icon: <Bell className="h-5 w-5" />,
       },
       {
-        href: "/dashboard/session-notes",
-        label: "Session Notes",
+        href: "/dashboard/notes",
+        label: "Notes",
         icon: <Notebook className="h-5 w-5" />,
       },
       {

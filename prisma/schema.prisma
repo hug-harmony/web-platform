@@ -48,6 +48,8 @@ model User {
   securityLogs     SecurityLog[]  @relation("UserSecurityLogs")
   reported         Report[]       @relation("ReportedUser")
   reports          Report[]       @relation("Reporter")
+  notesAuthored         Note[]   @relation("AuthorNotes")
+  notesReceived         Note[]   @relation("TargetUserNotes")
 }
 
 model PasswordResetToken {
@@ -110,6 +112,7 @@ model Specialist {
   reviews          Review[]   @relation("SpecialistReviews")
   discounts        Discount[] @relation
   reported         Report[]       @relation("ReportedSpecialist")
+  notesReceived         Note[]   @relation("TargetSpecialistNotes")
 }
 
 model Post {
@@ -292,4 +295,17 @@ model Report {
   reporter            User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
   reportedUser        User?    @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
   reportedSpecialist  Specialist? @relation("ReportedSpecialist", fields: [reportedSpecialistId], references: [id], onDelete: SetNull)
+}
+
+model Note {
+  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
+  authorId              String   @db.ObjectId
+  targetUserId          String?  @db.ObjectId
+  targetSpecialistId    String?  @db.ObjectId
+  content               String
+  createdAt             DateTime @default(now())
+
+  author                User     @relation("AuthorNotes", fields: [authorId], references: [id], onDelete: Cascade)
+  targetUser            User?    @relation("TargetUserNotes", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetSpecialist      Specialist? @relation("TargetSpecialistNotes", fields: [targetSpecialistId], references: [id], onDelete: SetNull)
 }
