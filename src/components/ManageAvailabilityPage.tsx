@@ -14,12 +14,19 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
-import { Calendar } from "@/components/ui/calendar";
 import { Skeleton } from "@/components/ui/skeleton";
 import { allSlots } from "@/lib/constants";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { MessageSquare } from "lucide-react";
+import {
+  Calendar as BigCalendar,
+  momentLocalizer,
+  SlotInfo,
+} from "react-big-calendar";
+import moment from "moment";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import { format, startOfToday } from "date-fns";
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -35,12 +42,15 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
+const localizer = momentLocalizer(moment);
+
 const ManageAvailabilityPage: React.FC = () => {
   const [date, setDate] = useState<Date | undefined>(new Date());
   const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [breakDuration, setBreakDuration] = useState<number>(30);
   const [loading, setLoading] = useState(true);
   const [specialistId, setSpecialistId] = useState<string | null>(null);
+  const [currentViewDate, setCurrentViewDate] = useState<Date>(new Date());
   const router = useRouter();
   const searchParams = useSearchParams();
   const { data: session, status } = useSession();
@@ -93,7 +103,7 @@ const ManageAvailabilityPage: React.FC = () => {
     if (!date) return;
     try {
       const res = await fetch(
-        `/api/specialists/availability?specialistId=${specialistId}&date=${date.toISOString().split("T")[0]}`,
+        `/api/specialists/availability?specialistId=${specialistId}&date=${format(date, "yyyy-MM-dd")}`,
         { credentials: "include" }
       );
       if (res.ok) {
@@ -158,7 +168,7 @@ const ManageAvailabilityPage: React.FC = () => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          date: date.toISOString().split("T")[0],
+          date: format(date, "yyyy-MM-dd"),
           slots: selectedSlots,
           breakDuration,
           specialistId,
@@ -176,6 +186,34 @@ const ManageAvailabilityPage: React.FC = () => {
         error instanceof Error ? error.message : "Failed to update availability"
       );
     }
+  };
+
+  const handleSelectSlot = (slotInfo: SlotInfo) => {
+    const clickedDate = new Date(slotInfo.start);
+    const today = startOfToday();
+
+    if (clickedDate < today) return; // Disable past dates
+
+    setDate(clickedDate);
+  };
+
+  const handleNavigate = (newDate: Date) => {
+    setCurrentViewDate(newDate);
+  };
+
+  const dayPropGetter = (calendarDate: Date) => {
+    const dateStr = format(calendarDate, "yyyy-MM-dd");
+    const today = startOfToday();
+
+    if (calendarDate < today) {
+      return {
+        className: "rbc-day-bg bg-gray-200 text-gray-400 cursor-not-allowed",
+      };
+    }
+    if (date && dateStr === format(date, "yyyy-MM-dd")) {
+      return { className: "rbc-day-bg bg-[#F3CFC6] text-black" };
+    }
+    return { className: "rbc-day-bg bg-green-100 cursor-pointer" };
   };
 
   if (status === "loading" || loading) {
@@ -256,7 +294,19 @@ const ManageAvailabilityPage: React.FC = () => {
       <Card className="shadow-lg">
         <CardContent className="space-y-4 pt-6">
           <motion.div variants={itemVariants} className="space-y-4">
-            <Calendar mode="single" selected={date} onSelect={setDate} />
+            <BigCalendar
+              localizer={localizer}
+              defaultView="month"
+              views={["month"]}
+              date={currentViewDate}
+              onNavigate={handleNavigate}
+              selectable={true}
+              onSelectSlot={handleSelectSlot}
+              style={{ height: 500 }}
+              min={new Date()} // Prevent past dates
+              dayPropGetter={dayPropGetter}
+              events={[]} // No events needed
+            />
             <div className="space-y-2">
               <Label
                 htmlFor="breakDuration"

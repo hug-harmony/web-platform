@@ -2,9 +2,6 @@
 
 import React, { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
-import FullCalendar from "@fullcalendar/react";
-import dayGridPlugin from "@fullcalendar/daygrid";
-import interactionPlugin, { DateClickArg } from "@fullcalendar/interaction";
 import {
   Dialog,
   DialogContent,
@@ -14,13 +11,27 @@ import {
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { cn } from "@/lib/utils";
-import { format, parse } from "date-fns";
+import { format, parse, startOfToday } from "date-fns";
 import { toast } from "sonner";
 import { useRouter, useParams } from "next/navigation";
 import { MessageSquare } from "lucide-react";
 import { motion } from "framer-motion";
 import Link from "next/link";
 import { Skeleton } from "@/components/ui/skeleton";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import {
+  Calendar as BigCalendar,
+  momentLocalizer,
+  SlotInfo,
+} from "react-big-calendar";
+import moment from "moment";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import debounce from "lodash.debounce"; // Install lodash for debounce
 
 interface Therapist {
   _id: string;
@@ -48,14 +59,14 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
+const localizer = momentLocalizer(moment);
+
 const BookingPage: React.FC = () => {
   const { data: session, status } = useSession();
   const router = useRouter();
   const { id: therapistId } = useParams();
   const [therapist, setTherapist] = useState<Therapist | null>(null);
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>(
-    new Date()
-  );
+  const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
   const [selectedTime, setSelectedTime] = useState<string | null>(null);
   const [timeSlots, setTimeSlots] = useState<TimeSlot[]>([]);
   const [breakDuration, setBreakDuration] = useState<number | null>(null);
@@ -66,16 +77,15 @@ const BookingPage: React.FC = () => {
   const [availabilityCache, setAvailabilityCache] = useState<
     Map<string, { slots: TimeSlot[]; breakDuration: number | null }>
   >(new Map());
+  const [currentViewDate, setCurrentViewDate] = useState<Date>(new Date());
 
   const fetchData = useCallback(async () => {
-    if (!therapistId) {
-      toast.error("No therapist selected");
+    if (!therapistId || !selectedDate) {
+      toast.error("No therapist or date selected");
       return;
     }
 
-    const dateStr = selectedDate?.toISOString().split("T")[0];
-    if (!dateStr) return;
-
+    const dateStr = format(selectedDate, "yyyy-MM-dd");
     setLoading(true);
     try {
       if (availabilityCache.has(dateStr)) {
@@ -137,18 +147,16 @@ const BookingPage: React.FC = () => {
     }
   }, [therapistId, selectedDate, router, availabilityCache]);
 
-  const fetchAvailabilityForMonth = useCallback(
-    async (month: Date) => {
+  const debouncedFetchAvailability = useCallback(
+    debounce(async (month: Date) => {
       if (!therapistId) return;
 
-      const start = new Date(month.getFullYear(), month.getMonth(), 1);
-      const end = new Date(month.getFullYear(), month.getMonth() + 1, 0);
-      start.setUTCHours(0, 0, 0, 0);
-      end.setUTCHours(0, 0, 0, 0);
+      const start = moment(month).startOf("month").toDate();
+      const end = moment(month).endOf("month").toDate();
 
       try {
         const res = await fetch(
-          `/api/specialists/availability/range?specialistId=${therapistId}&startDate=${start.toISOString().split("T")[0]}&endDate=${end.toISOString().split("T")[0]}`,
+          `/api/specialists/availability/range?specialistId=${therapistId}&startDate=${format(start, "yyyy-MM-dd")}&endDate=${format(end, "yyyy-MM-dd")}`,
           { cache: "no-store", credentials: "include" }
         );
 
@@ -182,39 +190,83 @@ const BookingPage: React.FC = () => {
             : "Failed to fetch availability for the month"
         );
       }
-    },
+    }, 300), // Debounce for 300ms
     [therapistId]
   );
 
   useEffect(() => {
-    fetchData();
-  }, [fetchData]);
+    // Initial fetch on mount (once)
+    debouncedFetchAvailability(currentViewDate);
+
+    return () => {
+      debouncedFetchAvailability.cancel(); // Clean up debounce on unmount
+    };
+  }, [debouncedFetchAvailability, currentViewDate]); // Removed therapistId to avoid extra calls
 
   useEffect(() => {
-    if (therapistId) {
-      fetchAvailabilityForMonth(new Date());
+    // Auto-select today if available (after disabledDates is set)
+    const todayStr = format(new Date(), "yyyy-MM-dd");
+    if (!selectedDate && !disabledDates.has(todayStr)) {
+      setSelectedDate(new Date());
     }
-  }, [therapistId, fetchAvailabilityForMonth]);
+  }, [disabledDates, selectedDate]);
 
-  const handleDateClick = (arg: DateClickArg) => {
-    const clickedDate = new Date(arg.dateStr);
-    clickedDate.setUTCHours(0, 0, 0, 0); // Normalize to UTC
-    const today = new Date();
-    today.setUTCHours(0, 0, 0, 0);
+  useEffect(() => {
+    if (selectedDate) {
+      fetchData();
+    }
+  }, [selectedDate, fetchData]);
+
+  const handleNavigate = (newDate: Date) => {
+    // Only update and fetch if month/year actually changed
+    if (
+      moment(newDate).month() !== moment(currentViewDate).month() ||
+      moment(newDate).year() !== moment(currentViewDate).year()
+    ) {
+      setCurrentViewDate(newDate);
+    }
+  };
+
+  const handleSelectSlot = (slotInfo: SlotInfo) => {
+    const clickedDate = new Date(slotInfo.start); // Removed zonedTimeToUtc (not needed if backend is UTC-consistent)
+    // If you need timezone conversion, uncomment and ensure date-fns-tz is installed correctly:
+    // const { zonedTimeToUtc } = await import('date-fns-tz');
+    // const clickedDate = zonedTimeToUtc(slotInfo.start, "UTC");
+
+    const today = startOfToday();
 
     if (clickedDate < today) return;
 
-    const dateStr = clickedDate.toISOString().split("T")[0];
+    const dateStr = format(clickedDate, "yyyy-MM-dd");
     if (disabledDates.has(dateStr)) return;
 
     setSelectedDate(clickedDate);
     setSelectedTime(null);
   };
 
+  const dayPropGetter = (date: Date) => {
+    const dateStr = format(date, "yyyy-MM-dd");
+    const today = startOfToday();
+
+    if (date < today) {
+      return {
+        className: "rbc-day-bg bg-gray-200 text-gray-400 cursor-not-allowed",
+      };
+    }
+    if (disabledDates.has(dateStr)) {
+      return {
+        className: "rbc-day-bg bg-gray-300 text-gray-500 cursor-not-allowed",
+      };
+    }
+    if (selectedDate && dateStr === format(selectedDate, "yyyy-MM-dd")) {
+      return { className: "rbc-day-bg bg-[#F3CFC6] text-black" };
+    }
+    return { className: "rbc-day-bg bg-green-100 cursor-pointer" };
+  };
+
   const handleBookSession = async () => {
     if (
-      !session ||
-      !session.user?.id ||
+      !session?.user?.id ||
       !selectedDate ||
       !selectedTime ||
       !therapist ||
@@ -226,25 +278,27 @@ const BookingPage: React.FC = () => {
 
     setLoading(true);
     try {
-      // Parse selected date and time
       const selectedDateTimeStr = `${format(selectedDate, "yyyy-MM-dd")} ${selectedTime}`;
       const selectedDateTime = parse(
         selectedDateTimeStr,
         "yyyy-MM-dd h:mm a",
         new Date()
       );
+      if (isNaN(selectedDateTime.getTime())) {
+        throw new Error("Invalid date/time format");
+      }
+
       const now = new Date();
       const timeDifference =
-        (selectedDateTime.getTime() - now.getTime()) / (1000 * 60 * 60); // Hours
+        (selectedDateTime.getTime() - now.getTime()) / (1000 * 60 * 60);
 
       if (timeDifference > 24) {
-        // Direct booking (>24hr)
         const response = await fetch("/api/specialists/booking", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             specialistId: therapistId,
-            date: selectedDate.toISOString().split("T")[0],
+            date: format(selectedDate, "yyyy-MM-dd"),
             time: selectedTime,
             userId: session.user.id,
           }),
@@ -269,8 +323,6 @@ const BookingPage: React.FC = () => {
         toast.success("Booking confirmed");
         router.push(`/dashboard/appointments/confirm/${bookingId}`);
       } else {
-        // User-initiated request (<24hr)
-        // Step 1: Fetch specialist's user ID
         const specialistUserRes = await fetch(
           `/api/specialists/${therapistId}/user`,
           {
@@ -283,7 +335,6 @@ const BookingPage: React.FC = () => {
           throw new Error("Failed to fetch specialist details");
         }
 
-        // Step 2: Find/create conversation (recipient is specialist's user ID)
         const convResponse = await fetch("/api/conversations", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -303,14 +354,13 @@ const BookingPage: React.FC = () => {
           throw new Error("Conversation ID not found");
         }
 
-        // Step 3: Send user-initiated proposal (pass specialistId)
         const proposalResponse = await fetch("/api/proposals", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             conversationId,
             specialistId: therapistId,
-            date: selectedDate.toISOString().split("T")[0],
+            date: format(selectedDate, "yyyy-MM-dd"),
             time: selectedTime,
           }),
           credentials: "include",
@@ -344,7 +394,7 @@ const BookingPage: React.FC = () => {
     }
   };
 
-  if (status === "loading" || !therapist) {
+  if (status === "loading" || loading) {
     return (
       <motion.div
         className="p-4 space-y-6 max-w-7xl mx-auto"
@@ -375,7 +425,7 @@ const BookingPage: React.FC = () => {
               <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
               <div className="grid grid-cols-2 md:grid-cols-3 gap-2">
                 {[...Array(6)].map((_, i) => (
-                  <Skeleton key={i} className="h-10 w-full Bg-[#C4C4C4]/50" />
+                  <Skeleton key={i} className="h-10 w-full bg-[#C4C4C4]/50" />
                 ))}
               </div>
               <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
@@ -387,53 +437,13 @@ const BookingPage: React.FC = () => {
   }
 
   if (status === "unauthenticated") {
-    return (
-      <motion.div
-        className="p-4 space-y-6 max-w-7xl mx-auto"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
-          <CardHeader>
-            <motion.div variants={itemVariants}>
-              <CardTitle className="text-2xl text-black dark:text-white">
-                Book Appointment
-              </CardTitle>
-              <p className="text-sm text-black">Schedule your session</p>
-            </motion.div>
-          </CardHeader>
-          <CardContent className="flex space-x-4">
-            <motion.div
-              variants={itemVariants}
-              whileHover={{
-                scale: 1.05,
-                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-              }}
-              transition={{ duration: 0.2 }}
-            >
-              <Button
-                asChild
-                variant="outline"
-                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
-              >
-                <Link href="/dashboard">
-                  <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                  Back to Dashboard
-                </Link>
-              </Button>
-            </motion.div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-lg">
-          <CardContent className="flex items-center justify-center pt-6">
-            <p className="text-[#C4C4C4]">
-              Please log in to book an appointment.
-            </p>
-          </CardContent>
-        </Card>
-      </motion.div>
-    );
+    router.push("/login");
+    return null;
+  }
+
+  if (!therapistId) {
+    router.push("/dashboard");
+    return null;
   }
 
   if (hasNoAvailability) {
@@ -448,7 +458,7 @@ const BookingPage: React.FC = () => {
           <CardHeader>
             <motion.div variants={itemVariants}>
               <CardTitle className="text-2xl text-black dark:text-white">
-                Book Appointment with {therapist.name}
+                Book Appointment with {therapist?.name}
               </CardTitle>
               <p className="text-sm text-[#C4C4C4]">Schedule your session</p>
             </motion.div>
@@ -478,8 +488,8 @@ const BookingPage: React.FC = () => {
         <Card className="shadow-lg">
           <CardContent className="flex items-center justify-center pt-6">
             <p className="text-[#C4C4C4]">
-              No available time slots for {therapist.name}. Please try another
-              therapist or check back later.
+              No available time slots for {therapist?.name} in this month.
+              Navigate to another month or try another therapist.
             </p>
           </CardContent>
         </Card>
@@ -488,183 +498,212 @@ const BookingPage: React.FC = () => {
   }
 
   return (
-    <motion.div
-      className="p-4 space-y-6 max-w-7xl mx-auto"
-      variants={containerVariants}
-      initial="hidden"
-      animate="visible"
-    >
-      {/* Header */}
-      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
-        <CardHeader>
-          <motion.div variants={itemVariants}>
-            <CardTitle className="text-2xl text-black dark:text-white">
-              Book Appointment with {therapist?.name}
-            </CardTitle>
-            <p className="text-sm text-[#C4C4C4]">
-              Schedule your session
-              {breakDuration !== null &&
-                ` (Appointments have a ${breakDuration}-minute break between them)`}
-            </p>
-          </motion.div>
-        </CardHeader>
-        <CardContent className="flex space-x-4">
-          <motion.div variants={itemVariants} whileHover={{ scale: 1.05 }}>
-            <Button
-              asChild
-              variant="outline"
-              className="text-[#F3CFC6] border-[#F3CFC6] rounded-full"
-            >
-              <Link href="/dashboard">
-                <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                Back to Dashboard
-              </Link>
-            </Button>
-          </motion.div>
-        </CardContent>
-      </Card>
-
-      {/* Booking Section */}
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="text-black dark:text-white">
-            Select Date and Time
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="flex flex-col gap-4 pt-6">
-          {/* FullCalendar */}
-          <motion.div variants={itemVariants} className="w-full">
-            <FullCalendar
-              plugins={[dayGridPlugin, interactionPlugin]}
-              initialView="dayGridMonth"
-              dateClick={handleDateClick}
-              locale="en-us"
-              height="auto"
-              selectable={true}
-              dayCellClassNames={(arg) => {
-                const dateStr = arg.date.toISOString().split("T")[0];
-                const today = new Date();
-                today.setHours(0, 0, 0, 0);
-
-                if (arg.date < today) return ["bg-gray-200 text-gray-400"];
-                if (disabledDates.has(dateStr))
-                  return ["bg-gray-300 text-gray-500"];
-                if (
-                  selectedDate &&
-                  dateStr === selectedDate.toISOString().split("T")[0]
-                )
-                  return ["bg-[#F3CFC6] text-black"];
-                return ["bg-green-100"]; // Highlight available dates
-              }}
-            />
-            <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
-              <p>
-                <strong>Legend:</strong>
-              </p>
-              <div className="flex space-x-4">
-                <div className="flex items-center">
-                  <div className="w-4 h-4 bg-green-100 border mr-2"></div>
-                  Available
-                </div>
-                <div className="flex items-center">
-                  <div className="w-4 h-4 bg-gray-300 mr-2"></div>
-                  Unavailable
-                </div>
-                <div className="flex items-center">
-                  <div className="w-4 h-4 bg-[#F3CFC6] mr-2"></div>
-                  Selected
-                </div>
-              </div>
-              <p className="mt-2">
-                Unavailable dates are greyed out and cannot be selected.
-              </p>
-            </div>
-          </motion.div>
-
-          {/* Time Slots */}
-          <div className="flex-1">
-            <h3 className="text-md font-semibold mb-4 text-center text-black dark:text-white">
-              Select Time
-            </h3>
-            <motion.div
-              variants={itemVariants}
-              className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4"
-            >
-              {timeSlots.length > 0 ? (
-                timeSlots.map((slot) => (
-                  <button
-                    key={slot.time}
-                    onClick={() => slot.available && setSelectedTime(slot.time)}
-                    disabled={!slot.available}
-                    className={cn(
-                      "py-2 rounded border text-center",
-                      selectedTime === slot.time
-                        ? "bg-[#F3CFC6] text-black dark:text-white"
-                        : slot.available
-                          ? "bg-white dark:bg-gray-800 text-black dark:text-white border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
-                          : "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
-                    )}
-                  >
-                    {slot.formattedTime}
-                  </button>
-                ))
-              ) : (
-                <p className="text-center text-gray-500 col-span-full">
-                  No time slots available for this date.
-                </p>
-              )}
-            </motion.div>
+    <TooltipProvider>
+      <motion.div
+        className="p-4 space-y-6 max-w-7xl mx-auto"
+        variants={containerVariants}
+        initial="hidden"
+        animate="visible"
+      >
+        {/* Header */}
+        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+          <CardHeader>
             <motion.div variants={itemVariants}>
+              <CardTitle className="text-2xl text-black dark:text-white">
+                Book Appointment with {therapist?.name}
+              </CardTitle>
+              <p className="text-sm text-[#C4C4C4]">
+                Schedule your session
+                {breakDuration !== null &&
+                  ` (Appointments have a ${breakDuration}-minute break between them)`}
+              </p>
+            </motion.div>
+          </CardHeader>
+          <CardContent className="flex space-x-4">
+            <motion.div variants={itemVariants} whileHover={{ scale: 1.05 }}>
               <Button
-                onClick={() => setIsDialogOpen(true)}
-                disabled={!selectedDate || !selectedTime || loading}
-                className="w-full py-2 bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+                asChild
+                variant="outline"
+                className="text-[#F3CFC6] border-[#F3CFC6] rounded-full"
               >
-                Continue
+                <Link href="/dashboard">
+                  <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
+                  Back to Dashboard
+                </Link>
               </Button>
             </motion.div>
-          </div>
-        </CardContent>
-      </Card>
+          </CardContent>
+        </Card>
 
-      {/* Confirm Dialog */}
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-        <DialogContent className="bg-white dark:bg-gray-800">
-          <DialogTitle className="text-black dark:text-white">
-            Confirm Booking
-          </DialogTitle>
-          <div className="py-2 space-y-2">
-            <p className="text-black dark:text-white">
-              <strong>Name:</strong> {session?.user?.name || "N/A"}
-            </p>
-            <p className="text-black dark:text-white">
-              <strong>Date:</strong>{" "}
-              {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "N/A"}
-            </p>
-            <p className="text-black dark:text-white">
-              <strong>Time:</strong> {selectedTime || "N/A"}
-            </p>
-            <p className="text-black dark:text-white">
-              <strong>Amount:</strong> ${therapist?.rate?.toFixed(2) || "50.00"}
-            </p>
-            {breakDuration !== null && (
+        {/* Booking Section */}
+        <Card className="shadow-lg">
+          <CardHeader>
+            <CardTitle className="text-black dark:text-white">
+              Select Date and Time
+            </CardTitle>
+          </CardHeader>
+          <CardContent className="flex flex-col gap-4 pt-6">
+            {/* react-big-calendar */}
+            <motion.div variants={itemVariants} className="w-full">
+              <BigCalendar
+                localizer={localizer}
+                defaultView="month"
+                views={["month"]}
+                date={currentViewDate}
+                onNavigate={handleNavigate}
+                selectable={true}
+                onSelectSlot={handleSelectSlot}
+                style={{ height: 500 }}
+                min={new Date()} // Prevent past dates
+                dayPropGetter={dayPropGetter}
+                events={[]} // No events needed for booking view
+              />
+              <div className="mt-4 text-sm text-gray-600 dark:text-gray-400">
+                <p>
+                  <strong>Legend:</strong>
+                </p>
+                <div className="flex space-x-4">
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 bg-green-100 border mr-2"></div>
+                    Available
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 bg-gray-300 mr-2"></div>
+                    Unavailable
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 bg-gray-200 mr-2"></div>
+                    Past
+                  </div>
+                  <div className="flex items-center">
+                    <div className="w-4 h-4 bg-[#F3CFC6] mr-2"></div>
+                    Selected
+                  </div>
+                </div>
+                <p className="mt-2">
+                  Past and unavailable dates cannot be selected.
+                </p>
+              </div>
+            </motion.div>
+
+            {/* Time Slots */}
+            <div className="flex-1">
+              <h3 className="text-md font-semibold mb-4 text-center text-black dark:text-white">
+                Select Time for{" "}
+                {selectedDate
+                  ? format(selectedDate, "MMMM d, yyyy")
+                  : "Selected Date"}
+              </h3>
+              {loading ? (
+                <div className="grid grid-cols-2 md:grid-cols-3 gap-2 mb-4">
+                  {[...Array(6)].map((_, i) => (
+                    <Skeleton key={i} className="h-10 w-full bg-[#C4C4C4]/50" />
+                  ))}
+                </div>
+              ) : (
+                <motion.div
+                  variants={itemVariants}
+                  className="grid grid-cols-1 sm:grid-cols-2 md:grid-cols-3 gap-2 mb-4 max-h-40 overflow-y-auto"
+                >
+                  {timeSlots.length > 0 ? (
+                    timeSlots.map((slot) => (
+                      <Tooltip key={slot.time}>
+                        <TooltipTrigger asChild>
+                          <button
+                            onClick={() =>
+                              slot.available && setSelectedTime(slot.time)
+                            }
+                            disabled={!slot.available}
+                            className={cn(
+                              "py-2 rounded border text-center",
+                              selectedTime === slot.time
+                                ? "bg-[#F3CFC6] text-black dark:text-white"
+                                : slot.available
+                                  ? "bg-white dark:bg-gray-800 text-black dark:text-white border-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                                  : "bg-gray-300 text-gray-500 border-gray-300 cursor-not-allowed"
+                            )}
+                            aria-label={`Select time ${slot.formattedTime}${slot.available ? "" : " (Unavailable)"}`}
+                          >
+                            {slot.formattedTime}
+                          </button>
+                        </TooltipTrigger>
+                        <TooltipContent>
+                          {slot.available
+                            ? "Available"
+                            : "Unavailable (booked or break)"}
+                        </TooltipContent>
+                      </Tooltip>
+                    ))
+                  ) : (
+                    <p className="text-center text-gray-500 col-span-full">
+                      No time slots available for this date.
+                    </p>
+                  )}
+                </motion.div>
+              )}
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <motion.div variants={itemVariants}>
+                    <Button
+                      onClick={() => setIsDialogOpen(true)}
+                      disabled={!selectedDate || !selectedTime || loading}
+                      className="w-full py-2 bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+                    >
+                      Continue
+                    </Button>
+                  </motion.div>
+                </TooltipTrigger>
+                <TooltipContent>
+                  {!selectedDate || !selectedTime
+                    ? "Select a date and time first"
+                    : "Ready to confirm"}
+                </TooltipContent>
+              </Tooltip>
+            </div>
+          </CardContent>
+        </Card>
+
+        {/* Confirm Dialog */}
+        <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+          <DialogContent className="bg-white dark:bg-gray-800">
+            <DialogTitle className="text-black dark:text-white">
+              Confirm Booking
+            </DialogTitle>
+            <div className="py-2 space-y-2">
               <p className="text-black dark:text-white">
-                <strong>Break Duration:</strong> {breakDuration} minutes
+                <strong>Name:</strong> {session?.user?.name || "N/A"}
               </p>
-            )}
-          </div>
-          <DialogFooter>
-            <Button
-              onClick={handleBookSession}
-              className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
-              disabled={loading}
-            >
-              {loading ? "Loading..." : "Confirm"}
-            </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-    </motion.div>
+              <p className="text-black dark:text-white">
+                <strong>Date:</strong>{" "}
+                {selectedDate ? format(selectedDate, "MMMM d, yyyy") : "N/A"}
+              </p>
+              <p className="text-black dark:text-white">
+                <strong>Time:</strong> {selectedTime || "N/A"}
+              </p>
+              <p className="text-black dark:text-white">
+                <strong>Amount:</strong> $
+                {therapist?.rate?.toFixed(2) || "50.00"}
+              </p>
+              {breakDuration !== null && (
+                <p className="text-black dark:text-white">
+                  <strong>Break Duration:</strong> {breakDuration} minutes
+                  between appointments
+                </p>
+              )}
+            </div>
+            <DialogFooter>
+              <Button
+                onClick={handleBookSession}
+                className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+                disabled={loading}
+              >
+                {loading ? "Loading..." : "Confirm"}
+              </Button>
+            </DialogFooter>
+          </DialogContent>
+        </Dialog>
+      </motion.div>
+    </TooltipProvider>
   );
 };
 

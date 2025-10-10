@@ -11,7 +11,10 @@ export async function GET(request: Request) {
   const specialistId = searchParams.get("specialistId");
 
   if (!date) {
-    return NextResponse.json({ error: "Missing date" }, { status: 400 });
+    return NextResponse.json(
+      { error: "Missing required parameter: date" },
+      { status: 400 }
+    );
   }
 
   try {
@@ -39,7 +42,7 @@ export async function GET(request: Request) {
   } catch (error) {
     console.error("Availability fetch error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch availability" },
+      { error: "Internal server error: Failed to fetch availability" },
       { status: 500 }
     );
   }
@@ -48,14 +51,20 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    return NextResponse.json(
+      { error: "Unauthorized: No session found" },
+      { status: 401 }
+    );
   }
 
   const app = await prisma.specialistApplication.findUnique({
     where: { userId: session.user.id },
   });
   if (!app || app.status !== "approved" || !app.specialistId) {
-    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
+    return NextResponse.json(
+      { error: "Forbidden: Not an approved specialist" },
+      { status: 403 }
+    );
   }
   const specialistId = app.specialistId;
 
@@ -67,7 +76,7 @@ export async function POST(request: Request) {
     ![30, 60].includes(breakDuration)
   ) {
     return NextResponse.json(
-      { error: "Missing or invalid date, slots, or break duration" },
+      { error: "Missing or invalid parameters: date, slots, or breakDuration" },
       { status: 400 }
     );
   }
@@ -75,11 +84,11 @@ export async function POST(request: Request) {
   const utcDate = new Date(date);
   utcDate.setUTCHours(0, 0, 0, 0); // Normalize to UTC midnight
 
-  // Validate slots
+  // Validate slots against allowed list
   const invalidSlots = slots.filter((slot: string) => !allSlots.includes(slot));
   if (invalidSlots.length > 0) {
     return NextResponse.json(
-      { error: `Invalid slots: ${invalidSlots.join(", ")}` },
+      { error: `Invalid slots provided: ${invalidSlots.join(", ")}` },
       { status: 400 }
     );
   }
@@ -114,7 +123,7 @@ export async function POST(request: Request) {
   } catch (error) {
     console.error("Availability update error:", error);
     return NextResponse.json(
-      { error: "Failed to update availability" },
+      { error: "Internal server error: Failed to update availability" },
       { status: 500 }
     );
   }
