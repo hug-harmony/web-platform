@@ -20,6 +20,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
 import AppointmentCard from "@/components/AppointmentCard";
+import ProposalCard from "@/components/ProposalCard";
 import {
   Dialog,
   DialogContent,
@@ -50,6 +51,32 @@ interface Appointment {
   disputeStatus: string;
 }
 
+interface Proposal {
+  id: string;
+  userId: string;
+  specialistId: string;
+  date: string;
+  time: string;
+  status: "pending" | "accepted" | "rejected";
+  conversationId: string;
+  user: { name: string };
+  specialist: { name: string; rate: number };
+}
+
+type SelectedState =
+  | {
+      type: "appointment";
+      data: Appointment;
+      isOwnerSpecialist: boolean;
+      displayName: string;
+    }
+  | {
+      type: "proposal";
+      data: Proposal;
+      isReceived: boolean;
+    }
+  | null;
+
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
@@ -73,17 +100,15 @@ export default function AppointmentsPage() {
   const [clientAppointments, setClientAppointments] = useState<Appointment[]>(
     []
   );
+  const [receivedProposals, setReceivedProposals] = useState<Proposal[]>([]);
+  const [sentProposals, setSentProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [dateRange, setDateRange] = useState({ start: "", end: "" });
   const [isSpecialist, setIsSpecialist] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
-  const [selected, setSelected] = useState<{
-    appointment: Appointment;
-    isOwnerSpecialist: boolean;
-    displayName: string;
-  } | null>(null);
+  const [selected, setSelected] = useState<SelectedState>(null);
 
   const fetchData = async () => {
     if (status === "unauthenticated") {
@@ -182,9 +207,63 @@ export default function AppointmentsPage() {
     }
   };
 
+  const fetchProposals = async () => {
+    try {
+      const userQuery = new URLSearchParams({ role: "user" });
+      const userRes = await fetch(`/api/proposals?${userQuery}`, {
+        cache: "no-store",
+        credentials: "include",
+      });
+
+      if (!userRes.ok) {
+        if (userRes.status === 401) {
+          router.push("/login");
+          return;
+        }
+        throw new Error(
+          `Failed to fetch received proposals: ${userRes.status}`
+        );
+      }
+
+      const userData = await userRes.json();
+      setReceivedProposals(
+        Array.isArray(userData.proposals) ? userData.proposals : []
+      );
+
+      if (isSpecialist) {
+        const specialistQuery = new URLSearchParams({ role: "specialist" });
+        const specialistRes = await fetch(`/api/proposals?${specialistQuery}`, {
+          cache: "no-store",
+          credentials: "include",
+        });
+
+        if (!specialistRes.ok) {
+          if (specialistRes.status === 403) {
+            toast.error("You are not authorized to view sent proposals");
+            return;
+          }
+          throw new Error(
+            `Failed to fetch sent proposals: ${specialistRes.status}`
+          );
+        }
+
+        const specialistData = await specialistRes.json();
+        setSentProposals(
+          Array.isArray(specialistData.proposals)
+            ? specialistData.proposals
+            : []
+        );
+      }
+    } catch (error: any) {
+      console.error("Fetch proposals error:", error);
+      toast.error("Failed to load proposals");
+    }
+  };
+
   useEffect(() => {
     fetchData();
-  }, [router, status]);
+    fetchProposals();
+  }, [router, status, isSpecialist, fetchData, fetchProposals]);
 
   const handleDateRangeChange = (key: "start" | "end", value: string) => {
     setDateRange((prev) => ({ ...prev, [key]: value }));
@@ -217,6 +296,29 @@ export default function AppointmentsPage() {
       )
       .filter((item) => (statusFilter ? item.status === statusFilter : true));
 
+  const filterProposalsByDateRangeAndSearch = (proposals: Proposal[]) =>
+    proposals
+      .filter((proposal) => {
+        if (!proposal.date) return true;
+        const propDate = new Date(proposal.date);
+        const start = dateRange.start ? new Date(dateRange.start) : null;
+        const end = dateRange.end ? new Date(dateRange.end) : null;
+        return (!start || propDate >= start) && (!end || propDate <= end);
+      })
+      .filter((proposal) =>
+        searchQuery
+          ? proposal.user.name
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase()) ||
+            proposal.specialist.name
+              .toLowerCase()
+              .includes(searchQuery.toLowerCase())
+          : true
+      )
+      .filter((proposal) =>
+        statusFilter ? proposal.status === statusFilter : true
+      );
+
   const handleMessageClick = async (userId: string) => {
     if (!userId || !/^[0-9a-fA-F]{24}$/.test(userId)) {
       toast.error("Invalid or missing user ID");
@@ -247,58 +349,151 @@ export default function AppointmentsPage() {
     }
   };
 
+  const handleStatusUpdate = async (
+    proposalId: string,
+    status: "accepted" | "rejected"
+  ) => {
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        throw new Error(`Failed to update proposal: ${res.status}`);
+      }
+
+      const { proposal, appointmentId } = await res.json();
+      setReceivedProposals((prev) =>
+        prev.map((p) =>
+          p.id === proposalId ? { ...p, status: proposal.status } : p
+        )
+      );
+      setSentProposals((prev) =>
+        prev.map((p) =>
+          p.id === proposalId ? { ...p, status: proposal.status } : p
+        )
+      );
+      toast.success(
+        `Proposal ${status} successfully${appointmentId ? " and appointment created" : ""}`
+      );
+      // Refresh appointments after acceptance to include new appointment
+      if (status === "accepted") {
+        fetchData();
+      }
+    } catch (error: any) {
+      console.error("Error updating proposal:", error);
+      toast.error("Failed to update proposal");
+    }
+  };
+
+  const handleViewConversation = (conversationId: string) => {
+    router.push(`/dashboard/messaging/${conversationId}`);
+  };
+
   const filteredAppointments = filterByDateRangeAndSearch(appointments);
   const filteredClientAppointments = isSpecialist
     ? filterByDateRangeAndSearch(clientAppointments)
     : [];
+  const filteredReceivedProposals =
+    filterProposalsByDateRangeAndSearch(receivedProposals);
+  const filteredSentProposals =
+    filterProposalsByDateRangeAndSearch(sentProposals);
 
   const allFilteredAppointments = [
-    ...filteredAppointments.map((appt) => ({ ...appt, type: "client" })),
+    ...filteredAppointments.map((appt) => ({
+      ...appt,
+      type: "client" as const,
+    })),
     ...filteredClientAppointments.map((appt) => ({
       ...appt,
-      type: "specialist",
+      type: "specialist" as const,
     })),
+  ];
+
+  const allFilteredProposals = [
+    ...filteredReceivedProposals.map((prop) => ({ ...prop, isReceived: true })),
+    ...filteredSentProposals.map((prop) => ({ ...prop, isReceived: false })),
   ];
 
   const getEventStyle = (event: Event) => {
     const resource = event.resource as {
-      appointment: Appointment;
-      isOwnerSpecialist: boolean;
+      type: "appointment" | "proposal";
+      data: Appointment | Proposal;
+      isOwnerSpecialist?: boolean;
+      isReceived?: boolean;
     };
-    const { isOwnerSpecialist, appointment } = resource;
-    const status = appointment.status;
+    const { type, data } = resource;
 
     let color = "#000000"; // default
 
-    if (status === "upcoming") {
-      color = isOwnerSpecialist ? "#90EE90" : "#ADD8E6"; // Light Green for specialist, Light Blue for client
-    } else if (status === "completed") {
-      color = isOwnerSpecialist ? "#228B22" : "#0000FF"; // Dark Green for specialist, Blue for client
-    } else if (status === "cancelled") {
-      color = "#808080"; // Gray for both
-    } else if (status === "disputed") {
-      color = "#FF0000"; // Red for both
+    if (type === "appointment") {
+      const appointment = data as Appointment;
+      const status = appointment.status;
+      const isOwnerSpecialist = resource.isOwnerSpecialist;
+
+      if (status === "upcoming") {
+        color = isOwnerSpecialist ? "#90EE90" : "#ADD8E6"; // Light Green for specialist, Light Blue for client
+      } else if (status === "completed") {
+        color = isOwnerSpecialist ? "#228B22" : "#0000FF"; // Dark Green for specialist, Blue for client
+      } else if (status === "cancelled") {
+        color = "#808080"; // Gray for both
+      } else if (status === "disputed") {
+        color = "#FF0000"; // Red for both
+      }
+    } else if (type === "proposal") {
+      const proposal = data as Proposal;
+      const status = proposal.status;
+      const isReceived = resource.isReceived;
+
+      if (status === "pending") {
+        color = isReceived ? "#FFD700" : "#FFA500"; // Gold for received pending, Orange for sent pending
+      } else if (status === "accepted") {
+        color = "#32CD32"; // Lime Green for accepted
+      } else if (status === "rejected") {
+        color = "#A9A9A9"; // Dark Gray for rejected
+      }
     }
 
     return { style: { backgroundColor: color } };
   };
 
-  const calendarEvents = allFilteredAppointments.map((appt) => {
-    const isOwnerSpecialist = appt.type === "specialist";
-    const displayName = isOwnerSpecialist ? appt.name : appt.specialistName;
-    const start = moment(`${appt.date} ${appt.time}`).toDate();
-    const end = moment(start).add(1, "hours").toDate(); // Assuming 1 hour duration
-    return {
-      title: `${displayName} - ${appt.time} (${appt.status})`,
-      start,
-      end,
-      resource: {
-        appointment: appt,
-        isOwnerSpecialist,
-        displayName,
-      },
-    };
-  });
+  const calendarEvents = [
+    ...allFilteredAppointments.map((appt) => {
+      const isOwnerSpecialist = appt.type === "specialist";
+      const displayName = isOwnerSpecialist ? appt.name : appt.specialistName;
+      const start = moment(`${appt.date} ${appt.time}`).toDate();
+      const end = moment(start).add(1, "hours").toDate(); // Assuming 1 hour duration
+      return {
+        title: `${displayName} - ${appt.time} (${appt.status})`,
+        start,
+        end,
+        resource: {
+          type: "appointment" as const,
+          data: appt,
+          isOwnerSpecialist,
+          displayName,
+        },
+      };
+    }),
+    ...allFilteredProposals.map((proposal) => {
+      const displayName = proposal.user.name || proposal.specialist.name;
+      const start = moment(`${proposal.date} ${proposal.time}`).toDate();
+      const end = moment(start).add(1, "hours").toDate(); // Assuming 1 hour duration
+      return {
+        title: `Proposal: ${displayName} - ${proposal.time} (${proposal.status})`,
+        start,
+        end,
+        resource: {
+          type: "proposal" as const,
+          data: proposal,
+          isReceived: proposal.isReceived,
+        },
+      };
+    }),
+  ];
 
   if (status === "loading" || loading) {
     return (
@@ -422,7 +617,9 @@ export default function AppointmentsPage() {
               eventPropGetter={getEventStyle}
             />
           ) : (
-            <p className="text-center text-[#C4C4C4]">No appointments found.</p>
+            <p className="text-center text-[#C4C4C4]">
+              No appointments or proposals found.
+            </p>
           )}
         </CardContent>
       </Card>
@@ -435,29 +632,42 @@ export default function AppointmentsPage() {
       >
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Appointment Details</DialogTitle>
+            <DialogTitle>
+              {selected?.type === "appointment"
+                ? "Appointment Details"
+                : "Proposal Details"}
+            </DialogTitle>
           </DialogHeader>
-          {selected && (
+          {selected && selected.type === "appointment" && (
             <AppointmentCard
-              appointmentId={selected.appointment._id}
-              specialistName={selected.displayName}
-              date={selected.appointment.date}
-              time={selected.appointment.time}
-              rating={selected.appointment.rating || 0}
-              reviewCount={selected.appointment.reviewCount || 0}
-              rate={selected.appointment.rate || 0}
-              status={selected.appointment.status}
-              disputeStatus={selected.appointment.disputeStatus}
+              appointmentId={selected.data._id}
+              specialistName={selected.displayName || ""}
+              date={selected.data.date}
+              time={selected.data.time}
+              rating={selected.data.rating || 0}
+              reviewCount={selected.data.reviewCount || 0}
+              rate={selected.data.rate || 0}
+              status={selected.data.status}
+              disputeStatus={selected.data.disputeStatus}
               isSpecialist={isSpecialist}
               isOwnerSpecialist={selected.isOwnerSpecialist}
               onMessage={() =>
                 handleMessageClick(
                   selected.isOwnerSpecialist
-                    ? selected.appointment.clientId || ""
-                    : selected.appointment.specialistUserId || ""
+                    ? selected.data.clientId || ""
+                    : selected.data.specialistUserId || ""
                 )
               }
               onDispute={fetchData}
+            />
+          )}
+          {selected && selected.type === "proposal" && (
+            <ProposalCard
+              proposal={selected.data}
+              isReceived={selected.isReceived || false}
+              isSpecialist={isSpecialist}
+              onStatusUpdate={handleStatusUpdate}
+              onViewConversation={handleViewConversation}
             />
           )}
         </DialogContent>
