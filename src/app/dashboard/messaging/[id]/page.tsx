@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import React, { useState, useEffect, useCallback } from "react";
@@ -12,6 +13,7 @@ import MessageList from "@/components/MessageList";
 import MessageInput from "@/components/MessageInput";
 import ProposalDialog from "@/components/ProposalDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
+import NotesSidebar from "@/components/NotesSidebar";
 
 interface Message {
   senderId: string;
@@ -82,6 +84,11 @@ const MessageInterface: React.FC = () => {
   } | null>(null);
   const [proposalActionMessage, setProposalActionMessage] = useState<
     string | null
+  >(null);
+  const [isNotesSidebarOpen, setIsNotesSidebarOpen] = useState(false);
+  const [otherUserId, setOtherUserId] = useState<string | null>(null);
+  const [otherUserType, setOtherUserType] = useState<
+    "user" | "professional" | null
   >(null);
 
   useEffect(() => {
@@ -157,6 +164,15 @@ const MessageInterface: React.FC = () => {
 
         setConversation(convData);
         setMessages(Array.isArray(msgData) ? msgData : []);
+
+        // Set other user ID and type
+        const currentUserId = session.user.id;
+        const otherUser =
+          convData.user1?.id === currentUserId
+            ? convData.user2
+            : convData.user1;
+        setOtherUserId(otherUser?.id || null);
+        setOtherUserType(otherUser?.isSpecialist ? "professional" : "user"); // Mock; replace with real logic if available
       } catch {
         toast.error("Failed to load conversation or messages");
       } finally {
@@ -168,7 +184,7 @@ const MessageInterface: React.FC = () => {
 
     const pollingInterval = setInterval(fetchMessages, 5000);
     return () => clearInterval(pollingInterval);
-  }, [status, conversationId, router, fetchMessages]);
+  }, [status, conversationId, router, fetchMessages, session]);
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     const file = e.target.files?.[0];
@@ -317,87 +333,6 @@ const MessageInterface: React.FC = () => {
     }
   };
 
-  /*
-  const handleProposalAction = async (
-    proposalId: string,
-    action: "accepted" | "rejected"
-  ) => {
-    if (!session?.user?.id) {
-      toast.error("Please log in to respond to the proposal");
-      return;
-    }
-
-    setSending(true);
-    try {
-      const res = await fetch(`/api/proposals/${proposalId}/status`, {
-        method: "PATCH",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ status: action }),
-        credentials: "include",
-      });
-
-      if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(errorData.error || `Failed to ${action} proposal`);
-      }
-
-      const data = await res.json();
-      setProposalActionMessage(`Proposal ${action}`);
-      setTimeout(() => setProposalActionMessage(null), 3000);
-
-      if (action === "accepted") {
-        const proposal = data.proposal;
-        const appointmentId = data.appointmentId;
-
-        if (proposal.initiator === "specialist") {
-          const specialistRes = await fetch(
-            `/api/specialists/${proposal.specialistId}`,
-            {
-              cache: "no-store",
-              credentials: "include",
-            }
-          );
-
-          if (!specialistRes.ok) {
-            throw new Error(
-              `Failed to fetch specialist details: ${specialistRes.status}`
-            );
-          }
-          const specialist = await specialistRes.json();
-          setSelectedProposal({
-            id: proposal.id,
-            date: proposal.date,
-            time: proposal.time,
-            specialist: {
-              id: proposal.specialistId,
-              name: specialist.name,
-              rate: specialist.rate || 50,
-            },
-            appointmentId,
-          });
-          setConfirmDialogOpen(true);
-          toast.success("Proposal accepted - proceed to payment");
-        } else {
-          toast.success("Appointment request accepted");
-        }
-      } else {
-        toast.success(
-          proposal.initiator === "specialist"
-            ? "Proposal rejected"
-            : "Appointment request declined"
-        );
-      }
-      await fetchMessages();
-    } catch (error: unknown) {
-      const errorMessage =
-        error instanceof Error ? error.message : `Failed to ${action} proposal`;
-      toast.error(errorMessage);
-    } finally {
-      setSending(false);
-    }
-  };
-  */
-
   const handleProposalAction = async (
     proposalId: string,
     action: "accepted" | "rejected"
@@ -423,7 +358,6 @@ const MessageInterface: React.FC = () => {
 
       const data = await res.json();
 
-      // 🔑 make these available to both branches
       const proposal = data.proposal as {
         id: string;
         date: string;
@@ -471,7 +405,6 @@ const MessageInterface: React.FC = () => {
           toast.success("Appointment request accepted");
         }
       } else {
-        // ✅ now proposal is in scope here
         toast.success(
           proposal.initiator === "specialist"
             ? "Proposal rejected"
@@ -571,13 +504,17 @@ const MessageInterface: React.FC = () => {
 
   return (
     <motion.div
-      className="space-y-6 w-full max-w-7xl mx-auto"
+      className="space-y-6 w-full max-w-7xl mx-auto relative" // Added relative for sidebar positioning
       variants={containerVariants}
       initial="hidden"
       animate="visible"
     >
       <Card className="h-[calc(100vh-2rem)] flex flex-col shadow-lg">
-        <ChatHeader otherUser={otherUser} sessionUserId={session.user.id} />
+        <ChatHeader
+          otherUser={otherUser}
+          sessionUserId={session.user.id}
+          onNotesClick={() => setIsNotesSidebarOpen(true)} // New prop for notes button
+        />
         <MessageList
           messages={messages}
           sessionUserId={session.user.id}
@@ -597,6 +534,12 @@ const MessageInterface: React.FC = () => {
           setIsProposalDialogOpen={setIsProposalDialogOpen}
         />
       </Card>
+      <NotesSidebar
+        isOpen={isNotesSidebarOpen}
+        onClose={() => setIsNotesSidebarOpen(false)}
+        targetId={otherUserId}
+        targetType={otherUserType}
+      />
       <ProposalDialog
         isOpen={isProposalDialogOpen}
         setIsOpen={setIsProposalDialogOpen}

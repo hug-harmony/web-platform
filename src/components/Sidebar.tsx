@@ -101,11 +101,11 @@ export default function Sidebar() {
         label: "Notifications",
         icon: <Bell className="h-5 w-5" />,
       },
-      {
-        href: "/dashboard/notes",
-        label: "Notes",
-        icon: <Notebook className="h-5 w-5" />,
-      },
+      // {
+      //   href: "/dashboard/notes",
+      //   label: "Notes",
+      //   icon: <Notebook className="h-5 w-5" />,
+      // },
       {
         href: "/dashboard/messaging",
         label: "Messages",
