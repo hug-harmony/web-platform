@@ -643,7 +643,7 @@ const BookingPage: React.FC = () => {
               )}
               <Tooltip>
                 <TooltipTrigger asChild>
-                  <motion.div variants={itemVariants}>
+                  <motion.div>
                     <Button
                       onClick={() => setIsDialogOpen(true)}
                       disabled={!selectedDate || !selectedTime || loading}
