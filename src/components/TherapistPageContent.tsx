@@ -48,9 +48,6 @@ import { MapContainer, TileLayer, Circle } from "react-leaflet";
 import { LatLngExpression } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import SpecialistCard from "@/components/SpecialistCard";
-import { Checkbox } from "@/components/ui/checkbox";
-import { Label } from "@/components/ui/label";
-import { Badge } from "./ui/badge";
 import {
   Accordion,
   AccordionContent,
@@ -74,15 +71,15 @@ interface Therapist {
   createdAt?: string;
   lat?: number;
   lng?: number;
-  age?: number; // Added for age filter
-  gender?: "male" | "female" | "other"; // Added
-  race?: string; // Added
-  ethnicity?: string; // From schema
-  bodyType?: string; // Added
-  personalityType?: string; // Added
-  lastOnline?: string; // Timestamp for online status
-  venuePreferences?: string[]; // Host, Guest, Common location
-  type?: "user" | "professional"; // Added
+  age?: number;
+  gender?: "male" | "female" | "other";
+  race?: string;
+  ethnicity?: string;
+  bodyType?: string;
+  personalityType?: string;
+  lastOnline?: string;
+  venuePreferences?: string[];
+  type?: "user" | "professional";
 }
 
 const containerVariants = {
@@ -228,10 +225,7 @@ const allTimeSlots = [
 ];
 
 export default function TherapistsPageContent() {
-  const [specialists, setSpecialists] = useState<Therapist[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [filters, setFilters] = useState({
+  const initialFilters = {
     location: "",
     minRating: 0,
     sortBy: "",
@@ -250,7 +244,13 @@ export default function TherapistsPageContent() {
     ethnicity: "",
     bodyType: "",
     personalityType: "",
-  });
+  };
+
+  const [specialists, setSpecialists] = useState<Therapist[]>([]);
+  const [loading, setLoading] = useState(true);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filters, setFilters] = useState(initialFilters);
+  const [appliedFilters, setAppliedFilters] = useState(initialFilters);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [tempRadius, setTempRadius] = useState(10);
   const [tempUnit, setTempUnit] = useState<"km" | "miles">("miles");
@@ -259,8 +259,6 @@ export default function TherapistsPageContent() {
   const [availabilities, setAvailabilities] = useState<
     Record<string, string[]>
   >({});
-  const [isDateTimeDialogOpen, setIsDateTimeDialogOpen] = useState(false);
-  const [isAdvancedOpen, setIsAdvancedOpen] = useState(false);
 
   useEffect(() => {
     const fetchSpecialists = async () => {
@@ -298,21 +296,20 @@ export default function TherapistsPageContent() {
                 education: s.education || "",
                 license: s.license || "",
                 createdAt: s.createdAt,
-                age: s.age || Math.floor(Math.random() * 50) + 20, // Mock data; replace with real
-                gender: s.gender || (Math.random() > 0.5 ? "male" : "female"), // Mock
-                race: s.race || "Unknown", // Mock
-                ethnicity: s.ethnicity || "Unknown", // From schema
-                bodyType: s.bodyType || "Average", // Mock
-                personalityType: s.personalityType || "Introvert", // Mock
+                age: s.age || Math.floor(Math.random() * 50) + 20,
+                gender: s.gender || (Math.random() > 0.5 ? "male" : "female"),
+                race: s.race || "Unknown",
+                ethnicity: s.ethnicity || "Unknown",
+                bodyType: s.bodyType || "Average",
+                personalityType: s.personalityType || "Introvert",
                 lastOnline: new Date(
                   Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000
-                ).toISOString(), // Mock timestamp
-                venuePreferences: s.venuePreferences || ["Host", "Guest"], // Mock array
-                type: "professional", // Assume all are professionals
+                ).toISOString(),
+                venuePreferences: s.venuePreferences || ["Host", "Guest"],
+                type: "professional",
               }))
           : [];
 
-        // Geocode locations
         const geocoded = await Promise.all(
           specialists.map(async (s: Therapist) => {
             if (s.location) {
@@ -412,7 +409,7 @@ export default function TherapistsPageContent() {
 
   const handleDateSelect = (date: Date | undefined) => {
     setSelectedDate(date);
-    setSelectedTime(""); // Reset time when date changes
+    setSelectedTime("");
   };
 
   const handleTimeSelect = (time: string) => {
@@ -420,7 +417,7 @@ export default function TherapistsPageContent() {
   };
 
   const applyDateTimeFilter = () => {
-    setIsDateTimeDialogOpen(false);
+    setIsDialogOpen(false);
   };
 
   const isTimeAvailable = (time: string) => {
@@ -430,7 +427,6 @@ export default function TherapistsPageContent() {
   const locations = Array.from(
     new Set(specialists.map((t) => t.location).filter(Boolean))
   ) as string[];
-
   const ratings = [4.5, 4.0, 3.5, 3.0];
   const sortOptions = ["rating", "name"];
   const radiusOptions = [1, 5, 10, 25, 50, 100];
@@ -438,13 +434,13 @@ export default function TherapistsPageContent() {
   const onlineStatuses = ["24hrs", "1day", "1week", "1month", "1year"];
   const venues = ["Host", "Guest", "Common location"];
   const types = ["user", "professional"];
-  // Mock options for advanced filters (replace with real data sources if available)
   const races = ["Asian", "Black", "White", "Hispanic", "Other"];
   const ethnicities = ["Hispanic", "Non-Hispanic", "Other"];
   const bodyTypes = ["Slim", "Athletic", "Average", "Curvy", "Other"];
   const personalityTypes = ["Introvert", "Extrovert", "Ambivert", "Other"];
+  const ageRanges = ["18-25", "26-35", "36-45", "46-55", "56+"];
 
-  const filterAndSort = (data: Therapist[]) =>
+  const filterAndSort = (data: Therapist[], filters: typeof initialFilters) =>
     data
       .filter((item) => item._id)
       .filter((item) =>
@@ -467,7 +463,7 @@ export default function TherapistsPageContent() {
             item.lng
           );
           if (filters.unit === "miles") {
-            dist /= 1.60934; // Convert km to miles
+            dist /= 1.60934;
           }
           return dist <= filters.radius;
         } else if (
@@ -561,7 +557,7 @@ export default function TherapistsPageContent() {
         return 0;
       });
 
-  const filteredSpecialists = filterAndSort(specialists);
+  const filteredSpecialists = filterAndSort(specialists, appliedFilters);
 
   return (
     <motion.div
@@ -582,7 +578,6 @@ export default function TherapistsPageContent() {
           </motion.div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {/* --- Search Bar --- */}
           <div className="relative">
             <Search className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5" />
             <Input
@@ -594,7 +589,6 @@ export default function TherapistsPageContent() {
             />
           </div>
 
-          {/* --- Filters Accordion --- */}
           <Accordion
             type="single"
             collapsible
@@ -606,52 +600,82 @@ export default function TherapistsPageContent() {
               </AccordionTrigger>
               <AccordionContent>
                 <div className="space-y-6">
-                  {/* --- Basic Filters Group --- */}
                   <div className="bg-white/5 dark:bg-black/10 rounded-xl p-4 shadow-sm">
                     <h3 className="text-lg font-semibold mb-4">
                       Basic Filters
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      {/* Min Age */}
-                      <div className="space-y-2">
-                        <Label>Min Age</Label>
-                        <Input
-                          type="number"
-                          placeholder="Min"
-                          value={filters.minAge || ""}
-                          onChange={(e) =>
-                            handleFilterChange(
-                              "minAge",
-                              parseInt(e.target.value) || undefined
-                            )
-                          }
-                          className="border-[#F3CFC6]"
-                        />
-                      </div>
-
-                      {/* Max Age */}
-                      <div className="space-y-2">
-                        <Label>Max Age</Label>
-                        <Input
-                          type="number"
-                          placeholder="Max"
-                          value={filters.maxAge || ""}
-                          onChange={(e) =>
-                            handleFilterChange(
-                              "maxAge",
-                              parseInt(e.target.value) || undefined
-                            )
-                          }
-                          className="border-[#F3CFC6]"
-                        />
-                      </div>
-
-                      {/* Gender */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="outline"
-                            className={`w-full ${filters.gender ? "border-[#F3CFC6] bg-[#F3CFC6]/10" : ""}`}
+                            className={`w-full border-[#F3CFC6] ${filters.minAge ? "bg-[#F3CFC6]/10" : ""}`}
+                          >
+                            Min Age: {filters.minAge || "All"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleFilterChange("minAge", undefined)
+                            }
+                          >
+                            All
+                          </DropdownMenuItem>
+                          {ageRanges.map((range) => (
+                            <DropdownMenuItem
+                              key={range}
+                              onClick={() =>
+                                handleFilterChange(
+                                  "minAge",
+                                  parseInt(range.split("-")[0])
+                                )
+                              }
+                            >
+                              {range}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={`w-full border-[#F3CFC6] ${filters.maxAge ? "bg-[#F3CFC6]/10" : ""}`}
+                          >
+                            Max Age: {filters.maxAge || "All"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() =>
+                              handleFilterChange("maxAge", undefined)
+                            }
+                          >
+                            All
+                          </DropdownMenuItem>
+                          {ageRanges.map((range) => (
+                            <DropdownMenuItem
+                              key={range}
+                              onClick={() =>
+                                handleFilterChange(
+                                  "maxAge",
+                                  parseInt(range.split("-")[1]) || 100
+                                )
+                              }
+                            >
+                              {range}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            variant="outline"
+                            className={`w-full border-[#F3CFC6] ${filters.gender ? "bg-[#F3CFC6]/10" : ""}`}
                           >
                             Gender: {filters.gender || "All"}
                           </Button>
@@ -673,12 +697,11 @@ export default function TherapistsPageContent() {
                         </DropdownMenuContent>
                       </DropdownMenu>
 
-                      {/* Location */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="outline"
-                            className={`w-full flex items-center ${filters.location ? "border-[#F3CFC6] bg-[#F3CFC6]/10" : ""}`}
+                            className={`w-full flex items-center border-[#F3CFC6] ${filters.location ? "bg-[#F3CFC6]/10" : ""}`}
                           >
                             <MapPin className="mr-2 h-4 w-4" />
                             Location: {filters.location || "All"}
@@ -708,16 +731,14 @@ export default function TherapistsPageContent() {
                     </div>
                   </div>
 
-                  {/* --- Additional Filters Group --- */}
                   <div className="bg-white/5 dark:bg-black/10 rounded-xl p-4 shadow-sm">
                     <h3 className="text-lg font-semibold mb-4">More Filters</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      {/* Profile Picture */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="outline"
-                            className={`w-full ${filters.hasProfilePic ? "border-[#F3CFC6] bg-[#F3CFC6]/10" : ""}`}
+                            className={`w-full border-[#F3CFC6] ${filters.hasProfilePic ? "bg-[#F3CFC6]/10" : ""}`}
                           >
                             Profile Pic: {filters.hasProfilePic || "All"}
                           </Button>
@@ -747,12 +768,11 @@ export default function TherapistsPageContent() {
                         </DropdownMenuContent>
                       </DropdownMenu>
 
-                      {/* Online Status */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="outline"
-                            className={`w-full ${filters.onlineStatus ? "border-[#F3CFC6] bg-[#F3CFC6]/10" : ""}`}
+                            className={`w-full border-[#F3CFC6] ${filters.onlineStatus ? "bg-[#F3CFC6]/10" : ""}`}
                           >
                             Online: {filters.onlineStatus || "All"}
                           </Button>
@@ -778,12 +798,11 @@ export default function TherapistsPageContent() {
                         </DropdownMenuContent>
                       </DropdownMenu>
 
-                      {/* Venue */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="outline"
-                            className={`w-full ${filters.venue.length ? "border-[#F3CFC6] bg-[#F3CFC6]/10" : ""}`}
+                            className={`w-full border-[#F3CFC6] ${filters.venue.length ? "bg-[#F3CFC6]/10" : ""}`}
                           >
                             Venue:{" "}
                             {filters.venue.length
@@ -809,12 +828,11 @@ export default function TherapistsPageContent() {
                         </DropdownMenuContent>
                       </DropdownMenu>
 
-                      {/* Type */}
                       <DropdownMenu>
                         <DropdownMenuTrigger asChild>
                           <Button
                             variant="outline"
-                            className={`w-full ${filters.type ? "border-[#F3CFC6] bg-[#F3CFC6]/10" : ""}`}
+                            className={`w-full border-[#F3CFC6] ${filters.type ? "bg-[#F3CFC6]/10" : ""}`}
                           >
                             Type: {filters.type || "All"}
                           </Button>
@@ -837,22 +855,157 @@ export default function TherapistsPageContent() {
                       </DropdownMenu>
                     </div>
                   </div>
+                </div>
+              </AccordionContent>
+            </AccordionItem>
 
-                  {/* --- Advanced Filters Button --- */}
-                  <Button
-                    variant="default"
-                    onClick={() => setIsAdvancedOpen(true)}
-                    className="w-full bg-[#F3CFC6] text-black hover:bg-[#f8b8aa] transition"
-                  >
-                    <FilterIcon className="mr-2 h-4 w-4" />
+            <AccordionItem value="advanced-filters">
+              <AccordionTrigger className="cursor-pointer">
+                Advanced Filters
+              </AccordionTrigger>
+              <AccordionContent>
+                <div className="bg-white/5 dark:bg-black/10 rounded-xl p-4 shadow-sm">
+                  <h3 className="text-lg font-semibold mb-4">
                     Advanced Filters
-                  </Button>
+                  </h3>
+                  <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={`w-full border-[#F3CFC6] ${filters.race ? "bg-[#F3CFC6]/10" : ""}`}
+                        >
+                          Race: {filters.race || "All"}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem
+                          onClick={() => handleFilterChange("race", "")}
+                        >
+                          All
+                        </DropdownMenuItem>
+                        {races.map((r) => (
+                          <DropdownMenuItem
+                            key={r}
+                            onClick={() => handleFilterChange("race", r)}
+                          >
+                            {r}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={`w-full border-[#F3CFC6] ${filters.ethnicity ? "bg-[#F3CFC6]/10" : ""}`}
+                        >
+                          Ethnicity: {filters.ethnicity || "All"}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem
+                          onClick={() => handleFilterChange("ethnicity", "")}
+                        >
+                          All
+                        </DropdownMenuItem>
+                        {ethnicities.map((e) => (
+                          <DropdownMenuItem
+                            key={e}
+                            onClick={() => handleFilterChange("ethnicity", e)}
+                          >
+                            {e}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={`w-full border-[#F3CFC6] ${filters.bodyType ? "bg-[#F3CFC6]/10" : ""}`}
+                        >
+                          Body Type: {filters.bodyType || "All"}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem
+                          onClick={() => handleFilterChange("bodyType", "")}
+                        >
+                          All
+                        </DropdownMenuItem>
+                        {bodyTypes.map((b) => (
+                          <DropdownMenuItem
+                            key={b}
+                            onClick={() => handleFilterChange("bodyType", b)}
+                          >
+                            {b}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+
+                    <DropdownMenu>
+                      <DropdownMenuTrigger asChild>
+                        <Button
+                          variant="outline"
+                          className={`w-full border-[#F3CFC6] ${filters.personalityType ? "bg-[#F3CFC6]/10" : ""}`}
+                        >
+                          Personality Type: {filters.personalityType || "All"}
+                        </Button>
+                      </DropdownMenuTrigger>
+                      <DropdownMenuContent>
+                        <DropdownMenuItem
+                          onClick={() =>
+                            handleFilterChange("personalityType", "")
+                          }
+                        >
+                          All
+                        </DropdownMenuItem>
+                        {personalityTypes.map((p) => (
+                          <DropdownMenuItem
+                            key={p}
+                            onClick={() =>
+                              handleFilterChange("personalityType", p)
+                            }
+                          >
+                            {p}
+                          </DropdownMenuItem>
+                        ))}
+                      </DropdownMenuContent>
+                    </DropdownMenu>
+                  </div>
                 </div>
               </AccordionContent>
             </AccordionItem>
           </Accordion>
+
+          <div className="flex gap-4 mt-4">
+            <Button
+              onClick={() => setAppliedFilters(filters)}
+              className="bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80"
+            >
+              Search
+            </Button>
+            <Button
+              variant="outline"
+              onClick={() => {
+                setFilters(initialFilters);
+                setAppliedFilters(initialFilters);
+                setSearchQuery("");
+                setSelectedDate(undefined);
+                setSelectedTime("");
+              }}
+              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+            >
+              Clear
+            </Button>
+          </div>
         </CardContent>
       </Card>
+
       <Card className="shadow-lg">
         <CardHeader>
           <CardTitle className="text-lg font-semibold text-black dark:text-white">
@@ -905,6 +1058,7 @@ export default function TherapistsPageContent() {
           )}
         </CardContent>
       </Card>
+
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
@@ -968,10 +1122,7 @@ export default function TherapistsPageContent() {
         </DialogContent>
       </Dialog>
 
-      <Dialog
-        open={isDateTimeDialogOpen}
-        onOpenChange={setIsDateTimeDialogOpen}
-      >
+      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="max-w-lg bg-white dark:bg-gray-800">
           <DialogHeader>
             <DialogTitle className="text-black dark:text-white">
@@ -1036,7 +1187,7 @@ export default function TherapistsPageContent() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsDateTimeDialogOpen(false)}
+              onClick={() => setIsDialogOpen(false)}
               className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
             >
               Cancel
@@ -1048,108 +1199,6 @@ export default function TherapistsPageContent() {
             >
               Apply
             </Button>
-          </DialogFooter>
-        </DialogContent>
-      </Dialog>
-
-      {/* Advanced Filters Dialog */}
-      <Dialog open={isAdvancedOpen} onOpenChange={setIsAdvancedOpen}>
-        <DialogContent className="max-w-lg">
-          <DialogHeader>
-            <DialogTitle>Advanced Filters</DialogTitle>
-          </DialogHeader>
-          <div className="space-y-4">
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full">
-                  Race: {filters.race || "All"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem
-                  onClick={() => handleFilterChange("race", "")}
-                >
-                  All
-                </DropdownMenuItem>
-                {races.map((r) => (
-                  <DropdownMenuItem
-                    key={r}
-                    onClick={() => handleFilterChange("race", r)}
-                  >
-                    {r}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full">
-                  Ethnicity: {filters.ethnicity || "All"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem
-                  onClick={() => handleFilterChange("ethnicity", "")}
-                >
-                  All
-                </DropdownMenuItem>
-                {ethnicities.map((e) => (
-                  <DropdownMenuItem
-                    key={e}
-                    onClick={() => handleFilterChange("ethnicity", e)}
-                  >
-                    {e}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full">
-                  Body Type: {filters.bodyType || "All"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem
-                  onClick={() => handleFilterChange("bodyType", "")}
-                >
-                  All
-                </DropdownMenuItem>
-                {bodyTypes.map((b) => (
-                  <DropdownMenuItem
-                    key={b}
-                    onClick={() => handleFilterChange("bodyType", b)}
-                  >
-                    {b}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full">
-                  Personality Type: {filters.personalityType || "All"}
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent>
-                <DropdownMenuItem
-                  onClick={() => handleFilterChange("personalityType", "")}
-                >
-                  All
-                </DropdownMenuItem>
-                {personalityTypes.map((p) => (
-                  <DropdownMenuItem
-                    key={p}
-                    onClick={() => handleFilterChange("personalityType", p)}
-                  >
-                    {p}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
-          </div>
-          <DialogFooter>
-            <Button onClick={() => setIsAdvancedOpen(false)}>Apply</Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
