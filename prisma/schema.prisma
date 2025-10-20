@@ -50,6 +50,7 @@ model User {
   reports          Report[]       @relation("Reporter")
   notesAuthored         Note[]   @relation("AuthorNotes")
   notesReceived         Note[]   @relation("TargetUserNotes")
+  profileVisits    ProfileVisit[] @relation("VisitedUser")
 }
 
 model PasswordResetToken {
@@ -182,11 +183,13 @@ model Availability {
 
 model ProfileVisit {
   id           String     @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String     @db.ObjectId
-  specialistId String     @db.ObjectId
+  userId       String     @db.ObjectId // Visitor's ID
+  specialistId String?    @db.ObjectId // Visited specialist's ID (optional)
+  visitedUserId String?   @db.ObjectId // Visited user's ID (optional)
   createdAt    DateTime   @default(now())
   user         User       @relation("Visitor", fields: [userId], references: [id], onDelete: Cascade)
-  specialist   Specialist @relation("Visitee", fields: [specialistId], references: [id], onDelete: Cascade)
+  specialist   Specialist? @relation("Visitee", fields: [specialistId], references: [id], onDelete: SetNull)
+  visitedUser  User?      @relation("VisitedUser", fields: [visitedUserId], references: [id], onDelete: SetNull)
 }
 
 model Message {

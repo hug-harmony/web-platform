@@ -136,6 +136,26 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     fetchProfile();
   }, [params, router]);
 
+  useEffect(() => {
+    if (status !== "authenticated") return;
+
+    const recordVisit = async () => {
+      try {
+        const { id } = await params;
+        await fetch("/api/profile-visits", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ visitedUserId: id }),
+          credentials: "include",
+        });
+      } catch (error) {
+        console.error("Error recording profile visit:", error);
+      }
+    };
+
+    recordVisit();
+  }, [params, status]);
+
   const handleStartChat = async () => {
     if (status === "loading") {
       toast.error("Please wait while we check your session");

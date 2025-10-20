@@ -14,6 +14,7 @@ import {
   Book,
   Video,
   DollarSign,
+  MessageSquare,
 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
@@ -43,6 +44,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -124,10 +126,10 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
   const [isReportOpen, setIsReportOpen] = useState(false);
   const [reportReason, setReportReason] = useState("");
   const [reportDetails, setReportDetails] = useState("");
-  const [isNoteOpen, setIsNoteOpen] = useState(false); // New state for note dialog
-  const [noteContent, setNoteContent] = useState(""); // New state for note content
+  const [isNoteOpen, setIsNoteOpen] = useState(false);
+  const [noteContent, setNoteContent] = useState("");
   const router = useRouter();
-  const { status: sessionStatus } = useSession();
+  const { status: sessionStatus, data: session } = useSession();
 
   useEffect(() => {
     if (sessionStatus === "unauthenticated") {
@@ -232,6 +234,58 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
     recordVisit();
   }, [params, sessionStatus]);
 
+  const handleStartChat = async () => {
+    if (sessionStatus === "loading") {
+      toast.error("Please wait while we check your session");
+      return;
+    }
+
+    if (!session?.user?.id) {
+      toast.error("Please log in to start a chat");
+      router.push("/login");
+      return;
+    }
+
+    if (!profile) {
+      toast.error("Profile not loaded");
+      return;
+    }
+
+    if (!/^[0-9a-fA-F]{24}$/.test(profile._id)) {
+      toast.error("Invalid recipient ID");
+      console.error("Invalid recipient ID:", profile._id);
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId: profile._id }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(
+          errorData.error || `Failed to create conversation: ${res.status}`
+        );
+      }
+
+      const conversation = await res.json();
+      if (!conversation.id || !/^[0-9a-fA-F]{24}$/.test(conversation.id)) {
+        throw new Error("Invalid conversation ID returned");
+      }
+
+      router.push(`/dashboard/messaging/${conversation.id}`);
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : "Failed to start chat";
+      console.error("Start chat error:", errorMessage);
+      toast.error(errorMessage);
+    }
+  };
+
   const handleSubmitReview = async () => {
     setSubmitError(null);
     try {
@@ -300,7 +354,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          targetSpecialistId: id, // For specialist profile
+          targetSpecialistId: id,
           content: noteContent,
         }),
       });
@@ -492,6 +546,12 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                       <Video className="mr-2 h-4 w-4" /> Book a virtual session
                     </Link>
                   </Button>
+                  <Button
+                    onClick={handleStartChat}
+                    className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full w-full sm:w-auto"
+                  >
+                    <MessageSquare className="mr-2 h-4 w-4" /> Start Chat
+                  </Button>
                   <Button className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full w-full sm:w-auto">
                     <StarIcon className="mr-2 h-4 w-4" /> Save to Favourites
                   </Button>
@@ -518,7 +578,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                         Report
                       </DropdownMenuItem>
                       <DropdownMenuItem
-                        onClick={() => setIsNoteOpen(true)} // Trigger note dialog
+                        onClick={() => setIsNoteOpen(true)}
                         className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
                       >
                         Make a Note
@@ -574,7 +634,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         </DialogContent>
       </Dialog>
 
-      {/* Note Dialog (New) */}
+      {/* Note Dialog */}
       <Dialog open={isNoteOpen} onOpenChange={setIsNoteOpen}>
         <DialogContent>
           <DialogHeader>

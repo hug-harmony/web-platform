@@ -32,6 +32,7 @@ import { toast } from "sonner";
 interface ProfileVisit {
   id: string;
   user: { id: string; name: string; avatar?: string | null };
+  visited: { id: string; name: string; type: "user" | "specialist" };
   createdAt: string;
 }
 
@@ -380,7 +381,8 @@ export default function ProfileVisitsPage() {
                                     className="p-2 border-b border-[#F3CFC6]/20"
                                   >
                                     <p className="text-sm text-[#C4C4C4]">
-                                      Visited on{" "}
+                                      Visited {visit.visited.type} profile (
+                                      {visit.visited.name}) on{" "}
                                       {new Date(
                                         visit.createdAt
                                       ).toLocaleString()}

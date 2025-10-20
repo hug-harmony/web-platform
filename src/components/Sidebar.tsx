@@ -22,7 +22,7 @@ import {
   Video,
   CreditCard,
   Bell,
-  Notebook,
+  // Notebook,
   Users,
   Eye, // Added for Profile Visits icon
 } from "lucide-react";
@@ -117,19 +117,24 @@ export default function Sidebar() {
         icon: <Users className="h-5 w-5" />,
       },
       {
-        href: "/dashboard/proposals",
-        label: "Proposals",
-        icon: <Users className="h-5 w-5" />,
+        href: "/dashboard/profile-visits",
+        label: "Profile Visits",
+        icon: <Eye className="h-5 w-5" />,
       },
-      ...(isSpecialist
-        ? [
-            {
-              href: "/dashboard/profile-visits",
-              label: "Profile Visits",
-              icon: <Eye className="h-5 w-5" />,
-            },
-          ]
-        : []),
+      // {
+      //   href: "/dashboard/proposals",
+      //   label: "Proposals",
+      //   icon: <Users className="h-5 w-5" />,
+      // },
+      // ...(isSpecialist
+      //   ? [
+      //       {
+      //         href: "/dashboard/profile-visits",
+      //         label: "Profile Visits",
+      //         icon: <Eye className="h-5 w-5" />,
+      //       },
+      //     ]
+      //   : []),
     ],
     [isSpecialist]
   );

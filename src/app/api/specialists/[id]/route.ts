@@ -87,6 +87,7 @@ export async function GET(
           createdAt: true,
           application: {
             select: {
+              userId: true,
               user: { select: { location: true } },
             },
           },
