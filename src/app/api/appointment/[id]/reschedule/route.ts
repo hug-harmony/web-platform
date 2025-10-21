@@ -12,7 +12,7 @@ const schema = z.object({
 
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -20,7 +20,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = context.params;
+    const { id } = await params;
     const body = await request.json();
     const { date, time, note } = schema.parse(body);
 
