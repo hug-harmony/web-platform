@@ -10,7 +10,7 @@ const disputeSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  context: { params: Record<string, string> }
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -18,7 +18,7 @@ export async function POST(
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = context.params;
+    const { id } = params;
     const body = await request.json();
     const { reason } = disputeSchema.parse(body);
 
