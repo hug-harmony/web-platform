@@ -1,9 +1,8 @@
-// app/api/appointment/clients/route.ts
 import { NextResponse } from "next/server";
 import { Prisma, PrismaClient } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { buildDisplayName } from "@/lib/utils"; // ✅ import helper
+import { buildDisplayName } from "@/lib/utils";
 
 const prisma = new PrismaClient();
 
@@ -99,11 +98,15 @@ export async function GET() {
 
         return {
           _id: appt.id,
-          clientName: buildDisplayName(appt.user),
+          clientName: appt.user
+            ? buildDisplayName(appt.user)
+            : "Unknown Client",
           specialistId: appt.specialistId,
           specialistName:
             appt.specialist?.name ||
-            buildDisplayName(appt.specialist?.application?.user),
+            (appt.specialist?.application?.user
+              ? buildDisplayName(appt.specialist.application.user)
+              : "Unknown Specialist"),
           date: appt.date.toISOString().split("T")[0],
           time: appt.time,
           status: effectiveStatus,
