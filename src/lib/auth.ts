@@ -1,41 +1,99 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import prisma from "@/lib/prisma";
+
+async function ensureUniqueUsername(
+  base: string
+): Promise<{ username: string; lower: string }> {
+  const sanitize = (u: string) =>
+    u
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
+  let root = sanitize(base || "user");
+
+  if (root.length < 3)
+    root = `user_${root}${Math.floor(Math.random() * 900 + 100)}`;
+
+  const candidates = [
+    root,
+    `${root}_${Math.floor(Math.random() * 900 + 100)}`,
+    `${root}${new Date().getFullYear().toString().slice(-2)}`,
+    `${root}_x`,
+  ];
+
+  for (const c of candidates) {
+    const lower = c.toLowerCase();
+    const existing = await prisma.user.findFirst({
+      where: { usernameLower: lower },
+      select: { id: true },
+    });
+    if (!existing) return { username: c, lower };
+  }
+
+  while (true) {
+    const c = `${root}_${Math.floor(Math.random() * 9000 + 1000)}`;
+    const lower = c.toLowerCase();
+    const existing = await prisma.user.findFirst({
+      where: { usernameLower: lower },
+      select: { id: true },
+    });
+    if (!existing) return { username: c, lower };
+  }
+}
 
 export const authOptions: NextAuthOptions = {
   providers: [
     CredentialsProvider({
       name: "Credentials",
       credentials: {
-        email: { label: "Email", type: "text" },
+        identifier: { label: "Email or Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
       async authorize(credentials) {
-        if (!credentials?.email || !credentials?.password) {
+        if (!credentials?.identifier || !credentials?.password) {
           throw new Error("Missing credentials");
         }
-        const user = await prisma.user.findUnique({
-          where: { email: credentials.email },
-          select: {
-            id: true,
-            email: true,
-            name: true,
-            password: true,
-            isAdmin: true,
-          },
-        });
-        if (!user || !user.password) {
-          throw new Error("No user found with this email");
-        }
-        if (credentials.password !== user.password) {
-          throw new Error("Invalid password");
-        }
+        const id = credentials.identifier.trim();
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id);
+
+        const user = isEmail
+          ? await prisma.user.findUnique({
+              where: { email: id },
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                username: true,
+                password: true,
+                isAdmin: true,
+              },
+            })
+          : await prisma.user.findFirst({
+              where: { usernameLower: id.toLowerCase() },
+              select: {
+                id: true,
+                email: true,
+                name: true,
+                username: true,
+                password: true,
+                isAdmin: true,
+              },
+            });
+
+        if (!user || !user.password) throw new Error("Invalid credentials");
+
+        if (credentials.password !== user.password)
+          throw new Error("Invalid credentials");
 
         return {
           id: user.id,
           email: user.email,
           name: user.name,
+          username: user.username ?? null,
           isAdmin: user.isAdmin,
         };
       },
@@ -64,65 +122,69 @@ export const authOptions: NextAuthOptions = {
           given_name?: string;
           family_name?: string;
           picture?: string;
+          email?: string;
         };
-        console.log("Google sign-in:", {
-          email: user.email,
-          googleId: account.providerAccountId,
-        });
-        const existingUserByGoogleId = await prisma.user.findFirst({
+
+        const existingByGoogleId = await prisma.user.findFirst({
           where: { googleId: account.providerAccountId },
         });
-        if (existingUserByGoogleId) {
-          console.log(
-            "Existing user by googleId:",
-            existingUserByGoogleId.email
-          );
-          if (existingUserByGoogleId.email !== user.email) {
+
+        if (existingByGoogleId) {
+          if (!existingByGoogleId.username) {
+            const base =
+              (googleProfile.given_name || "") +
+                (googleProfile.family_name || "") ||
+              (googleProfile.email?.split("@")[0] ?? "user");
+            const { username, lower } = await ensureUniqueUsername(base);
             await prisma.user.update({
-              where: { id: existingUserByGoogleId.id },
-              data: {
-                email: user.email!,
-                firstName:
-                  googleProfile.given_name || existingUserByGoogleId.firstName,
-                lastName:
-                  googleProfile.family_name || existingUserByGoogleId.lastName,
-                profileImage:
-                  googleProfile.picture || existingUserByGoogleId.profileImage,
-              },
+              where: { id: existingByGoogleId.id },
+              data: { username, usernameLower: lower },
             });
           }
-          user.id = existingUserByGoogleId.id;
-          user.isAdmin = existingUserByGoogleId.isAdmin; // Ensure isAdmin is set
+          user.id = existingByGoogleId.id;
+          user.isAdmin = existingByGoogleId.isAdmin;
           return true;
         }
-        const existingUserByEmail = await prisma.user.findUnique({
+
+        const existingByEmail = await prisma.user.findUnique({
           where: { email: user.email! },
         });
-        if (existingUserByEmail) {
-          console.log("Existing user by email:", existingUserByEmail.email);
-          if (!existingUserByEmail.googleId) {
+
+        if (existingByEmail) {
+          if (!existingByEmail.googleId) {
             const fullName =
               googleProfile.given_name && googleProfile.family_name
                 ? `${googleProfile.given_name} ${googleProfile.family_name}`
                 : googleProfile.given_name ||
                   googleProfile.family_name ||
                   user.email;
+
+            const update: any = {
+              googleId: account.providerAccountId,
+              name: fullName,
+              firstName: googleProfile.given_name || existingByEmail.firstName,
+              lastName: googleProfile.family_name || existingByEmail.lastName,
+              profileImage:
+                googleProfile.picture || existingByEmail.profileImage,
+            };
+
+            if (!existingByEmail.username) {
+              const base =
+                (googleProfile.given_name || "") +
+                  (googleProfile.family_name || "") ||
+                (googleProfile.email?.split("@")[0] ?? "user");
+              const { username, lower } = await ensureUniqueUsername(base);
+              update.username = username;
+              update.usernameLower = lower;
+            }
+
             await prisma.user.update({
-              where: { email: user.email! },
-              data: {
-                googleId: account.providerAccountId,
-                name: fullName,
-                firstName:
-                  googleProfile.given_name || existingUserByEmail.firstName,
-                lastName:
-                  googleProfile.family_name || existingUserByEmail.lastName,
-                profileImage:
-                  googleProfile.picture || existingUserByEmail.profileImage,
-              },
+              where: { id: existingByEmail.id },
+              data: update,
             });
           }
-          user.id = existingUserByEmail.id;
-          user.isAdmin = existingUserByEmail.isAdmin; // Ensure isAdmin is set
+          user.id = existingByEmail.id;
+          user.isAdmin = existingByEmail.isAdmin;
           return true;
         }
 
@@ -133,6 +195,12 @@ export const authOptions: NextAuthOptions = {
               googleProfile.family_name ||
               user.email;
 
+        const base =
+          (googleProfile.given_name || "") +
+            (googleProfile.family_name || "") ||
+          (user.email?.split("@")[0] ?? "user");
+        const { username, lower } = await ensureUniqueUsername(base);
+
         const newUser = await prisma.user.create({
           data: {
             email: user.email!,
@@ -141,7 +209,9 @@ export const authOptions: NextAuthOptions = {
             firstName: googleProfile.given_name || "",
             lastName: googleProfile.family_name || "",
             profileImage: googleProfile.picture || "",
-            isAdmin: false, // default for new users
+            isAdmin: false,
+            username,
+            usernameLower: lower,
           },
         });
 
@@ -155,17 +225,19 @@ export const authOptions: NextAuthOptions = {
       if (user && user.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
-          select: { id: true, isAdmin: true },
+          select: { id: true, isAdmin: true, username: true },
         });
         token.id = dbUser?.id;
         token.isAdmin = dbUser?.isAdmin ?? false;
+        token.username = dbUser?.username ?? null;
       }
       return token;
     },
     async session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
-        session.user.isAdmin = token.isAdmin as boolean;
+        session.user.isAdmin = (token.isAdmin as boolean) ?? false;
+        session.user.username = (token.username as string | null) ?? null;
       }
       return session;
     },

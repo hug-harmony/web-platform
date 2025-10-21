@@ -2,7 +2,7 @@
 
 import { toast } from "sonner";
 import { useRouter } from "next/navigation";
-import { useState } from "react";
+import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -20,18 +20,48 @@ import { signIn } from "next-auth/react";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import Image from "next/image";
-
-import register from "../../../public/register.webp";
 import Link from "next/link";
+import { parsePhoneNumberFromString } from "libphonenumber-js";
+import register from "../../../public/register.webp";
+
+type UsernameStatus = "idle" | "checking" | "available" | "unavailable";
+
+const usernameSchema = z
+  .string()
+  .min(3, "Username must be at least 3 characters")
+  .max(20, "Username must be at most 20 characters")
+  .regex(
+    /^[a-zA-Z0-9_]+$/,
+    "Only letters, numbers, and underscores are allowed"
+  );
+
+const passwordSchema = z
+  .string()
+  .min(8, "Password must be at least 8 characters")
+  .regex(/[A-Z]/, "Must contain at least one uppercase letter")
+  .regex(/\d/, "Must contain at least one number")
+  .regex(
+    /[!@#$%^&*(),.?":{}|<>_\-\[\];'`~+/=\\]/,
+    "Must contain at least one special character"
+  );
+
+const phoneSchema = z
+  .string()
+  .min(1, "Phone number is required")
+  .refine((val) => {
+    const p = parsePhoneNumberFromString(val || "");
+    return !!p?.isValid();
+  }, "Enter a valid phone number in international format (e.g., +14155552671)");
 
 const formSchema = z
   .object({
+    username: usernameSchema,
     firstName: z.string().min(1, "First name is required"),
     lastName: z.string().min(1, "Last name is required"),
     email: z.string().email("Invalid email address"),
-    phoneNumber: z.string().min(10, "Phone number must be at least 10 digits"),
-    password: z.string().min(6, "Password must be at least 6 characters"),
-    confirmPassword: z.string().min(6, "Confirm password is required"),
+    phoneNumber: phoneSchema,
+    password: passwordSchema,
+    confirmPassword: z.string().min(1, "Confirm password is required"),
     ageVerification: z.boolean(),
   })
   .refine((data) => data.password === data.confirmPassword, {
@@ -46,11 +76,14 @@ const formSchema = z
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
+  const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
+  const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
   const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
+      username: "",
       firstName: "",
       lastName: "",
       email: "",
@@ -59,33 +92,152 @@ export default function RegisterPage() {
       confirmPassword: "",
       ageVerification: false,
     },
+    mode: "onChange",
   });
+
+  // Generate local suggestions if API doesn't return any
+  const generateLocalSuggestions = (base: string) => {
+    const clean = base
+      .toLowerCase()
+      .replace(/[^a-z0-9_]/g, "_")
+      .replace(/_+/g, "_")
+      .replace(/^_+|_+$/g, "");
+    const suffixes = [
+      Math.floor(Math.random() * 900 + 100).toString(),
+      new Date().getFullYear().toString().slice(-2),
+      "x",
+      "official",
+      "_" + Math.floor(Math.random() * 90 + 10).toString(),
+    ];
+    const candidates = new Set<string>();
+    candidates.add(clean);
+    suffixes.forEach((s) => candidates.add(`${clean}${s}`));
+    return Array.from(candidates)
+      .filter((c) => c.length >= 3)
+      .slice(0, 5);
+  };
+
+  // Live username availability check with debounce
+  const usernameValue = form.watch("username");
+  useEffect(() => {
+    let ignore = false;
+    const v = (usernameValue || "").trim();
+    if (!v || !usernameSchema.safeParse(v).success) {
+      setUsernameStatus("idle");
+      setUsernameSuggestions([]);
+      return;
+    }
+
+    setUsernameStatus("checking");
+    const controller = new AbortController();
+    const t = setTimeout(async () => {
+      try {
+        const res = await fetch(
+          `/api/users/check-username?username=${encodeURIComponent(v)}`,
+          {
+            signal: controller.signal,
+          }
+        );
+        if (!res.ok) throw new Error("Failed to check username");
+        const data = await res.json();
+        if (ignore) return;
+        if (data.available) {
+          setUsernameStatus("available");
+          setUsernameSuggestions([]);
+          form.clearErrors("username");
+        } else {
+          setUsernameStatus("unavailable");
+          const suggested =
+            (Array.isArray(data.suggestions) ? data.suggestions : []) ||
+            generateLocalSuggestions(v);
+          setUsernameSuggestions(suggested);
+          form.setError("username", {
+            type: "manual",
+            message: "Username is taken",
+          });
+        }
+      } catch {
+        if (!ignore) {
+          setUsernameStatus("idle");
+        }
+      }
+    }, 350);
+
+    return () => {
+      ignore = true;
+      controller.abort();
+      clearTimeout(t);
+    };
+  }, [usernameValue, form]);
+
+  const normalizePhoneE164 = (raw: string): string | null => {
+    const p = parsePhoneNumberFromString(raw || "");
+    return p?.isValid() ? p.number : null; // E.164
+  };
+
+  const formatPhoneInternational = (raw: string): string => {
+    const p = parsePhoneNumberFromString(raw || "");
+    return p?.isValid() ? p.formatInternational() : raw;
+  };
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsLoading(true);
+      setError(null);
+
+      // Normalize phone to E.164
+      const phoneE164 = normalizePhoneE164(values.phoneNumber);
+      if (!phoneE164) {
+        form.setError("phoneNumber", {
+          type: "manual",
+          message: "Invalid phone number",
+        });
+        setIsLoading(false);
+        return;
+      }
+
+      // Final username availability guard
+      if (usernameStatus === "unavailable") {
+        form.setError("username", {
+          type: "manual",
+          message: "Username is taken",
+        });
+        setIsLoading(false);
+        return;
+      }
+
       const res = await fetch("/api/auth/register", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          firstName: values.firstName,
-          lastName: values.lastName,
-          email: values.email,
-          phoneNumber: values.phoneNumber,
+          username: values.username.trim(),
+          firstName: values.firstName.trim(),
+          lastName: values.lastName.trim(),
+          email: values.email.trim(),
+          phoneNumber: phoneE164,
           password: values.password,
           ageVerification: values.ageVerification,
         }),
       });
-      const data = await res.json();
 
-      if (!res.ok) throw new Error(data.error || "Registration failed");
+      const data = await res.json();
+      if (!res.ok) {
+        // If server returns suggestions on conflict, surface them
+        if (res.status === 409 && Array.isArray(data?.suggestions)) {
+          setUsernameSuggestions(data.suggestions);
+          form.setError("username", {
+            type: "manual",
+            message: data.error || "Username unavailable",
+          });
+        }
+        throw new Error(data.error || "Registration failed");
+      }
 
       const signInResult = await signIn("credentials", {
         email: values.email,
         password: values.password,
         redirect: false,
       });
-
       if (signInResult?.error) throw new Error(signInResult.error);
 
       toast.success("Account created successfully!");
@@ -103,6 +255,19 @@ export default function RegisterPage() {
     }
   };
 
+  const usernameHelp = useMemo(() => {
+    switch (usernameStatus) {
+      case "checking":
+        return "Checking availability…";
+      case "available":
+        return "Username is available 🎉";
+      case "unavailable":
+        return "Username is taken. Try a suggestion below.";
+      default:
+        return "3–20 chars. Letters, numbers, underscores only.";
+    }
+  }, [usernameStatus]);
+
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
       <Card className="flex flex-col md:flex-row w-full max-w-5xl p-0 overflow-hidden gap-0">
@@ -117,6 +282,54 @@ export default function RegisterPage() {
               onSubmit={form.handleSubmit(handleSubmit)}
               className="space-y-4"
             >
+              {/* Username */}
+              <FormField
+                control={form.control}
+                name="username"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-medium">
+                      Username
+                    </FormLabel>
+                    <FormControl>
+                      <Input
+                        className="text-sm border-gray-300"
+                        placeholder="Choose a unique username (e.g., hugger_123)"
+                        autoComplete="username"
+                        {...field}
+                      />
+                    </FormControl>
+                    <p className="text-xs text-gray-500" aria-live="polite">
+                      {usernameHelp}
+                    </p>
+                    {usernameStatus === "unavailable" &&
+                      usernameSuggestions.length > 0 && (
+                        <div className="flex flex-wrap gap-2 mt-2">
+                          {usernameSuggestions.map((s) => (
+                            <Button
+                              key={s}
+                              type="button"
+                              variant="secondary"
+                              size="sm"
+                              className="text-xs"
+                              onClick={() => {
+                                form.setValue("username", s, {
+                                  shouldDirty: true,
+                                  shouldValidate: true,
+                                });
+                              }}
+                            >
+                              {s}
+                            </Button>
+                          ))}
+                        </div>
+                      )}
+                    <FormMessage className="text-xs" />
+                  </FormItem>
+                )}
+              />
+
+              {/* Names */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -128,7 +341,7 @@ export default function RegisterPage() {
                       </FormLabel>
                       <FormControl>
                         <Input
-                          className=" text-sm border-gray-300"
+                          className="text-sm border-gray-300"
                           placeholder="First Name"
                           {...field}
                         />
@@ -147,7 +360,7 @@ export default function RegisterPage() {
                       </FormLabel>
                       <FormControl>
                         <Input
-                          className=" text-sm border-gray-300"
+                          className="text-sm border-gray-300"
                           placeholder="Last Name"
                           {...field}
                         />
@@ -157,6 +370,8 @@ export default function RegisterPage() {
                   )}
                 />
               </div>
+
+              {/* Contact */}
               <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
                 <FormField
                   control={form.control}
@@ -168,9 +383,10 @@ export default function RegisterPage() {
                       </FormLabel>
                       <FormControl>
                         <Input
-                          className=" text-sm border-gray-300"
+                          className="text-sm border-gray-300"
                           placeholder="Email"
                           type="email"
+                          autoComplete="email"
                           {...field}
                         />
                       </FormControl>
@@ -188,17 +404,32 @@ export default function RegisterPage() {
                       </FormLabel>
                       <FormControl>
                         <Input
-                          className=" text-sm border-gray-300"
-                          placeholder="Phone Number"
-                          type="tel"
+                          className="text-sm border-gray-300"
+                          placeholder="+1 415 555 2671"
+                          inputMode="tel"
+                          autoComplete="tel"
                           {...field}
+                          onBlur={(e) => {
+                            field.onBlur();
+                            const formatted = formatPhoneInternational(
+                              e.target.value
+                            );
+                            form.setValue("phoneNumber", formatted, {
+                              shouldDirty: true,
+                            });
+                          }}
                         />
                       </FormControl>
+                      <p className="text-xs text-gray-500">
+                        Use international format (e.g., +14155552671)
+                      </p>
                       <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
               </div>
+
+              {/* Passwords */}
               <FormField
                 control={form.control}
                 name="password"
@@ -209,12 +440,17 @@ export default function RegisterPage() {
                     </FormLabel>
                     <FormControl>
                       <Input
-                        className=" text-sm border-gray-300"
+                        className="text-sm border-gray-300"
                         placeholder="Password"
                         type="password"
+                        autoComplete="new-password"
                         {...field}
                       />
                     </FormControl>
+                    <p className="text-xs text-gray-500">
+                      At least 8 characters, 1 uppercase, 1 number, 1 special
+                      character.
+                    </p>
                     <FormMessage className="text-xs" />
                   </FormItem>
                 )}
@@ -229,9 +465,10 @@ export default function RegisterPage() {
                     </FormLabel>
                     <FormControl>
                       <Input
-                        className=" text-sm border-gray-300"
+                        className="text-sm border-gray-300"
                         placeholder="Confirm Password"
                         type="password"
+                        autoComplete="new-password"
                         {...field}
                       />
                     </FormControl>
@@ -240,6 +477,7 @@ export default function RegisterPage() {
                 )}
               />
 
+              {/* Terms */}
               <FormField
                 control={form.control}
                 name="ageVerification"
@@ -272,16 +510,18 @@ export default function RegisterPage() {
               <Button
                 type="submit"
                 className="w-full bg-[#E7C4BB] text-black text-sm hover:bg-[#d4a8a0] transition-colors cursor-pointer"
-                disabled={isLoading}
+                disabled={isLoading || usernameStatus === "checking"}
               >
                 {isLoading ? "Creating Account..." : "Create Account"}
               </Button>
+
               <div className="text-center text-xs text-gray-600">
                 Already have an account?{" "}
                 <Link href="/login" className="text-blue-600 hover:underline">
                   Login
                 </Link>
               </div>
+
               <div className="text-center text-xs text-gray-600 mt-4">
                 Or sign up with
               </div>

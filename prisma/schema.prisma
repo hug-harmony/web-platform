@@ -11,12 +11,16 @@ datasource db {
 model User {
   id               String         @id @default(auto()) @map("_id") @db.ObjectId
   email            String         @unique
+  // New: public username (unique) and normalized lower-case for case-insensitive lookups
+  username         String?        @unique
+  usernameLower    String?        @unique
+
   name             String?        // Used for Specialist.name
   firstName        String?
   lastName         String?
   password         String?
   phoneNumber      String?
-  googleId         String?        
+  googleId         String?
   profileImage     String?        // Used for Specialist.image
   location         String?
   biography        String?        // Added biography
@@ -43,13 +47,13 @@ model User {
   VideoSession     VideoSession[]
   ProfileVisit     ProfileVisit[] @relation("Visitor")
   Proposal         Proposal[]     @relation
-  reviews      Review[]   @relation("UserReviews")
+  reviews          Review[]       @relation("UserReviews")
   surveyResponses  SurveyResponse[] @relation("UserSurveys")
   securityLogs     SecurityLog[]  @relation("UserSecurityLogs")
   reported         Report[]       @relation("ReportedUser")
   reports          Report[]       @relation("Reporter")
-  notesAuthored         Note[]   @relation("AuthorNotes")
-  notesReceived         Note[]   @relation("TargetUserNotes")
+  notesAuthored    Note[]         @relation("AuthorNotes")
+  notesReceived    Note[]         @relation("TargetUserNotes")
   profileVisits    ProfileVisit[] @relation("VisitedUser")
 }
 
@@ -64,21 +68,21 @@ model PasswordResetToken {
 
 model Appointment {
   id               String          @id @default(auto()) @map("_id") @db.ObjectId
-  userId           String?        @db.ObjectId
-  specialistId     String         @db.ObjectId
+  userId           String?         @db.ObjectId
+  specialistId     String          @db.ObjectId
   date             DateTime
   time             String
-  status           String         @default("upcoming")
-  disputeStatus    String         @default("none")
+  status           String          @default("upcoming")
+  disputeStatus    String          @default("none")
   disputeReason    String?
   adminNotes       String?
   rate             Float?
   adjustedRate     Float?
   modificationHistory Json?
-  venue            AppointmentVenue // Specific venue for the appointment
-  createdAt        DateTime       @default(now())
-  user             User?          @relation("UserAppointments", fields: [userId], references: [id], onDelete: SetNull)
-  specialist       Specialist     @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)
+  venue            AppointmentVenue
+  createdAt        DateTime        @default(now())
+  user             User?           @relation("UserAppointments", fields: [userId], references: [id], onDelete: SetNull)
+  specialist       Specialist      @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)
   payment          Payment?
 }
 
@@ -91,8 +95,8 @@ model Conversation {
   user1            User         @relation("User1Conversations", fields: [userId1], references: [id], onDelete: Cascade)
   user2            User         @relation("User2Conversations", fields: [userId2], references: [id], onDelete: Cascade)
   messages         Message[]    @relation("ConversationMessages")
-  readBy           Json?        // Map of userId -> last read timestamp (e.g., { "userId1": "2025-09-25T12:00:00Z" })
-  Proposal Proposal[] @relation
+  readBy           Json?
+  Proposal         Proposal[]   @relation
 }
 
 model Specialist {
@@ -104,18 +108,18 @@ model Specialist {
   rate             Float?
   biography        String?
   companyCutPercentage Float?
-  venue            VenueType    @default(both) // Specialist's venue preference
-  createdAt        DateTime     @default(now())
-  appointments     Appointment[] @relation("SpecialistAppointments")
+  venue            VenueType      @default(both)
+  createdAt        DateTime       @default(now())
+  appointments     Appointment[]  @relation("SpecialistAppointments")
   application      SpecialistApplication? @relation
   VideoSession     VideoSession[]
   availability     Availability[] @relation
   profileVisits    ProfileVisit[] @relation("Visitee")
   Proposal         Proposal[]     @relation
-  reviews          Review[]   @relation("SpecialistReviews")
-  discounts        Discount[] @relation
+  reviews          Review[]       @relation("SpecialistReviews")
+  discounts        Discount[]     @relation
   reported         Report[]       @relation("ReportedSpecialist")
-  notesReceived    Note[]   @relation("TargetSpecialistNotes")
+  notesReceived    Note[]         @relation("TargetSpecialistNotes")
 }
 
 model Post {
@@ -131,25 +135,25 @@ model Post {
 }
 
 model Reply {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  content      String
-  postId       String   @db.ObjectId
-  authorId     String   @db.ObjectId
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  content       String
+  postId        String   @db.ObjectId
+  authorId      String   @db.ObjectId
   parentReplyId String?  @db.ObjectId
-  post         Post     @relation("PostReplies", fields: [postId], references: [id], onDelete: Cascade)
-  author       User     @relation("UserReplies", fields: [authorId], references: [id], onDelete: Cascade)
-  parentReply  Reply?   @relation("ReplyReplies", fields: [parentReplyId], references: [id], onDelete: NoAction, onUpdate: NoAction)
-  childReplies Reply[]  @relation("ReplyReplies")
-  createdAt    DateTime @default(now())
-  updatedAt    DateTime @updatedAt
+  post          Post     @relation("PostReplies", fields: [postId], references: [id], onDelete: Cascade)
+  author        User     @relation("UserReplies", fields: [authorId], references: [id], onDelete: Cascade)
+  parentReply   Reply?   @relation("ReplyReplies", fields: [parentReplyId], references: [id], onDelete: NoAction, onUpdate: NoAction)
+  childReplies  Reply[]  @relation("ReplyReplies")
+  createdAt     DateTime @default(now())
+  updatedAt     DateTime @updatedAt
 }
 
 model SpecialistApplication {
   id           String      @id @default(auto()) @map("_id") @db.ObjectId
   userId       String      @unique @db.ObjectId
   biography    String
-  rate         Float       // Renamed from charges to rate
-  status       String      @default("pending") // pending, reviewed, approved, rejected
+  rate         Float
+  status       String      @default("pending")
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
   user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
@@ -158,40 +162,41 @@ model SpecialistApplication {
 }
 
 model VideoSession {
-  id           String    @id @default(auto()) @map("_id") @db.ObjectId
-  roomId       String    @unique
-  userId       String    @db.ObjectId
-  specialistId String    @db.ObjectId
-  date         DateTime
-  time         String
-  status       String    @default("upcoming")
-  roomUrl      String?
-  signalingData Json?     // Store WebRTC signaling data (offer/answer)
-  createdAt    DateTime  @default(now())
-  updatedAt    DateTime  @updatedAt
-  user         User      @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  id            String    @id @default(auto()) @map("_id") @db.ObjectId
+  roomId        String    @unique
+  userId        String    @db.ObjectId
+  specialistId  String    @db.ObjectId
+  date          DateTime
+  time          String
+  status        String    @default("upcoming")
+  roomUrl       String?
+  signalingData Json?
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+  user          User      @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialist    Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
 }
 
 model Availability {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  specialistId String   @db.ObjectId
-  date         DateTime
-  slots        String[]
+  id            String   @id @default(auto()) @map("_id") @db.ObjectId
+  specialistId  String   @db.ObjectId
+  date          DateTime
+  slots         String[]
   breakDuration Int?
-  specialist   Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  specialist    Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+
   @@unique([specialistId, date])
 }
 
 model ProfileVisit {
-  id           String     @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String     @db.ObjectId // Visitor's ID
-  specialistId String?    @db.ObjectId // Visited specialist's ID (optional)
-  visitedUserId String?   @db.ObjectId // Visited user's ID (optional)
-  createdAt    DateTime   @default(now())
-  user         User       @relation("Visitor", fields: [userId], references: [id], onDelete: Cascade)
-  specialist   Specialist? @relation("Visitee", fields: [specialistId], references: [id], onDelete: SetNull)
-  visitedUser  User?      @relation("VisitedUser", fields: [visitedUserId], references: [id], onDelete: SetNull)
+  id             String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String     @db.ObjectId
+  specialistId   String?    @db.ObjectId
+  visitedUserId  String?    @db.ObjectId
+  createdAt      DateTime   @default(now())
+  user           User       @relation("Visitor", fields: [userId], references: [id], onDelete: Cascade)
+  specialist     Specialist? @relation("Visitee", fields: [specialistId], references: [id], onDelete: SetNull)
+  visitedUser    User?      @relation("VisitedUser", fields: [visitedUserId], references: [id], onDelete: SetNull)
 }
 
 model Message {
@@ -204,36 +209,36 @@ model Message {
   recipientId      String       @db.ObjectId
   conversationId   String       @db.ObjectId
   createdAt        DateTime     @default(now())
-  proposalId       String?      @db.ObjectId // New field
+  proposalId       String?      @db.ObjectId
   senderUser       User         @relation("SentMessagesUser", fields: [senderId], references: [id], onDelete: Cascade)
   recipientUser    User         @relation("ReceivedMessagesUser", fields: [recipientId], references: [id], onDelete: Cascade)
   conversation     Conversation @relation("ConversationMessages", fields: [conversationId], references: [id], onDelete: Cascade)
-  proposal         Proposal?    @relation(fields: [proposalId], references: [id], onDelete: SetNull) // New relation
+  proposal         Proposal?    @relation(fields: [proposalId], references: [id], onDelete: SetNull)
 }
 
 model Proposal {
-  id            String       @id @default(auto()) @map("_id") @db.ObjectId
-  specialistId  String       @db.ObjectId
-  userId        String       @db.ObjectId
-  conversationId String      @db.ObjectId
-  date          DateTime
-  time          String
-  status        String       @default("pending") // pending, accepted, rejected
-  initiator     String       @default("specialist") // "specialist" or "user"
-  createdAt     DateTime     @default(now())
-  specialist    Specialist   @relation(fields: [specialistId], references: [id], onDelete: Cascade)
-  user          User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  conversation  Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  messages      Message[]    @relation // New relation
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  specialistId   String       @db.ObjectId
+  userId         String       @db.ObjectId
+  conversationId String       @db.ObjectId
+  date           DateTime
+  time           String
+  status         String       @default("pending")
+  initiator      String       @default("specialist")
+  createdAt      DateTime     @default(now())
+  specialist     Specialist   @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  messages       Message[]    @relation
 }
 
 model Review {
-  id           String   @id @default(auto()) @map("_id") @db.ObjectId
-  specialistId String   @db.ObjectId
-  reviewerId   String   @db.ObjectId
+  id           String    @id @default(auto()) @map("_id") @db.ObjectId
+  specialistId String    @db.ObjectId
+  reviewerId   String    @db.ObjectId
   rating       Int
   feedback     String
-  createdAt    DateTime @default(now())
+  createdAt    DateTime  @default(now())
   specialist   Specialist @relation("SpecialistReviews", fields: [specialistId], references: [id], onDelete: Cascade)
   reviewer     User       @relation("UserReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
 }
@@ -250,12 +255,12 @@ model Discount {
 }
 
 model Payment {
-  id             String    @id @default(auto()) @map("_id") @db.ObjectId
-  appointmentId  String    @db.ObjectId @unique
+  id             String     @id @default(auto()) @map("_id") @db.ObjectId
+  appointmentId  String     @db.ObjectId @unique
   amount         Float
-  status         String    @default("pending") // pending, successful, failed, disputed
+  status         String     @default("pending")
   stripeId       String?
-  createdAt      DateTime  @default(now())
+  createdAt      DateTime   @default(now())
   notes          String?
   appointment    Appointment @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
 }
@@ -269,50 +274,50 @@ model CompanySettings {
 }
 
 model SurveyResponse {
-  id          String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId      String   @db.ObjectId
-  rating      Int      // 1-5
-  feedback    String?
-  createdAt   DateTime @default(now())
-  user        User     @relation("UserSurveys", fields: [userId], references: [id], onDelete: Cascade)
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  rating    Int
+  feedback  String?
+  createdAt DateTime @default(now())
+  user      User     @relation("UserSurveys", fields: [userId], references: [id], onDelete: Cascade)
+
   @@unique([userId])
 }
 
 model SecurityLog {
-  id         String   @id @default(auto()) @map("_id") @db.ObjectId
-  userId     String?  @db.ObjectId
-  eventType  String   // e.g., "login_attempt", "threat_detected"
-  ipAddress  String?
-  details    String
-  timestamp  DateTime @default(now())
-  user       User?    @relation("UserSecurityLogs", fields: [userId], references: [id], onDelete: SetNull)
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String?  @db.ObjectId
+  eventType String
+  ipAddress String?
+  details   String
+  timestamp DateTime @default(now())
+  user      User?    @relation("UserSecurityLogs", fields: [userId], references: [id], onDelete: SetNull)
 }
 
 model Report {
-  id                  String   @id @default(auto()) @map("_id") @db.ObjectId
-  reporterId          String   @db.ObjectId
-  reportedUserId      String?  @db.ObjectId
-  reportedSpecialistId String?  @db.ObjectId
-  reason              String
-  details             String?
-  status              String   @default("pending") // pending, reviewed, resolved
-  createdAt           DateTime @default(now())
-  reporter            User     @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  reportedUser        User?    @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
-  reportedSpecialist  Specialist? @relation("ReportedSpecialist", fields: [reportedSpecialistId], references: [id], onDelete: SetNull)
+  id                   String    @id @default(auto()) @map("_id") @db.ObjectId
+  reporterId           String    @db.ObjectId
+  reportedUserId       String?   @db.ObjectId
+  reportedSpecialistId String?   @db.ObjectId
+  reason               String
+  details              String?
+  status               String    @default("pending")
+  createdAt            DateTime  @default(now())
+  reporter             User      @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser         User?     @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  reportedSpecialist   Specialist? @relation("ReportedSpecialist", fields: [reportedSpecialistId], references: [id], onDelete: SetNull)
 }
 
 model Note {
-  id                    String   @id @default(auto()) @map("_id") @db.ObjectId
-  authorId              String   @db.ObjectId
-  targetUserId          String?  @db.ObjectId
-  targetSpecialistId    String?  @db.ObjectId
-  content               String
-  createdAt             DateTime @default(now())
-
-  author                User     @relation("AuthorNotes", fields: [authorId], references: [id], onDelete: Cascade)
-  targetUser            User?    @relation("TargetUserNotes", fields: [targetUserId], references: [id], onDelete: SetNull)
-  targetSpecialist      Specialist? @relation("TargetSpecialistNotes", fields: [targetSpecialistId], references: [id], onDelete: SetNull)
+  id                 String    @id @default(auto()) @map("_id") @db.ObjectId
+  authorId           String    @db.ObjectId
+  targetUserId       String?   @db.ObjectId
+  targetSpecialistId String?   @db.ObjectId
+  content            String
+  createdAt          DateTime  @default(now())
+  author             User      @relation("AuthorNotes", fields: [authorId], references: [id], onDelete: Cascade)
+  targetUser         User?     @relation("TargetUserNotes", fields: [targetUserId], references: [id], onDelete: SetNull)
+  targetSpecialist   Specialist? @relation("TargetSpecialistNotes", fields: [targetSpecialistId], references: [id], onDelete: SetNull)
 }
 
 enum VenueType {

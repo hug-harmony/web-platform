@@ -1,5 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
+
 import { useRouter } from "next/navigation";
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
@@ -30,9 +31,24 @@ import { Card } from "@/components/ui/card";
 import Image from "next/image";
 import login from "../../../public/login.webp";
 
+// Accept either a valid email OR a valid username (3–20, letters/numbers/_)
 const formSchema = z.object({
-  email: z.string().email("Invalid email address"),
-  password: z.string().min(6, "Password must be at least 6 characters"),
+  identifier: z
+    .string()
+    .min(1, "Email or username is required")
+    .refine(
+      (val) => {
+        const v = val.trim();
+        const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(v);
+        const isUsername = /^[a-zA-Z0-9_]{3,20}$/.test(v);
+        return isEmail || isUsername;
+      },
+      {
+        message:
+          "Enter a valid email or username (3–20 chars, letters/numbers/_)",
+      }
+    ),
+  password: z.string().min(1, "Password is required"),
 });
 
 export default function LoginPage() {
@@ -41,12 +57,17 @@ export default function LoginPage() {
   const [resetMessage, setResetMessage] = useState<string | null>(null);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
+
+  // UI additions
+  const [showPassword, setShowPassword] = useState(false);
+  const [capsLockOn, setCapsLockOn] = useState(false);
+
   const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
     defaultValues: {
-      email: "",
+      identifier: "",
       password: "",
     },
   });
@@ -80,8 +101,10 @@ export default function LoginPage() {
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsLoading(true);
+      setError(null);
+
       const result = await signIn("credentials", {
-        email: values.email,
+        identifier: values.identifier.trim(), // email or username
         password: values.password,
         redirect: false,
       });
@@ -89,15 +112,14 @@ export default function LoginPage() {
       if (result?.error) {
         await logSecurityEvent(
           "login_attempt",
-          `Failed login attempt for ${values.email}: ${result.error}`
+          `Failed login attempt for ${values.identifier}: ${result.error}`
         );
-        toast.error(result.error || "Invalid email or password");
-        setError(result.error || "Invalid email or password");
+        toast.error(result.error || "Invalid credentials");
+        setError(result.error || "Invalid credentials");
       } else {
         await logSecurityEvent(
           "login_attempt",
-          `Successful login for ${values.email}`,
-          values.email
+          `Successful login for ${values.identifier}`
         );
         toast.success("Logged in successfully!");
         router.push("/dashboard");
@@ -105,7 +127,7 @@ export default function LoginPage() {
     } catch (error) {
       await logSecurityEvent(
         "login_attempt",
-        `Unexpected error during login for ${values.email}`
+        `Unexpected error during login for ${values.identifier}`
       );
       toast.error("An unexpected error occurred");
       setError("An unexpected error occurred");
@@ -194,6 +216,13 @@ export default function LoginPage() {
     }
   };
 
+  // Password input helpers
+  const onPasswordKeyEvent = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    // Detect caps lock
+    const caps = e.getModifierState && e.getModifierState("CapsLock");
+    setCapsLockOn(!!caps);
+  };
+
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
       <Card className="flex flex-col md:flex-row w-full max-w-5xl p-0 overflow-hidden gap-0">
@@ -210,15 +239,18 @@ export default function LoginPage() {
             >
               <FormField
                 control={form.control}
-                name="email"
+                name="identifier"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-medium">Email</FormLabel>
+                    <FormLabel className="text-sm font-medium">
+                      Email or Username
+                    </FormLabel>
                     <FormControl>
                       <Input
                         className="text-sm border-gray-300"
-                        placeholder="Email"
-                        type="email"
+                        placeholder="you@example.com or your_username"
+                        type="text"
+                        autoComplete="username"
                         {...field}
                       />
                     </FormControl>
@@ -226,6 +258,7 @@ export default function LoginPage() {
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="password"
@@ -234,18 +267,53 @@ export default function LoginPage() {
                     <FormLabel className="text-sm font-medium">
                       Password
                     </FormLabel>
-                    <FormControl>
-                      <Input
-                        className="text-sm border-gray-300"
-                        placeholder="Password"
-                        type="password"
-                        {...field}
-                      />
-                    </FormControl>
+                    <div className="relative">
+                      <FormControl>
+                        <Input
+                          className="text-sm border-gray-300 pr-20"
+                          placeholder="Password"
+                          type={showPassword ? "text" : "password"}
+                          autoComplete="current-password"
+                          {...field}
+                          onKeyUp={(e) => {
+                            field.onChange(e);
+                            onPasswordKeyEvent(e);
+                          }}
+                          onKeyDown={onPasswordKeyEvent}
+                          onBlur={(e) => {
+                            // Clear caps lock warning on blur
+                            setCapsLockOn(false);
+                            field.onBlur();
+                            console.log(e);
+                          }}
+                        />
+                      </FormControl>
+                      <Button
+                        type="button"
+                        variant="ghost"
+                        size="sm"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs"
+                        onClick={() => setShowPassword((s) => !s)}
+                        aria-label={
+                          showPassword ? "Hide password" : "Show password"
+                        }
+                      >
+                        {showPassword ? "Hide" : "Show"}
+                      </Button>
+                    </div>
+                    {capsLockOn && (
+                      <p
+                        className="text-xs text-amber-600 mt-1"
+                        aria-live="polite"
+                      >
+                        Warning: Caps Lock is ON
+                      </p>
+                    )}
                     <FormMessage className="text-xs" />
                   </FormItem>
                 )}
               />
+
               <Button
                 type="submit"
                 className="w-full bg-[#E7C4BB] text-black text-sm hover:bg-[#d4a8a0] transition-colors"
@@ -255,6 +323,7 @@ export default function LoginPage() {
               </Button>
             </form>
           </Form>
+
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <div className="text-right text-xs mt-2">
               <DialogTrigger asChild>
@@ -290,12 +359,14 @@ export default function LoginPage() {
               </form>
             </DialogContent>
           </Dialog>
+
           <div className="text-center text-xs text-gray-600 mt-4">
             Don’t have an account?{" "}
             <Link href="/register" className="text-blue-600 hover:underline">
               Register
             </Link>
           </div>
+
           <div className="text-center text-xs text-gray-600 mt-4">
             Or login with
           </div>
@@ -333,6 +404,7 @@ export default function LoginPage() {
             </Button>
           </div>
         </div>
+
         <div className="hidden md:flex w-1/2 relative">
           <Image
             src={login}
