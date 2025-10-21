@@ -50,7 +50,7 @@ export async function GET(request: Request) {
       where: {
         specialistId,
         date: requestedDate,
-        status: { in: ["upcoming", "pending", "break"] }, // Added "break"
+        status: { in: ["upcoming", "pending", "break"] }, // Include breaks as reserved
       },
       select: { time: true },
     });
@@ -88,7 +88,15 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { specialistId, date, time, userId } = await request.json();
+  const body = await request.json();
+  const { specialistId, date, time, userId } = body as {
+    specialistId?: string;
+    date?: string;
+    time?: string;
+    userId?: string;
+  };
+  // Optional venue from client
+  const reqVenue = (body?.venue as "host" | "visit" | undefined) ?? undefined;
 
   if (!specialistId || !date || !time || !userId) {
     return NextResponse.json(
@@ -124,6 +132,24 @@ export async function POST(request: Request) {
       );
     }
 
+    // Determine venue for this booking
+    let venueChoice: "host" | "visit" | undefined = reqVenue;
+    if (!venueChoice) {
+      if (specialist.venue === "host" || specialist.venue === "visit") {
+        venueChoice = specialist.venue as "host" | "visit";
+      } else {
+        // specialist.venue === 'both' and no explicit venue provided
+        return NextResponse.json(
+          {
+            error: "VENUE_REQUIRED",
+            message:
+              "Venue is required because the specialist supports both host and visit",
+          },
+          { status: 400 }
+        );
+      }
+    }
+
     const availability = await prisma.availability.findUnique({
       where: {
         specialistId_date: { specialistId, date: utcDate },
@@ -143,7 +169,7 @@ export async function POST(request: Request) {
         specialistId,
         date: utcDate,
         time,
-        status: { in: ["upcoming", "pending", "break"] }, // Added "break"
+        status: { in: ["upcoming", "pending", "break"] },
       },
     });
 
@@ -161,7 +187,7 @@ export async function POST(request: Request) {
     };
 
     const appointment = await prisma.$transaction(async (tx) => {
-      // Create main appointment
+      // Create main appointment (venue required by schema)
       const newAppointment = await tx.appointment.create({
         data: {
           userId,
@@ -169,6 +195,7 @@ export async function POST(request: Request) {
           date: utcDate,
           time,
           status: "upcoming",
+          venue: venueChoice!, // guaranteed by logic above
         },
       });
 
@@ -207,12 +234,13 @@ export async function POST(request: Request) {
             // Only if in slots and not booked
             await tx.appointment.create({
               data: {
-                userId: null, // Null for breaks (schema updated to optional)
+                userId: null, // Null for breaks
                 specialistId,
                 date: utcDate,
                 time: breakTime,
                 status: "break",
                 rate: 0, // No charge for breaks
+                venue: newAppointment.venue, // must include venue for schema
               },
             });
           } // Skip if already reserved or not in availability.slots
