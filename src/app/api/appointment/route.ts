@@ -1,10 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/api/appointment/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { buildDisplayName } from "@/lib/utils"; // ✅ import helper
+import { buildDisplayName } from "@/lib/utils";
 
 export async function GET(req: Request) {
   try {
@@ -87,8 +86,12 @@ export async function GET(req: Request) {
           time: appt.time,
           cuddlerName:
             appt.specialist?.name ||
-            buildDisplayName(appt.specialist?.application?.user),
-          clientName: buildDisplayName(appt.user),
+            (appt.specialist?.application?.user
+              ? buildDisplayName(appt.specialist.application.user)
+              : "Unknown Specialist"),
+          clientName: appt.user
+            ? buildDisplayName(appt.user)
+            : "Unknown Client",
           status: effectiveStatus,
           paymentStatus: appt.payment?.status || "unknown",
           amount:
