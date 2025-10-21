@@ -40,6 +40,7 @@
     "@vercel/blob": "^1.1.1",
     "@vercel/speed-insights": "^1.2.0",
     "add": "^2.0.6",
+    "bcrypt": "^6.0.0",
     "bcryptjs": "^3.0.2",
     "button": "^1.1.1",
     "chart.js": "^4.5.0",
@@ -81,6 +82,7 @@
   "devDependencies": {
     "@eslint/eslintrc": "^3",
     "@tailwindcss/postcss": "^4",
+    "@types/bcrypt": "^6.0.0",
     "@types/lodash.debounce": "^4.0.9",
     "@types/node": "^20.19.10",
     "@types/nodemailer": "^6.4.17",

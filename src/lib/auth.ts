@@ -3,6 +3,7 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import prisma from "@/lib/prisma";
+import bcrypt from "bcrypt";
 
 async function ensureUniqueUsername(
   base: string
@@ -86,8 +87,12 @@ export const authOptions: NextAuthOptions = {
 
         if (!user || !user.password) throw new Error("Invalid credentials");
 
-        if (credentials.password !== user.password)
-          throw new Error("Invalid credentials");
+        // Verify hashed password
+        const isPasswordValid = await bcrypt.compare(
+          credentials.password,
+          user.password
+        );
+        if (!isPasswordValid) throw new Error("Invalid credentials");
 
         return {
           id: user.id,

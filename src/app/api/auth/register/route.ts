@@ -3,6 +3,7 @@ import prisma from "@/lib/prisma";
 import nodemailer from "nodemailer";
 import { z } from "zod";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import bcrypt from "bcrypt";
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -156,10 +157,13 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Hash the password
+    const hashedPassword = await bcrypt.hash(password, 10);
+
     await prisma.user.create({
       data: {
         email,
-        password,
+        password: hashedPassword,
         username,
         usernameLower: lower,
         name: `${firstName} ${lastName}`,
