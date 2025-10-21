@@ -63,21 +63,22 @@ model PasswordResetToken {
 }
 
 model Appointment {
-  id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId           String?   @db.ObjectId  // Made optional for break records
-  specialistId     String    @db.ObjectId
+  id               String          @id @default(auto()) @map("_id") @db.ObjectId
+  userId           String?        @db.ObjectId
+  specialistId     String         @db.ObjectId
   date             DateTime
   time             String
-  status           String    @default("upcoming")
-  disputeStatus    String    @default("none")
+  status           String         @default("upcoming")
+  disputeStatus    String         @default("none")
   disputeReason    String?
   adminNotes       String?
-  rate             Float?     // snapshot rate at booking
-  adjustedRate     Float?     // modified rate if applied
-  modificationHistory Json? // keep history of changes (reschedule, rate adjust)
-  createdAt        DateTime  @default(now())
-  user             User?     @relation("UserAppointments", fields: [userId], references: [id], onDelete: SetNull)  // Adjusted to optional
-  specialist       Specialist @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)
+  rate             Float?
+  adjustedRate     Float?
+  modificationHistory Json?
+  venue            AppointmentVenue // Specific venue for the appointment
+  createdAt        DateTime       @default(now())
+  user             User?          @relation("UserAppointments", fields: [userId], references: [id], onDelete: SetNull)
+  specialist       Specialist     @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)
   payment          Payment?
 }
 
@@ -96,13 +97,14 @@ model Conversation {
 
 model Specialist {
   id               String         @id @default(auto()) @map("_id") @db.ObjectId
-  name             String       // Populated from User.name
-  image            String?      // Populated from User.profileImage
+  name             String
+  image            String?
   rating           Float?
   reviewCount      Int?
   rate             Float?
   biography        String?
-  companyCutPercentage Float? 
+  companyCutPercentage Float?
+  venue            VenueType    @default(both) // Specialist's venue preference
   createdAt        DateTime     @default(now())
   appointments     Appointment[] @relation("SpecialistAppointments")
   application      SpecialistApplication? @relation
@@ -113,7 +115,7 @@ model Specialist {
   reviews          Review[]   @relation("SpecialistReviews")
   discounts        Discount[] @relation
   reported         Report[]       @relation("ReportedSpecialist")
-  notesReceived         Note[]   @relation("TargetSpecialistNotes")
+  notesReceived    Note[]   @relation("TargetSpecialistNotes")
 }
 
 model Post {
@@ -311,4 +313,15 @@ model Note {
   author                User     @relation("AuthorNotes", fields: [authorId], references: [id], onDelete: Cascade)
   targetUser            User?    @relation("TargetUserNotes", fields: [targetUserId], references: [id], onDelete: SetNull)
   targetSpecialist      Specialist? @relation("TargetSpecialistNotes", fields: [targetSpecialistId], references: [id], onDelete: SetNull)
+}
+
+enum VenueType {
+  host
+  visit
+  both
+}
+
+enum AppointmentVenue {
+  host
+  visit
 }

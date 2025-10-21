@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 import React, { useEffect, useState, useRef } from "react";
@@ -56,6 +57,7 @@ interface Profile {
   rating?: number | null;
   reviewCount?: number | null;
   rate?: number | null;
+  venue?: "host" | "visit" | "both" | null; // Added venue field
   relationshipStatus?: string | null;
   orientation?: string | null;
   height?: string | null;
@@ -135,8 +137,6 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       setIsLocationLoading(false);
     }
   }, 300);
-
-  console.log(searchParams);
 
   // Handle click outside to close dropdown
   useEffect(() => {
@@ -240,6 +240,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     const errors: Record<string, string> = {};
     const biography = formData.get("biography")?.toString() || "";
     const rate = formData.get("rate")?.toString() || "";
+    const venue = formData.get("venue")?.toString() || "";
 
     if (!biography) errors.biography = "Biography is required";
     else if (biography.length > 500)
@@ -251,6 +252,9 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         errors.rate = "Rate must be a positive number";
       else if (rateNum > 10000) errors.rate = "Rate cannot exceed 10000";
     }
+    if (!venue) errors.venue = "Venue preference is required";
+    else if (!["host", "visit", "both"].includes(venue))
+      errors.venue = "Invalid venue selection";
     return errors;
   };
 
@@ -289,6 +293,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     type: "specialist",
                     biography: specialistData.biography,
                     rate: specialistData.rate,
+                    venue: specialistData.venue, // Added venue
                   }
                 : prev
             );
@@ -347,6 +352,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             favoriteColor: data.favoriteColor,
             favoriteMedia: data.favoriteMedia,
             petOwnership: data.petOwnership,
+            venue: null, // Initialize venue as null for users
           });
         } else {
           console.error("User API response:", res.status, await res.text());
@@ -448,6 +454,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           ...updatedProfile,
           name: updatedProfile.name,
           type: profile?.type || "user",
+          venue: profile?.venue, // Preserve venue
         });
         await update({
           ...session,
@@ -494,6 +501,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     const data = {
       biography: formData.get("biography")?.toString(),
       rate: parseFloat(formData.get("rate")?.toString() || "0") || null,
+      venue: formData.get("venue")?.toString() || null, // Added venue
     };
     try {
       if (!specialistId || specialistStatusLoading) {
@@ -518,6 +526,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                 ...prev,
                 biography: updatedSpecialist.biography,
                 rate: updatedSpecialist.rate,
+                venue: updatedSpecialist.venue, // Update venue
               }
             : prev
         );
@@ -1390,6 +1399,43 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                           </p>
                         )}
                       </div>
+                      <div className="space-y-2">
+                        <Label
+                          htmlFor="venue"
+                          className="text-black dark:text-white"
+                        >
+                          Venue Preference
+                        </Label>
+                        <Select
+                          name="venue"
+                          value={profile.venue || ""}
+                          onValueChange={(value) =>
+                            setProfile({
+                              ...profile,
+                              venue: value as "host" | "visit" | "both",
+                            })
+                          }
+                          disabled={
+                            !isEditingSpecialist ||
+                            updatingSpecialist ||
+                            specialistStatusLoading
+                          }
+                        >
+                          <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
+                            <SelectValue placeholder="Select venue preference" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="host">Host</SelectItem>
+                            <SelectItem value="visit">Visit</SelectItem>
+                            <SelectItem value="both">Both</SelectItem>
+                          </SelectContent>
+                        </Select>
+                        {formErrors.venue && (
+                          <p className="text-red-500 text-sm">
+                            {formErrors.venue}
+                          </p>
+                        )}
+                      </div>
                       <div className="flex space-x-4 mt-4">
                         <Button
                           variant="outline"
@@ -1437,6 +1483,17 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                         </p>
                         <p className="text-black dark:text-white break-words">
                           {profile.rate ? `$${profile.rate}` : "Not provided"}
+                        </p>
+                      </div>
+                      <div>
+                        <p className="text-sm text-[#C4C4C4]">
+                          Venue Preference
+                        </p>
+                        <p className="text-black dark:text-white break-words">
+                          {profile.venue
+                            ? profile.venue.charAt(0).toUpperCase() +
+                              profile.venue.slice(1)
+                            : "Not provided"}
                         </p>
                       </div>
                       {isOwnProfile && (

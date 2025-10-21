@@ -1,9 +1,10 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import { Search, MapPin } from "lucide-react";
+import { Search, MapPin, CalendarIcon } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -13,7 +14,6 @@ import {
   DropdownMenuContent,
   DropdownMenuItem,
   DropdownMenuTrigger,
-  DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -33,6 +33,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Calendar } from "@/components/ui/calendar";
+import { Label } from "@/components/ui/label";
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 import { MapContainer, TileLayer, Circle } from "react-leaflet";
@@ -69,7 +70,7 @@ interface Therapist {
   bodyType?: string;
   personalityType?: string;
   lastOnline?: string;
-  venuePreferences?: string[];
+  venue?: string; // Changed to single string
   type?: "user" | "professional";
 }
 
@@ -97,7 +98,10 @@ async function geocode(
 ): Promise<{ lat: number; lng: number } | null> {
   try {
     const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(location)}`
+      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(location)}`,
+      {
+        headers: { "User-Agent": "YourAppName/1.0 (your.email@example.com)" },
+      }
     );
     if (!res.ok) return null;
     const data = await res.json();
@@ -229,7 +233,7 @@ export default function TherapistsPageContent() {
     gender: "" as "" | "male" | "female",
     hasProfilePic: "" as "" | "yes" | "no",
     onlineStatus: "" as "" | "24hrs" | "1day" | "1week" | "1month" | "1year",
-    venue: [] as string[],
+    venue: "", // Changed to single string
     type: "" as "" | "user" | "professional",
     race: "",
     ethnicity: "",
@@ -242,7 +246,8 @@ export default function TherapistsPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const [filters, setFilters] = useState(initialFilters);
   const [appliedFilters, setAppliedFilters] = useState(initialFilters);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
+  const [isRadiusDialogOpen, setIsRadiusDialogOpen] = useState(false);
+  const [isDateTimeDialogOpen, setIsDateTimeDialogOpen] = useState(false);
   const [tempRadius, setTempRadius] = useState(10);
   const [tempUnit, setTempUnit] = useState<"km" | "miles">("miles");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>(undefined);
@@ -254,10 +259,57 @@ export default function TherapistsPageContent() {
   useEffect(() => {
     const fetchSpecialists = async () => {
       try {
-        const therapistsRes = await fetch("/api/specialists", {
-          cache: "no-store",
-          credentials: "include",
-        });
+        const queryParams = new URLSearchParams();
+        if (searchQuery) queryParams.append("search", searchQuery);
+        if (
+          appliedFilters.location &&
+          appliedFilters.location !== "Current Location"
+        )
+          queryParams.append("location", appliedFilters.location);
+        if (appliedFilters.minRating)
+          queryParams.append("minRating", appliedFilters.minRating.toString());
+        if (appliedFilters.sortBy)
+          queryParams.append("sortBy", appliedFilters.sortBy);
+        if (
+          appliedFilters.currentLat &&
+          appliedFilters.currentLng &&
+          appliedFilters.radius
+        ) {
+          queryParams.append("lat", appliedFilters.currentLat.toString());
+          queryParams.append("lng", appliedFilters.currentLng.toString());
+          queryParams.append("radius", appliedFilters.radius.toString());
+          queryParams.append("unit", appliedFilters.unit);
+        }
+        if (appliedFilters.minAge)
+          queryParams.append("minAge", appliedFilters.minAge.toString());
+        if (appliedFilters.maxAge)
+          queryParams.append("maxAge", appliedFilters.maxAge.toString());
+        if (appliedFilters.gender)
+          queryParams.append("gender", appliedFilters.gender);
+        if (appliedFilters.hasProfilePic)
+          queryParams.append("hasProfilePic", appliedFilters.hasProfilePic);
+        if (appliedFilters.onlineStatus)
+          queryParams.append("onlineStatus", appliedFilters.onlineStatus);
+        if (appliedFilters.venue)
+          queryParams.append("venue", appliedFilters.venue); // Changed to venue
+        if (appliedFilters.type)
+          queryParams.append("type", appliedFilters.type);
+        if (appliedFilters.race)
+          queryParams.append("race", appliedFilters.race);
+        if (appliedFilters.ethnicity)
+          queryParams.append("ethnicity", appliedFilters.ethnicity);
+        if (appliedFilters.bodyType)
+          queryParams.append("bodyType", appliedFilters.bodyType);
+        if (appliedFilters.personalityType)
+          queryParams.append("personalityType", appliedFilters.personalityType);
+
+        const therapistsRes = await fetch(
+          `/api/specialists?${queryParams.toString()}`,
+          {
+            cache: "no-store",
+            credentials: "include",
+          }
+        );
         if (!therapistsRes.ok) {
           console.error(
             "Specialists API error:",
@@ -287,32 +339,21 @@ export default function TherapistsPageContent() {
                 education: s.education || "",
                 license: s.license || "",
                 createdAt: s.createdAt,
-                age: s.age || Math.floor(Math.random() * 50) + 20,
-                gender: s.gender || (Math.random() > 0.5 ? "male" : "female"),
-                race: s.race || "Unknown",
-                ethnicity: s.ethnicity || "Unknown",
-                bodyType: s.bodyType || "Average",
-                personalityType: s.personalityType || "Introvert",
-                lastOnline: new Date(
-                  Date.now() - Math.random() * 365 * 24 * 60 * 60 * 1000
-                ).toISOString(),
-                venuePreferences: s.venuePreferences || ["Host", "Guest"],
-                type: "professional",
+                lat: s.lat || undefined,
+                lng: s.lng || undefined,
+                age: s.age || undefined,
+                gender: s.gender || undefined,
+                race: s.race || "",
+                ethnicity: s.ethnicity || "",
+                bodyType: s.bodyType || "",
+                personalityType: s.personalityType || "",
+                lastOnline: s.lastOnline || undefined,
+                venue: s.venue || "", // Changed to venue
+                type: s.type || "professional",
               }))
           : [];
 
-        const geocoded = await Promise.all(
-          specialists.map(async (s: Therapist) => {
-            if (s.location) {
-              const coord = await geocode(s.location);
-              if (coord) {
-                return { ...s, lat: coord.lat, lng: coord.lng };
-              }
-            }
-            return s;
-          })
-        );
-        setSpecialists(geocoded);
+        setSpecialists(specialists);
       } catch (error) {
         console.error("Error fetching specialists:", error);
       } finally {
@@ -320,7 +361,7 @@ export default function TherapistsPageContent() {
       }
     };
     fetchSpecialists();
-  }, []);
+  }, [searchQuery, appliedFilters]);
 
   useEffect(() => {
     const fetchAvailabilities = async () => {
@@ -381,7 +422,7 @@ export default function TherapistsPageContent() {
             currentLng: position.coords.longitude,
             location: "Current Location",
           }));
-          setIsDialogOpen(true);
+          setIsRadiusDialogOpen(true); // Open radius dialog
         },
         (error) => {
           console.error("Geolocation error:", error);
@@ -395,7 +436,7 @@ export default function TherapistsPageContent() {
 
   const applyRadiusFilter = () => {
     setFilters((prev) => ({ ...prev, radius: tempRadius, unit: tempUnit }));
-    setIsDialogOpen(false);
+    setIsRadiusDialogOpen(false);
   };
 
   const handleDateSelect = (date: Date | undefined) => {
@@ -408,7 +449,7 @@ export default function TherapistsPageContent() {
   };
 
   const applyDateTimeFilter = () => {
-    setIsDialogOpen(false);
+    setIsDateTimeDialogOpen(false);
   };
 
   const isTimeAvailable = (time: string) => {
@@ -422,7 +463,7 @@ export default function TherapistsPageContent() {
   const radiusOptions = [1, 5, 10, 25, 50, 100];
   const genders = ["male", "female"];
   const onlineStatuses = ["24hrs", "1day", "1week", "1month", "1year"];
-  const venues = ["Host", "Guest", "Common location"];
+  const venues = ["host", "visit", "both"];
   const types = ["user", "professional"];
   const races = ["Asian", "Black", "White", "Hispanic", "Other"];
   const ethnicities = ["Hispanic", "Non-Hispanic", "Other"];
@@ -519,10 +560,8 @@ export default function TherapistsPageContent() {
         }
         return true;
       })
-      .filter((item) =>
-        filters.venue.length > 0
-          ? filters.venue.every((v) => item.venuePreferences?.includes(v))
-          : true
+      .filter(
+        (item) => (filters.venue ? item.venue === filters.venue : true) // Changed to single string comparison
       )
       .filter((item) => (filters.type ? item.type === filters.type : true))
       .filter((item) => (filters.race ? item.race === filters.race : true))
@@ -595,254 +634,280 @@ export default function TherapistsPageContent() {
                       Basic Filters
                     </h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={`w-full border-[#F3CFC6] ${filters.minAge ? "bg-[#F3CFC6]/10" : ""}`}
-                          >
-                            Min Age: {filters.minAge || "All"}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleFilterChange("minAge", undefined)
-                            }
-                          >
-                            All
-                          </DropdownMenuItem>
-                          {ageRanges.map((range) => (
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="min-age">Min Age</Label>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              id="min-age"
+                              variant="outline"
+                              className={`w-full border-[#F3CFC6] ${filters.minAge ? "bg-[#F3CFC6]/10" : ""}`}
+                            >
+                              {filters.minAge || "All"}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
                             <DropdownMenuItem
-                              key={range}
                               onClick={() =>
-                                handleFilterChange(
-                                  "minAge",
-                                  parseInt(range.split("-")[0])
-                                )
+                                handleFilterChange("minAge", undefined)
                               }
                             >
-                              {range}
+                              All
                             </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            {ageRanges.map((range) => (
+                              <DropdownMenuItem
+                                key={range}
+                                onClick={() =>
+                                  handleFilterChange(
+                                    "minAge",
+                                    parseInt(range.split("-")[0])
+                                  )
+                                }
+                              >
+                                {range}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
 
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={`w-full border-[#F3CFC6] ${filters.maxAge ? "bg-[#F3CFC6]/10" : ""}`}
-                          >
-                            Max Age: {filters.maxAge || "All"}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleFilterChange("maxAge", undefined)
-                            }
-                          >
-                            All
-                          </DropdownMenuItem>
-                          {ageRanges.map((range) => (
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="max-age">Max Age</Label>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              id="max-age"
+                              variant="outline"
+                              className={`w-full border-[#F3CFC6] ${filters.maxAge ? "bg-[#F3CFC6]/10" : ""}`}
+                            >
+                              {filters.maxAge || "All"}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
                             <DropdownMenuItem
-                              key={range}
                               onClick={() =>
-                                handleFilterChange(
-                                  "maxAge",
-                                  parseInt(range.split("-")[1]) || 100
-                                )
+                                handleFilterChange("maxAge", undefined)
                               }
                             >
-                              {range}
+                              All
                             </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            {ageRanges.map((range) => (
+                              <DropdownMenuItem
+                                key={range}
+                                onClick={() =>
+                                  handleFilterChange(
+                                    "maxAge",
+                                    parseInt(range.split("-")[1]) || 100
+                                  )
+                                }
+                              >
+                                {range}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
 
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={`w-full border-[#F3CFC6] ${filters.gender ? "bg-[#F3CFC6]/10" : ""}`}
-                          >
-                            Gender: {filters.gender || "All"}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem
-                            onClick={() => handleFilterChange("gender", "")}
-                          >
-                            All
-                          </DropdownMenuItem>
-                          {genders.map((g) => (
-                            <DropdownMenuItem
-                              key={g}
-                              onClick={() => handleFilterChange("gender", g)}
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="gender">Gender</Label>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              id="gender"
+                              variant="outline"
+                              className={`w-full border-[#F3CFC6] ${filters.gender ? "bg-[#F3CFC6]/10" : ""}`}
                             >
-                              {g.charAt(0).toUpperCase() + g.slice(1)}
+                              {filters.gender || "All"}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem
+                              onClick={() => handleFilterChange("gender", "")}
+                            >
+                              All
                             </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            {genders.map((g) => (
+                              <DropdownMenuItem
+                                key={g}
+                                onClick={() => handleFilterChange("gender", g)}
+                              >
+                                {g.charAt(0).toUpperCase() + g.slice(1)}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
 
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={`w-full flex items-center border-[#F3CFC6] ${filters.location ? "bg-[#F3CFC6]/10" : ""}`}
-                          >
-                            <MapPin className="mr-2 h-4 w-4" />
-                            Location: {filters.location || "All"}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem
-                            onClick={() => handleFilterChange("location", "")}
-                          >
-                            All
-                          </DropdownMenuItem>
-                          {locations.map((loc) => (
-                            <DropdownMenuItem
-                              key={loc}
-                              onClick={() =>
-                                handleFilterChange("location", loc)
-                              }
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="location">Location</Label>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              id="location"
+                              variant="outline"
+                              className={`w-full flex items-center border-[#F3CFC6] ${filters.location ? "bg-[#F3CFC6]/10" : ""}`}
                             >
-                              {loc}
+                              <MapPin className="mr-2 h-4 w-4" />
+                              {filters.location || "All"}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem
+                              onClick={() => handleFilterChange("location", "")}
+                            >
+                              All
                             </DropdownMenuItem>
-                          ))}
-                          <DropdownMenuItem onClick={handleCurrentLocation}>
-                            Current Location
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            {locations.map((loc) => (
+                              <DropdownMenuItem
+                                key={loc}
+                                onClick={() =>
+                                  handleFilterChange("location", loc)
+                                }
+                              >
+                                {loc}
+                              </DropdownMenuItem>
+                            ))}
+                            <DropdownMenuItem onClick={handleCurrentLocation}>
+                              Current Location
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                   </div>
 
                   <div className="bg-white/5 dark:bg-black/10 rounded-xl p-4 shadow-sm">
                     <h3 className="text-lg font-semibold mb-4">More Filters</h3>
                     <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={`w-full border-[#F3CFC6] ${filters.hasProfilePic ? "bg-[#F3CFC6]/10" : ""}`}
-                          >
-                            Profile Pic: {filters.hasProfilePic || "All"}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleFilterChange("hasProfilePic", "")
-                            }
-                          >
-                            All
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleFilterChange("hasProfilePic", "yes")
-                            }
-                          >
-                            With Pic
-                          </DropdownMenuItem>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleFilterChange("hasProfilePic", "no")
-                            }
-                          >
-                            Without Pic
-                          </DropdownMenuItem>
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={`w-full border-[#F3CFC6] ${filters.onlineStatus ? "bg-[#F3CFC6]/10" : ""}`}
-                          >
-                            Online: {filters.onlineStatus || "All"}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem
-                            onClick={() =>
-                              handleFilterChange("onlineStatus", "")
-                            }
-                          >
-                            All
-                          </DropdownMenuItem>
-                          {onlineStatuses.map((status) => (
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="profile-pic">Profile Picture</Label>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              id="profile-pic"
+                              variant="outline"
+                              className={`w-full border-[#F3CFC6] ${filters.hasProfilePic ? "bg-[#F3CFC6]/10" : ""}`}
+                            >
+                              {filters.hasProfilePic || "All"}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
                             <DropdownMenuItem
-                              key={status}
                               onClick={() =>
-                                handleFilterChange("onlineStatus", status)
+                                handleFilterChange("hasProfilePic", "")
                               }
                             >
-                              Last {status.replace(/(\d+)([a-z]+)/, "$1 $2")}
+                              All
                             </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={`w-full border-[#F3CFC6] ${filters.venue.length ? "bg-[#F3CFC6]/10" : ""}`}
-                          >
-                            Venue:{" "}
-                            {filters.venue.length
-                              ? filters.venue.join(", ")
-                              : "All"}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          {venues.map((v) => (
-                            <DropdownMenuCheckboxItem
-                              key={v}
-                              checked={filters.venue.includes(v)}
-                              onCheckedChange={(checked) => {
-                                const newVenues = checked
-                                  ? [...filters.venue, v]
-                                  : filters.venue.filter((item) => item !== v);
-                                handleFilterChange("venue", newVenues);
-                              }}
-                            >
-                              {v}
-                            </DropdownMenuCheckboxItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className={`w-full border-[#F3CFC6] ${filters.type ? "bg-[#F3CFC6]/10" : ""}`}
-                          >
-                            Type: {filters.type || "All"}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem
-                            onClick={() => handleFilterChange("type", "")}
-                          >
-                            All
-                          </DropdownMenuItem>
-                          {types.map((t) => (
                             <DropdownMenuItem
-                              key={t}
-                              onClick={() => handleFilterChange("type", t)}
+                              onClick={() =>
+                                handleFilterChange("hasProfilePic", "yes")
+                              }
                             >
-                              {t.charAt(0).toUpperCase() + t.slice(1)}
+                              With Pic
                             </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleFilterChange("hasProfilePic", "no")
+                              }
+                            >
+                              Without Pic
+                            </DropdownMenuItem>
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="online-status">Online Status</Label>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              id="online-status"
+                              variant="outline"
+                              className={`w-full border-[#F3CFC6] ${filters.onlineStatus ? "bg-[#F3CFC6]/10" : ""}`}
+                            >
+                              {filters.onlineStatus || "All"}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem
+                              onClick={() =>
+                                handleFilterChange("onlineStatus", "")
+                              }
+                            >
+                              All
+                            </DropdownMenuItem>
+                            {onlineStatuses.map((status) => (
+                              <DropdownMenuItem
+                                key={status}
+                                onClick={() =>
+                                  handleFilterChange("onlineStatus", status)
+                                }
+                              >
+                                Last {status.replace(/(\d+)([a-z]+)/, "$1 $2")}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="venue">Venue</Label>
+                        <Select
+                          value={filters.venue || "all"}
+                          onValueChange={(value) =>
+                            handleFilterChange(
+                              "venue",
+                              value === "all" ? "" : value
+                            )
+                          }
+                        >
+                          <SelectTrigger
+                            id="venue"
+                            className={`w-full border-[#F3CFC6] ${filters.venue ? "bg-[#F3CFC6]/10" : ""}`}
+                          >
+                            <SelectValue placeholder="All" />
+                          </SelectTrigger>
+                          <SelectContent>
+                            <SelectItem value="all">All</SelectItem>
+                            {venues.map((v) => (
+                              <SelectItem key={v} value={v}>
+                                {v.charAt(0).toUpperCase() + v.slice(1)}
+                              </SelectItem>
+                            ))}
+                          </SelectContent>
+                        </Select>
+                      </div>
+
+                      <div className="flex flex-col gap-1.5">
+                        <Label htmlFor="type">Type</Label>
+                        <DropdownMenu>
+                          <DropdownMenuTrigger asChild>
+                            <Button
+                              id="type"
+                              variant="outline"
+                              className={`w-full border-[#F3CFC6] ${filters.type ? "bg-[#F3CFC6]/10" : ""}`}
+                            >
+                              {filters.type || "All"}
+                            </Button>
+                          </DropdownMenuTrigger>
+                          <DropdownMenuContent>
+                            <DropdownMenuItem
+                              onClick={() => handleFilterChange("type", "")}
+                            >
+                              All
+                            </DropdownMenuItem>
+                            {types.map((t) => (
+                              <DropdownMenuItem
+                                key={t}
+                                onClick={() => handleFilterChange("type", t)}
+                              >
+                                {t.charAt(0).toUpperCase() + t.slice(1)}
+                              </DropdownMenuItem>
+                            ))}
+                          </DropdownMenuContent>
+                        </DropdownMenu>
+                      </div>
                     </div>
                   </div>
                 </div>
@@ -859,113 +924,129 @@ export default function TherapistsPageContent() {
                     Advanced Filters
                   </h3>
                   <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={`w-full border-[#F3CFC6] ${filters.race ? "bg-[#F3CFC6]/10" : ""}`}
-                        >
-                          Race: {filters.race || "All"}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem
-                          onClick={() => handleFilterChange("race", "")}
-                        >
-                          All
-                        </DropdownMenuItem>
-                        {races.map((r) => (
-                          <DropdownMenuItem
-                            key={r}
-                            onClick={() => handleFilterChange("race", r)}
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="race">Race</Label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            id="race"
+                            variant="outline"
+                            className={`w-full border-[#F3CFC6] ${filters.race ? "bg-[#F3CFC6]/10" : ""}`}
                           >
-                            {r}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={`w-full border-[#F3CFC6] ${filters.ethnicity ? "bg-[#F3CFC6]/10" : ""}`}
-                        >
-                          Ethnicity: {filters.ethnicity || "All"}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem
-                          onClick={() => handleFilterChange("ethnicity", "")}
-                        >
-                          All
-                        </DropdownMenuItem>
-                        {ethnicities.map((e) => (
+                            {filters.race || "All"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
                           <DropdownMenuItem
-                            key={e}
-                            onClick={() => handleFilterChange("ethnicity", e)}
+                            onClick={() => handleFilterChange("race", "")}
                           >
-                            {e}
+                            All
                           </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          {races.map((r) => (
+                            <DropdownMenuItem
+                              key={r}
+                              onClick={() => handleFilterChange("race", r)}
+                            >
+                              {r}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
 
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={`w-full border-[#F3CFC6] ${filters.bodyType ? "bg-[#F3CFC6]/10" : ""}`}
-                        >
-                          Body Type: {filters.bodyType || "All"}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem
-                          onClick={() => handleFilterChange("bodyType", "")}
-                        >
-                          All
-                        </DropdownMenuItem>
-                        {bodyTypes.map((b) => (
-                          <DropdownMenuItem
-                            key={b}
-                            onClick={() => handleFilterChange("bodyType", b)}
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="ethnicity">Ethnicity</Label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            id="ethnicity"
+                            variant="outline"
+                            className={`w-full border-[#F3CFC6] ${filters.ethnicity ? "bg-[#F3CFC6]/10" : ""}`}
                           >
-                            {b}
-                          </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
-
-                    <DropdownMenu>
-                      <DropdownMenuTrigger asChild>
-                        <Button
-                          variant="outline"
-                          className={`w-full border-[#F3CFC6] ${filters.personalityType ? "bg-[#F3CFC6]/10" : ""}`}
-                        >
-                          Personality Type: {filters.personalityType || "All"}
-                        </Button>
-                      </DropdownMenuTrigger>
-                      <DropdownMenuContent>
-                        <DropdownMenuItem
-                          onClick={() =>
-                            handleFilterChange("personalityType", "")
-                          }
-                        >
-                          All
-                        </DropdownMenuItem>
-                        {personalityTypes.map((p) => (
+                            {filters.ethnicity || "All"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
                           <DropdownMenuItem
-                            key={p}
+                            onClick={() => handleFilterChange("ethnicity", "")}
+                          >
+                            All
+                          </DropdownMenuItem>
+                          {ethnicities.map((e) => (
+                            <DropdownMenuItem
+                              key={e}
+                              onClick={() => handleFilterChange("ethnicity", e)}
+                            >
+                              {e}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="body-type">Body Type</Label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            id="body-type"
+                            variant="outline"
+                            className={`w-full border-[#F3CFC6] ${filters.bodyType ? "bg-[#F3CFC6]/10" : ""}`}
+                          >
+                            {filters.bodyType || "All"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
+                            onClick={() => handleFilterChange("bodyType", "")}
+                          >
+                            All
+                          </DropdownMenuItem>
+                          {bodyTypes.map((b) => (
+                            <DropdownMenuItem
+                              key={b}
+                              onClick={() => handleFilterChange("bodyType", b)}
+                            >
+                              {b}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
+
+                    <div className="flex flex-col gap-1.5">
+                      <Label htmlFor="personality-type">Personality Type</Label>
+                      <DropdownMenu>
+                        <DropdownMenuTrigger asChild>
+                          <Button
+                            id="personality-type"
+                            variant="outline"
+                            className={`w-full border-[#F3CFC6] ${filters.personalityType ? "bg-[#F3CFC6]/10" : ""}`}
+                          >
+                            {filters.personalityType || "All"}
+                          </Button>
+                        </DropdownMenuTrigger>
+                        <DropdownMenuContent>
+                          <DropdownMenuItem
                             onClick={() =>
-                              handleFilterChange("personalityType", p)
+                              handleFilterChange("personalityType", "")
                             }
                           >
-                            {p}
+                            All
                           </DropdownMenuItem>
-                        ))}
-                      </DropdownMenuContent>
-                    </DropdownMenu>
+                          {personalityTypes.map((p) => (
+                            <DropdownMenuItem
+                              key={p}
+                              onClick={() =>
+                                handleFilterChange("personalityType", p)
+                              }
+                            >
+                              {p}
+                            </DropdownMenuItem>
+                          ))}
+                        </DropdownMenuContent>
+                      </DropdownMenu>
+                    </div>
                   </div>
                 </div>
               </AccordionContent>
@@ -992,6 +1073,14 @@ export default function TherapistsPageContent() {
             >
               Clear
             </Button>
+            {/* <Button
+              variant="outline"
+              onClick={() => setIsDateTimeDialogOpen(true)}
+              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+            >
+              <CalendarIcon className="mr-2 h-4 w-4" />
+              Select Date & Time
+            </Button> */}
           </div>
         </CardContent>
       </Card>
@@ -1049,7 +1138,7 @@ export default function TherapistsPageContent() {
         </CardContent>
       </Card>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog open={isRadiusDialogOpen} onOpenChange={setIsRadiusDialogOpen}>
         <DialogContent className="max-w-lg">
           <DialogHeader>
             <DialogTitle>Select Search Radius</DialogTitle>
@@ -1073,35 +1162,27 @@ export default function TherapistsPageContent() {
                 </p>
               )}
             </div>
-            <Select
-              onValueChange={(value) => setTempRadius(parseInt(value))}
-              defaultValue="10"
-            >
-              <SelectTrigger className="border-[#F3CFC6] text-black dark:text-white">
-                <SelectValue placeholder="Select Radius" />
-              </SelectTrigger>
-              <SelectContent>
-                {radiusOptions.map((opt) => (
-                  <SelectItem key={opt} value={opt.toString()}>
-                    {opt}
-                  </SelectItem>
-                ))}
-              </SelectContent>
-            </Select>
-            <Select
-              onValueChange={(value: string) =>
-                setTempUnit(value as "km" | "miles")
-              }
-              defaultValue={tempUnit}
-            >
-              <SelectTrigger className="border-[#F3CFC6] text-black dark:text-white">
-                <SelectValue placeholder="Unit" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="miles">Miles</SelectItem>
-                <SelectItem value="km">Kilometers (km)</SelectItem>
-              </SelectContent>
-            </Select>
+            <div className="flex flex-col gap-1.5">
+              <Label htmlFor="radius">Radius</Label>
+              <Select
+                onValueChange={(value) => setTempRadius(parseInt(value))}
+                defaultValue="10"
+              >
+                <SelectTrigger
+                  id="radius"
+                  className="border-[#F3CFC6] text-black dark:text-white"
+                >
+                  <SelectValue placeholder="Select Radius" />
+                </SelectTrigger>
+                <SelectContent>
+                  {radiusOptions.map((opt) => (
+                    <SelectItem key={opt} value={opt.toString()}>
+                      {opt} miles
+                    </SelectItem>
+                  ))}
+                </SelectContent>
+              </Select>
+            </div>
             <Button
               onClick={applyRadiusFilter}
               className="bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80 dark:bg-[#C4C4C4] dark:text-white dark:hover:bg-[#C4C4C4]/80"
@@ -1112,7 +1193,10 @@ export default function TherapistsPageContent() {
         </DialogContent>
       </Dialog>
 
-      <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
+      <Dialog
+        open={isDateTimeDialogOpen}
+        onOpenChange={setIsDateTimeDialogOpen}
+      >
         <DialogContent className="max-w-lg bg-white dark:bg-gray-800">
           <DialogHeader>
             <DialogTitle className="text-black dark:text-white">
@@ -1177,7 +1261,7 @@ export default function TherapistsPageContent() {
           <DialogFooter>
             <Button
               variant="outline"
-              onClick={() => setIsDialogOpen(false)}
+              onClick={() => setIsDateTimeDialogOpen(false)}
               className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
             >
               Cancel

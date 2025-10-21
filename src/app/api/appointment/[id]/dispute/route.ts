@@ -1,42 +1,60 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // app/api/appointment/[id]/dispute/route.ts
-import { NextRequest, NextResponse } from "next/server";
+import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { z } from "zod";
-import { sendSystemMessage } from "@/lib/messages";
 
 const disputeSchema = z.object({
-  reason: z.string().min(10, "Reason must be at least 10 characters"),
+  reason: z.string().min(1, "Dispute reason is required"),
 });
 
-export async function POST(request: NextRequest, { params }: any) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
-  const { id } = params;
-
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   try {
-    const { reason } = disputeSchema.parse(await request.json());
-
-    const specialistApp = await prisma.specialistApplication.findFirst({
-      where: { userId: session.user.id, status: "approved" },
-      select: { specialistId: true },
-    });
-    if (!specialistApp?.specialistId) {
-      return NextResponse.json(
-        { error: "User is not an approved specialist" },
-        { status: 403 }
-      );
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    const { id } = params;
+    const body = await request.json();
+    const { reason } = disputeSchema.parse(body);
 
     const appt = await prisma.appointment.findUnique({
       where: { id },
-      include: { user: true, specialist: { include: { application: true } } },
+      select: {
+        id: true,
+        userId: true,
+        specialistId: true,
+        date: true,
+        time: true,
+        status: true,
+        disputeStatus: true,
+        venue: true,
+        user: {
+          select: { id: true, name: true, firstName: true, lastName: true },
+        },
+        specialist: {
+          select: {
+            name: true,
+            rate: true,
+            venue: true,
+            application: {
+              select: {
+                userId: true,
+                user: {
+                  select: { name: true, firstName: true, lastName: true },
+                },
+              },
+            },
+          },
+        },
+      },
     });
+
     if (!appt) {
       return NextResponse.json(
         { error: "Appointment not found" },
@@ -44,16 +62,13 @@ export async function POST(request: NextRequest, { params }: any) {
       );
     }
 
-    if (appt.specialistId !== specialistApp.specialistId) {
-      return NextResponse.json(
-        { error: "Unauthorized: Not your appointment" },
-        { status: 403 }
-      );
+    if (appt.userId !== session.user.id && !session.user.isAdmin) {
+      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    if (appt.status !== "completed") {
+    if (appt.status === "cancelled") {
       return NextResponse.json(
-        { error: "Can only dispute completed appointments" },
+        { error: "Cannot dispute a cancelled appointment" },
         { status: 400 }
       );
     }
@@ -72,51 +87,60 @@ export async function POST(request: NextRequest, { params }: any) {
         disputeReason: reason,
         disputeStatus: "disputed",
       },
-      include: { user: true, specialist: { include: { application: true } } },
-    });
-
-    const userId = updated.userId;
-    const specialistUserId = updated.specialist.application?.userId;
-    if (!userId || !specialistUserId) {
-      return NextResponse.json(
-        { error: "Missing user or specialist user ID" },
-        { status: 400 }
-      );
-    }
-
-    const conversation = await prisma.conversation.findFirst({
-      where: {
-        OR: [
-          {
-            userId1: userId,
-            userId2: specialistUserId,
+      select: {
+        id: true,
+        userId: true,
+        specialistId: true,
+        date: true,
+        time: true,
+        status: true,
+        disputeStatus: true,
+        disputeReason: true,
+        venue: true,
+        user: {
+          select: { id: true, name: true, firstName: true, lastName: true },
+        },
+        specialist: {
+          select: {
+            name: true,
+            rate: true,
+            venue: true,
+            application: {
+              select: {
+                userId: true,
+                user: {
+                  select: { name: true, firstName: true, lastName: true },
+                },
+              },
+            },
           },
-          {
-            userId1: specialistUserId,
-            userId2: userId,
-          },
-        ],
+        },
       },
     });
 
-    if (conversation) {
-      await sendSystemMessage({
-        conversationId: conversation.id,
-        senderId: session.user.id,
-        recipientId: userId,
-        text: `⚠️ This appointment was disputed: "${reason}"`,
-      });
-    }
-
     return NextResponse.json({
-      message: "Appointment disputed successfully",
-      appointment: updated,
+      message: "Dispute submitted",
+      appointment: {
+        id: updated.id,
+        specialistId: updated.specialistId,
+        userId: updated.userId,
+        date: updated.date.toISOString().split("T")[0],
+        time: updated.time,
+        status: updated.status,
+        disputeStatus: updated.disputeStatus,
+        disputeReason: updated.disputeReason,
+        venue: updated.venue,
+        specialistName:
+          updated.specialist?.name ||
+          (updated.specialist?.application?.user
+            ? `${updated.specialist.application.user.firstName || ""} ${updated.specialist.application.user.lastName || ""}`.trim() ||
+              updated.specialist.application.user.name ||
+              "Unknown Specialist"
+            : "Unknown Specialist"),
+      },
     });
-  } catch (err) {
-    console.error("Dispute appointment error:", err);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
+  } catch (error) {
+    console.error("Dispute error:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

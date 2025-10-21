@@ -1,5 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// app/api/appointment/route.ts
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -16,11 +17,11 @@ export async function GET(req: Request) {
     const userId = searchParams.get("userId");
     const isAdminFetch = searchParams.get("admin") === "true";
 
-    let whereClause: any = {};
+    let whereClause: Prisma.AppointmentWhereInput = {};
     if (userId) {
       whereClause = { userId };
     } else if (isAdminFetch && session.user.isAdmin) {
-      whereClause = {}; // fetch all for admin
+      whereClause = {};
     } else {
       whereClause = { userId: session.user.id };
     }
@@ -31,13 +32,23 @@ export async function GET(req: Request) {
 
     const appointments = await prisma.appointment.findMany({
       where: whereClause,
-      include: {
+      select: {
+        id: true,
+        date: true,
+        time: true,
+        status: true,
+        adjustedRate: true,
+        rate: true,
+        specialistId: true,
+        disputeStatus: true,
+        venue: true,
         specialist: {
           select: {
             name: true,
             rating: true,
             reviewCount: true,
             rate: true,
+            venue: true,
             application: {
               select: {
                 userId: true,
@@ -100,6 +111,8 @@ export async function GET(req: Request) {
             appt.payment?.amount ??
             appt.specialist?.rate ??
             0,
+          venue: appt.venue,
+          specialistVenue: appt.specialist?.venue,
           specialistId: appt.specialistId,
           specialistUserId: appt.specialist?.application?.userId || "",
           disputeStatus: appt.disputeStatus || "none",

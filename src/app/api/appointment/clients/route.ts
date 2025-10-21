@@ -1,13 +1,23 @@
+// app/api/appointment/clients/route.ts
 import { NextResponse } from "next/server";
-import { Prisma, PrismaClient } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
+import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { buildDisplayName } from "@/lib/utils";
 
-const prisma = new PrismaClient();
-
 type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
-  include: {
+  select: {
+    id: true;
+    date: true;
+    time: true;
+    status: true;
+    adjustedRate: true;
+    rate: true;
+    userId: true;
+    specialistId: true;
+    disputeStatus: true;
+    venue: true;
     user: { select: { id: true; name: true; firstName: true; lastName: true } };
     specialist: {
       select: {
@@ -15,6 +25,7 @@ type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
         rating: true;
         reviewCount: true;
         rate: true;
+        venue: true;
         application: {
           select: {
             userId: true;
@@ -33,7 +44,6 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Ensure user is a specialist
     const specialistApplication = await prisma.specialistApplication.findFirst({
       where: { userId: session.user.id, status: "approved" },
       select: { specialistId: true },
@@ -48,7 +58,17 @@ export async function GET() {
     const appointments: AppointmentWithRelations[] =
       await prisma.appointment.findMany({
         where: { specialistId: specialistApplication.specialistId },
-        include: {
+        select: {
+          id: true,
+          date: true,
+          time: true,
+          status: true,
+          adjustedRate: true,
+          rate: true,
+          userId: true,
+          specialistId: true,
+          disputeStatus: true,
+          venue: true,
           user: {
             select: { id: true, name: true, firstName: true, lastName: true },
           },
@@ -58,6 +78,7 @@ export async function GET() {
               rating: true,
               reviewCount: true,
               rate: true,
+              venue: true,
               application: {
                 select: {
                   userId: true,
@@ -72,7 +93,7 @@ export async function GET() {
         orderBy: { createdAt: "desc" },
       });
 
-    const now = new Date();
+    const now = new Date(); // Define now
     const formatted = await Promise.all(
       appointments.map(async (appt) => {
         let effectiveStatus = appt.status as
@@ -113,6 +134,8 @@ export async function GET() {
           rating: appt.specialist?.rating ?? 0,
           reviewCount: appt.specialist?.reviewCount ?? 0,
           rate: appt.adjustedRate ?? appt.rate ?? appt.specialist?.rate ?? 0,
+          venue: appt.venue,
+          specialistVenue: appt.specialist?.venue,
           clientId: appt.userId,
           disputeStatus: appt.disputeStatus || "none",
         };

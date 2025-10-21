@@ -15,6 +15,7 @@ import {
   Video,
   DollarSign,
   MessageSquare,
+  Home,
 } from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
@@ -44,7 +45,6 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 
@@ -83,6 +83,7 @@ interface Profile {
   favoriteColor?: string;
   favoriteMedia?: string;
   petOwnership?: string;
+  venue?: string;
 }
 
 interface Review {
@@ -145,7 +146,6 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
           notFound();
         }
 
-        // Fetch profile
         const profileRes = await fetch(`/api/specialists?id=${id}`, {
           cache: "no-store",
           credentials: "include",
@@ -172,6 +172,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
             favoriteColor: data.favoriteColor || "",
             favoriteMedia: data.favoriteMedia || "",
             petOwnership: data.petOwnership || "",
+            venue: data.venue || "",
           });
         } else {
           if (profileRes.status === 401) router.push("/login");
@@ -179,7 +180,6 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
           throw new Error(`Failed to fetch specialist: ${profileRes.status}`);
         }
 
-        // Fetch reviews
         const reviewsRes = await fetch(`/api/reviews?specialistId=${id}`, {
           cache: "no-store",
           credentials: "include",
@@ -191,7 +191,6 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
           throw new Error(`Failed to fetch reviews: ${reviewsRes.status}`);
         }
 
-        // Fetch discounts
         const discountsRes = await fetch(`/api/discounts/specialist/${id}`, {
           cache: "no-store",
           credentials: "include",
@@ -303,7 +302,6 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to submit review");
       }
-      // Refetch profile and reviews to update average rating and list
       const profileRes = await fetch(`/api/specialists?id=${id}`);
       if (profileRes.ok) setProfile(await profileRes.json());
       const reviewsRes = await fetch(`/api/reviews?specialistId=${id}`);
@@ -445,7 +443,6 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
       initial="hidden"
       animate="visible"
     >
-      {/* Header Card */}
       <Card className="shadow-lg pt-0 overflow-hidden">
         <div className="relative h-64 sm:h-80">
           <div
@@ -502,6 +499,15 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                   <span>
                     {profile.rating.toFixed(1)} ({profile.reviewCount || 0}{" "}
                     reviews)
+                  </span>
+                </div>
+              )}
+              {profile.venue && (
+                <div className="flex items-center gap-2">
+                  <Home className="h-4 w-4 text-[#F3CFC6]" />
+                  <span>
+                    {profile.venue.charAt(0).toUpperCase() +
+                      profile.venue.slice(1)}
                   </span>
                 </div>
               )}
@@ -592,7 +598,6 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         </CardContent>
       </Card>
 
-      {/* Report Dialog */}
       <Dialog open={isReportOpen} onOpenChange={setIsReportOpen}>
         <DialogContent>
           <DialogHeader>
@@ -634,7 +639,6 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         </DialogContent>
       </Dialog>
 
-      {/* Note Dialog */}
       <Dialog open={isNoteOpen} onOpenChange={setIsNoteOpen}>
         <DialogContent>
           <DialogHeader>
@@ -659,7 +663,6 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         </DialogContent>
       </Dialog>
 
-      {/* About Professional Section */}
       <motion.div variants={itemVariants}>
         <Card className="shadow-lg">
           <CardHeader>
@@ -678,11 +681,21 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                 </p>
               </div>
             )}
+            {profile.venue && (
+              <div className="space-y-2">
+                <h4 className="text-lg font-semibold text-black dark:text-white">
+                  Venue Preference
+                </h4>
+                <p className="text-sm sm:text-base text-black dark:text-white leading-relaxed">
+                  {profile.venue.charAt(0).toUpperCase() +
+                    profile.venue.slice(1) || "Not specified"}
+                </p>
+              </div>
+            )}
           </CardContent>
         </Card>
       </motion.div>
 
-      {/* Personal Information Section */}
       <motion.div variants={itemVariants}>
         <Card className="shadow-lg">
           <CardHeader>
@@ -759,7 +772,6 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         </Card>
       </motion.div>
 
-      {/* Discounts Section */}
       <motion.div variants={itemVariants}>
         <Card className="shadow-lg">
           <CardHeader>
@@ -810,7 +822,6 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         </Card>
       </motion.div>
 
-      {/* Reviews Section */}
       <motion.div variants={itemVariants}>
         <Card className="shadow-lg">
           <CardContent className="pt-6">
@@ -832,91 +843,123 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
                     <DialogTitle>Write Your Review</DialogTitle>
                   </DialogHeader>
                   <div className="space-y-4">
-                    <div className="flex justify-center">
-                      {renderStars(selectedRating, true, setSelectedRating)}
+                    <div>
+                      <Label>Rating</Label>
+                      <div className="flex">
+                        {renderStars(selectedRating, true, setSelectedRating)}
+                      </div>
                     </div>
-                    <Textarea
-                      placeholder="Share your feedback..."
-                      value={feedback}
-                      onChange={(e) => setFeedback(e.target.value)}
-                    />
+                    <div>
+                      <Label htmlFor="feedback">Feedback</Label>
+                      <Textarea
+                        id="feedback"
+                        placeholder="Write your review here..."
+                        value={feedback}
+                        onChange={(e) => setFeedback(e.target.value)}
+                      />
+                    </div>
                     {submitError && (
-                      <p className="text-red-500">{submitError}</p>
+                      <p className="text-red-500 text-sm">{submitError}</p>
                     )}
                   </div>
                   <DialogFooter>
                     <Button
                       onClick={handleSubmitReview}
-                      disabled={selectedRating === 0 || !feedback}
+                      disabled={!selectedRating || !feedback}
                     >
-                      Submit
+                      Submit Review
                     </Button>
                   </DialogFooter>
                 </DialogContent>
               </Dialog>
             </div>
-            {reviews.length === 0 ? (
-              <p className="text-center text-gray-500">No reviews yet.</p>
-            ) : (
+            {reviews.length > 0 ? (
               <>
-                {reviews.slice(0, 3).map((review) => (
-                  <div
-                    key={review.id}
-                    className="border-b py-4 last:border-b-0"
-                  >
-                    <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                      <div>
-                        <p className="font-semibold">{review.reviewerName}</p>
-                        <p className="text-sm text-gray-500">
-                          {new Date(review.createdAt).toLocaleDateString()}
-                        </p>
-                      </div>
-                      <div className="flex">{renderStars(review.rating)}</div>
-                    </div>
-                    <p className="mt-2">{review.feedback}</p>
-                  </div>
-                ))}
-                {reviews.length > 3 && (
-                  <div className="text-center mt-4">
-                    <Dialog
-                      open={isViewAllOpen}
-                      onOpenChange={setIsViewAllOpen}
-                    >
-                      <DialogTrigger asChild>
-                        <Button variant="link">View All Reviews</Button>
-                      </DialogTrigger>
-                      <DialogContent className="max-h-[80vh] overflow-y-auto">
-                        <DialogHeader>
-                          <DialogTitle>All Reviews</DialogTitle>
-                        </DialogHeader>
-                        {reviews.map((review) => (
-                          <div
-                            key={review.id}
-                            className="border-b py-4 last:border-b-0"
-                          >
-                            <div className="flex flex-col sm:flex-row justify-between sm:items-center gap-2">
-                              <div>
-                                <p className="font-semibold">
-                                  {review.reviewerName}
-                                </p>
-                                <p className="text-sm text-gray-500">
-                                  {new Date(
-                                    review.createdAt
-                                  ).toLocaleDateString()}
-                                </p>
-                              </div>
+                <motion.div className="space-y-4" variants={containerVariants}>
+                  <AnimatePresence>
+                    {reviews.slice(0, 3).map((review) => (
+                      <motion.div
+                        key={review.id}
+                        variants={cardVariants}
+                        className="border-b pb-4 last:border-b-0"
+                      >
+                        <div className="flex items-start space-x-4">
+                          <div className="flex-1">
+                            <div className="flex items-center justify-between">
+                              <p className="font-semibold text-black dark:text-white">
+                                {review.reviewerName}
+                              </p>
                               <div className="flex">
                                 {renderStars(review.rating)}
                               </div>
                             </div>
-                            <p className="mt-2">{review.feedback}</p>
+                            <p className="text-sm text-[#C4C4C4] mt-1">
+                              {new Date(review.createdAt).toLocaleDateString()}
+                            </p>
+                            <p className="text-sm sm:text-base text-black dark:text-white mt-2">
+                              {review.feedback}
+                            </p>
                           </div>
-                        ))}
-                      </DialogContent>
-                    </Dialog>
-                  </div>
+                        </div>
+                      </motion.div>
+                    ))}
+                  </AnimatePresence>
+                </motion.div>
+                {reviews.length > 3 && (
+                  <Dialog open={isViewAllOpen} onOpenChange={setIsViewAllOpen}>
+                    <DialogTrigger asChild>
+                      <Button
+                        variant="link"
+                        className="text-[#F3CFC6] hover:text-[#C4C4C4] mt-4"
+                      >
+                        View All Reviews
+                      </Button>
+                    </DialogTrigger>
+                    <DialogContent className="max-h-[80vh] overflow-y-auto">
+                      <DialogHeader>
+                        <DialogTitle>All Reviews</DialogTitle>
+                      </DialogHeader>
+                      <motion.div
+                        className="space-y-4"
+                        variants={containerVariants}
+                      >
+                        <AnimatePresence>
+                          {reviews.map((review) => (
+                            <motion.div
+                              key={review.id}
+                              variants={cardVariants}
+                              className="border-b pb-4 last:border-b-0"
+                            >
+                              <div className="flex items-start space-x-4">
+                                <div className="flex-1">
+                                  <div className="flex items-center justify-between">
+                                    <p className="font-semibold text-black dark:text-white">
+                                      {review.reviewerName}
+                                    </p>
+                                    <div className="flex">
+                                      {renderStars(review.rating)}
+                                    </div>
+                                  </div>
+                                  <p className="text-sm text-[#C4C4C4] mt-1">
+                                    {new Date(
+                                      review.createdAt
+                                    ).toLocaleDateString()}
+                                  </p>
+                                  <p className="text-sm sm:text-base text-black dark:text-white mt-2">
+                                    {review.feedback}
+                                  </p>
+                                </div>
+                              </div>
+                            </motion.div>
+                          ))}
+                        </AnimatePresence>
+                      </motion.div>
+                    </DialogContent>
+                  </Dialog>
                 )}
               </>
+            ) : (
+              <p className="text-center text-[#C4C4C4]">No reviews yet.</p>
             )}
           </CardContent>
         </Card>

@@ -1,3 +1,4 @@
+// app/api/appointment/[id]/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -18,9 +19,13 @@ export async function GET(request: Request) {
   try {
     const appointment = await prisma.appointment.findUnique({
       where: { id: bookingId },
-      include: {
+      select: {
+        id: true,
+        date: true,
+        time: true,
+        venue: true,
         user: { select: { name: true } },
-        specialist: { select: { name: true, rate: true } },
+        specialist: { select: { name: true, rate: true, venue: true } },
       },
     });
 
@@ -42,6 +47,8 @@ export async function GET(request: Request) {
         date: appointment.date,
         time: appointment.time,
         amount: appointment.specialist.rate || 50,
+        venue: appointment.venue,
+        specialistVenue: appointment.specialist.venue,
       },
       { status: 200 }
     );
