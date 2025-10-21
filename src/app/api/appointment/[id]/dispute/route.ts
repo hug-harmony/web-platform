@@ -10,7 +10,7 @@ const disputeSchema = z.object({
 
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } }
+  context: { params: Record<string, string> }
 ) {
   try {
     const session = await getServerSession(authOptions);
