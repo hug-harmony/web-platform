@@ -1,4 +1,3 @@
-// src/app/api/appointment/[id]/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -27,6 +26,13 @@ export async function GET(request: Request) {
 
     if (!appointment) {
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    }
+
+    if (!appointment.user) {
+      return NextResponse.json(
+        { error: "User not found for this appointment" },
+        { status: 400 }
+      );
     }
 
     return NextResponse.json(
