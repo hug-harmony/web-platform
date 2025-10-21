@@ -14,7 +14,7 @@ import Image from "next/image";
 import icon from "../../../public/hh-icon.png";
 
 export default function AdminLoginPage() {
-  const [email, setEmail] = useState("");
+  const [identifier, setIdentifier] = useState(""); // Changed from email to identifier to support username or email
   const [password, setPassword] = useState("");
   const [error, setError] = useState("");
   const [loading, setLoading] = useState(false);
@@ -28,13 +28,13 @@ export default function AdminLoginPage() {
     try {
       const result = await signIn("credentials", {
         redirect: false,
-        email,
+        identifier, // Use identifier instead of email
         password,
       });
 
       if (result?.error) {
-        setError("Invalid email or password");
-        toast.error("Invalid email or password");
+        setError("Invalid email/username or password");
+        toast.error("Invalid email/username or password");
         setLoading(false);
         return;
       }
@@ -43,11 +43,12 @@ export default function AdminLoginPage() {
       const response = await fetch("/api/auth/check-admin", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email }),
+        body: JSON.stringify({ email: identifier }), // Use identifier here
       });
       const data = await response.json();
 
       if (data.isAdmin) {
+        toast.success("Logged in successfully!");
         router.push("/admin/dashboard");
       } else {
         setError("You are not authorized to access the admin panel");
@@ -57,7 +58,7 @@ export default function AdminLoginPage() {
     } catch (err) {
       setError("Something went wrong. Please try again.");
       toast.error("Something went wrong. Please try again.");
-      console.error(err);
+      console.error("Admin login error:", err);
     } finally {
       setLoading(false);
     }
@@ -88,17 +89,18 @@ export default function AdminLoginPage() {
         <CardContent>
           <form onSubmit={handleSubmit} className="space-y-4">
             <div>
-              <Label htmlFor="email" className="text-black">
-                Email
+              <Label htmlFor="identifier" className="text-black">
+                Email or Username
               </Label>
               <Input
-                id="email"
-                type="email"
-                value={email}
-                onChange={(e) => setEmail(e.target.value)}
+                id="identifier"
+                type="text" // Changed to text to allow username or email
+                value={identifier}
+                onChange={(e) => setIdentifier(e.target.value)}
                 required
                 disabled={loading}
                 className="border-[#C4C4C4] focus:border-[#F3CFC6] text-black"
+                placeholder="Enter email or username"
               />
             </div>
             <div>
