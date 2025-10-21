@@ -4,6 +4,8 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 
 export async function GET(req: Request) {
+  console.log(req.url);
+
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {

@@ -200,6 +200,9 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
         const fullName =
           // `${name.firstName || ""} ${name.lastName || ""}`.trim() ||
           "Unknown User";
+
+        console.log(name, fullName);
+
         return searchQuery
           ? fullName.toLowerCase().includes(searchQuery.toLowerCase())
           : true;

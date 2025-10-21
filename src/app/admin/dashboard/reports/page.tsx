@@ -5,7 +5,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import { Input } from "@/components/ui/input";
-import { Search, FileText, Shield, AlertTriangle } from "lucide-react";
+import { Search, FileText } from "lucide-react";
 import { useState, useEffect } from "react";
 
 interface Survey {
@@ -86,11 +86,13 @@ export default function ReportsPage() {
     fetchData();
   }, []);
 
-  const filteredSurveys = surveys.filter((s) =>
-    `${s.user.firstName} ${s.user.lastName} ${s.user.email} ${s.feedback}`
-      .toLowerCase()
-      .includes(searchTerm.toLowerCase())
-  );
+  console.log(surveys, logs, reports);
+
+  // const filteredSurveys = surveys.filter((s) =>
+  //   `${s.user.firstName} ${s.user.lastName} ${s.user.email} ${s.feedback}`
+  //     .toLowerCase()
+  //     .includes(searchTerm.toLowerCase())
+  // );
 
   const filteredLogs = logs.filter((l) =>
     `${l.eventType} ${l.details} ${l.user?.email || ""}`

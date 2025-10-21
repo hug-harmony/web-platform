@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// app/api/appointment/[id]/reschedule/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -73,6 +72,16 @@ export async function PATCH(request: NextRequest, { params }: any) {
       include: { user: true, specialist: { include: { application: true } } },
     });
 
+    // Ensure user and specialist userId are not null
+    const userId = updated.userId;
+    const specialistUserId = updated.specialist.application?.userId;
+    if (!userId || !specialistUserId || !updated.user) {
+      return NextResponse.json(
+        { error: "Missing user, specialist user ID, or user email" },
+        { status: 400 }
+      );
+    }
+
     // Email
     await transporter.sendMail({
       from: process.env.GMAIL_USER,
@@ -86,12 +95,12 @@ export async function PATCH(request: NextRequest, { params }: any) {
       where: {
         OR: [
           {
-            userId1: updated.userId,
-            userId2: updated.specialist.application?.userId,
+            userId1: userId,
+            userId2: specialistUserId,
           },
           {
-            userId1: updated.specialist.application?.userId,
-            userId2: updated.userId,
+            userId1: specialistUserId,
+            userId2: userId,
           },
         ],
       },
@@ -100,7 +109,7 @@ export async function PATCH(request: NextRequest, { params }: any) {
       await sendSystemMessage({
         conversationId: conversation.id,
         senderId: session.user.id,
-        recipientId: updated.userId,
+        recipientId: userId,
         text: `📅 Your appointment was rescheduled to ${new Date(date).toDateString()} at ${time}.`,
       });
     }

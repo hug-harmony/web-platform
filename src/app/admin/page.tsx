@@ -57,6 +57,7 @@ export default function AdminLoginPage() {
     } catch (err) {
       setError("Something went wrong. Please try again.");
       toast.error("Something went wrong. Please try again.");
+      console.error(err);
     } finally {
       setLoading(false);
     }

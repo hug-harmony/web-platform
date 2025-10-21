@@ -91,11 +91,7 @@ export default function Sidebar() {
         label: "Video Sessions",
         icon: <Video className="h-5 w-5" />,
       },
-      {
-        href: "/dashboard/payment",
-        label: "Payments",
-        icon: <CreditCard className="h-5 w-5" />,
-      },
+
       {
         href: "/dashboard/notifications",
         label: "Notifications",
@@ -126,15 +122,20 @@ export default function Sidebar() {
       //   label: "Proposals",
       //   icon: <Users className="h-5 w-5" />,
       // },
-      // ...(isSpecialist
-      //   ? [
-      //       {
-      //         href: "/dashboard/profile-visits",
-      //         label: "Profile Visits",
-      //         icon: <Eye className="h-5 w-5" />,
-      //       },
-      //     ]
-      //   : []),
+      ...(isSpecialist
+        ? [
+            // {
+            //   href: "/dashboard/profile-visits",
+            //   label: "Profile Visits",
+            //   icon: <Eye className="h-5 w-5" />,
+            // },
+            {
+              href: "/dashboard/payment",
+              label: "Payments",
+              icon: <CreditCard className="h-5 w-5" />,
+            },
+          ]
+        : []),
     ],
     [isSpecialist]
   );

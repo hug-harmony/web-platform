@@ -3,14 +3,7 @@
 
 import { useEffect, useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
-import {
-  Search,
-  Star,
-  MapPin,
-  Globe,
-  CalendarIcon,
-  Filter as FilterIcon,
-} from "lucide-react";
+import { Search, MapPin } from "lucide-react";
 import Link from "next/link";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
@@ -19,8 +12,6 @@ import {
   DropdownMenu,
   DropdownMenuContent,
   DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
   DropdownMenuTrigger,
   DropdownMenuCheckboxItem,
 } from "@/components/ui/dropdown-menu";
@@ -427,8 +418,7 @@ export default function TherapistsPageContent() {
   const locations = Array.from(
     new Set(specialists.map((t) => t.location).filter(Boolean))
   ) as string[];
-  const ratings = [4.5, 4.0, 3.5, 3.0];
-  const sortOptions = ["rating", "name"];
+
   const radiusOptions = [1, 5, 10, 25, 50, 100];
   const genders = ["male", "female"];
   const onlineStatuses = ["24hrs", "1day", "1week", "1month", "1year"];

@@ -4,14 +4,7 @@ import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  LayoutDashboard,
-  Users,
-  UserCheck,
-  BarChart,
-  Flag,
-  Calendar,
-} from "lucide-react";
+import { Users, UserCheck, BarChart, Flag, Calendar } from "lucide-react";
 import Link from "next/link";
 
 interface AdminUser {

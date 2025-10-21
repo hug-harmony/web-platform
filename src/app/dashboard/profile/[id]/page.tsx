@@ -136,6 +136,8 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     }
   }, 300);
 
+  console.log(searchParams);
+
   // Handle click outside to close dropdown
   useEffect(() => {
     const handleClickOutside = (event: MouseEvent) => {

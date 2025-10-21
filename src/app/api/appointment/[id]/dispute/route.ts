@@ -75,16 +75,25 @@ export async function POST(request: NextRequest, { params }: any) {
       include: { user: true, specialist: { include: { application: true } } },
     });
 
+    const userId = updated.userId;
+    const specialistUserId = updated.specialist.application?.userId;
+    if (!userId || !specialistUserId) {
+      return NextResponse.json(
+        { error: "Missing user or specialist user ID" },
+        { status: 400 }
+      );
+    }
+
     const conversation = await prisma.conversation.findFirst({
       where: {
         OR: [
           {
-            userId1: updated.userId,
-            userId2: updated.specialist.application?.userId,
+            userId1: userId,
+            userId2: specialistUserId,
           },
           {
-            userId1: updated.specialist.application?.userId,
-            userId2: updated.userId,
+            userId1: specialistUserId,
+            userId2: userId,
           },
         ],
       },
@@ -94,7 +103,7 @@ export async function POST(request: NextRequest, { params }: any) {
       await sendSystemMessage({
         conversationId: conversation.id,
         senderId: session.user.id,
-        recipientId: updated.userId,
+        recipientId: userId,
         text: `⚠️ This appointment was disputed: "${reason}"`,
       });
     }
