@@ -1,4 +1,3 @@
-// app/api/specialists/availability/range/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -50,7 +49,7 @@ export async function GET(request: Request) {
           gte: start,
           lte: end,
         },
-        status: { in: ["upcoming", "pending"] },
+        status: { in: ["upcoming", "pending", "break"] }, // Added "break"
       },
       select: {
         date: true,

@@ -64,7 +64,7 @@ model PasswordResetToken {
 
 model Appointment {
   id               String    @id @default(auto()) @map("_id") @db.ObjectId
-  userId           String    @db.ObjectId
+  userId           String?   @db.ObjectId  // Made optional for break records
   specialistId     String    @db.ObjectId
   date             DateTime
   time             String
@@ -72,11 +72,11 @@ model Appointment {
   disputeStatus    String    @default("none")
   disputeReason    String?
   adminNotes       String?
-  rate           Float?     // snapshot rate at booking
-  adjustedRate   Float?     // modified rate if applied
+  rate             Float?     // snapshot rate at booking
+  adjustedRate     Float?     // modified rate if applied
   modificationHistory Json? // keep history of changes (reschedule, rate adjust)
   createdAt        DateTime  @default(now())
-  user             User      @relation("UserAppointments", fields: [userId], references: [id], onDelete: Cascade)
+  user             User?     @relation("UserAppointments", fields: [userId], references: [id], onDelete: SetNull)  // Adjusted to optional
   specialist       Specialist @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)
   payment          Payment?
 }

@@ -1,4 +1,3 @@
-// app/api/specialists/booking/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -51,7 +50,7 @@ export async function GET(request: Request) {
       where: {
         specialistId,
         date: requestedDate,
-        status: { in: ["upcoming", "pending"] },
+        status: { in: ["upcoming", "pending", "break"] }, // Added "break"
       },
       select: { time: true },
     });
@@ -144,7 +143,7 @@ export async function POST(request: Request) {
         specialistId,
         date: utcDate,
         time,
-        status: { in: ["upcoming", "pending"] },
+        status: { in: ["upcoming", "pending", "break"] }, // Added "break"
       },
     });
 
@@ -155,14 +154,90 @@ export async function POST(request: Request) {
       );
     }
 
-    const appointment = await prisma.appointment.create({
-      data: {
-        userId,
-        specialistId,
-        date: utcDate,
-        time,
-        status: "upcoming",
-      },
+    // Helper: Convert time string to minutes since midnight
+    const timeToMinutes = (time: string): number => {
+      const parsed = parse(time, "h:mm a", new Date());
+      return parsed.getHours() * 60 + parsed.getMinutes();
+    };
+
+    const appointment = await prisma.$transaction(async (tx) => {
+      // Create main appointment
+      const newAppointment = await tx.appointment.create({
+        data: {
+          userId,
+          specialistId,
+          date: utcDate,
+          time,
+          status: "upcoming",
+        },
+      });
+
+      // Reserve breaks if availability exists
+      if (
+        availability &&
+        availability.slots.length > 0 &&
+        availability.breakDuration
+      ) {
+        const breakDuration = availability.breakDuration;
+        // Sort slots by time for safety
+        const sortedSlots = [...availability.slots].sort(
+          (a, b) => timeToMinutes(a) - timeToMinutes(b)
+        );
+        const selectedMinutes = timeToMinutes(time);
+        const slotIndex = sortedSlots.findIndex(
+          (slot) => timeToMinutes(slot) === selectedMinutes
+        );
+        if (slotIndex === -1) throw new Error("Selected slot not found");
+
+        // Assume 30-min slots; adjust if different
+        const slotDuration = 30;
+        const numReserve = Math.ceil(breakDuration / slotDuration); // e.g., 1 for 30min, 2 for 60min
+
+        // Function to create break if not exists
+        const createBreakIfAvailable = async (breakTime: string) => {
+          const existing = await tx.appointment.findFirst({
+            where: {
+              specialistId,
+              date: utcDate,
+              time: breakTime,
+              status: { in: ["upcoming", "pending", "break"] },
+            },
+          });
+          if (!existing && availability.slots.includes(breakTime)) {
+            // Only if in slots and not booked
+            await tx.appointment.create({
+              data: {
+                userId: null, // Null for breaks (schema updated to optional)
+                specialistId,
+                date: utcDate,
+                time: breakTime,
+                status: "break",
+                rate: 0, // No charge for breaks
+              },
+            });
+          } // Skip if already reserved or not in availability.slots
+        };
+
+        // Reserve previous slots (up to numReserve before, if exist)
+        for (let i = 1; i <= numReserve; i++) {
+          const prevIndex = slotIndex - i;
+          if (prevIndex >= 0) {
+            const prevTime = sortedSlots[prevIndex];
+            await createBreakIfAvailable(prevTime);
+          }
+        }
+
+        // Reserve next slots (up to numReserve after, if exist)
+        for (let i = 1; i <= numReserve; i++) {
+          const nextIndex = slotIndex + i;
+          if (nextIndex < sortedSlots.length) {
+            const nextTime = sortedSlots[nextIndex];
+            await createBreakIfAvailable(nextTime);
+          }
+        }
+      }
+
+      return newAppointment;
     });
 
     return NextResponse.json({ appointment }, { status: 201 });

@@ -265,7 +265,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         });
         if (!specialistRes.ok)
           throw new Error(
-            `Failed to fetch specialist application: ${specialistRes.status}`
+            `Failed to fetch professional application: ${specialistRes.status}`
           );
         const { status: appStatus, specialistId } = await specialistRes.json();
         setIsSpecialist(appStatus === "approved");
@@ -293,7 +293,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             break;
           } else {
             console.error(
-              "Failed to fetch specialist details:",
+              "Failed to fetch professional details:",
               await specialistDetailsRes.text()
             );
           }
@@ -303,10 +303,10 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         }
       }
     } catch (err: any) {
-      console.error("Fetch Specialist Status Error:", err.message);
+      console.error("Fetch Professional Status Error:", err.message);
       setIsSpecialist(false);
       setSpecialistId(null);
-      toast.error("Failed to fetch specialist status. Please try again.");
+      toast.error("Failed to fetch professional status. Please try again.");
     } finally {
       setSpecialistStatusLoading(false);
     }
@@ -375,7 +375,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       });
       if (!specialistRes.ok) {
         throw new Error(
-          `Failed to fetch specialist status: ${specialistRes.status}`
+          `Failed to fetch professional status: ${specialistRes.status}`
         );
       }
       const { status: appStatus } = await specialistRes.json();
@@ -385,8 +385,8 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         router.push("professional-application");
       }
     } catch (err) {
-      console.error("Check Specialist Status Error:", err);
-      toast.error("Failed to check specialist status. Please try again.");
+      console.error("Check Professional Status Error:", err);
+      toast.error("Failed to check professional status. Please try again.");
     }
   };
 
@@ -484,7 +484,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
     const errors = await validateSpecialistProfileForm(formData);
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
-      toast.error("Please fix the errors in the specialist form");
+      toast.error("Please fix the errors in the professional form");
       setUpdatingSpecialist(false);
       return;
     }
@@ -498,7 +498,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         await fetchSpecialistStatus();
         if (!specialistId) {
           throw new Error(
-            "No approved specialist profile found. Please ensure your specialist application is approved and try again."
+            "No approved professional profile found. Please ensure your professional application is approved and try again."
           );
         }
       }
@@ -522,18 +522,18 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
         setIsEditingSpecialist(false);
         setLocationSuggestions([]);
         setIsLocationDropdownOpen(false);
-        toast.success("Specialist profile updated successfully");
+        toast.success("Professional profile updated successfully");
       } else {
         const errorData = await res.json();
         throw new Error(
-          errorData.error || "Failed to update specialist profile"
+          errorData.error || "Failed to update professional profile"
         );
       }
     } catch (error: unknown) {
       const errorMessage =
         error instanceof Error
           ? error.message
-          : "Failed to update specialist profile";
+          : "Failed to update professional profile";
       toast.error(errorMessage);
     } finally {
       setUpdatingSpecialist(false);
@@ -1213,31 +1213,31 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                   <div className="space-y-4">
                     <div>
                       <p className="text-sm text-[#C4C4C4]">First Name</p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.firstName || "Not provided"}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-[#C4C4C4]">Last Name</p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.lastName || "Not provided"}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-[#C4C4C4]">Phone Number</p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.phoneNumber || "Not provided"}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-[#C4C4C4]">Location</p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.location || "Not provided"}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-[#C4C4C4]">Biography</p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.biography || "Not provided"}
                       </p>
                     </div>
@@ -1245,37 +1245,37 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                       <p className="text-sm text-[#C4C4C4]">
                         Relationship Status
                       </p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.relationshipStatus || "Not provided"}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-[#C4C4C4]">Orientation</p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.orientation || "Not provided"}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-[#C4C4C4]">Height</p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.height || "Not provided"}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-[#C4C4C4]">Ethnicity</p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.ethnicity || "Not provided"}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-[#C4C4C4]">Zodiac Sign</p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.zodiacSign || "Not provided"}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-[#C4C4C4]">Favorite Color</p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.favoriteColor || "Not provided"}
                       </p>
                     </div>
@@ -1283,13 +1283,13 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                       <p className="text-sm text-[#C4C4C4]">
                         Favorite Movie/TV Show
                       </p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.favoriteMedia || "Not provided"}
                       </p>
                     </div>
                     <div>
                       <p className="text-sm text-[#C4C4C4]">Pet Ownership</p>
-                      <p className="text-black dark:text-white">
+                      <p className="text-black dark:text-white break-words">
                         {profile.petOwnership || "Not provided"}
                       </p>
                     </div>
@@ -1415,7 +1415,9 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                           }
                           className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
                         >
-                          {updatingSpecialist ? "Saving..." : "Save Specialist"}
+                          {updatingSpecialist
+                            ? "Saving..."
+                            : "Save Professional Details"}
                         </Button>
                       </div>
                     </form>
@@ -1423,7 +1425,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                     <div className="space-y-4">
                       <div>
                         <p className="text-sm text-[#C4C4C4]">Biography</p>
-                        <p className="text-black dark:text-white">
+                        <p className="text-black dark:text-white break-words">
                           {profile.biography || "Not provided"}
                         </p>
                       </div>
@@ -1431,7 +1433,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                         <p className="text-sm text-[#C4C4C4]">
                           Rate (per session)
                         </p>
-                        <p className="text-black dark:text-white">
+                        <p className="text-black dark:text-white break-words">
                           {profile.rate ? `$${profile.rate}` : "Not provided"}
                         </p>
                       </div>
@@ -1441,7 +1443,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                           onClick={() => setIsEditingSpecialist(true)}
                           className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
                         >
-                          Edit Specialist
+                          Edit Professional Details
                         </Button>
                       )}
                     </div>
@@ -1460,8 +1462,8 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
           <DialogHeader>
             <DialogTitle>Application Under Review</DialogTitle>
             <DialogDescription>
-              Your specialist application is currently under review. You will be
-              notified when it is approved by the admin.
+              Your professional application is currently under review. You will
+              be notified when it is approved by the admin.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
