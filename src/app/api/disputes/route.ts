@@ -1,6 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable prefer-const */
-// app/api/admin/disputes/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -55,14 +54,17 @@ export async function GET() {
   }
 }
 
-export async function PATCH(request: Request) {
+export async function PATCH(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || !session.user.isAdmin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const url = new URL(request.url);
-  const id = url.pathname.split("/").pop();
+  const resolvedParams = await params;
+  const id = resolvedParams.id;
   if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
     return NextResponse.json(
       { error: "Invalid appointment ID" },
@@ -105,7 +107,11 @@ export async function PATCH(request: Request) {
       }
 
       // Add slot back to availability
-      const availabilityDate = appointment.date.toISOString().split("T")[0];
+      const availabilityDate = appointment.startTime
+        .toISOString()
+        .split("T")[0];
+      const slotTime = `${appointment.startTime.getHours().toString().padStart(2, "0")}:${appointment.startTime.getMinutes().toString().padStart(2, "0")}`;
+
       await prisma.availability.upsert({
         where: {
           specialistId_date: {
@@ -115,13 +121,13 @@ export async function PATCH(request: Request) {
         },
         update: {
           slots: {
-            push: appointment.time,
+            push: slotTime,
           },
         },
         create: {
           specialistId: appointment.specialistId,
           date: new Date(availabilityDate),
-          slots: [appointment.time],
+          slots: [slotTime],
           breakDuration: 30, // Default value, adjust as needed
         },
       });
