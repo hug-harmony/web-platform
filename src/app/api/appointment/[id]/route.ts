@@ -1,16 +1,19 @@
-// app/api/appointment/[id]/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-export async function GET(request: Request) {
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const bookingId = new URL(request.url).pathname.split("/").pop();
+  const resolvedParams = await params;
+  const bookingId = resolvedParams.id;
 
   if (!bookingId || bookingId === "undefined") {
     return NextResponse.json({ error: "Invalid booking ID" }, { status: 400 });
@@ -21,8 +24,8 @@ export async function GET(request: Request) {
       where: { id: bookingId },
       select: {
         id: true,
-        date: true,
-        time: true,
+        startTime: true,
+        endTime: true,
         venue: true,
         user: { select: { name: true } },
         specialist: { select: { name: true, rate: true, venue: true } },
@@ -44,8 +47,8 @@ export async function GET(request: Request) {
       {
         userName: appointment.user.name,
         therapistName: appointment.specialist.name,
-        date: appointment.date,
-        time: appointment.time,
+        startTime: appointment.startTime,
+        endTime: appointment.endTime,
         amount: appointment.specialist.rate || 50,
         venue: appointment.venue,
         specialistVenue: appointment.specialist.venue,
