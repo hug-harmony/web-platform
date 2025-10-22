@@ -1,3 +1,5 @@
+// File: app/api/appointment/[id]/dispute/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -8,12 +10,13 @@ const disputeSchema = z.object({
   reason: z.string().min(1, "Dispute reason is required"),
 });
 
+// UPDATED: Corrected function signature
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: { id: string } }
 ) {
   try {
-    const { id } = await params;
+    const id = context.params.id; // UPDATED: Get id from context
 
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -23,35 +26,16 @@ export async function POST(
     const body = await request.json();
     const { reason } = disputeSchema.parse(body);
 
+    // UPDATED: Select startTime and endTime
     const appt = await prisma.appointment.findUnique({
       where: { id },
       select: {
         id: true,
         userId: true,
-        specialistId: true,
-        date: true,
-        time: true,
+        startTime: true,
+        endTime: true,
         status: true,
         disputeStatus: true,
-        venue: true,
-        user: {
-          select: { id: true, name: true, firstName: true, lastName: true },
-        },
-        specialist: {
-          select: {
-            name: true,
-            rate: true,
-            venue: true,
-            application: {
-              select: {
-                userId: true,
-                user: {
-                  select: { name: true, firstName: true, lastName: true },
-                },
-              },
-            },
-          },
-        },
       },
     });
 
@@ -87,60 +71,17 @@ export async function POST(
         disputeReason: reason,
         disputeStatus: "disputed",
       },
-      select: {
-        id: true,
-        userId: true,
-        specialistId: true,
-        date: true,
-        time: true,
-        status: true,
-        disputeStatus: true,
-        disputeReason: true,
-        venue: true,
-        user: {
-          select: { id: true, name: true, firstName: true, lastName: true },
-        },
-        specialist: {
-          select: {
-            name: true,
-            rate: true,
-            venue: true,
-            application: {
-              select: {
-                userId: true,
-                user: {
-                  select: { name: true, firstName: true, lastName: true },
-                },
-              },
-            },
-          },
-        },
-      },
     });
 
     return NextResponse.json({
       message: "Dispute submitted",
-      appointment: {
-        id: updated.id,
-        specialistId: updated.specialistId,
-        userId: updated.userId,
-        date: updated.date.toISOString().split("T")[0],
-        time: updated.time,
-        status: updated.status,
-        disputeStatus: updated.disputeStatus,
-        disputeReason: updated.disputeReason,
-        venue: updated.venue,
-        specialistName:
-          updated.specialist?.name ||
-          (updated.specialist?.application?.user
-            ? `${updated.specialist.application.user.firstName || ""} ${updated.specialist.application.user.lastName || ""}`.trim() ||
-              updated.specialist.application.user.name ||
-              "Unknown Specialist"
-            : "Unknown Specialist"),
-      },
+      appointment: updated,
     });
   } catch (error) {
     console.error("Dispute error:", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

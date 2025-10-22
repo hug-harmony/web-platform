@@ -1,3 +1,5 @@
+// File: app/api/appointment/[id]/reschedule/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -5,57 +7,44 @@ import { authOptions } from "@/lib/auth";
 import { z } from "zod";
 
 const schema = z.object({
-  date: z.string().regex(/^\d{4}-\d{2}-\d{2}$/),
-  time: z.string().min(1),
+  startTime: z.string().datetime(),
+  endTime: z.string().datetime(),
   note: z.string().optional(),
 });
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.isAdmin) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const id = context.params.id;
     const body = await request.json();
-    const { date, time, note } = schema.parse(body);
+    const { startTime, endTime, note } = schema.parse(body);
 
+    const newStartTime = new Date(startTime);
+    const newEndTime = new Date(endTime);
+
+    if (newStartTime >= newEndTime) {
+      return NextResponse.json(
+        { error: "Start time must be before end time." },
+        { status: 400 }
+      );
+    }
+
+    // Step 1: Fetch the appointment to get its specialistId for authorization
     const appt = await prisma.appointment.findUnique({
       where: { id },
       select: {
-        id: true,
-        userId: true,
-        specialistId: true,
-        date: true,
-        time: true,
-        status: true,
-        rate: true,
-        adjustedRate: true,
-        adminNotes: true,
+        specialistId: true, // <-- Crucial for authorization check
+        startTime: true,
+        endTime: true,
         modificationHistory: true,
-        venue: true,
-        user: {
-          select: { id: true, name: true, firstName: true, lastName: true },
-        },
-        specialist: {
-          select: {
-            name: true,
-            rate: true,
-            venue: true,
-            application: {
-              select: {
-                userId: true,
-                user: {
-                  select: { name: true, firstName: true, lastName: true },
-                },
-              },
-            },
-          },
-        },
+        adminNotes: true,
       },
     });
 
@@ -66,6 +55,30 @@ export async function POST(
       );
     }
 
+    // Step 2: Perform flexible authorization
+    if (!session.user.isAdmin) {
+      // If not an admin, check if they are the correct specialist
+      const specialistProfile = await prisma.specialistApplication.findFirst({
+        where: { userId: session.user.id, status: "approved" },
+        select: { specialistId: true },
+      });
+
+      // Deny access if they are not a specialist or not the specialist on this appointment
+      if (
+        !specialistProfile ||
+        specialistProfile.specialistId !== appt.specialistId
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Forbidden: You do not have permission to reschedule this appointment.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+    // If the check passes (either admin or correct specialist), continue.
+
     const prevHistory =
       appt.modificationHistory && typeof appt.modificationHistory === "object"
         ? appt.modificationHistory
@@ -74,73 +87,34 @@ export async function POST(
     const updated = await prisma.appointment.update({
       where: { id },
       data: {
-        date: new Date(date),
-        time,
+        startTime: newStartTime,
+        endTime: newEndTime,
         modificationHistory: {
           ...prevHistory,
           [`reschedule_${new Date().toISOString()}`]: {
-            oldDate: appt.date,
-            oldTime: appt.time,
-            newDate: date,
-            newTime: time,
+            oldStartTime: appt.startTime,
+            oldEndTime: appt.endTime,
+            newStartTime: newStartTime,
+            newEndTime: newEndTime,
             note,
+            changedBy: session.user.id,
           },
         },
-        adminNotes: note ?? appt.adminNotes,
-      },
-      select: {
-        id: true,
-        userId: true,
-        specialistId: true,
-        date: true,
-        time: true,
-        status: true,
-        rate: true,
-        adjustedRate: true,
-        adminNotes: true,
-        modificationHistory: true,
-        venue: true,
-        user: {
-          select: { id: true, name: true, firstName: true, lastName: true },
-        },
-        specialist: {
-          select: {
-            name: true,
-            rate: true,
-            venue: true,
-            application: {
-              select: {
-                userId: true,
-                user: {
-                  select: { name: true, firstName: true, lastName: true },
-                },
-              },
-            },
-          },
-        },
+        adminNotes: note
+          ? `${appt.adminNotes || ""}\nReschedule Note: ${note}`.trim()
+          : appt.adminNotes,
       },
     });
 
     return NextResponse.json({
-      message: "Appointment rescheduled",
-      appointment: {
-        id: updated.id,
-        userId: updated.userId,
-        specialistId: updated.specialistId,
-        date: updated.date.toISOString().split("T")[0],
-        time: updated.time,
-        venue: updated.venue,
-        specialistName:
-          updated.specialist?.name ||
-          (updated.specialist?.application?.user
-            ? `${updated.specialist.application.user.firstName || ""} ${updated.specialist.application.user.lastName || ""}`.trim() ||
-              updated.specialist.application.user.name ||
-              "Unknown Specialist"
-            : "Unknown Specialist"),
-      },
+      message: "Appointment rescheduled successfully",
+      appointment: updated,
     });
   } catch (error) {
     console.error("Reschedule error:", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

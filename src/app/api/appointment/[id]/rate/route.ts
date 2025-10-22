@@ -1,3 +1,5 @@
+// File: app/api/appointment/[id]/rate/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -11,49 +13,27 @@ const schema = z.object({
 
 export async function POST(
   request: NextRequest,
-  { params }: { params: Promise<{ id: string }> }
+  context: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.isAdmin) {
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id } = await params;
+    const id = context.params.id;
     const body = await request.json();
     const { adjustedRate, note } = schema.parse(body);
 
+    // Step 1: Fetch the appointment to get its specialistId for authorization
     const appt = await prisma.appointment.findUnique({
       where: { id },
       select: {
-        id: true,
-        userId: true,
-        specialistId: true,
-        date: true,
-        time: true,
+        specialistId: true, // <-- Crucial for authorization check
         rate: true,
         adjustedRate: true,
-        adminNotes: true,
         modificationHistory: true,
-        venue: true,
-        user: {
-          select: { id: true, name: true, firstName: true, lastName: true },
-        },
-        specialist: {
-          select: {
-            name: true,
-            rate: true,
-            venue: true,
-            application: {
-              select: {
-                userId: true,
-                user: {
-                  select: { name: true, firstName: true, lastName: true },
-                },
-              },
-            },
-          },
-        },
+        adminNotes: true,
       },
     });
 
@@ -63,6 +43,30 @@ export async function POST(
         { status: 404 }
       );
     }
+
+    // Step 2: Perform flexible authorization
+    if (!session.user.isAdmin) {
+      // If not an admin, check if they are the correct specialist
+      const specialistProfile = await prisma.specialistApplication.findFirst({
+        where: { userId: session.user.id, status: "approved" },
+        select: { specialistId: true },
+      });
+
+      // Deny access if they are not a specialist or not the specialist on this appointment
+      if (
+        !specialistProfile ||
+        specialistProfile.specialistId !== appt.specialistId
+      ) {
+        return NextResponse.json(
+          {
+            error:
+              "Forbidden: You do not have permission to modify this appointment's rate.",
+          },
+          { status: 403 }
+        );
+      }
+    }
+    // If the check passes (either admin or correct specialist), continue.
 
     const prevHistory =
       appt.modificationHistory && typeof appt.modificationHistory === "object"
@@ -79,64 +83,24 @@ export async function POST(
             oldRate: appt.adjustedRate ?? appt.rate,
             newRate: adjustedRate,
             note,
+            changedBy: session.user.id,
           },
         },
-        adminNotes: note ?? appt.adminNotes,
-      },
-      select: {
-        id: true,
-        userId: true,
-        specialistId: true,
-        date: true,
-        time: true,
-        rate: true,
-        adjustedRate: true,
-        adminNotes: true,
-        modificationHistory: true,
-        venue: true,
-        user: {
-          select: { id: true, name: true, firstName: true, lastName: true },
-        },
-        specialist: {
-          select: {
-            name: true,
-            rate: true,
-            venue: true,
-            application: {
-              select: {
-                userId: true,
-                user: {
-                  select: { name: true, firstName: true, lastName: true },
-                },
-              },
-            },
-          },
-        },
+        adminNotes: note
+          ? `${appt.adminNotes || ""}\nRate Note: ${note}`.trim()
+          : appt.adminNotes,
       },
     });
 
     return NextResponse.json({
-      message: "Rate updated",
-      appointment: {
-        id: updated.id,
-        userId: updated.userId,
-        specialistId: updated.specialistId,
-        date: updated.date.toISOString().split("T")[0],
-        time: updated.time,
-        rate: updated.rate,
-        adjustedRate: updated.adjustedRate,
-        venue: updated.venue,
-        specialistName:
-          updated.specialist?.name ||
-          (updated.specialist?.application?.user
-            ? `${updated.specialist.application.user.firstName || ""} ${updated.specialist.application.user.lastName || ""}`.trim() ||
-              updated.specialist.application.user.name ||
-              "Unknown Specialist"
-            : "Unknown Specialist"),
-      },
+      message: "Rate updated successfully",
+      appointment: updated,
     });
   } catch (error) {
     console.error("Rate update error:", error);
+    if (error instanceof z.ZodError) {
+      return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
