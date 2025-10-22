@@ -1,9 +1,17 @@
+// File: src/app/api/appointment/[id]/calendar/route.ts
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-import { createEvent, EventStatus, ActionType } from "ics";
-import { addMinutes, isValid, parse } from "date-fns";
+import {
+  createEvent,
+  EventAttributes, // Import the main attributes type for clarity
+  EventStatus,
+  ActionType,
+  ParticipationStatus, // <-- RE-ADD THIS TYPE IMPORT
+  ParticipationRole, // <-- RE-ADD THIS TYPE IMPORT
+} from "ics";
 import { Prisma } from "@prisma/client";
 
 type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
@@ -23,16 +31,17 @@ type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
   };
 }>;
 
-export async function GET(request: Request) {
+export async function GET(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    console.error("Unauthorized access attempt: No session or user ID");
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const bookingId = new URL(request.url).pathname.split("/").pop();
+  const bookingId = params.id;
   if (!bookingId || bookingId === "undefined") {
-    console.error("Invalid booking ID:", bookingId);
     return NextResponse.json({ error: "Invalid booking ID" }, { status: 400 });
   }
 
@@ -46,51 +55,22 @@ export async function GET(request: Request) {
             select: {
               name: true,
               rate: true,
-              application: {
-                select: {
-                  user: { select: { location: true } },
-                },
-              },
+              application: { select: { user: { select: { location: true } } } },
             },
           },
         },
       });
 
     if (!appointment) {
-      console.error(`Appointment not found for ID: ${bookingId}`);
       return NextResponse.json({ error: "Booking not found" }, { status: 404 });
     }
 
     if (session.user.id !== appointment.userId && !session.user.isAdmin) {
-      console.error(
-        `Forbidden access: User ${session.user.id} is not owner of appointment ${bookingId} or admin`
-      );
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    const dateStr = appointment.date.toISOString().split("T")[0];
-    const timeStr = appointment.time;
-    let appointmentDateTime: Date;
-
-    try {
-      appointmentDateTime = parse(
-        `${dateStr} ${timeStr}`,
-        "yyyy-MM-dd h:mm a",
-        new Date()
-      );
-      if (!isValid(appointmentDateTime)) {
-        throw new Error(`Invalid date/time format: ${dateStr} ${timeStr}`);
-      }
-    } catch (parseError) {
-      console.error("Date parsing error:", parseError);
-      return NextResponse.json(
-        { error: "Invalid appointment date or time format" },
-        { status: 400 }
-      );
-    }
-
-    const duration = 60;
-    const endDateTime = addMinutes(appointmentDateTime, duration);
+    const appointmentStartDateTime: Date = appointment.startTime;
+    const appointmentEndDateTime: Date = appointment.endTime;
 
     const formatICalDate = (
       date: Date
@@ -102,23 +82,33 @@ export async function GET(request: Request) {
       date.getUTCMinutes(),
     ];
 
-    const event = {
-      start: formatICalDate(appointmentDateTime),
-      end: formatICalDate(endDateTime),
+    // Define the event object with explicit type assertions
+    const event: EventAttributes = {
+      start: formatICalDate(appointmentStartDateTime),
+      end: formatICalDate(appointmentEndDateTime),
       title: `Appointment with ${appointment.specialist?.name || "Specialist"}`,
-      description: `Appointment with ${appointment.specialist?.name || "Specialist"} for ${
-        appointment.user?.name || "Client"
-      }. Rate: $${appointment.specialist?.rate?.toFixed(2) || "50.00"}`,
+      description: `Appointment with ${appointment.specialist?.name || "Specialist"} for ${appointment.user?.name || "Client"}. Rate: $${appointment.specialist?.rate?.toFixed(2) || "50.00"}`,
       location:
-        appointment.specialist?.application?.user?.location || "Virtual",
+        appointment.specialist?.application?.user?.location ||
+        "Virtual Session",
       organizer: {
         name: appointment.specialist?.name || "Specialist",
         email: "no-reply@yourapp.com",
       },
-      attendee: [
+      attendees: [
         {
           name: appointment.user?.name || "Client",
-          email: appointment.user?.email || "client@yourapp.com",
+          email: appointment.user?.email || "client@example.com",
+          rsvp: true,
+          partstat: "ACCEPTED" as ParticipationStatus, // <-- TYPE ASSERTION
+          role: "REQ-PARTICIPANT" as ParticipationRole, // <-- TYPE ASSERTION
+        },
+        {
+          name: appointment.specialist?.name || "Specialist",
+          email: "specialist@example.com",
+          rsvp: true,
+          partstat: "ACCEPTED" as ParticipationStatus, // <-- TYPE ASSERTION
+          role: "REQ-PARTICIPANT" as ParticipationRole, // <-- TYPE ASSERTION
         },
       ],
       status: "CONFIRMED" as EventStatus,
@@ -131,23 +121,19 @@ export async function GET(request: Request) {
       ],
     };
 
-    const { error, value } = await new Promise<{
-      error: unknown;
-      value: string;
-    }>((resolve) => {
-      createEvent(event, (err, val) => {
-        resolve({ error: err, value: val });
-      });
-    });
+    const { error, value } = createEvent(event);
 
     if (error) {
-      console.error(
-        "Error generating iCalendar for appointment:",
-        bookingId,
-        error
-      );
+      console.error("Error generating iCalendar value:", error);
       return NextResponse.json(
         { error: "Failed to generate calendar event" },
+        { status: 500 }
+      );
+    }
+
+    if (!value) {
+      return NextResponse.json(
+        { error: "Generated calendar event is empty" },
         { status: 500 }
       );
     }
@@ -160,14 +146,9 @@ export async function GET(request: Request) {
       },
     });
   } catch (error) {
-    console.error(
-      "Calendar sync error for appointment:",
-      bookingId,
-      error instanceof Error ? error.message : error,
-      error instanceof Error ? error.stack : ""
-    );
+    console.error("Calendar sync server error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch booking details" },
+      { error: "Failed to process calendar request" },
       { status: 500 }
     );
   }
