@@ -1,5 +1,3 @@
-// File: app/api/appointment/[id]/dispute/route.ts
-
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -10,13 +8,13 @@ const disputeSchema = z.object({
   reason: z.string().min(1, "Dispute reason is required"),
 });
 
-// UPDATED: Corrected function signature
 export async function POST(
   request: NextRequest,
-  context: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> }
 ) {
   try {
-    const id = context.params.id; // UPDATED: Get id from context
+    const resolvedParams = await params;
+    const id = resolvedParams.id;
 
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
@@ -26,7 +24,6 @@ export async function POST(
     const body = await request.json();
     const { reason } = disputeSchema.parse(body);
 
-    // UPDATED: Select startTime and endTime
     const appt = await prisma.appointment.findUnique({
       where: { id },
       select: {
