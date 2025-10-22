@@ -13,9 +13,9 @@ const bodySchema = z.object({
 
 export async function PATCH(
   req: NextRequest,
-  context: { params: Promise<{ id: string }> }
+  { params }: { params: Promise<{ id: string }> }
 ) {
-  const { id } = await context.params;
+  const { id } = await params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -80,7 +80,6 @@ export async function PATCH(
 
     if (action === "accepted") {
       // Determine appointment venue
-      // Priority: body.venue > specialist.venue (if strict) > error if 'both' and none provided
       let venueChoice: "host" | "visit" | undefined = venue;
 
       if (!venueChoice) {
@@ -90,7 +89,6 @@ export async function PATCH(
         ) {
           venueChoice = proposal.specialist.venue;
         } else {
-          // specialist.venue === 'both' but no specific selection provided
           return NextResponse.json(
             {
               error:
@@ -101,12 +99,21 @@ export async function PATCH(
         }
       }
 
+      // Combine proposal.date and proposal.time into startTime
+      const [hours, minutes] = proposal.time.split(":");
+      const startTime = new Date(proposal.date);
+      startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
+      // Assume 1-hour duration for endTime
+      const endTime = new Date(startTime);
+      endTime.setHours(startTime.getHours() + 1);
+
       const appointment = await prisma.appointment.create({
         data: {
           userId: proposal.userId,
           specialistId: proposal.specialistId,
-          date: proposal.date,
-          time: proposal.time,
+          startTime,
+          endTime,
           status: "upcoming",
           venue: venueChoice,
         },
@@ -115,12 +122,8 @@ export async function PATCH(
 
       // Tailored notification message
       const notifyText = isUserResponder
-        ? `Your proposal for ${format(proposal.date, "MMMM d, yyyy")} at ${
-            proposal.time
-          } has been accepted. Proceed to payment.`
-        : `Your appointment request for ${format(proposal.date, "MMMM d, yyyy")} at ${
-            proposal.time
-          } has been accepted.`;
+        ? `Your proposal for ${format(startTime, "MMMM d, yyyy 'at' HH:mm")} has been accepted. Proceed to payment.`
+        : `Your appointment request for ${format(startTime, "MMMM d, yyyy 'at' HH:mm")} has been accepted.`;
 
       await prisma.message.create({
         data: {
@@ -134,13 +137,13 @@ export async function PATCH(
       });
     } else {
       // Rejection message
+      const [hours, minutes] = proposal.time.split(":");
+      const startTime = new Date(proposal.date);
+      startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
+
       const rejectText = isUserResponder
-        ? `Your proposal for ${format(proposal.date, "MMMM d, yyyy")} at ${
-            proposal.time
-          } has been rejected.`
-        : `Your appointment request for ${format(proposal.date, "MMMM d, yyyy")} at ${
-            proposal.time
-          } has been declined.`;
+        ? `Your proposal for ${format(startTime, "MMMM d, yyyy 'at' HH:mm")} has been rejected.`
+        : `Your appointment request for ${format(startTime, "MMMM d, yyyy 'at' HH:mm")} has been declined.`;
 
       await prisma.message.create({
         data: {
