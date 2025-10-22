@@ -1,4 +1,3 @@
-// File: components/AppointmentCard.tsx
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -13,7 +12,6 @@ import {
 } from "lucide-react";
 import {
   Dialog,
-  DialogClose,
   DialogContent,
   DialogDescription,
   DialogFooter,
@@ -27,13 +25,12 @@ import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { format, parseISO } from "date-fns";
 
-// This interface matches the data structure from your updated API routes
 interface Appointment {
   _id: string;
   specialistName: string;
   clientName?: string;
-  startTime: string; // Full ISO String (e.g., "2024-10-27T10:00:00.000Z")
-  endTime: string; // Full ISO String
+  startTime: string; // ISO String
+  endTime: string; // ISO String
   status: "upcoming" | "completed" | "cancelled" | "disputed";
   rating?: number | null;
   reviewCount?: number | null;
@@ -43,9 +40,10 @@ interface Appointment {
 
 interface AppointmentCardProps {
   appointment: Appointment;
+  isSpecialist: boolean; // Added to match AppointmentsPage.tsx
+  isOwnerSpecialist: boolean; // Added to match AppointmentsPage.tsx
   onMessage: () => void;
-  isOwnerSpecialist: boolean;
-  onUpdate: () => void; // Callback to refresh data on the parent page
+  onUpdate: () => void;
 }
 
 const cardVariants = {
@@ -55,8 +53,9 @@ const cardVariants = {
 
 const AppointmentCard: React.FC<AppointmentCardProps> = ({
   appointment,
-  onMessage,
+  isSpecialist,
   isOwnerSpecialist,
+  onMessage,
   onUpdate,
 }) => {
   const {
@@ -73,23 +72,18 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   } = appointment;
 
   // --- State for Modals ---
-  // Dispute State
   const [disputeReason, setDisputeReason] = useState("");
   const [submittingDispute, setSubmittingDispute] = useState(false);
-
-  // Adjust Rate State
   const [adjustRate, setAdjustRate] = useState<string>(rate?.toString() || "0");
   const [adjustRateNote, setAdjustRateNote] = useState("");
   const [submittingRate, setSubmittingRate] = useState(false);
-
-  // Reschedule State
   const [newDate, setNewDate] = useState("");
   const [newStartTime, setNewStartTime] = useState("");
   const [newEndTime, setNewEndTime] = useState("");
   const [rescheduleNote, setRescheduleNote] = useState("");
   const [submittingReschedule, setSubmittingReschedule] = useState(false);
 
-  // Pre-fill forms when the appointment data is available
+  // Pre-fill forms
   useEffect(() => {
     if (startTime) {
       const startDate = parseISO(startTime);
@@ -123,7 +117,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
         throw new Error(errData.error || "Failed to submit dispute.");
       }
       toast.success("Dispute submitted successfully.");
-      onUpdate(); // Refresh parent data
+      onUpdate();
     } catch (error) {
       toast.error((error as Error).message);
     } finally {
@@ -245,9 +239,8 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
           <MessageSquare className="mr-2 h-4 w-4" /> Message
         </Button>
 
-        {isOwnerSpecialist && (
+        {isSpecialist && isOwnerSpecialist && (
           <>
-            {/* --- Dispute Modal --- */}
             {status === "completed" && disputeStatus === "none" && (
               <Dialog>
                 <DialogTrigger asChild>
@@ -284,7 +277,6 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
               </Dialog>
             )}
 
-            {/* --- Adjust Rate Modal --- */}
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline" className="rounded-full">
@@ -330,7 +322,6 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
               </DialogContent>
             </Dialog>
 
-            {/* --- Reschedule Modal --- */}
             <Dialog>
               <DialogTrigger asChild>
                 <Button variant="outline" className="rounded-full">
