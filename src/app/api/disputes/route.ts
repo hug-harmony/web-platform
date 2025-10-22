@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 /* eslint-disable prefer-const */
-import { NextResponse } from "next/server";
+import { NextResponse, NextRequest } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -9,6 +9,7 @@ import { z } from "zod";
 const disputeActionSchema = z.object({
   action: z.enum(["confirm_cancel", "deny"]),
   notes: z.string().optional(),
+  id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid appointment ID"), // Add id to schema
 });
 
 export async function GET() {
@@ -54,27 +55,15 @@ export async function GET() {
   }
 }
 
-export async function PATCH(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
-) {
+export async function PATCH(request: NextRequest) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id || !session.user.isAdmin) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const resolvedParams = await params;
-  const id = resolvedParams.id;
-  if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
-    return NextResponse.json(
-      { error: "Invalid appointment ID" },
-      { status: 400 }
-    );
-  }
-
   try {
     const body = await request.json();
-    const { action, notes } = disputeActionSchema.parse(body);
+    const { action, notes, id } = disputeActionSchema.parse(body); // Extract id from body
 
     const appointment = await prisma.appointment.findUnique({
       where: { id },
