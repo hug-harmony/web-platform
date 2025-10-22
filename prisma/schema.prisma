@@ -66,12 +66,39 @@ model PasswordResetToken {
   createdAt        DateTime  @default(now())
 }
 
+// model Appointment {
+//   id               String          @id @default(auto()) @map("_id") @db.ObjectId
+//   userId           String?         @db.ObjectId
+//   specialistId     String          @db.ObjectId
+//   date             DateTime
+//   time             String
+//   status           String          @default("upcoming")
+//   disputeStatus    String          @default("none")
+//   disputeReason    String?
+//   adminNotes       String?
+//   rate             Float?
+//   adjustedRate     Float?
+//   modificationHistory Json?
+//   venue            AppointmentVenue
+//   createdAt        DateTime        @default(now())
+//   user             User?           @relation("UserAppointments", fields: [userId], references: [id], onDelete: SetNull)
+//   specialist       Specialist      @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)
+//   payment          Payment?
+// }
+
 model Appointment {
   id               String          @id @default(auto()) @map("_id") @db.ObjectId
   userId           String?         @db.ObjectId
   specialistId     String          @db.ObjectId
-  date             DateTime
-  time             String
+  
+  // --- REMOVE THESE TWO LINES ---
+  // date             DateTime
+  // time             String
+
+  // --- ADD THESE TWO LINES ---
+  startTime        DateTime
+  endTime          DateTime
+
   status           String          @default("upcoming")
   disputeStatus    String          @default("none")
   disputeReason    String?
@@ -84,6 +111,9 @@ model Appointment {
   user             User?           @relation("UserAppointments", fields: [userId], references: [id], onDelete: SetNull)
   specialist       Specialist      @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)
   payment          Payment?
+
+  // --- OPTIONAL BUT RECOMMENDED: Add an index for performance ---
+  @@index([specialistId, startTime, endTime])
 }
 
 model Conversation {
