@@ -31,18 +31,17 @@ type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
   };
 }>;
 
-// --- KEY FIX: Updated function signature ---
 export async function GET(
   request: Request,
-  context: { params: { id: string } } // Accept the whole context object
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  // --- KEY FIX: Get the id from the context object ---
-  const bookingId = context.params.id;
+  const resolvedParams = await params;
+  const bookingId = resolvedParams.id;
 
   if (!bookingId || bookingId === "undefined") {
     return NextResponse.json({ error: "Invalid booking ID" }, { status: 400 });
