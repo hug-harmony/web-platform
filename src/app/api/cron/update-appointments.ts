@@ -1,4 +1,3 @@
-// api/cron/update-appointments.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -29,8 +28,8 @@ export async function GET(request: NextRequest) {
       },
       select: {
         id: true,
-        date: true,
-        time: true,
+        startTime: true,
+        endTime: true,
         status: true,
       },
     });
@@ -46,8 +45,8 @@ export async function GET(request: NextRequest) {
       },
       select: {
         id: true,
-        date: true,
-        time: true,
+        startTime: true,
+        endTime: true,
         status: true,
       },
     });
@@ -58,26 +57,18 @@ export async function GET(request: NextRequest) {
 
     // Process upcoming appointments
     for (const appointment of upcomingAppointments) {
-      const appointmentDateTime = parseAppointmentDateTime(
-        appointment.date,
-        appointment.time
-      );
+      const appointmentDateTime = appointment.startTime;
+      const appointmentEndTime = appointment.endTime;
 
-      if (!appointmentDateTime) {
+      if (!appointmentDateTime || !appointmentEndTime) {
         console.log(
-          `[CRON] Skipping appointment ${appointment.id} - invalid date/time format`
+          `[CRON] Skipping appointment ${appointment.id} - invalid startTime/endTime`
         );
         continue;
       }
 
       // Check if appointment should be marked as ongoing
-      // Consider appointment as ongoing if current time is within appointment time (assuming 1 hour duration)
-      const appointmentEndTime = new Date(
-        appointmentDateTime.getTime() + 60 * 60 * 1000
-      ); // +1 hour
-
       if (now >= appointmentDateTime && now < appointmentEndTime) {
-        // Mark as ongoing
         await prisma.appointment.update({
           where: { id: appointment.id },
           data: { status: "ongoing" },
@@ -100,8 +91,8 @@ export async function GET(request: NextRequest) {
       },
       select: {
         id: true,
-        date: true,
-        time: true,
+        startTime: true,
+        endTime: true,
         status: true,
       },
     });
@@ -109,23 +100,16 @@ export async function GET(request: NextRequest) {
     allOngoingAppointments.push(...newlyOngoing);
 
     for (const appointment of allOngoingAppointments) {
-      const appointmentDateTime = parseAppointmentDateTime(
-        appointment.date,
-        appointment.time
-      );
+      const appointmentEndTime = appointment.endTime;
 
-      if (!appointmentDateTime) {
+      if (!appointmentEndTime) {
         console.log(
-          `[CRON] Skipping appointment ${appointment.id} - invalid date/time format`
+          `[CRON] Skipping appointment ${appointment.id} - invalid endTime`
         );
         continue;
       }
 
-      // Mark as completed if appointment end time has passed (assuming 1 hour duration)
-      const appointmentEndTime = new Date(
-        appointmentDateTime.getTime() + 60 * 60 * 1000
-      ); // +1 hour
-
+      // Mark as completed if appointment end time has passed
       if (now >= appointmentEndTime) {
         await prisma.appointment.update({
           where: { id: appointment.id },
@@ -138,19 +122,16 @@ export async function GET(request: NextRequest) {
       }
     }
 
-    // Also check for any upcoming appointments that should be directly marked as completed
-    // (in case the cron job missed the ongoing status)
+    // Check for upcoming appointments that should be directly marked as completed
     for (const appointment of upcomingAppointments) {
-      const appointmentDateTime = parseAppointmentDateTime(
-        appointment.date,
-        appointment.time
-      );
+      const appointmentEndTime = appointment.endTime;
 
-      if (!appointmentDateTime) continue;
-
-      const appointmentEndTime = new Date(
-        appointmentDateTime.getTime() + 60 * 60 * 1000
-      ); // +1 hour
+      if (!appointmentEndTime) {
+        console.log(
+          `[CRON] Skipping appointment ${appointment.id} - invalid endTime`
+        );
+        continue;
+      }
 
       if (now >= appointmentEndTime) {
         await prisma.appointment.update({
@@ -194,41 +175,12 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Helper function to parse appointment date and time
-function parseAppointmentDateTime(date: Date, time: string): Date | null {
+// Helper function to parse appointment date and time (no longer needed but kept for reference)
+function parseAppointmentDateTime(startTime: Date): Date | null {
   try {
-    // Convert date to string in YYYY-MM-DD format
-    const dateStr = date.toISOString().split("T")[0];
-
-    // Parse time (assuming format like "2:30 PM" or "14:30")
-    let hours: number, minutes: number;
-
-    if (time.includes("AM") || time.includes("PM")) {
-      // 12-hour format
-      const [timePart, period] = time.split(" ");
-      const [hourStr, minuteStr] = timePart.split(":");
-      hours = parseInt(hourStr);
-      minutes = parseInt(minuteStr) || 0;
-
-      if (period.toUpperCase() === "PM" && hours !== 12) {
-        hours += 12;
-      } else if (period.toUpperCase() === "AM" && hours === 12) {
-        hours = 0;
-      }
-    } else {
-      // 24-hour format
-      const [hourStr, minuteStr] = time.split(":");
-      hours = parseInt(hourStr);
-      minutes = parseInt(minuteStr) || 0;
-    }
-
-    const appointmentDateTime = new Date(
-      `${dateStr}T${hours.toString().padStart(2, "0")}:${minutes.toString().padStart(2, "0")}:00.000Z`
-    );
-
-    return appointmentDateTime;
+    return startTime; // startTime is already a Date object
   } catch (error) {
-    console.error(`[CRON] Error parsing date/time: ${date} ${time}`, error);
+    console.error(`[CRON] Error parsing startTime: ${startTime}`, error);
     return null;
   }
 }
