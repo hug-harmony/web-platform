@@ -6,11 +6,11 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import {
   createEvent,
-  EventAttributes, // Import the main attributes type for clarity
+  EventAttributes,
   EventStatus,
   ActionType,
-  ParticipationStatus, // <-- RE-ADD THIS TYPE IMPORT
-  ParticipationRole, // <-- RE-ADD THIS TYPE IMPORT
+  ParticipationStatus,
+  ParticipationRole,
 } from "ics";
 import { Prisma } from "@prisma/client";
 
@@ -31,16 +31,19 @@ type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
   };
 }>;
 
+// --- KEY FIX: Updated function signature ---
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } } // Accept the whole context object
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const bookingId = params.id;
+  // --- KEY FIX: Get the id from the context object ---
+  const bookingId = context.params.id;
+
   if (!bookingId || bookingId === "undefined") {
     return NextResponse.json({ error: "Invalid booking ID" }, { status: 400 });
   }
@@ -82,7 +85,6 @@ export async function GET(
       date.getUTCMinutes(),
     ];
 
-    // Define the event object with explicit type assertions
     const event: EventAttributes = {
       start: formatICalDate(appointmentStartDateTime),
       end: formatICalDate(appointmentEndDateTime),
@@ -100,15 +102,15 @@ export async function GET(
           name: appointment.user?.name || "Client",
           email: appointment.user?.email || "client@example.com",
           rsvp: true,
-          partstat: "ACCEPTED" as ParticipationStatus, // <-- TYPE ASSERTION
-          role: "REQ-PARTICIPANT" as ParticipationRole, // <-- TYPE ASSERTION
+          partstat: "ACCEPTED" as ParticipationStatus,
+          role: "REQ-PARTICIPANT" as ParticipationRole,
         },
         {
           name: appointment.specialist?.name || "Specialist",
           email: "specialist@example.com",
           rsvp: true,
-          partstat: "ACCEPTED" as ParticipationStatus, // <-- TYPE ASSERTION
-          role: "REQ-PARTICIPANT" as ParticipationRole, // <-- TYPE ASSERTION
+          partstat: "ACCEPTED" as ParticipationStatus,
+          role: "REQ-PARTICIPANT" as ParticipationRole,
         },
       ],
       status: "CONFIRMED" as EventStatus,
@@ -124,7 +126,6 @@ export async function GET(
     const { error, value } = createEvent(event);
 
     if (error) {
-      console.error("Error generating iCalendar value:", error);
       return NextResponse.json(
         { error: "Failed to generate calendar event" },
         { status: 500 }
