@@ -250,38 +250,46 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
       return;
     }
 
-    if (!/^[0-9a-fA-F]{24}$/.test(profile._id)) {
-      toast.error("Invalid recipient ID");
-      console.error("Invalid recipient ID:", profile._id);
-      return;
-    }
-
     try {
-      const res = await fetch("/api/conversations", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ recipientId: profile._id }),
+      // Fetch specialist WITH userId from application
+      const res = await fetch(`/api/specialists?id=${profile._id}`, {
         credentials: "include",
       });
 
       if (!res.ok) {
-        const errorData = await res.json();
-        throw new Error(
-          errorData.error || `Failed to create conversation: ${res.status}`
-        );
+        const err = await res.json();
+        throw new Error(err.error || "Failed to load specialist");
       }
 
-      const conversation = await res.json();
-      if (!conversation.id || !/^[0-9a-fA-F]{24}$/.test(conversation.id)) {
-        throw new Error("Invalid conversation ID returned");
+      const data = await res.json();
+
+      if (!data.userId) {
+        toast.error("This specialist is not available for chat");
+        return;
       }
+
+      // Now create conversation using the USER ID
+      const convRes = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId: data.userId }),
+        credentials: "include",
+      });
+
+      if (!convRes.ok) {
+        const err = await convRes.json();
+        throw new Error(err.error || "Failed to start chat");
+      }
+
+      const conversation = await convRes.json();
+      if (!conversation.id) throw new Error("Invalid conversation");
 
       router.push(`/dashboard/messaging/${conversation.id}`);
-    } catch (error: unknown) {
-      const errorMessage =
+    } catch (error) {
+      const msg =
         error instanceof Error ? error.message : "Failed to start chat";
-      console.error("Start chat error:", errorMessage);
-      toast.error(errorMessage);
+      console.error("Start chat error:", msg);
+      toast.error(msg);
     }
   };
 

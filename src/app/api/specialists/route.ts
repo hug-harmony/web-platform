@@ -19,6 +19,7 @@ type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
     venue: true; // Changed from venuePreferences
     application: {
       select: {
+        userId: true;
         user: { select: { location: true } };
       };
     };
@@ -59,6 +60,7 @@ export async function GET(req: Request) {
             venue: true, // Changed from venuePreferences
             application: {
               select: {
+                userId: true,
                 user: { select: { location: true } },
               },
             },
@@ -76,6 +78,7 @@ export async function GET(req: Request) {
         name: specialist.name,
         image: specialist.image,
         location: specialist.application?.user?.location || null,
+        userId: specialist.application?.userId || null,
         rating: specialist.rating,
         reviewCount: specialist.reviewCount,
         rate: specialist.rate,
@@ -124,6 +127,7 @@ export async function GET(req: Request) {
           venue: true, // Changed from venuePreferences
           application: {
             select: {
+              userId: true,
               user: { select: { location: true } },
             },
           },
@@ -136,6 +140,7 @@ export async function GET(req: Request) {
         name: specialist.name,
         image: specialist.image,
         location: specialist.application?.user?.location || null,
+        userId: specialist.application?.userId || null,
         rating: specialist.rating,
         reviewCount: specialist.reviewCount,
         rate: specialist.rate,
@@ -316,6 +321,7 @@ export async function PATCH(req: Request) {
         venue: true, // Changed from venuePreferences
         application: {
           select: {
+            userId: true,
             user: { select: { location: true } },
           },
         },
@@ -335,6 +341,7 @@ export async function PATCH(req: Request) {
       name: specialist.name,
       image: specialist.image,
       location: specialist.application?.user?.location || null,
+      userId: specialist.application?.userId || null,
       rating: specialist.rating,
       reviewCount: specialist.reviewCount,
       rate: specialist.rate,
