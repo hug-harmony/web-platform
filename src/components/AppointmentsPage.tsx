@@ -1,4 +1,3 @@
-// File: components/AppointmentsPage.tsx
 /* eslint-disable react-hooks/exhaustive-deps */
 "use client";
 
@@ -36,20 +35,20 @@ import {
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
 
-// NEW, updated interface for appointments
+// Updated interfaces
 interface Appointment {
   _id: string;
-  specialistName: string;
-  clientName?: string; // For when the user is the specialist
-  startTime: string; // ISO String
-  endTime: string; // ISO String
+  specialistName?: string;
+  clientName?: string;
+  specialistId: string;
+  specialistUserId?: string; // ← NEW: User ID of specialist
+  clientId?: string; // ← NEW: User ID of client
+  startTime: string;
+  endTime: string;
   status: "upcoming" | "completed" | "cancelled" | "disputed";
   rating?: number | null;
   reviewCount?: number | null;
   rate?: number | null;
-  specialistId: string;
-  specialistUserId?: string;
-  clientId?: string;
   disputeStatus: string;
 }
 
@@ -57,7 +56,7 @@ interface Proposal {
   id: string;
   userId: string;
   specialistId: string;
-  date: string; // Proposals still use date/time strings from the legacy model
+  date: string;
   time: string;
   status: "pending" | "accepted" | "rejected";
   conversationId: string;
@@ -170,6 +169,39 @@ export default function AppointmentsPage() {
     }
   }, [status, router]);
 
+  // Unified message handler
+  const handleMessage = async (
+    appt: Appointment,
+    isOwnerSpecialist: boolean
+  ) => {
+    const recipientId = isOwnerSpecialist
+      ? appt.clientId
+      : appt.specialistUserId;
+    if (!recipientId) {
+      toast.error("Cannot start chat: missing user ID");
+      return;
+    }
+
+    try {
+      const res = await fetch("/api/conversations", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ recipientId }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to start chat");
+      }
+
+      const { id } = await res.json();
+      router.push(`/dashboard/messaging/${id}`);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed to start chat");
+    }
+  };
+
   const filteredAppointments = useMemo(() => {
     const all = [
       ...appointments.map((a) => ({ ...a, type: "client" as const })),
@@ -177,7 +209,6 @@ export default function AppointmentsPage() {
     ];
 
     return all.filter((item) => {
-      // const itemDate = new Date(item.startTime);
       const nameToSearch =
         item.type === "specialist" ? item.clientName : item.specialistName;
       return (
@@ -193,7 +224,6 @@ export default function AppointmentsPage() {
       ...receivedProposals.map((p) => ({ ...p, isReceived: true })),
       ...sentProposals.map((p) => ({ ...p, isReceived: false })),
     ];
-    // Proposals still use legacy date/time fields, handle them separately
     return all.filter((p) => {
       const nameToSearch = p.isReceived ? p.specialist.name : p.user.name;
       return (
@@ -231,7 +261,7 @@ export default function AppointmentsPage() {
       return {
         title: `Proposal: ${displayName} (${proposal.status})`,
         start,
-        end: moment(start).add(1, "hour").toDate(), // Assume 1hr for proposals
+        end: moment(start).add(1, "hour").toDate(),
         resource: {
           type: "proposal" as const,
           data: proposal,
@@ -248,19 +278,18 @@ export default function AppointmentsPage() {
     if (!resource) return {};
     const { type, data } = resource;
 
-    let color = "#3174ad"; // Default blue
+    let color = "#3174ad";
     if (type === "appointment") {
       if (data.status === "upcoming")
-        color = resource.isOwnerSpecialist ? "#5cb85c" : "#5bc0de"; // Green for my clients, Cyan for my appointments
+        color = resource.isOwnerSpecialist ? "#5cb85c" : "#5bc0de";
       if (data.status === "completed")
-        color = resource.isOwnerSpecialist ? "#4cae4c" : "#46b8da"; // Darker variants
+        color = resource.isOwnerSpecialist ? "#4cae4c" : "#46b8da";
       if (data.status === "cancelled") color = "#777777";
       if (data.status === "disputed") color = "#d9534f";
     } else {
-      // Proposal
-      if (data.status === "pending") color = "#f0ad4e"; // Orange
-      if (data.status === "accepted") color = "#5cb85c"; // Green
-      if (data.status === "rejected") color = "#d43f3a"; // Red
+      if (data.status === "pending") color = "#f0ad4e";
+      if (data.status === "accepted") color = "#5cb85c";
+      if (data.status === "rejected") color = "#d43f3a";
     }
     return { style: { backgroundColor: color, borderColor: "darkgrey" } };
   };
@@ -374,10 +403,10 @@ export default function AppointmentsPage() {
               appointment={selected.data}
               isSpecialist={isSpecialist}
               isOwnerSpecialist={selected.isOwnerSpecialist}
-              onMessage={() => {
-                /* Your message logic */
-              }}
-              onUpdate={fetchData} // Pass a function to refresh data
+              onMessage={() =>
+                handleMessage(selected.data, selected.isOwnerSpecialist)
+              }
+              onUpdate={fetchData}
             />
           )}
           {selected?.type === "proposal" && (
@@ -385,11 +414,11 @@ export default function AppointmentsPage() {
               proposal={selected.data}
               isReceived={selected.isReceived}
               isSpecialist={isSpecialist}
-              onStatusUpdate={() => {
-                /* Your update logic */
-              }}
+              onStatusUpdate={fetchData}
               onViewConversation={() => {
-                /* Your convo logic */
+                router.push(
+                  `/dashboard/messaging/${selected.data.conversationId}`
+                );
               }}
             />
           )}

@@ -27,10 +27,13 @@ import { format, parseISO } from "date-fns";
 
 interface Appointment {
   _id: string;
-  specialistName: string;
+  specialistName?: string;
   clientName?: string;
-  startTime: string; // ISO String
-  endTime: string; // ISO String
+  specialistId: string;
+  specialistUserId?: string;
+  clientId?: string;
+  startTime: string;
+  endTime: string;
   status: "upcoming" | "completed" | "cancelled" | "disputed";
   rating?: number | null;
   reviewCount?: number | null;
@@ -40,8 +43,8 @@ interface Appointment {
 
 interface AppointmentCardProps {
   appointment: Appointment;
-  isSpecialist: boolean; // Added to match AppointmentsPage.tsx
-  isOwnerSpecialist: boolean; // Added to match AppointmentsPage.tsx
+  isSpecialist: boolean;
+  isOwnerSpecialist: boolean;
   onMessage: () => void;
   onUpdate: () => void;
 }
@@ -71,7 +74,6 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
     reviewCount,
   } = appointment;
 
-  // --- State for Modals ---
   const [disputeReason, setDisputeReason] = useState("");
   const [submittingDispute, setSubmittingDispute] = useState(false);
   const [adjustRate, setAdjustRate] = useState<string>(rate?.toString() || "0");
@@ -83,7 +85,6 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   const [rescheduleNote, setRescheduleNote] = useState("");
   const [submittingReschedule, setSubmittingReschedule] = useState(false);
 
-  // Pre-fill forms
   useEffect(() => {
     if (startTime) {
       const startDate = parseISO(startTime);
@@ -99,10 +100,9 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
     }
   }, [startTime, endTime, rate]);
 
-  // --- Handler Functions ---
   const handleDispute = async () => {
     if (!disputeReason || disputeReason.length < 10) {
-      toast.error("Please provide a detailed reason (minimum 10 characters).");
+      toast.error("Please provide a detailed reason (min 10 chars).");
       return;
     }
     setSubmittingDispute(true);
@@ -113,13 +113,13 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
         body: JSON.stringify({ reason: disputeReason }),
       });
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Failed to submit dispute.");
+        const err = await res.json();
+        throw new Error(err.error || "Failed to submit dispute");
       }
-      toast.success("Dispute submitted successfully.");
+      toast.success("Dispute submitted");
       onUpdate();
-    } catch (error) {
-      toast.error((error as Error).message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
       setSubmittingDispute(false);
     }
@@ -128,7 +128,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   const handleRateAdjust = async () => {
     const rateValue = parseFloat(adjustRate);
     if (isNaN(rateValue) || rateValue < 0) {
-      toast.error("Please enter a valid, non-negative rate.");
+      toast.error("Enter a valid rate");
       return;
     }
     setSubmittingRate(true);
@@ -136,19 +136,16 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
       const res = await fetch(`/api/appointment/${_id}/rate`, {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          adjustedRate: rateValue,
-          note: adjustRateNote,
-        }),
+        body: JSON.stringify({ adjustedRate: rateValue, note: adjustRateNote }),
       });
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Failed to adjust rate.");
+        const err = await res.json();
+        throw new Error(err.error || "Failed to adjust rate");
       }
-      toast.success("Rate adjusted successfully.");
+      toast.success("Rate updated");
       onUpdate();
-    } catch (error) {
-      toast.error((error as Error).message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
       setSubmittingRate(false);
     }
@@ -156,19 +153,15 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
 
   const handleReschedule = async () => {
     if (!newDate || !newStartTime || !newEndTime) {
-      toast.error("Please fill out the new date, start time, and end time.");
+      toast.error("Fill all time fields");
       return;
     }
     setSubmittingReschedule(true);
     try {
-      const startDateTimeISO = new Date(
-        `${newDate}T${newStartTime}`
-      ).toISOString();
-      const endDateTimeISO = new Date(`${newDate}T${newEndTime}`).toISOString();
-
-      if (new Date(startDateTimeISO) >= new Date(endDateTimeISO)) {
-        toast.error("End time must be after the start time.");
-        setSubmittingReschedule(false);
+      const start = new Date(`${newDate}T${newStartTime}`).toISOString();
+      const end = new Date(`${newDate}T${newEndTime}`).toISOString();
+      if (new Date(start) >= new Date(end)) {
+        toast.error("End time must be after start");
         return;
       }
 
@@ -176,21 +169,20 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          startTime: startDateTimeISO,
-          endTime: endDateTimeISO,
+          startTime: start,
+          endTime: end,
           note: rescheduleNote,
         }),
       });
 
       if (!res.ok) {
-        const errData = await res.json();
-        throw new Error(errData.error || "Failed to reschedule.");
+        const err = await res.json();
+        throw new Error(err.error || "Failed to reschedule");
       }
-
-      toast.success("Appointment rescheduled successfully.");
+      toast.success("Rescheduled");
       onUpdate();
-    } catch (error) {
-      toast.error((error as Error).message);
+    } catch (err) {
+      toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
       setSubmittingReschedule(false);
     }
@@ -252,17 +244,16 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                   <DialogHeader>
                     <DialogTitle>Dispute Appointment</DialogTitle>
                     <DialogDescription>
-                      Provide a reason for disputing this appointment. This
-                      action is final.
+                      Provide a reason. This action is final.
                     </DialogDescription>
                   </DialogHeader>
                   <div className="py-4">
-                    <Label htmlFor="dispute-reason">Dispute Reason</Label>
+                    <Label htmlFor="dispute-reason">Reason</Label>
                     <Textarea
                       id="dispute-reason"
                       value={disputeReason}
                       onChange={(e) => setDisputeReason(e.target.value)}
-                      placeholder="Please describe the issue in detail..."
+                      placeholder="Describe the issue..."
                     />
                   </div>
                   <DialogFooter>
@@ -270,7 +261,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                       onClick={handleDispute}
                       disabled={submittingDispute || disputeReason.length < 10}
                     >
-                      {submittingDispute ? "Submitting..." : "Submit Dispute"}
+                      {submittingDispute ? "Submitting..." : "Submit"}
                     </Button>
                   </DialogFooter>
                 </DialogContent>
@@ -286,10 +277,6 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
               <DialogContent>
                 <DialogHeader>
                   <DialogTitle>Adjust Rate</DialogTitle>
-                  <DialogDescription>
-                    Enter a new rate for this specific appointment. This will be
-                    recorded.
-                  </DialogDescription>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div>
@@ -307,16 +294,13 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                       id="adjust-rate-note"
                       value={adjustRateNote}
                       onChange={(e) => setAdjustRateNote(e.target.value)}
-                      placeholder="Reason for rate adjustment..."
+                      placeholder="Reason..."
                     />
                   </div>
                 </div>
                 <DialogFooter>
-                  <Button
-                    onClick={handleRateAdjust}
-                    disabled={submittingRate || parseFloat(adjustRate) < 0}
-                  >
-                    {submittingRate ? "Saving..." : "Save New Rate"}
+                  <Button onClick={handleRateAdjust} disabled={submittingRate}>
+                    {submittingRate ? "Saving..." : "Save"}
                   </Button>
                 </DialogFooter>
               </DialogContent>
@@ -330,14 +314,11 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
               </DialogTrigger>
               <DialogContent>
                 <DialogHeader>
-                  <DialogTitle>Reschedule Appointment</DialogTitle>
-                  <DialogDescription>
-                    Select a new date and time for the session.
-                  </DialogDescription>
+                  <DialogTitle>Reschedule</DialogTitle>
                 </DialogHeader>
                 <div className="space-y-4 py-4">
                   <div>
-                    <Label htmlFor="reschedule-date">New Date</Label>
+                    <Label htmlFor="reschedule-date">Date</Label>
                     <Input
                       id="reschedule-date"
                       type="date"
@@ -347,7 +328,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                   </div>
                   <div className="grid grid-cols-2 gap-4">
                     <div>
-                      <Label htmlFor="reschedule-start-time">Start Time</Label>
+                      <Label htmlFor="reschedule-start-time">Start</Label>
                       <Input
                         id="reschedule-start-time"
                         type="time"
@@ -356,7 +337,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                       />
                     </div>
                     <div>
-                      <Label htmlFor="reschedule-end-time">End Time</Label>
+                      <Label htmlFor="reschedule-end-time">End</Label>
                       <Input
                         id="reschedule-end-time"
                         type="time"
@@ -366,12 +347,12 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                     </div>
                   </div>
                   <div>
-                    <Label htmlFor="reschedule-note">Note (Optional)</Label>
+                    <Label htmlFor="reschedule-note">Note</Label>
                     <Textarea
                       id="reschedule-note"
                       value={rescheduleNote}
                       onChange={(e) => setRescheduleNote(e.target.value)}
-                      placeholder="Reason for rescheduling..."
+                      placeholder="Reason..."
                     />
                   </div>
                 </div>
@@ -380,7 +361,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
                     onClick={handleReschedule}
                     disabled={submittingReschedule}
                   >
-                    {submittingReschedule ? "Saving..." : "Confirm Reschedule"}
+                    {submittingReschedule ? "Saving..." : "Confirm"}
                   </Button>
                 </DialogFooter>
               </DialogContent>

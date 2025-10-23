@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // File: app/api/specialists/schedule/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -39,13 +41,48 @@ export async function GET(request: Request) {
       },
     });
 
-    // Format for react-big-calendar on the frontend
-    const events = bookedAppointments.map((appt) => ({
-      id: appt.id,
-      title: "Booked",
-      start: appt.startTime,
-      end: appt.endTime,
-    }));
+    const events: any[] = [];
+
+    // Group appointments by day (YYYY-MM-DD)
+    const appointmentsByDay = new Map<string, typeof bookedAppointments>();
+
+    bookedAppointments.forEach((appt) => {
+      const dayKey = appt.startTime.toISOString().split("T")[0];
+      if (!appointmentsByDay.has(dayKey)) {
+        appointmentsByDay.set(dayKey, []);
+      }
+      appointmentsByDay.get(dayKey)!.push(appt);
+    });
+
+    // Process each day
+    for (const [dayKey, appts] of appointmentsByDay) {
+      // Sort by start time
+      appts.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+
+      // Add actual bookings
+      appts.forEach((appt) => {
+        events.push({
+          id: appt.id,
+          title: "Booked",
+          start: appt.startTime,
+          end: appt.endTime,
+        });
+      });
+
+      // Add 30-min block after each session *except the last one*
+      for (let i = 0; i < appts.length - 1; i++) {
+        const current = appts[i];
+        const blockStart = new Date(current.endTime);
+        const blockEnd = new Date(blockStart.getTime() + 30 * 60 * 1000);
+
+        events.push({
+          id: `block-${current.id}-${i}`,
+          title: "Blocked (Buffer)",
+          start: blockStart,
+          end: blockEnd,
+        });
+      }
+    }
 
     // 2. Fetch the specialist's general availability rules to determine working hours
     const availabilities = await prisma.availability.findMany({

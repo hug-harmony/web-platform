@@ -40,16 +40,8 @@ import {
   isBefore,
   getDay,
   getHours,
+  differenceInMinutes,
 } from "date-fns";
-
-// Add these styles to your global CSS file (e.g., app/globals.css)
-/*
-.rbc-timeslot-group { border-bottom: 1px solid #e0e0e0; }
-.rbc-slot-disabled { background-color: #f5f5f5 !important; cursor: not-allowed; }
-.rbc-event { background-color: #e0e0e0 !important; border: 1px solid #bdbdbd !important; color: #424242 !important; border-radius: 4px; }
-.rbc-time-slot { min-height: 40px; }
-.rbc-day-slot .rbc-time-slot { border-top: 1px solid #f0f0f0; }
-*/
 
 interface Therapist {
   _id: string;
@@ -66,9 +58,9 @@ interface BookedEvent extends Event {
 }
 
 interface WorkingHours {
-  dayOfWeek: number; // 0 for Sunday, 1 for Monday, etc.
-  startTime: string; // "HH:mm"
-  endTime: string; // "HH:mm"
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
 }
 
 interface NewBookingSlot {
@@ -78,7 +70,7 @@ interface NewBookingSlot {
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+  visible: { opacity: 1, y: 0, transition: { difference: 0.5 } },
 };
 
 const localizer = momentLocalizer(moment);
@@ -126,7 +118,7 @@ const BookingPage: React.FC = () => {
       if (!therapistId) return;
       setLoading(true);
 
-      const start = startOfWeek(date, { weekStartsOn: 1 }); // Monday
+      const start = startOfWeek(date, { weekStartsOn: 1 });
       const end = endOfWeek(date, { weekStartsOn: 1 });
 
       try {
@@ -168,7 +160,9 @@ const BookingPage: React.FC = () => {
         (event) => slotInfo.start < event.end && slotInfo.end > event.start
       );
       if (isOverlapping) {
-        toast.warning("Selection overlaps with a booked slot.");
+        toast.warning(
+          "This time overlaps with a booked session or required 30-minute buffer."
+        );
         return;
       }
 
@@ -182,7 +176,9 @@ const BookingPage: React.FC = () => {
         (event) => slotInfo.start < event.end && bookingEnd > event.start
       );
       if (finalOverlapCheck) {
-        toast.warning("Your 1-hour selection overlaps with a booked slot.");
+        toast.warning(
+          "Your selection overlaps with a booked session or 30-minute buffer."
+        );
         return;
       }
 
@@ -216,26 +212,29 @@ const BookingPage: React.FC = () => {
       });
 
       const data = await response.json();
-      if (!response.ok) throw new Error(data.message || "Booking failed.");
+      if (!response.ok) {
+        const msg = data.message || "Booking failed.";
+        toast.error(msg);
+        throw new Error(msg);
+      }
 
       toast.success("Booking confirmed!");
       setIsDialogOpen(false);
-      fetchSchedule(currentDate); // Refresh calendar with new booking
-    } catch (error) {
-      toast.error((error as Error).message);
+      fetchSchedule(currentDate);
+    } catch (error: any) {
+      toast.error(error.message || "Failed to confirm booking.");
     } finally {
       setBookingInProgress(false);
-      // Reset state after dialog closes
       setTimeout(() => {
         setNewBookingSlot(null);
-        if (therapist.venue === "both") setSelectedVenue(undefined);
+        if (therapist?.venue === "both") setSelectedVenue(undefined);
       }, 300);
     }
   };
 
   const slotPropGetter = useCallback(
     (date: Date) => {
-      const day = getDay(date); // 0=Sun, 1=Mon
+      const day = getDay(date);
       const hour = getHours(date);
 
       const dayWorkingHours = workingHours.find((wh) => wh.dayOfWeek === day);
@@ -253,13 +252,33 @@ const BookingPage: React.FC = () => {
     [workingHours]
   );
 
+  const eventPropGetter = useCallback((event: BookedEvent) => {
+    if (event.title === "Blocked (Buffer)") {
+      return {
+        className: "bg-gray-300 text-gray-700 border border-gray-400",
+        style: { opacity: 0.7 },
+      };
+    }
+    return {
+      className: "bg-[#e0e0e0] text-gray-800 border border-[#bdbdbd]",
+    };
+  }, []);
+
   const { min, max } = useMemo(
     () => ({
-      min: moment().startOf("day").add(8, "hours").toDate(), // 8 AM
-      max: moment().startOf("day").add(20, "hours").toDate(), // 8 PM
+      min: moment().startOf("day").add(8, "hours").toDate(),
+      max: moment().startOf("day").add(20, "hours").toDate(),
     }),
     []
   );
+
+  // === NEW: Calculate duration and total rate ===
+  const durationMinutes = newBookingSlot
+    ? differenceInMinutes(newBookingSlot.end, newBookingSlot.start)
+    : 0;
+  const durationHours = durationMinutes / 60;
+  const totalRate =
+    therapist && durationHours > 0 ? therapist.rate * durationHours : 0;
 
   if (status === "loading" || !therapist) {
     return (
@@ -287,7 +306,8 @@ const BookingPage: React.FC = () => {
           </CardTitle>
           <p className="text-sm text-black">
             Click an empty slot for a 1-hour session, or click and drag to
-            select a custom duration.
+            select a custom duration. <strong>30-minute buffers</strong> are
+            required between sessions (except the last one).
           </p>
         </CardHeader>
       </Card>
@@ -312,6 +332,7 @@ const BookingPage: React.FC = () => {
               min={min}
               max={max}
               slotPropGetter={slotPropGetter}
+              eventPropGetter={eventPropGetter}
             />
           )}
           <div className="mt-4 text-sm text-gray-600">
@@ -326,8 +347,11 @@ const BookingPage: React.FC = () => {
                 <div className="w-4 h-4 bg-[#e0e0e0] mr-2"></div>Booked
               </div>
               <div className="flex items-center">
-                <div className="w-4 h-4 bg-[#f5f5f5] mr-2"></div>Outside Working
-                Hours
+                <div className="w-4 h-4 bg-gray-300 border border-gray-400 mr-2"></div>
+                Buffer (30 min)
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-[#f5f5f5] mr-2"></div>Outside Hours
               </div>
             </div>
           </div>
@@ -354,6 +378,16 @@ const BookingPage: React.FC = () => {
                   <strong>Time:</strong>{" "}
                   {format(newBookingSlot.start, "h:mm a")} -{" "}
                   {format(newBookingSlot.end, "h:mm a")}
+                </p>
+                <p>
+                  <strong>Duration:</strong> {durationHours} hour
+                  {durationHours !== 1 ? "s" : ""}
+                </p>
+                <p className="font-semibold text-lg">
+                  Total: ${totalRate.toFixed(2)}
+                  <span className="text-sm font-normal text-gray-600 ml-1">
+                    ({durationHours} × ${therapist.rate}/hr)
+                  </span>
                 </p>
               </div>
 
