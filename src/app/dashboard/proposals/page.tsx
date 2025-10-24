@@ -26,8 +26,9 @@ interface Proposal {
   id: string;
   userId: string;
   specialistId: string;
-  date: string;
-  time: string;
+  startTime: string; // UPDATED: Replaced date
+  endTime: string; // UPDATED: Replaced time
+  venue?: "host" | "visit"; // NEW: Optional venue
   status: "pending" | "accepted" | "rejected";
   conversationId: string;
   user: { name: string };
