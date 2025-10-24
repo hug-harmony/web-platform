@@ -239,15 +239,22 @@ const BookingPage: React.FC = () => {
 
       const dayWorkingHours = workingHours.find((wh) => wh.dayOfWeek === day);
 
-      if (!dayWorkingHours) return { className: "rbc-slot-disabled" };
+      if (!dayWorkingHours)
+        return {
+          className: "rbc-slot-disabled",
+          style: { backgroundColor: "#B0B0B0" },
+        };
 
       const startHour = parseInt(dayWorkingHours.startTime.split(":")[0], 10);
       const endHour = parseInt(dayWorkingHours.endTime.split(":")[0], 10);
 
       if (hour < startHour || hour >= endHour)
-        return { className: "rbc-slot-disabled" };
+        return {
+          className: "rbc-slot-disabled",
+          style: { backgroundColor: "#B0B0B0" },
+        };
 
-      return {};
+      return { style: { backgroundColor: "#FFFFFF" } };
     },
     [workingHours]
   );
@@ -255,12 +262,22 @@ const BookingPage: React.FC = () => {
   const eventPropGetter = useCallback((event: BookedEvent) => {
     if (event.title === "Blocked (Buffer)") {
       return {
-        className: "bg-gray-300 text-gray-700 border border-gray-400",
-        style: { opacity: 0.7 },
+        className: "border",
+        style: {
+          backgroundColor: "#E0D5D5",
+          color: "#333333",
+          borderColor: "#D4A5A5",
+          opacity: 0.7,
+        },
       };
     }
     return {
-      className: "bg-[#e0e0e0] text-gray-800 border border-[#bdbdbd]",
+      className: "border",
+      style: {
+        backgroundColor: "#D4A5A5",
+        color: "#333333",
+        borderColor: "#B0B0B0",
+      },
     };
   }, []);
 
@@ -272,7 +289,6 @@ const BookingPage: React.FC = () => {
     []
   );
 
-  // === NEW: Calculate duration and total rate ===
   const durationMinutes = newBookingSlot
     ? differenceInMinutes(newBookingSlot.end, newBookingSlot.start)
     : 0;
@@ -341,17 +357,19 @@ const BookingPage: React.FC = () => {
             </p>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               <div className="flex items-center">
-                <div className="w-4 h-4 bg-white border mr-2"></div>Available
+                <div className="w-4 h-4 bg-[#FFFFFF] border border-[#B0B0B0] mr-2"></div>
+                Available
               </div>
               <div className="flex items-center">
-                <div className="w-4 h-4 bg-[#e0e0e0] mr-2"></div>Booked
+                <div className="w-4 h-4 bg-[#D4A5A5] border border-[#B0B0B0] mr-2"></div>
+                Booked
               </div>
               <div className="flex items-center">
-                <div className="w-4 h-4 bg-gray-300 border border-gray-400 mr-2"></div>
+                <div className="w-4 h-4 bg-[#E0D5D5] border border-[#D4A5A5] mr-2"></div>
                 Buffer (30 min)
               </div>
               <div className="flex items-center">
-                <div className="w-4 h-4 bg-[#f5f5f5] mr-2"></div>Outside Hours
+                <div className="w-4 h-4 bg-[#B0B0B0] mr-2"></div>Outside Hours
               </div>
             </div>
           </div>
