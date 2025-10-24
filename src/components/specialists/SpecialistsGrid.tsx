@@ -2,7 +2,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import SpecialistCard from "@/components/SpecialistCard";
+import SpecialistCard from "@/components/specialists/SpecialistCard";
 import Link from "next/link";
 import { Therapist } from "@/types/therapist";
 
@@ -41,6 +41,8 @@ export function SpecialistsGrid({ loading, specialists }: Props) {
                 <motion.div
                   key={therapist._id}
                   variants={cardVariants}
+                  initial="hidden"
+                  animate="visible"
                   whileHover={{ scale: 1.05 }}
                 >
                   <Link href={`/dashboard/specialists/${therapist._id}`}>
