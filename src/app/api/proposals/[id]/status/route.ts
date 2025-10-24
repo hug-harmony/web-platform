@@ -75,13 +75,17 @@ export async function PATCH(
 
     if (action === "accepted") {
       // UPDATED: Use proposal's venue if set, else body or specialist default
-      let venueChoice: "host" | "visit" =
-        proposal.venue || venue || proposal.specialist.venue;
-      if (proposal.specialist.venue === "both" && !venueChoice) {
-        return NextResponse.json(
-          { error: "Venue is required" },
-          { status: 400 }
-        );
+      let venueChoice: "host" | "visit" | undefined = proposal.venue || venue;
+
+      if (!venueChoice) {
+        if (proposal.specialist.venue === "both") {
+          return NextResponse.json(
+            { error: "Venue is required" },
+            { status: 400 }
+          );
+        } else {
+          venueChoice = proposal.specialist.venue as "host" | "visit"; // Type assertion: Safe because we've checked it's not "both"
+        }
       }
 
       // UPDATED: Use exact startTime/endTime from proposal (no hardcoded duration)
