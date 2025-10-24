@@ -53,9 +53,9 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ otherUser, onNotesClick }) => {
         variant="ghost"
         size="icon"
         onClick={onNotesClick}
-        className="text-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+        className="text-[#000] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
       >
-        <Notebook className="h-5 w-5" />
+        <Notebook className="h-5 w-5" /> Notes
       </Button>
     </CardHeader>
   );

@@ -117,7 +117,7 @@ export default function TherapistsPageContent() {
             className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            Select Date & Time
+            Filter by Availability
           </Button>
         </CardContent>
       </Card>
