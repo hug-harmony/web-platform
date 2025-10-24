@@ -13,6 +13,7 @@ import MessageInput from "@/components/MessageInput";
 import ProposalDialog from "@/components/ProposalDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import NotesSidebar from "@/components/NotesSidebar";
+import { format } from "date-fns"; // NEW: For formatting ranges in toasts
 
 interface Message {
   senderId: string;
@@ -40,6 +41,7 @@ interface Conversation {
   id: string;
   user1?: Participant;
   user2?: Participant;
+  specialistId?: string; // NEW: From updated backend response
 }
 
 interface Specialist {
@@ -69,15 +71,11 @@ const MessageInterface: React.FC = () => {
   const [imagePreview, setImagePreview] = useState<string | null>(null);
   const [isSpecialist, setIsSpecialist] = useState(false);
   const [isProposalDialogOpen, setIsProposalDialogOpen] = useState(false);
-  const [proposalDate, setProposalDate] = useState<Date | undefined>(
-    new Date()
-  );
-  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<{
     id: string;
-    date: string;
-    time: string;
+    startTime: string; // UPDATED: For range
+    endTime: string; // UPDATED
     specialist: Specialist;
     appointmentId?: string;
   } | null>(null);
@@ -89,6 +87,7 @@ const MessageInterface: React.FC = () => {
   const [otherUserType, setOtherUserType] = useState<
     "user" | "professional" | null
   >(null);
+  const [specialistId, setSpecialistId] = useState<string | null>(null); // NEW: For ProposalDialog
 
   useEffect(() => {
     const checkSpecialistStatus = async () => {
@@ -172,6 +171,9 @@ const MessageInterface: React.FC = () => {
             : convData.user1;
         setOtherUserId(otherUser?.id || null);
         setOtherUserType(otherUser?.isSpecialist ? "professional" : "user"); // Mock; replace with real logic if available
+
+        // NEW: Set specialistId from conversation response
+        setSpecialistId(convData.specialistId || null);
       } catch {
         toast.error("Failed to load conversation or messages");
       } finally {
@@ -284,9 +286,13 @@ const MessageInterface: React.FC = () => {
     }
   };
 
-  const handleSendProposal = async () => {
-    if (!proposalDate || !selectedSlots.length) {
-      toast.error("Please select a date and at least one time slot");
+  const handleSendProposal = async (
+    start: Date,
+    end: Date,
+    venue?: "host" | "visit"
+  ) => {
+    if (!start || !end) {
+      toast.error("Please select a time slot");
       return;
     }
     if (!session?.user?.id || !conversation) {
@@ -307,8 +313,9 @@ const MessageInterface: React.FC = () => {
         body: JSON.stringify({
           conversationId,
           userId: recipientId,
-          date: proposalDate.toISOString().split("T")[0],
-          time: selectedSlots[0],
+          startTime: start.toISOString(),
+          endTime: end.toISOString(),
+          venue,
         }),
         credentials: "include",
       });
@@ -318,8 +325,6 @@ const MessageInterface: React.FC = () => {
         throw new Error(errorData.error || "Failed to send proposal");
       }
 
-      setProposalDate(undefined);
-      setSelectedSlots([]);
       setIsProposalDialogOpen(false);
       toast.success("Proposal sent successfully");
       await fetchMessages();
@@ -359,8 +364,8 @@ const MessageInterface: React.FC = () => {
 
       const proposal = data.proposal as {
         id: string;
-        date: string;
-        time: string;
+        startTime: string; // UPDATED
+        endTime: string; // UPDATED
         initiator: "specialist" | "client";
         specialistId: string;
       };
@@ -388,8 +393,8 @@ const MessageInterface: React.FC = () => {
 
           setSelectedProposal({
             id: proposal.id,
-            date: proposal.date,
-            time: proposal.time,
+            startTime: proposal.startTime, // UPDATED
+            endTime: proposal.endTime, // UPDATED
             specialist: {
               id: proposal.specialistId,
               name: specialist.name,
@@ -542,12 +547,9 @@ const MessageInterface: React.FC = () => {
       <ProposalDialog
         isOpen={isProposalDialogOpen}
         setIsOpen={setIsProposalDialogOpen}
-        proposalDate={proposalDate}
-        setProposalDate={setProposalDate}
-        selectedSlots={selectedSlots}
-        setSelectedSlots={setSelectedSlots}
-        handleSendProposal={handleSendProposal}
+        handleSendProposal={handleSendProposal} // UPDATED: Pass the new handler
         sending={sending}
+        specialistId={specialistId!} // NEW: Pass specialistId
       />
       <ConfirmDialog
         isOpen={confirmDialogOpen}

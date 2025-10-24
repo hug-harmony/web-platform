@@ -10,8 +10,8 @@ interface Proposal {
   id: string;
   userId: string;
   specialistId: string;
-  date: string;
-  time: string;
+  startTime: string; // UPDATED
+  endTime: string; // UPDATED
   status: "pending" | "accepted" | "rejected";
   conversationId: string;
   user: { name: string };
@@ -51,9 +51,12 @@ export default function ProposalCard({
                   : `From: ${proposal.specialist.name}`}
             </p>
             <p className="text-sm text-[#C4C4C4]">
-              Date: {format(new Date(proposal.date), "MMMM d, yyyy")}
+              Date: {format(new Date(proposal.startTime), "MMMM d, yyyy")}
             </p>
-            <p className="text-sm text-[#C4C4C4]">Time: {proposal.time}</p>
+            <p className="text-sm text-[#C4C4C4]">
+              Time: {format(new Date(proposal.startTime), "h:mm a")} -{" "}
+              {format(new Date(proposal.endTime), "h:mm a")}
+            </p>
             <p className="text-sm text-[#C4C4C4]">
               Status:{" "}
               {proposal.status.charAt(0).toUpperCase() +

@@ -7,7 +7,6 @@ import { z } from "zod";
 
 const bodySchema = z.object({
   status: z.enum(["accepted", "rejected"]),
-  // Optional: allow client to pass explicit venue when accepting
   venue: z.enum(["host", "visit"]).optional(),
 });
 
@@ -37,7 +36,6 @@ export async function PATCH(
       );
     }
 
-    // Only allow updates from pending
     if (proposal.status !== "pending") {
       return NextResponse.json(
         { error: `Proposal already ${proposal.status}` },
@@ -45,7 +43,6 @@ export async function PATCH(
       );
     }
 
-    // Validate updater based on initiator (recipient must respond)
     const specialistApp = await prisma.specialistApplication.findFirst({
       where: { specialistId: proposal.specialistId, status: "approved" },
     });
@@ -59,13 +56,11 @@ export async function PATCH(
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
-    // Update proposal status
     const updatedProposal = await prisma.proposal.update({
       where: { id },
       data: { status: action },
     });
 
-    // Determine recipient for notification
     const recipientId = isUserResponder
       ? proposal.userId
       : specialistApp?.userId;
@@ -79,51 +74,34 @@ export async function PATCH(
     let appointmentId: string | undefined;
 
     if (action === "accepted") {
-      // Determine appointment venue
-      let venueChoice: "host" | "visit" | undefined = venue;
-
-      if (!venueChoice) {
-        if (
-          proposal.specialist.venue === "host" ||
-          proposal.specialist.venue === "visit"
-        ) {
-          venueChoice = proposal.specialist.venue;
-        } else {
-          return NextResponse.json(
-            {
-              error:
-                "Venue is required when specialist supports both host and visit",
-            },
-            { status: 400 }
-          );
-        }
+      // UPDATED: Use proposal's venue if set, else body or specialist default
+      let venueChoice: "host" | "visit" =
+        proposal.venue || venue || proposal.specialist.venue;
+      if (proposal.specialist.venue === "both" && !venueChoice) {
+        return NextResponse.json(
+          { error: "Venue is required" },
+          { status: 400 }
+        );
       }
 
-      // Combine proposal.date and proposal.time into startTime
-      const [hours, minutes] = proposal.time.split(":");
-      const startTime = new Date(proposal.date);
-      startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
-      // Assume 1-hour duration for endTime
-      const endTime = new Date(startTime);
-      endTime.setHours(startTime.getHours() + 1);
-
+      // UPDATED: Use exact startTime/endTime from proposal (no hardcoded duration)
       const appointment = await prisma.appointment.create({
         data: {
           userId: proposal.userId,
           specialistId: proposal.specialistId,
-          startTime,
-          endTime,
-          status: "upcoming",
+          startTime: proposal.startTime,
+          endTime: proposal.endTime,
+          status: "pending", // UPDATED: "pending" for payment
           venue: venueChoice,
+          rate: proposal.specialist.rate, // Assume rate is available
         },
       });
       appointmentId = appointment.id;
 
-      // Tailored notification message
+      // UPDATED: Notification with range
       const notifyText = isUserResponder
-        ? `Your proposal for ${format(startTime, "MMMM d, yyyy 'at' HH:mm")} has been accepted. Proceed to payment.`
-        : `Your appointment request for ${format(startTime, "MMMM d, yyyy 'at' HH:mm")} has been accepted.`;
+        ? `Your proposal for ${format(proposal.startTime, "MMMM d, yyyy h:mm a")} to ${format(proposal.endTime, "h:mm a")} has been accepted. Proceed to payment.`
+        : `Your appointment request for ${format(proposal.startTime, "MMMM d, yyyy h:mm a")} to ${format(proposal.endTime, "h:mm a")} has been accepted.`;
 
       await prisma.message.create({
         data: {
@@ -136,14 +114,10 @@ export async function PATCH(
         },
       });
     } else {
-      // Rejection message
-      const [hours, minutes] = proposal.time.split(":");
-      const startTime = new Date(proposal.date);
-      startTime.setHours(parseInt(hours), parseInt(minutes), 0, 0);
-
+      // UPDATED: Rejection with range
       const rejectText = isUserResponder
-        ? `Your proposal for ${format(startTime, "MMMM d, yyyy 'at' HH:mm")} has been rejected.`
-        : `Your appointment request for ${format(startTime, "MMMM d, yyyy 'at' HH:mm")} has been declined.`;
+        ? `Your proposal for ${format(proposal.startTime, "MMMM d, yyyy h:mm a")} to ${format(proposal.endTime, "h:mm a")} has been rejected.`
+        : `Your appointment request for ${format(proposal.startTime, "MMMM d, yyyy h:mm a")} to ${format(proposal.endTime, "h:mm a")} has been declined.`;
 
       await prisma.message.create({
         data: {
@@ -165,5 +139,4 @@ export async function PATCH(
     console.error("Update proposal status error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
-  // Note: don't disconnect Prisma in serverless handlers
 }

@@ -6,7 +6,7 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
-import { format } from "date-fns";
+import { format, differenceInMinutes } from "date-fns";
 import { motion } from "framer-motion";
 
 interface Specialist {
@@ -20,8 +20,8 @@ interface ConfirmDialogProps {
   setIsOpen: (value: boolean) => void;
   selectedProposal: {
     id: string;
-    date: string;
-    time: string;
+    startTime: string; // UPDATED: ISO string
+    endTime: string; // UPDATED: ISO string
     specialist: Specialist;
     appointmentId?: string;
   } | null;
@@ -43,6 +43,13 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   sending,
   sessionUserName,
 }) => {
+  if (!selectedProposal) return null;
+
+  const start = new Date(selectedProposal.startTime);
+  const end = new Date(selectedProposal.endTime);
+  const durationHours = differenceInMinutes(end, start) / 60;
+  const amount = (selectedProposal.specialist.rate || 50) * durationHours;
+
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <DialogContent className="bg-white dark:bg-gray-800 rounded-xl shadow-lg">
@@ -59,17 +66,18 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               {selectedProposal?.specialist.name || "N/A"}
             </p>
             <p className="text-black dark:text-white">
-              <strong>Date:</strong>{" "}
-              {selectedProposal?.date
-                ? format(new Date(selectedProposal.date), "MMMM d, yyyy")
-                : "N/A"}
+              <strong>Date:</strong> {format(start, "MMMM d, yyyy")}
             </p>
             <p className="text-black dark:text-white">
-              <strong>Time:</strong> {selectedProposal?.time || "N/A"}
+              <strong>Time:</strong> {format(start, "h:mm a")} -{" "}
+              {format(end, "h:mm a")}
             </p>
             <p className="text-black dark:text-white">
-              <strong>Amount:</strong> $
-              {selectedProposal?.specialist.rate?.toFixed(2) || "50.00"}
+              <strong>Duration:</strong> {durationHours} hour
+              {durationHours !== 1 ? "s" : ""}
+            </p>
+            <p className="text-black dark:text-white">
+              <strong>Amount:</strong> ${amount.toFixed(2)}
             </p>
           </div>
           <DialogFooter className="mt-4">

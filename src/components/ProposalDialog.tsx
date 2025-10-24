@@ -1,6 +1,6 @@
-import React from "react";
+/* eslint-disable @typescript-eslint/no-explicit-any */
+import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
-import { Calendar } from "@/components/ui/calendar";
 import { Label } from "@/components/ui/label";
 import {
   Dialog,
@@ -9,17 +9,45 @@ import {
   DialogTitle,
   DialogFooter,
 } from "@/components/ui/dialog";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import { motion, AnimatePresence } from "framer-motion";
+import {
+  Calendar as BigCalendar,
+  momentLocalizer,
+  SlotInfo,
+} from "react-big-calendar";
+import moment from "moment";
+import "react-big-calendar/lib/css/react-big-calendar.css";
+import {
+  startOfWeek,
+  endOfWeek,
+  format,
+  addHours,
+  isBefore,
+  getDay,
+  getHours,
+  differenceInMinutes,
+} from "date-fns";
+import { toast } from "sonner";
+
+const localizer = momentLocalizer(moment);
 
 interface ProposalDialogProps {
   isOpen: boolean;
   setIsOpen: (value: boolean) => void;
-  proposalDate: Date | undefined;
-  setProposalDate: (value: Date | undefined) => void;
-  selectedSlots: string[];
-  setSelectedSlots: React.Dispatch<React.SetStateAction<string[]>>;
-  handleSendProposal: () => void;
+  handleSendProposal: (
+    start: Date,
+    end: Date,
+    venue?: "host" | "visit"
+  ) => void;
   sending: boolean;
+  specialistId: string;
 }
 
 const cardVariants = {
@@ -30,24 +58,176 @@ const cardVariants = {
 const ProposalDialog: React.FC<ProposalDialogProps> = ({
   isOpen,
   setIsOpen,
-  proposalDate,
-  setProposalDate,
-  selectedSlots,
-  setSelectedSlots,
   handleSendProposal,
   sending,
+  specialistId,
 }) => {
-  const allSlots = Array.from({ length: 13 }, (_, i) => `${i + 8}:00`);
+  const [currentDate, setCurrentDate] = useState(new Date());
+  const [bookedEvents, setBookedEvents] = useState<any[]>([]);
+  const [workingHours, setWorkingHours] = useState<any[]>([]);
+  const [newProposalSlot, setNewProposalSlot] = useState<{
+    start: Date;
+    end: Date;
+  } | null>(null);
+  const [selectedVenue, setSelectedVenue] = useState<
+    "host" | "visit" | undefined
+  >(undefined);
+  const [specialistVenue, setSpecialistVenue] = useState<
+    "host" | "visit" | "both"
+  >("both");
+  const [loading, setLoading] = useState(false);
 
-  const toggleSlot = (time: string) => {
-    setSelectedSlots([time]);
+  useEffect(() => {
+    if (!isOpen || !specialistId) return;
+    const fetchSpecialist = async () => {
+      try {
+        const res = await fetch(`/api/specialists?id=${specialistId}`);
+        if (!res.ok) throw new Error("Failed to fetch specialist");
+        const data = await res.json();
+        setSpecialistVenue(data.venue);
+        if (data.venue !== "both") setSelectedVenue(data.venue);
+      } catch (error) {
+        toast.error("Failed to fetch specialist details");
+      }
+    };
+    fetchSpecialist();
+  }, [isOpen, specialistId]);
+
+  const fetchSchedule = useCallback(
+    async (date: Date) => {
+      setLoading(true);
+      const start = startOfWeek(date, { weekStartsOn: 1 });
+      const end = endOfWeek(date, { weekStartsOn: 1 });
+      try {
+        const res = await fetch(
+          `/api/specialists/schedule?specialistId=${specialistId}&startDate=${format(start, "yyyy-MM-dd")}&endDate=${format(end, "yyyy-MM-dd")}`
+        );
+        if (!res.ok) throw new Error("Failed to load schedule");
+        const { events, workingHours: fetchedWorkingHours } = await res.json();
+        setBookedEvents(
+          events.map((e: any) => ({
+            ...e,
+            start: new Date(e.start),
+            end: new Date(e.end),
+          }))
+        );
+        setWorkingHours(fetchedWorkingHours);
+      } catch (error) {
+        toast.error((error as Error).message);
+      } finally {
+        setLoading(false);
+      }
+    },
+    [specialistId]
+  );
+
+  useEffect(() => {
+    if (isOpen) fetchSchedule(currentDate);
+  }, [isOpen, currentDate, fetchSchedule]);
+
+  const handleSelectSlot = (slotInfo: SlotInfo) => {
+    if (isBefore(slotInfo.start, new Date())) return;
+
+    const isOverlapping = bookedEvents.some(
+      (event) => slotInfo.start < event.end && slotInfo.end > event.start
+    );
+    if (isOverlapping) {
+      toast.warning("This time overlaps with a booked session or buffer.");
+      return;
+    }
+
+    const isClick = moment(slotInfo.start).isSame(
+      moment(slotInfo.end),
+      "minute"
+    );
+    const bookingEnd = isClick ? addHours(slotInfo.start, 1) : slotInfo.end;
+
+    const finalOverlapCheck = bookedEvents.some(
+      (event) => slotInfo.start < event.end && bookingEnd > event.start
+    );
+    if (finalOverlapCheck) {
+      toast.warning("Selection overlaps with a booked session or buffer.");
+      return;
+    }
+
+    setNewProposalSlot({ start: slotInfo.start, end: bookingEnd });
+  };
+
+  const slotPropGetter = useCallback(
+    (date: Date) => {
+      const day = getDay(date);
+      const hour = getHours(date);
+
+      const dayWorkingHours = workingHours.find((wh) => wh.dayOfWeek === day);
+
+      if (!dayWorkingHours)
+        return {
+          className: "rbc-slot-disabled",
+          style: { backgroundColor: "#B0B0B0" },
+        };
+
+      const startHour = parseInt(dayWorkingHours.startTime.split(":")[0], 10);
+      const endHour = parseInt(dayWorkingHours.endTime.split(":")[0], 10);
+
+      if (hour < startHour || hour >= endHour)
+        return {
+          className: "rbc-slot-disabled",
+          style: { backgroundColor: "#B0B0B0" },
+        };
+
+      return { style: { backgroundColor: "#FFFFFF" } };
+    },
+    [workingHours]
+  );
+
+  const eventPropGetter = useCallback((event: any) => {
+    if (event.title === "Blocked (Buffer)") {
+      return {
+        className: "border",
+        style: {
+          backgroundColor: "#E0D5D5",
+          color: "#333333",
+          borderColor: "#D4A5A5",
+          opacity: 0.7,
+        },
+      };
+    }
+    return {
+      className: "border",
+      style: {
+        backgroundColor: "#D4A5A5",
+        color: "#333333",
+        borderColor: "#B0B0B0",
+      },
+    };
+  }, []);
+
+  const { min, max } = {
+    min: moment().startOf("day").add(8, "hours").toDate(),
+    max: moment().startOf("day").add(20, "hours").toDate(),
+  };
+
+  const onSend = () => {
+    if (!newProposalSlot) {
+      toast.error("Please select a time slot");
+      return;
+    }
+    if (specialistVenue === "both" && !selectedVenue) {
+      toast.error("Please select a venue");
+      return;
+    }
+    handleSendProposal(
+      newProposalSlot.start,
+      newProposalSlot.end,
+      selectedVenue
+    );
   };
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
       <AnimatePresence>
         {isOpen && (
-          <DialogContent className="bg-white dark:bg-gray-800 sm:max-w-[600px] rounded-xl shadow-lg">
+          <DialogContent className="bg-white dark:bg-gray-800 sm:max-w-[800px] rounded-xl shadow-lg">
             <motion.div
               variants={cardVariants}
               initial="hidden"
@@ -59,46 +239,72 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
                   Propose Session
                 </DialogTitle>
               </DialogHeader>
-              <div className="space-y-6 flex flex-col sm:flex-row sm:space-x-6 sm:space-y-0 py-4">
-                <div className="flex-1">
-                  <Label className="text-sm font-medium text-black dark:text-white mb-2">
-                    Select Date
-                  </Label>
-                  <Calendar
-                    mode="single"
-                    selected={proposalDate}
-                    onSelect={setProposalDate}
-                    className="rounded-md border-[#F3CFC6] bg-white dark:bg-gray-800 shadow-sm"
-                  />
-                </div>
-                <div className="flex-1">
-                  <Label className="text-sm font-medium text-black dark:text-white mb-2">
-                    Available Times
-                  </Label>
-                  <div className="grid grid-cols-3 gap-2">
-                    {allSlots.map((time) => (
-                      <motion.div
-                        key={time}
-                        whileHover={{ scale: 1.05 }}
-                        whileTap={{ scale: 0.95 }}
-                      >
-                        <Button
-                          variant={
-                            selectedSlots.includes(time) ? "default" : "outline"
-                          }
-                          className={`w-full text-sm ${
-                            selectedSlots.includes(time)
-                              ? "bg-[#F3CFC6] text-black dark:text-white hover:bg-[#C4C4C4]"
-                              : "text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                          } transition-colors duration-200`}
-                          onClick={() => toggleSlot(time)}
-                        >
-                          {time}
-                        </Button>
-                      </motion.div>
-                    ))}
+              <div className="py-4">
+                {loading ? (
+                  <div className="h-[50vh] flex items-center justify-center">
+                    Loading schedule...
                   </div>
-                </div>
+                ) : (
+                  <BigCalendar
+                    localizer={localizer}
+                    events={bookedEvents}
+                    defaultView="week"
+                    views={["week", "day"]}
+                    date={currentDate}
+                    onNavigate={(newDate) => setCurrentDate(newDate)}
+                    onSelectSlot={handleSelectSlot}
+                    selectable
+                    step={30}
+                    timeslots={2}
+                    style={{ height: "50vh" }}
+                    min={min}
+                    max={max}
+                    slotPropGetter={slotPropGetter}
+                    eventPropGetter={eventPropGetter}
+                  />
+                )}
+                {newProposalSlot && (
+                  <div className="mt-4">
+                    <p>
+                      Selected:{" "}
+                      {format(newProposalSlot.start, "MMMM d, yyyy h:mm a")} -{" "}
+                      {format(newProposalSlot.end, "h:mm a")}
+                    </p>
+                    <p>
+                      Duration:{" "}
+                      {differenceInMinutes(
+                        newProposalSlot.end,
+                        newProposalSlot.start
+                      ) / 60}{" "}
+                      hour(s)
+                    </p>
+                  </div>
+                )}
+                {specialistVenue === "both" && (
+                  <div className="mt-4">
+                    <Label className="text-sm font-medium text-black dark:text-white mb-2">
+                      Venue
+                    </Label>
+                    <Select
+                      value={selectedVenue}
+                      onValueChange={(v: "host" | "visit") =>
+                        setSelectedVenue(v)
+                      }
+                    >
+                      <SelectTrigger className="w-full">
+                        <SelectValue placeholder="Select venue..." />
+                      </SelectTrigger>
+                      <SelectContent>
+                        <SelectItem value="host">
+                          Specialist will host
+                        </SelectItem>
+                        <SelectItem value="visit">
+                          Specialist will visit you
+                        </SelectItem>
+                      </SelectContent>
+                    </Select>
+                  </div>
+                )}
               </div>
               <DialogFooter className="mt-4">
                 <Button
@@ -109,8 +315,12 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
                   Cancel
                 </Button>
                 <Button
-                  onClick={handleSendProposal}
-                  disabled={sending || !proposalDate || !selectedSlots.length}
+                  onClick={onSend}
+                  disabled={
+                    sending ||
+                    !newProposalSlot ||
+                    (specialistVenue === "both" && !selectedVenue)
+                  }
                   className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white"
                 >
                   {sending ? "Sending..." : "Send Proposal"}

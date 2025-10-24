@@ -2,10 +2,11 @@ import { NextRequest, NextResponse } from "next/server";
 import { PrismaClient, Proposal } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { format } from "date-fns"; // NEW: Import to fix TS2552 errors
 
 const prisma = new PrismaClient();
 
-// Extend Proposal type to include relations
+// Extend Proposal type to include relations (now used in GET)
 type ProposalWithRelations = Proposal & {
   user: { name: string | null };
   specialist: { name: string; rate: number | null };
@@ -44,8 +45,8 @@ export async function GET(req: NextRequest) {
 
     const whereClause =
       role === "specialist"
-        ? { specialistId: specialistApp!.specialistId!, date: dateFilter } // Sent proposals
-        : { userId, date: dateFilter }; // Received proposals
+        ? { specialistId: specialistApp!.specialistId!, startTime: dateFilter } // UPDATED: Use startTime for filtering
+        : { userId, startTime: dateFilter }; // UPDATED
 
     const proposals = await prisma.proposal.findMany({
       where: whereClause,
@@ -58,12 +59,14 @@ export async function GET(req: NextRequest) {
 
     return NextResponse.json({
       proposals: proposals.map((p: ProposalWithRelations) => ({
+        // UPDATED: Use ProposalWithRelations to fix no-explicit-any
         id: p.id,
         userId: p.userId,
         specialistId: p.specialistId,
         conversationId: p.conversationId,
-        date: p.date,
-        time: p.time,
+        startTime: p.startTime,
+        endTime: p.endTime,
+        venue: p.venue,
         status: p.status,
         initiator: p.initiator,
         user: { name: p.user.name || "User" },
@@ -91,12 +94,18 @@ export async function POST(req: NextRequest) {
     let recipientId: string;
     let specialistId: string;
     let userId: string;
-    const date = new Date(body.date);
-    const time = body.time;
+    const startTime = new Date(body.startTime); // UPDATED: Use startTime/endTime
+    const endTime = new Date(body.endTime);
+    const venue = body.venue; // NEW: Venue from body
 
-    if (!date || !time) {
+    if (
+      !startTime ||
+      !endTime ||
+      startTime >= endTime ||
+      startTime < new Date()
+    ) {
       return NextResponse.json(
-        { error: "Missing required fields: date or time" },
+        { error: "Invalid time range" },
         { status: 400 }
       );
     }
@@ -163,24 +172,95 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // NO AVAILABILITY CHECK: Per spec, allow any timeslot (specialist regardless; extended to user requests)
+    // NEW: Fetch specialist details for venue and rate
+    const specialist = await prisma.specialist.findUnique({
+      where: { id: specialistId },
+      select: { venue: true, rate: true },
+    });
+    if (!specialist) {
+      return NextResponse.json(
+        { error: "Specialist not found" },
+        { status: 404 }
+      );
+    }
+
+    // NEW: Determine final venue
+    let finalVenue: "host" | "visit" | undefined;
+    if (specialist.venue === "both") {
+      if (!venue)
+        return NextResponse.json({ error: "Venue required" }, { status: 400 });
+      finalVenue = venue;
+    } else {
+      finalVenue = specialist.venue as "host" | "visit"; // UPDATED: Type assertion to fix TS2367 (exclude "both" from type)
+    }
+
+    // NEW: Overlap check
+    const overlapping = await prisma.appointment.findFirst({
+      where: {
+        specialistId,
+        status: { in: ["upcoming", "pending", "break"] },
+        startTime: { lt: endTime },
+        endTime: { gt: startTime },
+      },
+    });
+    if (overlapping) {
+      return NextResponse.json(
+        { error: "SLOT_ALREADY_BOOKED" },
+        { status: 409 }
+      );
+    }
+
+    // NEW: Buffer check (reuse logic from schedule/booking)
+    const dayStart = new Date(startTime);
+    dayStart.setHours(0, 0, 0, 0);
+    const dayEnd = new Date(startTime);
+    dayEnd.setHours(23, 59, 59, 999);
+
+    const dayAppointments = await prisma.appointment.findMany({
+      where: {
+        specialistId,
+        status: { in: ["upcoming", "pending", "break"] },
+        startTime: { gte: dayStart, lte: dayEnd },
+      },
+      orderBy: { startTime: "asc" },
+    });
+
+    let hasBufferViolation = false;
+    for (let i = 0; i < dayAppointments.length - 1; i++) {
+      const curr = dayAppointments[i];
+      const bufferStart = new Date(curr.endTime);
+      const bufferEnd = new Date(bufferStart.getTime() + 30 * 60 * 1000);
+      if (startTime < bufferEnd && endTime > bufferStart) {
+        hasBufferViolation = true;
+        break;
+      }
+    }
+    if (hasBufferViolation) {
+      return NextResponse.json(
+        { error: "INVALID_TIME_BUFFER" },
+        { status: 409 }
+      );
+    }
+
+    // REMOVED: Working hours check (as per user request; specialists can propose any time)
 
     const proposal = await prisma.proposal.create({
       data: {
         specialistId,
         userId,
         conversationId,
-        date,
-        time,
+        startTime, // UPDATED
+        endTime, // UPDATED
+        venue: finalVenue, // NEW
         status: "pending",
-        initiator: isSpecialist ? "specialist" : "user", // Set based on initiator
+        initiator: isSpecialist ? "specialist" : "user",
       },
     });
 
-    // Tailored message based on initiator
+    // UPDATED: Tailored message with range
     const messageText = isSpecialist
-      ? `Session proposal: ${date.toLocaleDateString()} at ${time}. Please accept or reject.`
-      : `Appointment request: ${date.toLocaleDateString()} at ${time}. Please accept or decline.`;
+      ? `Session proposal: ${format(startTime, "MMMM d, yyyy h:mm a")} to ${format(endTime, "h:mm a")}. Venue: ${finalVenue || "TBD"}. Please accept or reject.`
+      : `Appointment request: ${format(startTime, "MMMM d, yyyy h:mm a")} to ${format(endTime, "h:mm a")}. Venue: ${finalVenue || "TBD"}. Please accept or decline.`;
 
     await prisma.message.create({
       data: {
