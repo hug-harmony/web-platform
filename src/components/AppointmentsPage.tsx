@@ -56,8 +56,9 @@ interface Proposal {
   id: string;
   userId: string;
   specialistId: string;
-  date: string;
-  time: string;
+  startTime: string; // UPDATED: Replaced date
+  endTime: string; // UPDATED: Replaced time
+  venue?: "host" | "visit"; // NEW: Optional venue
   status: "pending" | "accepted" | "rejected";
   conversationId: string;
   user: { name: string };
@@ -257,11 +258,10 @@ export default function AppointmentsPage() {
       const displayName = proposal.isReceived
         ? proposal.specialist.name
         : proposal.user.name;
-      const start = moment(`${proposal.date} ${proposal.time}`).toDate();
       return {
         title: `Proposal: ${displayName} (${proposal.status})`,
-        start,
-        end: moment(start).add(1, "hour").toDate(),
+        start: new Date(proposal.startTime), // UPDATED: Use startTime
+        end: new Date(proposal.endTime), // UPDATED: Use endTime
         resource: {
           type: "proposal" as const,
           data: proposal,
