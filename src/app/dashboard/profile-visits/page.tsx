@@ -1,7 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -28,6 +27,7 @@ import {
 import { Input } from "@/components/ui/input";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
+import useSWR, { mutate } from "swr";
 
 interface ProfileVisit {
   id: string;
@@ -35,7 +35,6 @@ interface ProfileVisit {
   visited: { id: string; name: string; type: "user" | "specialist" };
   createdAt: string;
 }
-
 interface VisitorStats {
   userId: string;
   name: string;
@@ -43,6 +42,12 @@ interface VisitorStats {
   visitCount: number;
   lastVisit: string;
 }
+
+const fetcher = (url: string) =>
+  fetch(url, { credentials: "include" }).then((res) => {
+    if (!res.ok) throw new Error("Failed");
+    return res.json();
+  });
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -52,76 +57,47 @@ const containerVariants = {
     transition: { duration: 0.5, staggerChildren: 0.2 },
   },
 };
-
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
 
 export default function ProfileVisitsPage() {
-  const [visits, setVisits] = useState<ProfileVisit[]>([]);
-  const [filteredVisitors, setFilteredVisitors] = useState<VisitorStats[]>([]);
-  const [loading, setLoading] = useState(true);
-  const [error, setError] = useState<string | null>(null);
   const [filter, setFilter] = useState<"today" | "7d" | "30d" | "all">("7d");
   const [searchQuery, setSearchQuery] = useState("");
   const { status } = useSession();
   const router = useRouter();
 
-  useEffect(() => {
-    const fetchVisits = async () => {
-      try {
-        const response = await fetch(`/api/profile-visits?filter=${filter}`, {
-          method: "GET",
-          headers: { "Content-Type": "application/json" },
-          credentials: "include",
-        });
-
-        if (!response.ok) {
-          if (response.status === 401) {
-            router.push("/login");
-            return;
-          }
-          throw new Error(`Failed to fetch visits: ${response.status}`);
-        }
-
-        const data = await response.json();
-        setVisits(Array.isArray(data.visits) ? data.visits : []);
-
-        const visitorMap = new Map<string, VisitorStats>();
-        data.visits.forEach((visit: ProfileVisit) => {
-          const existing = visitorMap.get(visit.user.id) || {
-            userId: visit.user.id,
-            name: visit.user.name || "User",
-            avatar: visit.user.avatar || null,
-            visitCount: 0,
-            lastVisit: visit.createdAt,
-          };
-          existing.visitCount += 1;
-          existing.lastVisit =
-            new Date(visit.createdAt) > new Date(existing.lastVisit)
-              ? visit.createdAt
-              : existing.lastVisit;
-          visitorMap.set(visit.user.id, existing);
-        });
-        setFilteredVisitors(Array.from(visitorMap.values()));
-      } catch (err: any) {
-        console.error("Fetch Visits Error:", err.message);
-        setError("Failed to load profile visits. Please try again.");
-        toast.error("Failed to load profile visits");
-      } finally {
-        setLoading(false);
-      }
+  const { data, error, isLoading } = useSWR(
+    `/api/profile-visits?filter=${filter}`,
+    fetcher
+  );
+  const visits: ProfileVisit[] = data?.visits || [];
+  const visitorMap = new Map<string, VisitorStats>();
+  visits.forEach((visit: ProfileVisit) => {
+    const existing = visitorMap.get(visit.user.id) || {
+      userId: visit.user.id,
+      name: visit.user.name || "User",
+      avatar: visit.user.avatar || null,
+      visitCount: 0,
+      lastVisit: visit.createdAt,
     };
-
-    if (status === "authenticated") {
-      fetchVisits();
-    }
-  }, [filter, status, router]);
+    existing.visitCount += 1;
+    existing.lastVisit =
+      new Date(visit.createdAt) > new Date(existing.lastVisit)
+        ? visit.createdAt
+        : existing.lastVisit;
+    visitorMap.set(visit.user.id, existing);
+  });
+  const filteredVisitors = Array.from(visitorMap.values()).filter((v) =>
+    searchQuery
+      ? v.name.toLowerCase().includes(searchQuery.toLowerCase())
+      : true
+  );
 
   const handleMessageClick = async (userId: string) => {
     if (!userId || !/^[0-9a-fA-F]{24}$/.test(userId)) {
-      toast.error("Invalid or missing user ID");
+      toast.error("Invalid user ID");
       return;
     }
     try {
@@ -131,48 +107,22 @@ export default function ProfileVisitsPage() {
         body: JSON.stringify({ recipientId: userId }),
         credentials: "include",
       });
-      if (!res.ok) {
-        throw new Error(`Failed to create conversation: ${res.status}`);
-      }
+      if (!res.ok) throw new Error("Failed");
       const conversation = await res.json();
-      if (conversation.id) {
-        router.push(`/dashboard/messaging/${conversation.id}`);
-      } else {
-        throw new Error("No conversation ID returned");
-      }
-    } catch (error: any) {
-      console.error("Error creating conversation:", error);
+      router.push(`/dashboard/messaging/${conversation.id}`);
+    } catch {
       toast.error("Failed to start conversation");
     }
   };
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
-
   const handleFilterChange = (value: "today" | "7d" | "30d" | "all") => {
     setFilter(value);
+    mutate(`/api/profile-visits?filter=${value}`);
   };
 
-  const filterVisitors = (data: VisitorStats[]) =>
-    data.filter((visitor) =>
-      searchQuery
-        ? visitor.name.toLowerCase().includes(searchQuery.toLowerCase())
-        : true
-    );
-
-  const totalVisits = visits.length;
-  const uniqueVisitors = filteredVisitors.length;
-  const displayedVisitors = filterVisitors(filteredVisitors);
-
-  if (status === "loading" || loading) {
+  if (status === "loading" || isLoading)
     return (
-      <motion.div
-        className="space-y-6 w-full max-w-7xl mx-auto"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
+      <div className="space-y-6 w-full max-w-7xl mx-auto">
         <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
           <CardHeader>
             <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
@@ -198,14 +148,16 @@ export default function ProfileVisitsPage() {
             </div>
           </CardContent>
         </Card>
-      </motion.div>
+      </div>
     );
-  }
 
   if (status === "unauthenticated") {
     router.push("/login");
     return null;
   }
+
+  const totalVisits = visits.length;
+  const uniqueVisitors = filteredVisitors.length;
 
   return (
     <motion.div
@@ -241,7 +193,7 @@ export default function ProfileVisitsPage() {
                 type="text"
                 placeholder="Search by visitor name..."
                 value={searchQuery}
-                onChange={handleSearchChange}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
               />
             </div>
@@ -305,30 +257,24 @@ export default function ProfileVisitsPage() {
               {error ? (
                 <motion.div
                   variants={cardVariants}
-                  initial="hidden"
-                  animate="visible"
                   className="text-red-500 text-center"
                 >
-                  {error}
+                  {error.message}
                 </motion.div>
-              ) : displayedVisitors.length === 0 ? (
+              ) : filteredVisitors.length === 0 ? (
                 <motion.div
                   variants={cardVariants}
-                  initial="hidden"
-                  animate="visible"
                   className="text-center text-[#C4C4C4]"
                 >
                   No profile visits found.
                 </motion.div>
               ) : (
                 <ScrollArea className="h-[400px]">
-                  {displayedVisitors.map((visitor) => (
+                  {filteredVisitors.map((visitor) => (
                     <motion.div
                       key={visitor.userId}
                       variants={cardVariants}
-                      whileHover={{
-                        scale: 1.0,
-                      }}
+                      whileHover={{ scale: 1.0 }}
                       transition={{ duration: 0.2 }}
                       className="flex items-center justify-between p-2 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
                     >

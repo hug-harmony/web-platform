@@ -47,17 +47,16 @@ import {
 } from "@/components/ui/select";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
+import { mutate } from "swr";
 
 const containerVariants = {
   hidden: { opacity: 0 },
   visible: { opacity: 1, transition: { staggerChildren: 0.2 } },
 };
-
 const itemVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
 };
-
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
@@ -85,7 +84,6 @@ interface Profile {
   petOwnership?: string;
   venue?: string;
 }
-
 interface Review {
   id: string;
   rating: number;
@@ -94,7 +92,6 @@ interface Review {
   reviewerName: string;
   createdAt: string;
 }
-
 interface Discount {
   id: string;
   name: string;
@@ -102,12 +99,8 @@ interface Discount {
   discount: number;
   createdAt: string;
   updatedAt: string;
-  specialist: {
-    id: string;
-    name: string;
-  };
+  specialist: { id: string; name: string };
 }
-
 interface Props {
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
@@ -184,23 +177,16 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
           cache: "no-store",
           credentials: "include",
         });
-        if (reviewsRes.ok) {
-          const reviewsData = await reviewsRes.json();
-          setReviews(reviewsData);
-        } else {
-          throw new Error(`Failed to fetch reviews: ${reviewsRes.status}`);
-        }
+        if (reviewsRes.ok) setReviews(await reviewsRes.json());
+        else throw new Error(`Failed to fetch reviews: ${reviewsRes.status}`);
 
         const discountsRes = await fetch(`/api/discounts/specialist/${id}`, {
           cache: "no-store",
           credentials: "include",
         });
-        if (discountsRes.ok) {
-          const discountsData = await discountsRes.json();
-          setDiscounts(discountsData);
-        } else {
+        if (discountsRes.ok) setDiscounts(await discountsRes.json());
+        else
           throw new Error(`Failed to fetch discounts: ${discountsRes.status}`);
-        }
       } catch (err: any) {
         console.error("Fetch Error:", err.message, err.stack);
         setError(
@@ -220,11 +206,19 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
     const recordVisit = async () => {
       try {
         const { id } = await params;
-        await fetch("/api/profile-visits", {
+        const res = await fetch("/api/profile-visits", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({ specialistId: id }),
         });
+        if (res.ok) {
+          // Revalidate all filter keys
+          mutate(
+            (key) =>
+              typeof key === "string" &&
+              key.startsWith("/api/profile-visits?filter=")
+          );
+        }
       } catch (error) {
         console.error("Error recording profile visit:", error);
       }
@@ -238,52 +232,42 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
       toast.error("Please wait while we check your session");
       return;
     }
-
     if (!session?.user?.id) {
       toast.error("Please log in to start a chat");
       router.push("/login");
       return;
     }
-
     if (!profile) {
       toast.error("Profile not loaded");
       return;
     }
 
     try {
-      // Fetch specialist WITH userId from application
       const res = await fetch(`/api/specialists?id=${profile._id}`, {
         credentials: "include",
       });
-
       if (!res.ok) {
         const err = await res.json();
         throw new Error(err.error || "Failed to load specialist");
       }
-
       const data = await res.json();
-
       if (!data.userId) {
         toast.error("This specialist is not available for chat");
         return;
       }
 
-      // Now create conversation using the USER ID
       const convRes = await fetch("/api/conversations", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ recipientId: data.userId }),
         credentials: "include",
       });
-
       if (!convRes.ok) {
         const err = await convRes.json();
         throw new Error(err.error || "Failed to start chat");
       }
-
       const conversation = await convRes.json();
       if (!conversation.id) throw new Error("Invalid conversation");
-
       router.push(`/dashboard/messaging/${conversation.id}`);
     } catch (error) {
       const msg =
@@ -359,10 +343,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
       const res = await fetch("/api/notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          targetSpecialistId: id,
-          content: noteContent,
-        }),
+        body: JSON.stringify({ targetSpecialistId: id, content: noteContent }),
       });
       if (!res.ok) throw new Error("Failed to save note");
       toast.success("Note saved successfully");
@@ -391,7 +372,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
     ));
   };
 
-  if (loading) {
+  if (loading)
     return (
       <div className="p-4 space-y-6 max-w-7xl mx-auto">
         <Card className="shadow-lg pt-0 overflow-hidden">
@@ -429,15 +410,13 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         </Card>
       </div>
     );
-  }
 
-  if (error || !profile) {
+  if (error || !profile)
     return (
       <div className="text-center p-6 text-red-500">
         {error || "Profile not found."}
       </div>
     );
-  }
 
   const validImageSrc = profile.image || "/register.jpg";
   const tagsArray = profile.tags
