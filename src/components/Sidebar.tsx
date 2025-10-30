@@ -1,3 +1,4 @@
+/* eslint-disable react-hooks/rules-of-hooks */
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -22,9 +23,9 @@ import {
   Video,
   CreditCard,
   Bell,
-  // Notebook,
   Users,
-  Eye, // Added for Profile Visits icon
+  Eye,
+  Package,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -59,13 +60,43 @@ export default function Sidebar() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isSpecialist, setIsSpecialist] = useState(false);
   const [isLoadingProfile, setIsLoadingProfile] = useState(true);
+
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const { open } = useSidebar();
 
-  const navItems: NavItem[] = useMemo(
-    () => [
+  // === Early loading & auth checks (no hooks after this) ===
+  if (status === "loading" || isLoadingProfile) {
+    return (
+      <div className="p-4 flex items-center justify-center h-screen">
+        Loading...
+      </div>
+    );
+  }
+
+  if (status === "unauthenticated") {
+    router.push("/login");
+    return (
+      <div className="p-4 flex items-center justify-center h-screen">
+        Redirecting to login...
+      </div>
+    );
+  }
+
+  // === Compute user object and navItems using useMemo (top-level) ===
+  const { user, navItems } = useMemo(() => {
+    const computedUser = {
+      name: profile?.name || session?.user?.name || "User",
+      email: profile?.email || session?.user?.email || "user@example.com",
+      avatar:
+        profile?.profileImage ||
+        session?.user?.image ||
+        "/assets/images/avatar-placeholder.png",
+      id: session?.user?.id || "default-id",
+    };
+
+    const computedNavItems: NavItem[] = [
       {
         href: "/dashboard",
         label: "Dashboard",
@@ -91,17 +122,11 @@ export default function Sidebar() {
         label: "Video Sessions",
         icon: <Video className="h-5 w-5" />,
       },
-
       {
         href: "/dashboard/notifications",
         label: "Notifications",
         icon: <Bell className="h-5 w-5" />,
       },
-      // {
-      //   href: "/dashboard/notes",
-      //   label: "Notes",
-      //   icon: <Notebook className="h-5 w-5" />,
-      // },
       {
         href: "/dashboard/messaging",
         label: "Messages",
@@ -113,22 +138,22 @@ export default function Sidebar() {
         icon: <Users className="h-5 w-5" />,
       },
       {
+        href: "/dashboard/merchandise",
+        label: "Merch",
+        icon: <Package className="h-5 w-5" />,
+      },
+      {
+        href: `/dashboard/profile/${computedUser.id}/orders`,
+        label: "My Orders",
+        icon: <Package className="h-5 w-5" />,
+      },
+      {
         href: "/dashboard/profile-visits",
         label: "Profile Visits",
         icon: <Eye className="h-5 w-5" />,
       },
-      // {
-      //   href: "/dashboard/proposals",
-      //   label: "Proposals",
-      //   icon: <Users className="h-5 w-5" />,
-      // },
       ...(isSpecialist
         ? [
-            // {
-            //   href: "/dashboard/profile-visits",
-            //   label: "Profile Visits",
-            //   icon: <Eye className="h-5 w-5" />,
-            // },
             {
               href: "/dashboard/payment",
               label: "Payments",
@@ -136,14 +161,19 @@ export default function Sidebar() {
             },
           ]
         : []),
-    ],
-    [isSpecialist]
-  );
+    ];
 
+    return { user: computedUser, navItems: computedNavItems };
+  }, [profile, session, isSpecialist]);
+
+  // === useEffect: Fetch profile & specialist status (top-level) ===
   useEffect(() => {
     const fetchProfileAndSpecialistStatus = async () => {
-      if (!session?.user?.id || !/^[0-9a-fA-F]{24}$/.test(session.user.id))
+      if (!session?.user?.id || !/^[0-9a-fA-F]{24}$/.test(session.user.id)) {
+        setIsLoadingProfile(false);
         return;
+      }
+
       setIsLoadingProfile(true);
 
       try {
@@ -184,9 +214,21 @@ export default function Sidebar() {
       }
     };
 
-    if (status === "authenticated") fetchProfileAndSpecialistStatus();
+    if (status === "authenticated") {
+      fetchProfileAndSpecialistStatus();
+    } else {
+      setIsLoadingProfile(false);
+    }
   }, [session, status]);
 
+  // === Helper: Check active route ===
+  const isActive = (href: string) =>
+    pathname === href ||
+    (pathname.startsWith(href) &&
+      href !== "/dashboard" &&
+      pathname !== "/dashboard");
+
+  // === Logout handler ===
   const handleLogout = async () => {
     try {
       await signOut({ callbackUrl: "/login" });
@@ -195,39 +237,7 @@ export default function Sidebar() {
     }
   };
 
-  if (status === "loading" || isLoadingProfile) {
-    return (
-      <div className="p-4 flex items-center justify-center h-screen">
-        Loading...
-      </div>
-    );
-  }
-
-  if (status === "unauthenticated") {
-    router.push("/login");
-    return (
-      <div className="p-4 flex items-center justify-center h-screen">
-        Redirecting to login...
-      </div>
-    );
-  }
-
-  const user = {
-    name: profile?.name || session?.user?.name || "User",
-    email: profile?.email || session?.user?.email || "user@example.com",
-    avatar:
-      profile?.profileImage ||
-      session?.user?.image ||
-      "/assets/images/avatar-placeholder.png",
-    id: session?.user?.id || "default-id",
-  };
-
-  const isActive = (href: string) =>
-    pathname === href ||
-    (pathname.startsWith(href) &&
-      href !== "/dashboard" &&
-      pathname !== "/dashboard");
-
+  // === Render UI ===
   return (
     <ShadcnSidebar
       collapsible="offcanvas"

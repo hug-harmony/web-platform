@@ -1,9 +1,16 @@
+/* eslint-disable react-hooks/exhaustive-deps */
 // app/components/BottomNav.tsx
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { usePathname, useRouter } from "next/navigation";
-import { Home, Calendar, MessageSquare, MoreHorizontal } from "lucide-react";
+import { usePathname } from "next/navigation";
+import {
+  Home,
+  Calendar,
+  MessageSquare,
+  MoreHorizontal,
+  Package,
+} from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
@@ -30,7 +37,7 @@ interface NavItem {
 
 export default function BottomNav() {
   const pathname = usePathname();
-  const router = useRouter();
+
   const { data: session } = useSession();
   const [isSpecialist, setIsSpecialist] = useState(false);
   const [open, setOpen] = useState(false);
@@ -90,6 +97,16 @@ export default function BottomNav() {
         href: "/dashboard/messaging",
         label: "Messages",
         icon: <MessageIcon className="h-5 w-5" />,
+      },
+      {
+        href: "/dashboard/merchandise",
+        label: "Merch",
+        icon: <Package className="h-6 w-6" />,
+      },
+      {
+        href: `/dashboard/profile/${session?.user?.id}/orders`,
+        label: "My Orders",
+        icon: <Package className="h-5 w-5" />,
       },
       {
         href: "/dashboard/forum",

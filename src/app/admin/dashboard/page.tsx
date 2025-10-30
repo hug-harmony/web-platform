@@ -4,7 +4,14 @@ import { useSession } from "next-auth/react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Users, UserCheck, BarChart, Flag, Calendar } from "lucide-react";
+import {
+  Users,
+  UserCheck,
+  BarChart,
+  Flag,
+  Calendar,
+  Package,
+} from "lucide-react";
 import Link from "next/link";
 
 interface AdminUser {
@@ -60,6 +67,12 @@ export default function AdminDashboardPage() {
       label: "Bookings & Payments",
       icon: <Calendar className="h-8 w-8 text-[#F3CFC6]" />,
       description: "Manage bookings and payments.",
+    },
+    {
+      href: "/admin/dashboard/merchandise",
+      label: "Merchandise",
+      icon: <Package className="h-8 w-8 text-[#F3CFC6]" />,
+      description: "Manage merchandise.",
     },
   ];
 

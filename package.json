@@ -34,6 +34,9 @@
     "@radix-ui/react-tabs": "^1.1.12",
     "@radix-ui/react-tooltip": "^1.2.7",
     "@supabase/supabase-js": "^2.55.0",
+    "@tiptap/core": "^3.10.0",
+    "@tiptap/react": "^3.10.0",
+    "@tiptap/starter-kit": "^3.10.0",
     "@types/leaflet": "^1.9.20",
     "@types/react-leaflet": "^2.8.3",
     "@vercel/analytics": "^1.5.0",
@@ -78,7 +81,8 @@
     "swr": "^2.3.6",
     "tailwind-merge": "^3.3.1",
     "vaul": "^1.1.2",
-    "zod": "^3.25.76"
+    "zod": "^3.25.76",
+    "zustand": "^5.0.8"
   },
   "devDependencies": {
     "@eslint/eslintrc": "^3",
