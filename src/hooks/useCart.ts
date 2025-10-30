@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { create } from "zustand";
-import { persist } from "zustand/middleware";
+import { persist, createJSONStorage } from "zustand/middleware";
 
-interface CartItem {
+// === Types ===
+export interface CartItem {
   id: string;
   name: string;
   price: number;
@@ -11,39 +11,87 @@ interface CartItem {
   quantity: number;
 }
 
-interface CartStore {
+interface CartState {
   cart: CartItem[];
-  addToCart: (item: any) => void;
+  isLoading: boolean;
+  // Actions
+  addToCart: (item: Omit<CartItem, "quantity">) => void;
   removeFromCart: (id: string) => void;
   updateQuantity: (id: string, quantity: number) => void;
   clearCart: () => void;
+  setLoading: (loading: boolean) => void;
+  // Getters
+  getTotal: () => number;
+  getItemCount: () => number;
 }
 
-export const useCart = create<CartStore>()(
+// === Store ===
+export const useCart = create<CartState>()(
   persist(
-    (set) => ({
+    (set, get) => ({
       cart: [],
+      isLoading: false,
+
+      // === Actions ===
       addToCart: (item) =>
-        set((s) => {
-          const existing = s.cart.find((i) => i.id === item.id);
-          if (existing)
+        set((state) => {
+          const existing = state.cart.find((i) => i.id === item.id);
+          if (existing) {
+            const newQty = existing.quantity + 1;
+            if (newQty > item.stock) return state; // Stock limit
             return {
-              cart: s.cart.map((i) =>
-                i.id === item.id ? { ...i, quantity: i.quantity + 1 } : i
+              cart: state.cart.map((i) =>
+                i.id === item.id ? { ...i, quantity: newQty } : i
               ),
             };
-          return { cart: [...s.cart, { ...item, quantity: 1 }] };
+          }
+          return {
+            cart: [...state.cart, { ...item, quantity: 1 }],
+          };
         }),
+
       removeFromCart: (id) =>
-        set((s) => ({ cart: s.cart.filter((i) => i.id !== id) })),
-      updateQuantity: (id, quantity) =>
-        set((s) => ({
-          cart: s.cart.map((i) =>
-            i.id === id ? { ...i, quantity: Math.max(1, quantity) } : i
-          ),
+        set((state) => ({
+          cart: state.cart.filter((i) => i.id !== id),
         })),
+
+      updateQuantity: (id, quantity) =>
+        set((state) => {
+          const item = state.cart.find((i) => i.id === id);
+          if (!item) return state;
+          const clamped = Math.max(1, Math.min(quantity, item.stock));
+          if (clamped === item.quantity) return state;
+          return {
+            cart: state.cart.map((i) =>
+              i.id === id ? { ...i, quantity: clamped } : i
+            ),
+          };
+        }),
+
       clearCart: () => set({ cart: [] }),
+
+      setLoading: (loading) => set({ isLoading: loading }),
+
+      // === Getters ===
+      getTotal: () => {
+        const { cart } = get();
+        return cart.reduce((sum, i) => sum + i.price * i.quantity, 0);
+      },
+
+      getItemCount: () => {
+        const { cart } = get();
+        return cart.reduce((sum, i) => sum + i.quantity, 0);
+      },
     }),
-    { name: "cart-storage" }
+    {
+      name: "cart-storage",
+      storage: createJSONStorage(() => localStorage),
+      // Optional: Only persist cart items
+      partialize: (state) => ({ cart: state.cart }),
+      // Rehydrate safely
+      onRehydrateStorage: () => (state) => {
+        if (state) state.setLoading(false);
+      },
+    }
   )
 );
