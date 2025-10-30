@@ -1,4 +1,3 @@
-/* eslint-disable react-hooks/rules-of-hooks */
 "use client";
 
 import { useEffect, useState, useMemo } from "react";
@@ -59,44 +58,74 @@ interface Profile {
 export default function Sidebar() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isSpecialist, setIsSpecialist] = useState(false);
-  const [isLoadingProfile, setIsLoadingProfile] = useState(true);
 
   const router = useRouter();
   const pathname = usePathname();
   const { data: session, status } = useSession();
   const { open } = useSidebar();
 
-  // === Early loading & auth checks (no hooks after this) ===
-  if (status === "loading" || isLoadingProfile) {
-    return (
-      <div className="p-4 flex items-center justify-center h-screen">
-        Loading...
-      </div>
-    );
-  }
+  // === Fetch profile (non-blocking) ===
+  useEffect(() => {
+    const fetchProfileAndSpecialistStatus = async () => {
+      if (!session?.user?.id) return;
 
-  if (status === "unauthenticated") {
-    router.push("/login");
-    return (
-      <div className="p-4 flex items-center justify-center h-screen">
-        Redirecting to login...
-      </div>
-    );
-  }
+      try {
+        const [profileRes, specialistRes] = await Promise.all([
+          fetch(`/api/users/${session.user.id}`, {
+            cache: "no-store",
+            credentials: "include",
+          }),
+          fetch("/api/specialists/application/me", {
+            cache: "no-store",
+            credentials: "include",
+          }),
+        ]);
 
-  // === Compute user object and navItems using useMemo (top-level) ===
-  const { user, navItems } = useMemo(() => {
-    const computedUser = {
+        if (profileRes.ok) {
+          const data = await profileRes.json();
+          setProfile({
+            id: data.id,
+            name:
+              data.firstName && data.lastName
+                ? `${data.firstName} ${data.lastName}`
+                : data.name,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            profileImage: data.profileImage,
+          });
+        }
+
+        if (specialistRes.ok) {
+          const { status } = await specialistRes.json();
+          setIsSpecialist(status === "approved");
+        }
+      } catch (error) {
+        console.error("Fetch Error:", error);
+      }
+    };
+
+    if (status === "authenticated") {
+      fetchProfileAndSpecialistStatus();
+    }
+  }, [session, status]);
+
+  // === Compute user info (from session + profile override) ===
+  const user = useMemo(() => {
+    return {
+      id: session?.user?.id || "default-id",
       name: profile?.name || session?.user?.name || "User",
       email: profile?.email || session?.user?.email || "user@example.com",
       avatar:
         profile?.profileImage ||
         session?.user?.image ||
         "/assets/images/avatar-placeholder.png",
-      id: session?.user?.id || "default-id",
     };
+  }, [profile, session]);
 
-    const computedNavItems: NavItem[] = [
+  // === Nav items ===
+  const navItems: NavItem[] = useMemo(() => {
+    const base = [
       {
         href: "/dashboard",
         label: "Dashboard",
@@ -143,7 +172,7 @@ export default function Sidebar() {
         icon: <Package className="h-5 w-5" />,
       },
       {
-        href: `/dashboard/profile/${computedUser.id}/orders`,
+        href: `/dashboard/profile/${user.id}/orders`,
         label: "My Orders",
         icon: <Package className="h-5 w-5" />,
       },
@@ -152,83 +181,25 @@ export default function Sidebar() {
         label: "Profile Visits",
         icon: <Eye className="h-5 w-5" />,
       },
-      ...(isSpecialist
-        ? [
-            {
-              href: "/dashboard/payment",
-              label: "Payments",
-              icon: <CreditCard className="h-5 w-5" />,
-            },
-          ]
-        : []),
     ];
+    return isSpecialist
+      ? [
+          ...base,
+          {
+            href: "/dashboard/payment",
+            label: "Payments",
+            icon: <CreditCard className="h-5 w-5" />,
+          },
+        ]
+      : base;
+  }, [user.id, isSpecialist]);
 
-    return { user: computedUser, navItems: computedNavItems };
-  }, [profile, session, isSpecialist]);
-
-  // === useEffect: Fetch profile & specialist status (top-level) ===
-  useEffect(() => {
-    const fetchProfileAndSpecialistStatus = async () => {
-      if (!session?.user?.id || !/^[0-9a-fA-F]{24}$/.test(session.user.id)) {
-        setIsLoadingProfile(false);
-        return;
-      }
-
-      setIsLoadingProfile(true);
-
-      try {
-        const [profileRes, specialistRes] = await Promise.all([
-          fetch(`/api/users/${session.user.id}`, {
-            cache: "no-store",
-            credentials: "include",
-          }),
-          fetch("/api/specialists/application/me", {
-            cache: "no-store",
-            credentials: "include",
-          }),
-        ]);
-
-        if (profileRes.ok) {
-          const data = await profileRes.json();
-          setProfile({
-            id: data.id,
-            name:
-              data.firstName && data.lastName
-                ? `${data.firstName} ${data.lastName}`
-                : null,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            email: data.email,
-            profileImage: data.profileImage,
-          });
-        }
-
-        if (specialistRes.ok) {
-          const { status } = await specialistRes.json();
-          setIsSpecialist(status === "approved");
-        }
-      } catch (error) {
-        console.error("Fetch Error:", error);
-      } finally {
-        setIsLoadingProfile(false);
-      }
-    };
-
-    if (status === "authenticated") {
-      fetchProfileAndSpecialistStatus();
-    } else {
-      setIsLoadingProfile(false);
-    }
-  }, [session, status]);
-
-  // === Helper: Check active route ===
   const isActive = (href: string) =>
     pathname === href ||
     (pathname.startsWith(href) &&
       href !== "/dashboard" &&
       pathname !== "/dashboard");
 
-  // === Logout handler ===
   const handleLogout = async () => {
     try {
       await signOut({ callbackUrl: "/login" });
@@ -241,7 +212,7 @@ export default function Sidebar() {
   return (
     <ShadcnSidebar
       collapsible="offcanvas"
-      className="fixed inset-y-0 z-10 bg-white border-r transition-[width] duration-200 ease-linear group-data-[collapsible=icon]:w-[80px] w-[fit-content] md:group-data-[collapsible=offcanvas]:left-0 group-data-[collapsible=offcanvas]:left-[-280px]"
+      className="fixed inset-y-0 z-10 bg-white border-r transition-[width] duration-200 ease-linear group-data-[collapsible=icon]:w-[80px]"
     >
       <SidebarHeader className="p-4">
         <div className="flex flex-col gap-4">
@@ -253,30 +224,32 @@ export default function Sidebar() {
                   initial={{ opacity: 0, width: 0 }}
                   animate={{ opacity: 1, width: "auto" }}
                   exit={{ opacity: 0, width: 0 }}
-                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  transition={{ duration: 0.2 }}
                 >
                   <NotificationsDropdown />
                 </motion.div>
               )}
             </AnimatePresence>
           </div>
+
+          {/* User section */}
           <div
-            className="flex items-center space-x-3 cursor-pointer group-data-[collapsible=offcanvas]:pointer-events-none"
+            className="flex items-center space-x-3 cursor-pointer"
             onClick={() => router.push(`/dashboard/profile/${user.id}`)}
             role="button"
-            aria-label={`View profile of ${user.name}`}
           >
             <Avatar className="h-10 w-10">
               <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>{user.name.charAt(0)}</AvatarFallback>
+              <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
             </Avatar>
+
             <AnimatePresence>
               {open && (
                 <motion.div
                   initial={{ opacity: 0, width: 0 }}
                   animate={{ opacity: 1, width: "auto" }}
                   exit={{ opacity: 0, width: 0 }}
-                  transition={{ duration: 0.2, ease: "easeInOut" }}
+                  transition={{ duration: 0.2 }}
                 >
                   <p className="font-semibold">{user.name}</p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
@@ -300,12 +273,13 @@ export default function Sidebar() {
                 initial={{ opacity: 0, height: 0 }}
                 animate={{ opacity: 1, height: "auto" }}
                 exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2, ease: "easeInOut" }}
+                transition={{ duration: 0.2 }}
               >
                 <SidebarGroupLabel>Navigation</SidebarGroupLabel>
               </motion.div>
             )}
           </AnimatePresence>
+
           <SidebarMenu>
             <TooltipProvider>
               {navItems.map((item) => (
@@ -329,10 +303,7 @@ export default function Sidebar() {
                                 initial={{ opacity: 0, width: 0 }}
                                 animate={{ opacity: 1, width: "auto" }}
                                 exit={{ opacity: 0, width: 0 }}
-                                transition={{
-                                  duration: 0.2,
-                                  ease: "easeInOut",
-                                }}
+                                transition={{ duration: 0.2 }}
                                 className="truncate"
                               >
                                 {item.label}
@@ -344,7 +315,7 @@ export default function Sidebar() {
                     </TooltipTrigger>
                     <TooltipContent
                       side="right"
-                      className="group-data-[collapsible=icon]:block hidden"
+                      className="hidden group-data-[collapsible=icon]:block"
                     >
                       {item.label}
                     </TooltipContent>
@@ -374,8 +345,7 @@ export default function Sidebar() {
                           initial={{ opacity: 0, width: 0 }}
                           animate={{ opacity: 1, width: "auto" }}
                           exit={{ opacity: 0, width: 0 }}
-                          transition={{ duration: 0.2, ease: "easeInOut" }}
-                          className="truncate"
+                          transition={{ duration: 0.2 }}
                         >
                           Logout
                         </motion.span>
@@ -386,7 +356,7 @@ export default function Sidebar() {
               </TooltipTrigger>
               <TooltipContent
                 side="right"
-                className="group-data-[collapsible=icon]:block hidden"
+                className="hidden group-data-[collapsible=icon]:block"
               >
                 Logout
               </TooltipContent>

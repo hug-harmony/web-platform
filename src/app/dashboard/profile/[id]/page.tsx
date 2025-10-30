@@ -401,8 +401,10 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
   const handleUpdateProfile = async (e: React.FormEvent<HTMLFormElement>) => {
     e.preventDefault();
     setUpdating(true);
+
     const formData = new FormData(e.currentTarget);
     const errors = await validateUserProfileForm(formData);
+
     if (Object.keys(errors).length > 0) {
       setFormErrors(errors);
       toast.error("Please fix the errors in the form");
@@ -410,12 +412,14 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       return;
     }
     setFormErrors({});
+
     const data = {
       firstName: formData.get("firstName")?.toString(),
       lastName: formData.get("lastName")?.toString(),
       name:
-        `${formData.get("firstName")?.toString() || ""} ${formData.get("lastName")?.toString() || ""}`.trim() ||
-        undefined,
+        `${formData.get("firstName")?.toString() || ""} ${
+          formData.get("lastName")?.toString() || ""
+        }`.trim() || undefined,
       phoneNumber: formData.get("phoneNumber")?.toString(),
       location: formData.get("location")?.toString(),
       biography: formData.get("biography")?.toString(),
@@ -428,56 +432,73 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
       favoriteMedia: formData.get("favoriteMedia")?.toString(),
       petOwnership: formData.get("petOwnership")?.toString(),
     };
+
     try {
-      let profileImageUrl = profile?.profileImage;
+      let profileImageUrl: string | null = profile?.profileImage || null;
+
+      // ✅ If a new image is selected, upload it
       if (selectedFile) {
         const imageFormData = new FormData();
         imageFormData.append("file", selectedFile);
+
         const uploadRes = await fetch("/api/users/upload", {
           method: "POST",
           body: imageFormData,
         });
+
         if (!uploadRes.ok) {
-          const errorData = await uploadRes.json();
-          throw new Error(errorData.error || "Failed to upload image");
+          const err = await uploadRes.json();
+          throw new Error(err.error || "Failed to upload image");
         }
-        profileImageUrl = (await uploadRes.json()).url;
+
+        const { url } = await uploadRes.json();
+        profileImageUrl = url;
       }
+
+      // ✅ Always include `profileImage` key, even if null — allows backend to clear it
+      const payload = { ...data, profileImage: profileImageUrl };
+
       const res = await fetch(`/api/users/${profile?.id}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ ...data, profileImage: profileImageUrl }),
+        body: JSON.stringify(payload),
       });
-      if (res.ok) {
-        const updatedProfile = await res.json();
-        setProfile({
-          ...updatedProfile,
-          name: updatedProfile.name,
-          type: profile?.type || "user",
-          venue: profile?.venue, // Preserve venue
-        });
-        await update({
-          ...session,
-          user: {
-            ...session?.user,
-            name: updatedProfile.name,
-            email: updatedProfile.email,
-            image: updatedProfile.profileImage,
-          },
-        });
-        setIsEditing(false);
-        setSelectedFile(null);
-        setLocationSuggestions([]);
-        setIsLocationDropdownOpen(false);
-        toast.success("Profile updated successfully");
-      } else {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to update profile");
+
+      if (!res.ok) {
+        const err = await res.json();
+        throw new Error(err.error || "Failed to update profile");
       }
+
+      const updatedProfile = await res.json();
+
+      // ✅ Optimistically update local UI immediately
+      setProfile((prev) => ({
+        ...prev!,
+        ...updatedProfile,
+        type: profile?.type || "user",
+        venue: profile?.venue,
+      }));
+
+      // ✅ Update NextAuth session — triggers sidebar re-render
+      await update({
+        user: {
+          ...session?.user,
+          name: updatedProfile.name,
+          email: updatedProfile.email,
+          image: updatedProfile.profileImage,
+        },
+      });
+
+      // ✅ Cleanup
+      setIsEditing(false);
+      setSelectedFile(null);
+      setLocationSuggestions([]);
+      setIsLocationDropdownOpen(false);
+      toast.success("Profile updated successfully");
     } catch (error: unknown) {
-      const errorMessage =
+      const msg =
         error instanceof Error ? error.message : "Failed to update profile";
-      toast.error(errorMessage);
+      toast.error(msg);
     } finally {
       setUpdating(false);
       if (fileInputRef.current) fileInputRef.current.value = "";
