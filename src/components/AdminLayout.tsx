@@ -31,6 +31,7 @@ import {
   Bell,
   FileWarning,
   Package,
+  Video,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
@@ -211,6 +212,13 @@ export default function AdminDashboardLayout({
                         label: "Merchandise",
                         icon: (
                           <Package className="h-5 w-5 text-black dark:text-white" />
+                        ),
+                      },
+                      {
+                        href: "/admin/dashboard/training-videos",
+                        label: "Training Videos",
+                        icon: (
+                          <Video className="h-5 w-5 text-black dark:text-white" />
                         ),
                       },
                     ].map((item) => (

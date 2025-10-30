@@ -118,6 +118,11 @@ export default function BottomNav() {
         label: "Profile Visits",
         icon: <Eye className="h-5 w-5" />,
       },
+      {
+        href: "/dashboard/training-videos",
+        label: "Training",
+        icon: <Video className="h-5 w-5" />,
+      },
       ...(isSpecialist
         ? [
             {

@@ -11,6 +11,7 @@ import {
   Flag,
   Calendar,
   Package,
+  Video,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -73,6 +74,12 @@ export default function AdminDashboardPage() {
       label: "Merchandise",
       icon: <Package className="h-8 w-8 text-[#F3CFC6]" />,
       description: "Manage merchandise.",
+    },
+    {
+      href: "/admin/dashboard/training-videos",
+      label: "Training Videos",
+      icon: <Video className="h-8 w-8 text-[#F3CFC6]" />,
+      description: "Manage training videos.",
     },
   ];
 

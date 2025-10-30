@@ -58,6 +58,8 @@ model User {
 
   cart     Cart?
   orders   Order[]
+
+  trainingVideoWatches TrainingVideoWatch[]
 }
 
 model PasswordResetToken {
@@ -431,4 +433,38 @@ model OrderItem {
   price         Float
   order         Order    @relation(fields: [orderId], references: [id], onDelete: Cascade)
   merchandise   Merchandise @relation(fields: [merchandiseId], references: [id], onDelete: Cascade)
+}
+
+model TrainingVideo {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  name        String
+  url         String   // public video link (e.g. Cloudinary, YouTube, Vimeo)
+  durationSec Int?     // optional – total length in seconds (filled by admin or auto-detected)
+  isActive    Boolean  @default(true)
+  createdAt   DateTime @default(now())
+  updatedAt   DateTime @updatedAt
+
+  /// One video can be watched by many users
+  watches     TrainingVideoWatch[]
+
+  @@index([isActive])
+}
+
+/// Tracks how far a user has watched a specific video
+model TrainingVideoWatch {
+  id           String @id @default(auto()) @map("_id") @db.ObjectId
+  userId       String @db.ObjectId
+  videoId      String @db.ObjectId
+  watchedSec   Int    @default(0)           // seconds the user has actually watched
+  isCompleted  Boolean @default(false)     // true when watchedSec >= video.durationSec
+  lastWatchedAt DateTime @updatedAt
+
+  /// Relations
+  user         User           @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video        TrainingVideo  @relation(fields: [videoId], references: [id], onDelete: Cascade)
+
+  /// Ensure one row per user+video
+  @@unique([userId, videoId])
+  @@index([userId])
+  @@index([videoId])
 }
