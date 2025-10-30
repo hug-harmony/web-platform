@@ -127,23 +127,16 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session) {
+    if (!session?.user?.id)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
 
-    const url = new URL(req.url);
-    const id = url.pathname.split("/").pop();
+    const id = new URL(req.url).pathname.split("/").pop();
+    if (!id) return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
 
-    if (!id) {
-      return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
-    }
-
-    // Check if user is admin or updating their own profile
     const currentUser = await prisma.user.findUnique({
       where: { id: session.user.id },
       select: { isAdmin: true },
     });
-
     if (!currentUser?.isAdmin && session.user.id !== id) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
@@ -151,97 +144,101 @@ export async function PATCH(req: Request) {
     const body = await req.json();
     const validatedData = updateUserSchema.parse(body);
 
-    // Fetch user with associated specialist application to check for specialist
     const user = await prisma.user.findUnique({
       where: { id },
       include: { specialistApplication: { include: { specialist: true } } },
     });
-
-    if (!user) {
+    if (!user)
       return NextResponse.json({ error: "User not found" }, { status: 404 });
+
+    // === USER UPDATE DATA ===
+    const userUpdateData: any = {};
+    if (validatedData.name) userUpdateData.name = validatedData.name;
+    if (validatedData.firstName)
+      userUpdateData.firstName = validatedData.firstName;
+    if (validatedData.lastName)
+      userUpdateData.lastName = validatedData.lastName;
+    if (validatedData.phoneNumber)
+      userUpdateData.phoneNumber = validatedData.phoneNumber;
+    if (validatedData.profileImage !== undefined)
+      userUpdateData.profileImage = validatedData.profileImage;
+    if (validatedData.location)
+      userUpdateData.location = validatedData.location;
+    if (validatedData.biography)
+      userUpdateData.biography = validatedData.biography;
+    if (validatedData.relationshipStatus)
+      userUpdateData.relationshipStatus = validatedData.relationshipStatus;
+    if (validatedData.orientation)
+      userUpdateData.orientation = validatedData.orientation;
+    if (validatedData.height) userUpdateData.height = validatedData.height;
+    if (validatedData.ethnicity)
+      userUpdateData.ethnicity = validatedData.ethnicity;
+    if (validatedData.zodiacSign)
+      userUpdateData.zodiacSign = validatedData.zodiacSign;
+    if (validatedData.favoriteColor)
+      userUpdateData.favoriteColor = validatedData.favoriteColor;
+    if (validatedData.favoriteMedia)
+      userUpdateData.favoriteMedia = validatedData.favoriteMedia;
+    if (validatedData.petOwnership)
+      userUpdateData.petOwnership = validatedData.petOwnership;
+    if (validatedData.status) userUpdateData.status = validatedData.status;
+
+    // === UPDATE USER ===
+    const updatedUser = await prisma.user.update({
+      where: { id },
+      data: userUpdateData,
+      select: {
+        id: true,
+        name: true,
+        firstName: true,
+        lastName: true,
+        email: true,
+        phoneNumber: true,
+        profileImage: true,
+        location: true,
+        biography: true,
+        relationshipStatus: true,
+        orientation: true,
+        height: true,
+        ethnicity: true,
+        zodiacSign: true,
+        favoriteColor: true,
+        favoriteMedia: true,
+        petOwnership: true,
+        status: true,
+      },
+    });
+
+    // === UPDATE SPECIALIST (AFTER USER) ===
+    const hasSpecialistUpdates =
+      validatedData.name ||
+      validatedData.profileImage !== undefined ||
+      validatedData.biography ||
+      validatedData.location;
+
+    if (user.specialistApplication?.specialist && hasSpecialistUpdates) {
+      const specialistUpdate: any = {};
+      if (validatedData.name) specialistUpdate.name = validatedData.name;
+      if (validatedData.profileImage !== undefined)
+        specialistUpdate.image = validatedData.profileImage;
+      if (validatedData.biography)
+        specialistUpdate.biography = validatedData.biography;
+      if (validatedData.location)
+        specialistUpdate.location = validatedData.location;
+
+      await prisma.specialist.update({
+        where: { id: user.specialistApplication.specialistId! },
+        data: specialistUpdate,
+      });
     }
 
-    // Prepare data for User update
-    const userUpdateData = {
-      name: validatedData.name,
-      firstName: validatedData.firstName,
-      lastName: validatedData.lastName,
-      phoneNumber: validatedData.phoneNumber,
-      profileImage: validatedData.profileImage,
-      location: validatedData.location,
-      biography: validatedData.biography,
-      relationshipStatus: validatedData.relationshipStatus,
-      orientation: validatedData.orientation,
-      height: validatedData.height,
-      ethnicity: validatedData.ethnicity,
-      zodiacSign: validatedData.zodiacSign,
-      favoriteColor: validatedData.favoriteColor,
-      favoriteMedia: validatedData.favoriteMedia,
-      petOwnership: validatedData.petOwnership,
-      status: validatedData.status,
-    };
-
-    // Prepare data for Specialist update (only if name, profileImage, biography, or location is provided)
-    const specialistUpdateData = {
-      ...(validatedData.name && { name: validatedData.name }),
-      ...(validatedData.profileImage !== undefined && {
-        image: validatedData.profileImage ?? undefined, // Convert null to undefined
-      }),
-      ...(validatedData.biography && { biography: validatedData.biography }),
-      ...(validatedData.location && { location: validatedData.location }),
-    };
-
-    // Update User and Specialist (if applicable) in a transaction
-    const updatedRecords = await prisma.$transaction([
-      // Update User
-      prisma.user.update({
-        where: { id },
-        data: userUpdateData,
-        select: {
-          id: true,
-          name: true,
-          firstName: true,
-          lastName: true,
-          email: true,
-          phoneNumber: true,
-          profileImage: true,
-          location: true,
-          biography: true,
-          relationshipStatus: true,
-          orientation: true,
-          height: true,
-          ethnicity: true,
-          zodiacSign: true,
-          favoriteColor: true,
-          favoriteMedia: true,
-          petOwnership: true,
-          status: true,
-        },
-      }),
-      // Update Specialist if it exists and relevant fields are updated
-      ...(user.specialistApplication?.specialist &&
-      (validatedData.name ||
-        validatedData.profileImage !== undefined ||
-        validatedData.biography ||
-        validatedData.location)
-        ? [
-            prisma.specialist.update({
-              where: { id: user.specialistApplication.specialistId! }, // Non-null assertion since specialist exists
-              data: specialistUpdateData,
-            }),
-          ]
-        : []),
-    ]);
-
-    const updatedUser = updatedRecords[0];
-
+    // === RETURN RESPONSE ===
     return NextResponse.json({
       id: updatedUser.id,
       name:
         updatedUser.name ||
-        (updatedUser.firstName && updatedUser.lastName
-          ? `${updatedUser.firstName} ${updatedUser.lastName}`
-          : "Unknown User"),
+        `${updatedUser.firstName} ${updatedUser.lastName}`.trim() ||
+        "User",
       firstName: updatedUser.firstName || "",
       lastName: updatedUser.lastName || "",
       email: updatedUser.email,
@@ -261,14 +258,10 @@ export async function PATCH(req: Request) {
     });
   } catch (error: any) {
     console.error("PATCH /users/[id] error:", error);
-    if (error instanceof z.ZodError) {
+    if (error instanceof z.ZodError)
       return NextResponse.json({ error: error.errors }, { status: 400 });
-    }
-    if (error.message === "User not found") {
-      return NextResponse.json({ error: "User not found" }, { status: 404 });
-    }
     return NextResponse.json(
-      { error: "Internal Server Error" },
+      { error: error.message || "Update failed" },
       { status: 500 }
     );
   }

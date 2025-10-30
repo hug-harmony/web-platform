@@ -143,6 +143,7 @@ model Specialist {
   companyCutPercentage Float?
   venue            VenueType      @default(both)
   createdAt        DateTime       @default(now())
+  location         String?
   appointments     Appointment[]  @relation("SpecialistAppointments")
   application      SpecialistApplication? @relation
   VideoSession     VideoSession[]
