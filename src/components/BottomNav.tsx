@@ -73,11 +73,11 @@ export default function BottomNav() {
         label: "Professionals",
         icon: <User className="h-5 w-5" />,
       },
-      {
-        href: "/dashboard/users",
-        label: "Explore",
-        icon: <Search className="h-5 w-5" />,
-      },
+      // {
+      //   href: "/dashboard/users",
+      //   label: "Explore",
+      //   icon: <Search className="h-5 w-5" />,
+      // },
       {
         href: "/dashboard/appointments",
         label: "Appointments",

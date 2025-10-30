@@ -357,19 +357,19 @@ export default function HomePage() {
             href: "/dashboard/specialists",
             label: "Find a Professional",
             icon: <UserStar className="h-8 w-8 text-[#F3CFC6]" />,
-            description: "Connect with certified specialists.",
+            description: "Connect with certified professionals.",
           },
           {
-            href: "/dashboard/users",
-            label: "Explore Users",
+            href: "/dashboard/appointments",
+            label: "Appointment Calendar",
             icon: <UserRoundSearch className="h-8 w-8 text-[#F3CFC6]" />,
-            description: "Discover community members.",
+            description: "Manage your bookings and schedule.",
           },
           {
-            href: "/dashboard/video-session",
-            label: "Join Video Session",
+            href: "/dashboard/forum",
+            label: "Forum Discussions",
             icon: <Video className="h-8 w-8 text-[#F3CFC6]" />,
-            description: "Start your virtual consultation.",
+            description: "Join community conversations.",
           },
         ].map((item) => (
           <motion.div
