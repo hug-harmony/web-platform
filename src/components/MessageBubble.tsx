@@ -15,6 +15,7 @@ interface Message {
   userId: string;
   proposalId?: string;
   proposalStatus?: string;
+  initiator?: string; // NEW: To distinguish request vs. proposal
 }
 
 interface MessageBubbleProps {
@@ -33,7 +34,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   handleProposalAction,
   sending,
 }) => {
-  // Debug proposalStatus
+  // Debug proposalStatus (unchanged)
   console.log("MessageBubble:", {
     messageId: message.id,
     proposalId: message.proposalId,
@@ -87,10 +88,15 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                           : "text-gray-500"
                     }`}
                   >
+                    {/* UPDATED: Tailored status text based on initiator */}
                     {message.proposalStatus === "accepted"
-                      ? "Accepted"
+                      ? message.initiator === "user"
+                        ? "Request Accepted"
+                        : "Proposal Accepted"
                       : message.proposalStatus === "rejected"
-                        ? "Rejected"
+                        ? message.initiator === "user"
+                          ? "Request Declined"
+                          : "Proposal Rejected"
                         : "Pending"}
                   </span>
                 ) : (
@@ -104,7 +110,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       disabled={sending}
                       className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 rounded-full px-4"
                     >
-                      Accept
+                      {/* UPDATED: Dynamic button text */}
+                      {message.initiator === "user"
+                        ? "Accept Request"
+                        : "Accept"}
                     </Button>
                     <Button
                       variant="outline"
@@ -115,7 +124,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                       disabled={sending}
                       className="text-red-500 border-red-500 hover:bg-red-500/20 rounded-full px-4"
                     >
-                      Reject
+                      {/* UPDATED: Dynamic button text */}
+                      {message.initiator === "user"
+                        ? "Decline Request"
+                        : "Reject"}
                     </Button>
                   </div>
                 )}

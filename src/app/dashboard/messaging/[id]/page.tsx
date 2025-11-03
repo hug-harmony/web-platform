@@ -13,7 +13,6 @@ import MessageInput from "@/components/MessageInput";
 import ProposalDialog from "@/components/ProposalDialog";
 import ConfirmDialog from "@/components/ConfirmDialog";
 import NotesSidebar from "@/components/NotesSidebar";
-import { format } from "date-fns"; // NEW: For formatting ranges in toasts
 
 interface Message {
   senderId: string;
@@ -337,6 +336,7 @@ const MessageInterface: React.FC = () => {
     }
   };
 
+  /*
   const handleProposalAction = async (
     proposalId: string,
     action: "accepted" | "rejected"
@@ -409,6 +409,98 @@ const MessageInterface: React.FC = () => {
           toast.success("Appointment request accepted");
         }
       } else {
+        toast.success(
+          proposal.initiator === "specialist"
+            ? "Proposal rejected"
+            : "Appointment request declined"
+        );
+      }
+
+      await fetchMessages();
+    } catch (error: unknown) {
+      const errorMessage =
+        error instanceof Error ? error.message : `Failed to ${action} proposal`;
+      toast.error(errorMessage);
+    } finally {
+      setSending(false);
+    }
+  };
+  */
+
+  const handleProposalAction = async (
+    proposalId: string,
+    action: "accepted" | "rejected"
+  ) => {
+    if (!session?.user?.id) {
+      toast.error("Please log in to respond to the proposal");
+      return;
+    }
+
+    setSending(true);
+    try {
+      const res = await fetch(`/api/proposals/${proposalId}/status`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ status: action }),
+        credentials: "include",
+      });
+
+      if (!res.ok) {
+        const errorData = await res.json();
+        throw new Error(errorData.error || `Failed to ${action} proposal`);
+      }
+
+      const data = await res.json();
+
+      const proposal = data.proposal as {
+        id: string;
+        startTime: string;
+        endTime: string;
+        initiator: "specialist" | "user"; // UPDATED: Use "user" as per your code
+        specialistId: string;
+      };
+      const appointmentId: string | undefined = data.appointmentId;
+
+      setProposalActionMessage(`Proposal ${action}`);
+      setTimeout(() => setProposalActionMessage(null), 3000);
+
+      if (action === "accepted") {
+        if (proposal.initiator === "specialist") {
+          const specialistRes = await fetch(
+            `/api/specialists/${proposal.specialistId}`,
+            {
+              cache: "no-store",
+              credentials: "include",
+            }
+          );
+
+          if (!specialistRes.ok) {
+            throw new Error(
+              `Failed to fetch specialist details: ${specialistRes.status}`
+            );
+          }
+          const specialist = await specialistRes.json();
+
+          setSelectedProposal({
+            id: proposal.id,
+            startTime: proposal.startTime,
+            endTime: proposal.endTime,
+            specialist: {
+              id: proposal.specialistId,
+              name: specialist.name,
+              rate: specialist.rate || 50,
+            },
+            appointmentId,
+          });
+
+          setConfirmDialogOpen(true);
+          toast.success("Proposal accepted - proceed to payment");
+        } else {
+          // UPDATED: Tailored toast for user-initiated (request) acceptance
+          toast.success("Appointment request accepted");
+        }
+      } else {
+        // UPDATED: Tailored toasts for rejection
         toast.success(
           proposal.initiator === "specialist"
             ? "Proposal rejected"

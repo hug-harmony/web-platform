@@ -227,8 +227,8 @@ model Proposal {
   specialistId   String       @db.ObjectId
   userId         String       @db.ObjectId
   conversationId String       @db.ObjectId
-  startTime      DateTime
-  endTime        DateTime
+  startTime      DateTime?
+  endTime        DateTime?
   venue          AppointmentVenue?
   status         String       @default("pending")
   initiator      String       @default("specialist")

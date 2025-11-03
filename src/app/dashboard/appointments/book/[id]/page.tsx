@@ -40,7 +40,7 @@ import {
   isBefore,
   differenceInMinutes,
   addMinutes,
-} from "date-fns";
+} from "date-fns"; // Ensure date-fns is installed: npm i date-fns
 
 interface Therapist {
   _id: string;
@@ -92,8 +92,10 @@ const BookingPage: React.FC = () => {
   const [selectedVenue, setSelectedVenue] = useState<
     "host" | "visit" | undefined
   >(undefined);
+  // NEW: State to flag if the slot is <24h from now (request mode)
+  const [isRequestMode, setIsRequestMode] = useState(false);
 
-  // Fetch therapist
+  // Fetch therapist (unchanged)
   useEffect(() => {
     if (!therapistId) return;
     const fetchTherapist = async () => {
@@ -110,7 +112,7 @@ const BookingPage: React.FC = () => {
     fetchTherapist();
   }, [therapistId]);
 
-  // Fetch schedule
+  // Fetch schedule (unchanged)
   const fetchSchedule = useCallback(
     async (date: Date) => {
       if (!therapistId) return;
@@ -150,13 +152,13 @@ const BookingPage: React.FC = () => {
 
   const handleSelectSlot = useCallback(
     (slotInfo: SlotInfo) => {
-      // Block past dates
+      // Block past dates (unchanged)
       if (isBefore(slotInfo.start, new Date())) {
         toast.warning("Cannot select past time.");
         return;
       }
 
-      // Helper: check if a time is within any working block
+      // Helper: check if a time is within any working block (unchanged)
       const isTimeAvailable = (date: Date): boolean => {
         const day = date.getDay();
         const hour = date.getHours();
@@ -175,7 +177,7 @@ const BookingPage: React.FC = () => {
         });
       };
 
-      // Check every 30-min step in selection
+      // Check every 30-min step in selection (unchanged)
       const start = slotInfo.start;
       const isClick = moment(start).isSame(moment(slotInfo.end), "minute");
       const end = isClick ? addHours(start, 1) : slotInfo.end;
@@ -189,21 +191,28 @@ const BookingPage: React.FC = () => {
         current = addMinutes(current, 30);
       }
 
-      // Check overlap with booked events
+      // Check overlap with booked events (unchanged)
       const overlaps = bookedEvents.some((e) => start < e.end && end > e.start);
       if (overlaps) {
         toast.warning("Overlaps with booked session or buffer.");
         return;
       }
 
-      // Valid → open dialog
+      // Valid → set slot and check for request mode
       setNewBookingSlot({ start, end });
+
+      // NEW: Check if start is <24h from now
+      const now = new Date();
+      const twentyFourHoursFromNow = addHours(now, 24);
+      setIsRequestMode(isBefore(start, twentyFourHoursFromNow));
+
       setIsDialogOpen(true);
     },
     [bookedEvents, workingHours]
   );
 
-  const handleBookSession = async () => {
+  // UPDATED: Handler now checks isRequestMode and calls appropriate API
+  const handleConfirmAction = async () => {
     if (!session?.user?.id || !newBookingSlot || !therapistId || !therapist)
       return;
     if (therapist.venue === "both" && !selectedVenue) {
@@ -213,42 +222,67 @@ const BookingPage: React.FC = () => {
 
     setBookingInProgress(true);
     try {
-      const res = await fetch("/api/specialists/booking", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          specialistId: therapistId,
-          userId: session.user.id,
-          startTime: newBookingSlot.start.toISOString(),
-          endTime: newBookingSlot.end.toISOString(),
-          venue: selectedVenue,
-        }),
-      });
+      if (isRequestMode) {
+        // NEW: Send appointment request via new API
+        const res = await fetch("/api/appointment/requests", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            specialistId: therapistId,
+            startTime: newBookingSlot.start.toISOString(),
+            endTime: newBookingSlot.end.toISOString(),
+            venue: selectedVenue,
+          }),
+        });
 
-      const data = await res.json();
-      if (!res.ok) throw new Error(data.message || "Booking failed.");
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.error || "Failed to send request.");
 
-      toast.success("Booked!");
+        toast.success("Appointment request sent to specialist for approval.");
+        // NEW: Redirect to chat using returned conversationId
+        router.push(`/messages/${data.conversationId}`); // Adjust path to your chat route
+      } else {
+        // Existing: Direct booking
+        const res = await fetch("/api/specialists/booking", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            specialistId: therapistId,
+            userId: session.user.id,
+            startTime: newBookingSlot.start.toISOString(),
+            endTime: newBookingSlot.end.toISOString(),
+            venue: selectedVenue,
+          }),
+        });
 
-      const newBooking: BookedEvent = {
-        id: `temp-${Date.now()}`,
-        title: "Booked",
-        start: newBookingSlot.start,
-        end: newBookingSlot.end,
-      };
-      setBookedEvents((prev) => [...prev, newBooking]);
+        const data = await res.json();
+        if (!res.ok) throw new Error(data.message || "Booking failed.");
+
+        toast.success("Booked!");
+
+        const newBooking: BookedEvent = {
+          id: `temp-${Date.now()}`,
+          title: "Booked",
+          start: newBookingSlot.start,
+          end: newBookingSlot.end,
+        };
+        setBookedEvents((prev) => [...prev, newBooking]);
+      }
 
       setIsDialogOpen(false);
       setNewBookingSlot(null);
       if (therapist.venue === "both") setSelectedVenue(undefined);
     } catch (error: any) {
-      toast.error(error.message || "Booking failed.");
+      toast.error(
+        error.message ||
+          (isRequestMode ? "Failed to send request." : "Booking failed.")
+      );
     } finally {
       setBookingInProgress(false);
     }
   };
 
-  // SHOW ALL 24 HOURS
+  // SHOW ALL 24 HOURS (unchanged)
   const { min, max } = useMemo(() => {
     const today = new Date();
     const base = new Date(
@@ -352,8 +386,10 @@ const BookingPage: React.FC = () => {
             Book with {therapist.name}
           </CardTitle>
           <p className="text-sm text-black">
-            Click for 1-hour, drag for custom. 30-min buffer added.
-          </p>
+            Click for 1-hour, drag for custom. 30-min buffer added. Slots within
+            24 hours require specialist approval.
+          </p>{" "}
+          {/* UPDATED: Added note about 24h rule */}
         </CardHeader>
       </Card>
 
@@ -415,7 +451,12 @@ const BookingPage: React.FC = () => {
         <DialogContent className="bg-white">
           <DialogHeader>
             <DialogTitle>Confirm Appointment</DialogTitle>
-            <DialogDescription>Review details.</DialogDescription>
+            {/* UPDATED: Dynamic description based on mode */}
+            <DialogDescription>
+              {isRequestMode
+                ? "This slot is within 24 hours—request will be sent for specialist approval."
+                : "Review booking details."}
+            </DialogDescription>
           </DialogHeader>
           {newBookingSlot && therapist && (
             <div className="py-4 space-y-4">
@@ -467,15 +508,20 @@ const BookingPage: React.FC = () => {
             <Button variant="outline" onClick={() => setIsDialogOpen(false)}>
               Cancel
             </Button>
+            {/* UPDATED: Dynamic button text and handler */}
             <Button
-              onClick={handleBookSession}
+              onClick={handleConfirmAction}
               className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black"
               disabled={
                 bookingInProgress ||
                 (therapist.venue === "both" && !selectedVenue)
               }
             >
-              {bookingInProgress ? "Confirming..." : "Confirm"}
+              {bookingInProgress
+                ? "Processing..."
+                : isRequestMode
+                  ? "Send Request"
+                  : "Confirm"}
             </Button>
           </DialogFooter>
         </DialogContent>

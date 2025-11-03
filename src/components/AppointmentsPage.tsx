@@ -235,6 +235,7 @@ export default function AppointmentsPage() {
     });
   }, [receivedProposals, sentProposals, searchQuery, statusFilter]);
 
+  /*
   const calendarEvents = useMemo(() => {
     const appointmentEvents = filteredAppointments.map((appt) => {
       const isOwnerSpecialist = appt.type === "specialist";
@@ -269,6 +270,47 @@ export default function AppointmentsPage() {
         },
       };
     });
+
+    return [...appointmentEvents, ...proposalEvents];
+  }, [filteredAppointments, filteredProposals]);
+  */
+
+  const calendarEvents = useMemo(() => {
+    const appointmentEvents = filteredAppointments.map((appt) => {
+      const isOwnerSpecialist = appt.type === "specialist";
+      const displayName = isOwnerSpecialist
+        ? appt.clientName
+        : appt.specialistName;
+      return {
+        title: `${displayName} (${appt.status})`,
+        start: new Date(appt.startTime),
+        end: new Date(appt.endTime),
+        resource: {
+          type: "appointment" as const,
+          data: appt,
+          isOwnerSpecialist,
+          displayName,
+        },
+      };
+    });
+
+    const proposalEvents = filteredProposals
+      .filter((proposal) => proposal.startTime && proposal.endTime) // NEW: Skip if null
+      .map((proposal) => {
+        const displayName = proposal.isReceived
+          ? proposal.specialist.name
+          : proposal.user.name;
+        return {
+          title: `Proposal: ${displayName} (${proposal.status})`,
+          start: new Date(proposal.startTime),
+          end: new Date(proposal.endTime),
+          resource: {
+            type: "proposal" as const,
+            data: proposal,
+            isReceived: proposal.isReceived,
+          },
+        };
+      });
 
     return [...appointmentEvents, ...proposalEvents];
   }, [filteredAppointments, filteredProposals]);
