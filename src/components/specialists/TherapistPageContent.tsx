@@ -6,7 +6,7 @@ import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CalendarIcon } from "lucide-react";
 import { useSpecialists } from "@/hooks/specialists/useSpecialists";
-import { useFilters, Filters } from "@/hooks/specialists/useFilters";
+import { useFilters } from "@/hooks/specialists/useFilters"; // Removed unused 'Filters'
 import { useAvailabilities } from "@/hooks/specialists/useAvailabilities";
 import { SearchBar } from "@/components/specialists/SearchBar";
 import { FilterAccordion } from "@/components/specialists/FilterAccordion";
@@ -30,7 +30,7 @@ export default function TherapistsPageContent() {
   const [tempRadius, setTempRadius] = useState(10);
   const [tempUnit] = useState<"km" | "miles">("miles");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [selectedTime, setSelectedTime] = useState("");
+  const [timeRange, setTimeRange] = useState<[number, number]>([540, 1020]); // 9AM–5PM
 
   const { specialists, loading } = useSpecialists(searchQuery, appliedFilters);
   const availabilities = useAvailabilities(selectedDate);
@@ -59,19 +59,17 @@ export default function TherapistsPageContent() {
   };
 
   const applyDateTime = () => {
-    setAppliedFilters(
-      (prev) =>
-        ({ ...prev, selectedDate, selectedTime }) as Filters & {
-          selectedDate?: Date;
-          selectedTime?: string;
-        }
-    );
+    setAppliedFilters((prev) => ({
+      ...prev,
+      selectedDate,
+      timeRange,
+    }));
     setIsDateTimeDialogOpen(false);
   };
 
   const filtered = filterAndSort(
     specialists,
-    { ...appliedFilters, selectedDate, selectedTime },
+    { ...appliedFilters, selectedDate, timeRange }, // ← Fixed: timeRange
     searchQuery
   );
 
@@ -100,7 +98,7 @@ export default function TherapistsPageContent() {
               setSearchQuery("");
               reset();
               setSelectedDate(undefined);
-              setSelectedTime("");
+              setTimeRange([540, 1020]); // ← Reset range
             }}
           />
           <FilterAccordion
@@ -139,11 +137,11 @@ export default function TherapistsPageContent() {
         open={isDateTimeDialogOpen}
         onOpenChange={setIsDateTimeDialogOpen}
         selectedDate={selectedDate}
-        selectedTime={selectedTime}
         availabilities={availabilities}
         onDateSelect={setSelectedDate}
-        onTimeSelect={setSelectedTime}
         onApply={applyDateTime}
+        timeRange={timeRange}
+        setTimeRange={setTimeRange}
       />
     </motion.div>
   );
