@@ -155,10 +155,15 @@ export async function POST(request: NextRequest) {
     }
     const phoneE164 = p.number;
 
-    const [existingEmail, existingUsername] = await Promise.all([
+    // Check for existing email, username, and phone number in one go
+    const [existingEmail, existingUsername, existingPhone] = await Promise.all([
       prisma.user.findUnique({ where: { email } }),
       prisma.user.findFirst({
         where: { usernameLower: lower },
+        select: { id: true },
+      }),
+      prisma.user.findFirst({
+        where: { phoneNumber: phoneE164 },
         select: { id: true },
       }),
     ]);
@@ -175,6 +180,12 @@ export async function POST(request: NextRequest) {
       );
       return NextResponse.json(
         { error: "Username already exists", suggestions },
+        { status: 409 }
+      );
+    }
+    if (existingPhone) {
+      return NextResponse.json(
+        { error: "Phone number already registered" },
         { status: 409 }
       );
     }
@@ -212,7 +223,7 @@ Warm hugs,
 The Hug Harmony Team`,
       html: `
         <div style="font-family: Arial, sans-serif; color: #333;">
-          <h2 style="color: #E7C4BB;">Welcome, ${firstName}! </h2>
+          <h2 style="color: #E7C4BB;">Welcome, ${firstName}!</h2>
           <p>We're thrilled to have you join the <strong>Hug Harmony</strong> family.</p>
           <p>Your journey starts here:</p>
           <p style="margin: 20px 0;">
