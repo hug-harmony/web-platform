@@ -27,7 +27,7 @@ interface Props {
   filters: any;
   locations: string[];
   onFilterChange: (key: string, value: any) => void;
-  onCurrentLocation: () => void;
+  onCustomLocation: () => void;
 }
 
 const ageRanges = ["18-25", "26-35", "36-45", "46-55", "56+"];
@@ -44,7 +44,7 @@ export function FilterAccordion({
   filters,
   locations,
   onFilterChange,
-  onCurrentLocation,
+  onCustomLocation,
 }: Props) {
   return (
     <Accordion type="multiple" className="w-full space-y-4">
@@ -188,8 +188,8 @@ export function FilterAccordion({
                           {loc}
                         </DropdownMenuItem>
                       ))}
-                      <DropdownMenuItem onClick={onCurrentLocation}>
-                        Current Location
+                      <DropdownMenuItem onClick={onCustomLocation}>
+                        Custom Location
                       </DropdownMenuItem>
                     </DropdownMenuContent>
                   </DropdownMenu>

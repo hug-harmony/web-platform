@@ -29,6 +29,9 @@ export default function TherapistsPageContent() {
   const [isDateTimeDialogOpen, setIsDateTimeDialogOpen] = useState(false);
   const [tempRadius, setTempRadius] = useState(10);
   const [tempUnit] = useState<"km" | "miles">("miles");
+  const [tempLat, setTempLat] = useState<number | undefined>();
+  const [tempLng, setTempLng] = useState<number | undefined>();
+  const [tempLocation, setTempLocation] = useState<string>("");
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [timeRange, setTimeRange] = useState<[number, number]>([540, 1020]); // 9AM–5PM
 
@@ -38,23 +41,27 @@ export default function TherapistsPageContent() {
     new Set(specialists.map((t) => t.location).filter(Boolean))
   ) as string[];
 
-  const handleCurrentLocation = () => {
-    navigator.geolocation.getCurrentPosition(
-      (pos) => {
-        setFilters((prev) => ({
-          ...prev,
-          currentLat: pos.coords.latitude,
-          currentLng: pos.coords.longitude,
-          location: "Current Location",
-        }));
-        setIsRadiusDialogOpen(true);
-      },
-      () => alert("Location denied")
-    );
+  const handleCustomLocation = () => {
+    setTempRadius(filters.radius || 10);
+    setTempLat(filters.currentLat);
+    setTempLng(filters.currentLng);
+    setTempLocation(filters.location || "");
+    setFilters((prev) => ({
+      ...prev,
+      location: "Custom Location",
+    }));
+    setIsRadiusDialogOpen(true);
   };
 
   const applyRadius = () => {
-    setFilters((prev) => ({ ...prev, radius: tempRadius, unit: tempUnit }));
+    setFilters((prev) => ({
+      ...prev,
+      radius: tempRadius,
+      unit: tempUnit,
+      currentLat: tempLat,
+      currentLng: tempLng,
+      location: tempLocation || "Custom Location",
+    }));
     setIsRadiusDialogOpen(false);
   };
 
@@ -107,7 +114,7 @@ export default function TherapistsPageContent() {
             onFilterChange={(k, v) =>
               setFilters((prev) => ({ ...prev, [k]: v }))
             }
-            onCurrentLocation={handleCurrentLocation}
+            onCustomLocation={handleCustomLocation}
           />
           <Button
             variant="outline"
@@ -125,10 +132,14 @@ export default function TherapistsPageContent() {
       <RadiusDialog
         open={isRadiusDialogOpen}
         onOpenChange={setIsRadiusDialogOpen}
-        currentLat={filters.currentLat}
-        currentLng={filters.currentLng}
+        tempLat={tempLat}
+        tempLng={tempLng}
+        tempLocation={tempLocation}
         tempRadius={tempRadius}
         tempUnit={tempUnit}
+        onTempLatChange={setTempLat}
+        onTempLngChange={setTempLng}
+        onTempLocationChange={setTempLocation}
         onTempRadiusChange={setTempRadius}
         onApply={applyRadius}
       />
