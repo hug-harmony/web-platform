@@ -1,8 +1,8 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// app/login/page.tsx
 "use client";
 
-import { useRouter } from "next/navigation";
 import { useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -17,21 +17,13 @@ import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
-import {
-  Dialog,
-  DialogContent,
-  DialogDescription,
-  DialogHeader,
-  DialogTitle,
-  DialogTrigger,
-} from "@/components/ui/dialog";
 import { toast } from "sonner";
 import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
 import login from "../../../public/login.webp";
+import ResetPasswordModal from "@/components/auth/reset-password-modal";
 
-// Accept either a valid email OR a valid username (3–20, letters/numbers/_)
 const formSchema = z.object({
   identifier: z
     .string()
@@ -43,33 +35,22 @@ const formSchema = z.object({
         const isUsername = /^[a-zA-Z0-9_]{3,20}$/.test(v);
         return isEmail || isUsername;
       },
-      {
-        message:
-          "Enter a valid email or username (3–20 chars, letters/numbers/_)",
-      }
+      { message: "Enter a valid email or username (3–20 chars)" }
     ),
   password: z.string().min(1, "Password is required"),
 });
 
 export default function LoginPage() {
   const [error, setError] = useState<string | null>(null);
-  const [resetEmail, setResetEmail] = useState("");
-  const [resetMessage, setResetMessage] = useState<string | null>(null);
-  const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [isLoading, setIsLoading] = useState(false);
-
-  // UI additions
   const [showPassword, setShowPassword] = useState(false);
   const [capsLockOn, setCapsLockOn] = useState(false);
-
+  const [isResetOpen, setIsResetOpen] = useState(false);
+  const [isLoading, setIsLoading] = useState(false);
   const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
-    defaultValues: {
-      identifier: "",
-      password: "",
-    },
+    defaultValues: { identifier: "", password: "" },
   });
 
   const logSecurityEvent = async (
@@ -78,148 +59,64 @@ export default function LoginPage() {
     userId?: string
   ) => {
     try {
-      const ipAddress = await fetch("https://api.ipify.org?format=json")
-        .then((res) => res.json())
-        .then((data) => data.ip)
+      const ip = await fetch("https://api.ipify.org?format=json")
+        .then((r) => r.json())
+        .then((d) => d.ip)
         .catch(() => null);
-
       await fetch("/api/reports/security-logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          userId,
-          eventType,
-          ipAddress,
-          details,
-        }),
+        body: JSON.stringify({ userId, eventType, ipAddress: ip, details }),
       });
-    } catch (err) {
-      console.error("Error logging security event:", err);
+    } catch (e) {
+      console.error(e);
     }
   };
 
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+    setIsLoading(true);
+    setError(null);
     try {
-      setIsLoading(true);
-      setError(null);
-
       const result = await signIn("credentials", {
-        identifier: values.identifier.trim(), // email or username
+        identifier: values.identifier.trim(),
         password: values.password,
         redirect: false,
       });
-
       if (result?.error) {
-        await logSecurityEvent(
-          "login_attempt",
-          `Failed login attempt for ${values.identifier}: ${result.error}`
-        );
-        toast.error(result.error || "Invalid credentials");
-        setError(result.error || "Invalid credentials");
+        await logSecurityEvent("login_attempt", `Failed: ${result.error}`);
+        toast.error(result.error);
+        setError(result.error);
       } else {
-        await logSecurityEvent(
-          "login_attempt",
-          `Successful login for ${values.identifier}`
-        );
-        toast.success("Logged in successfully!");
+        await logSecurityEvent("login_attempt", "Success");
+        toast.success("Logged in!");
         router.push("/dashboard");
       }
-    } catch (error) {
-      await logSecurityEvent(
-        "login_attempt",
-        `Unexpected error during login for ${values.identifier}`
-      );
-      toast.error("An unexpected error occurred");
-      setError("An unexpected error occurred");
-      console.error(error);
+    } catch (e) {
+      console.error(e);
+      await logSecurityEvent("login_attempt", "Unexpected error");
+      toast.error("Unexpected error");
+      setError("Unexpected error");
     } finally {
       setIsLoading(false);
     }
   };
 
   const handleGoogleLogin = async () => {
-    try {
-      setIsLoading(true);
-      const result = await signIn("google", { redirect: false });
-      if (result?.error) {
-        await logSecurityEvent(
-          "login_attempt",
-          `Failed Google login: ${result.error}`
-        );
-        toast.error(result.error || "Google login failed");
-        setError(result.error || "Google login failed");
-      } else {
-        await logSecurityEvent("login_attempt", "Successful Google login");
-        toast.success("Logged in successfully!");
-        router.push("/dashboard");
-      }
-    } catch (error) {
-      await logSecurityEvent(
-        "login_attempt",
-        "Unexpected error during Google login"
-      );
-      toast.error("An unexpected error occurred");
-      setError("An unexpected error occurred");
-      console.error(error);
-    } finally {
-      setIsLoading(false);
+    setIsLoading(true);
+    const result = await signIn("google", { redirect: false });
+    if (result?.error) {
+      await logSecurityEvent("login_attempt", `Google failed: ${result.error}`);
+      toast.error(result.error);
+    } else {
+      await logSecurityEvent("login_attempt", "Google success");
+      toast.success("Logged in!");
+      router.push("/dashboard");
     }
+    setIsLoading(false);
   };
 
-  const handleResetPassword = async (e: React.FormEvent<HTMLFormElement>) => {
-    e.preventDefault();
-    try {
-      setIsLoading(true);
-      const res = await fetch("/api/auth/reset-password", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ email: resetEmail }),
-      });
-
-      const result = await res.json();
-
-      if (!res.ok) {
-        await logSecurityEvent(
-          "password_reset_request",
-          `Failed password reset request for ${resetEmail}: ${result.error}`
-        );
-        if (result.error === "This account uses Google login") {
-          toast.error("Please use Google login for this account");
-          setResetMessage(
-            "This account uses Google login. Try logging in with Google."
-          );
-          setIsDialogOpen(false);
-          return;
-        }
-        toast.error(result.error || "Failed to send reset email");
-        setResetMessage(result.error || "Failed to send reset email");
-        throw new Error(result.error || "Failed to send reset email");
-      }
-
-      await logSecurityEvent(
-        "password_reset_request",
-        `Password reset email sent for ${resetEmail}`
-      );
-      toast.success("Password reset email sent!");
-      setResetMessage("Check your email for reset instructions");
-      setIsDialogOpen(false);
-    } catch (err: any) {
-      await logSecurityEvent(
-        "password_reset_request",
-        `Error during password reset for ${resetEmail}: ${err.message}`
-      );
-      toast.error(err.message || "Failed to send reset email");
-      setResetMessage(err.message || "Failed to send reset email");
-      console.error(err);
-    } finally {
-      setIsLoading(false);
-    }
-  };
-
-  // Password input helpers
-  const onPasswordKeyEvent = (e: React.KeyboardEvent<HTMLInputElement>) => {
-    // Detect caps lock
-    const caps = e.getModifierState && e.getModifierState("CapsLock");
+  const onPasswordKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
+    const caps = e.getModifierState?.("CapsLock");
     setCapsLockOn(!!caps);
   };
 
@@ -232,6 +129,7 @@ export default function LoginPage() {
             Login to access your Hug Harmony account
           </p>
           {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(handleSubmit)}
@@ -248,7 +146,7 @@ export default function LoginPage() {
                     <FormControl>
                       <Input
                         className="text-sm border-gray-300"
-                        placeholder="you@example.com or your_username"
+                        placeholder="you@example.com or username"
                         type="text"
                         autoComplete="username"
                         {...field}
@@ -275,17 +173,8 @@ export default function LoginPage() {
                           type={showPassword ? "text" : "password"}
                           autoComplete="current-password"
                           {...field}
-                          onKeyUp={(e) => {
-                            field.onChange(e);
-                            onPasswordKeyEvent(e);
-                          }}
-                          onKeyDown={onPasswordKeyEvent}
-                          onBlur={(e) => {
-                            // Clear caps lock warning on blur
-                            setCapsLockOn(false);
-                            field.onBlur();
-                            console.log(e);
-                          }}
+                          onKeyUp={onPasswordKey}
+                          onKeyDown={onPasswordKey}
                         />
                       </FormControl>
                       <Button
@@ -294,19 +183,13 @@ export default function LoginPage() {
                         size="sm"
                         className="absolute right-2 top-1/2 -translate-y-1/2 text-xs"
                         onClick={() => setShowPassword((s) => !s)}
-                        aria-label={
-                          showPassword ? "Hide password" : "Show password"
-                        }
                       >
                         {showPassword ? "Hide" : "Show"}
                       </Button>
                     </div>
                     {capsLockOn && (
-                      <p
-                        className="text-xs text-amber-600 mt-1"
-                        aria-live="polite"
-                      >
-                        Warning: Caps Lock is ON
+                      <p className="text-xs text-amber-600 mt-1">
+                        Caps Lock is ON
                       </p>
                     )}
                     <FormMessage className="text-xs" />
@@ -316,49 +199,30 @@ export default function LoginPage() {
 
               <Button
                 type="submit"
-                className="w-full bg-[#E7C4BB] text-black text-sm hover:bg-[#d4a8a0] transition-colors"
+                className="w-full bg-[#E7C4BB] text-black text-sm hover:bg-[#d4a8a0]"
                 disabled={isLoading}
               >
-                {isLoading ? "Logging in..." : "Login"}
+                {isLoading ? "Logging in…" : "Login"}
               </Button>
             </form>
           </Form>
 
-          <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
-            <div className="text-right text-xs mt-2">
-              <DialogTrigger asChild>
-                <Link href="#" className="text-red-600 hover:underline">
-                  Forgot Password?
-                </Link>
-              </DialogTrigger>
-            </div>
-            <DialogContent>
-              <DialogHeader>
-                <DialogTitle>Reset Password</DialogTitle>
-                <DialogDescription>
-                  You will receive an email with a link to reset password
-                </DialogDescription>
-                <p className="opacity-0">{resetMessage}</p>
-              </DialogHeader>
-              <form onSubmit={handleResetPassword} className="space-y-2">
-                <Input
-                  type="email"
-                  value={resetEmail}
-                  onChange={(e) => setResetEmail(e.target.value)}
-                  placeholder="Enter your email"
-                  required
-                  disabled={isLoading}
-                />
-                <Button
-                  type="submit"
-                  className="w-full text-sm"
-                  disabled={isLoading}
-                >
-                  {isLoading ? "Sending..." : "Send Reset Email"}
-                </Button>
-              </form>
-            </DialogContent>
-          </Dialog>
+          {/* Forgot Password Trigger */}
+          <div className="text-right text-xs mt-2">
+            <button
+              type="button"
+              onClick={() => setIsResetOpen(true)}
+              className="text-red-600 hover:underline"
+            >
+              Forgot Password?
+            </button>
+          </div>
+
+          {/* Reusable Modal */}
+          <ResetPasswordModal
+            open={isResetOpen}
+            onOpenChange={setIsResetOpen}
+          />
 
           <div className="text-center text-xs text-gray-600 mt-4">
             Don’t have an account?{" "}
@@ -370,21 +234,16 @@ export default function LoginPage() {
           <div className="text-center text-xs text-gray-600 mt-4">
             Or login with
           </div>
-          <div className="flex justify-center space-x-3 mt-3">
+          <div className="flex justify-center mt-3">
             <Button
               type="button"
               className="bg-white text-black border border-gray-300 w-full text-xs hover:bg-gray-50 flex items-center justify-center space-x-2"
               onClick={handleGoogleLogin}
               disabled={isLoading}
             >
-              <svg
-                className="h-5 w-5"
-                viewBox="0 0 24 24"
-                fill="none"
-                xmlns="http://www.w3.org/2000/svg"
-              >
+              <svg className="h-5 w-5" viewBox="0 0 24 24" fill="none">
                 <path
-                  d="M22.56 12.25c0-.78-.07-1.53-.20-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
+                  d="M22.56 12.25c0-.78-.07-1.53-.2-2.25H12v4.26h5.92c-.26 1.37-1.04 2.53-2.21 3.31v2.77h3.57c2.08-1.92 3.28-4.74 3.28-8.09z"
                   fill="#4285F4"
                 />
                 <path
