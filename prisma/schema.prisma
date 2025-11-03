@@ -225,7 +225,7 @@ model Availability {
   breakDuration Int?     @default(30) // minutes
   specialist    Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
 
-  @@unique([specialistId, dayOfWeek])
+  @@unique([specialistId, dayOfWeek], name: "specialistId_dayOfWeek")
 }
 
 model ProfileVisit {

@@ -9,7 +9,7 @@ import { z } from "zod";
 const disputeActionSchema = z.object({
   action: z.enum(["confirm_cancel", "deny"]),
   notes: z.string().optional(),
-  id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid appointment ID"), // Add id to schema
+  id: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid appointment ID"),
 });
 
 export async function GET() {
@@ -63,7 +63,7 @@ export async function PATCH(request: NextRequest) {
 
   try {
     const body = await request.json();
-    const { action, notes, id } = disputeActionSchema.parse(body); // Extract id from body
+    const { action, notes, id } = disputeActionSchema.parse(body);
 
     const appointment = await prisma.appointment.findUnique({
       where: { id },
@@ -83,29 +83,54 @@ export async function PATCH(request: NextRequest) {
         action === "confirm_cancel" ? "confirmed_canceled" : "denied",
     };
 
+    let restoredSlotInfo: {
+      date: string;
+      time: string;
+      dayOfWeek: string;
+    } | null = null;
+
     if (action === "confirm_cancel") {
       updatedData.status = "canceled";
 
       // Handle payment refund if paid
       if (appointment.payment && appointment.payment.status === "successful") {
-        // In production, integrate with Stripe refund API
         await prisma.payment.update({
           where: { id: appointment.payment.id },
           data: { status: "refunded" },
         });
       }
 
-      // Add slot back to availability
-      const availabilityDate = appointment.startTime
-        .toISOString()
-        .split("T")[0];
-      const slotTime = `${appointment.startTime.getHours().toString().padStart(2, "0")}:${appointment.startTime.getMinutes().toString().padStart(2, "0")}`;
+      // Extract date & time for UI
+      const dateObj = appointment.startTime;
+      const dayOfWeekNum = dateObj.getDay();
+      const dayOfWeekName = [
+        "Sunday",
+        "Monday",
+        "Tuesday",
+        "Wednesday",
+        "Thursday",
+        "Friday",
+        "Saturday",
+      ][dayOfWeekNum];
 
+      const formattedDate = dateObj.toLocaleDateString("en-US", {
+        weekday: "long",
+        year: "numeric",
+        month: "long",
+        day: "numeric",
+      }); // e.g. "Wednesday, April 5, 2025"
+
+      const slotTime = `${dateObj
+        .getHours()
+        .toString()
+        .padStart(2, "0")}:${dateObj.getMinutes().toString().padStart(2, "0")}`; // e.g. "14:30"
+
+      // Restore slot to weekly availability
       await prisma.availability.upsert({
         where: {
-          specialistId_date: {
+          specialistId_dayOfWeek: {
             specialistId: appointment.specialistId,
-            date: new Date(availabilityDate),
+            dayOfWeek: dayOfWeekNum,
           },
         },
         update: {
@@ -115,11 +140,18 @@ export async function PATCH(request: NextRequest) {
         },
         create: {
           specialistId: appointment.specialistId,
-          date: new Date(availabilityDate),
+          dayOfWeek: dayOfWeekNum,
           slots: [slotTime],
-          breakDuration: 30, // Default value, adjust as needed
+          breakDuration: 30,
         },
       });
+
+      // Attach to response for UI
+      restoredSlotInfo = {
+        date: formattedDate,
+        time: slotTime,
+        dayOfWeek: dayOfWeekName,
+      };
     } else {
       updatedData.status = "completed";
     }
@@ -137,6 +169,7 @@ export async function PATCH(request: NextRequest) {
     return NextResponse.json({
       message: `Dispute ${action === "confirm_cancel" ? "confirmed and canceled" : "denied"}`,
       appointment: updatedAppointment,
+      ...(restoredSlotInfo && { restoredSlotInfo }),
     });
   } catch (error) {
     console.error("Handle dispute error:", error);
