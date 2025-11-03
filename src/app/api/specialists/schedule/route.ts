@@ -1,9 +1,73 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable @typescript-eslint/no-explicit-any */
-// File: app/api/specialists/schedule/route.ts
+// src/app/api/specialists/schedule/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
+interface Appointment {
+  id: string;
+  startTime: Date;
+  endTime: Date;
+}
+
+interface Event {
+  id: string;
+  title: string;
+  start: Date;
+  end: Date;
+}
+
+interface WorkingHour {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
+/* ---------- helpers ---------- */
+const timeToMinutes = (time: string): number => {
+  const trimmed = time.trim();
+  const [timePart, period] = trimmed.split(" ");
+  const [h, m] = timePart.split(":").map(Number);
+  let hours24 = h;
+  if (period === "PM" && h !== 12) hours24 += 12;
+  if (period === "AM" && h === 12) hours24 = 0;
+  return hours24 * 60 + (m ?? 0);
+};
+
+const minutesToTime = (mins: number): string => {
+  const h = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
+};
+
+const mergeContiguousSlots = (slots: string[]): WorkingHour[] => {
+  if (!slots.length) return [];
+
+  const mins = slots.map(timeToMinutes).sort((a, b) => a - b);
+  const blocks: { start: number; end: number }[] = [];
+
+  let curStart = mins[0];
+  let curEnd = mins[0] + 30;
+
+  for (let i = 1; i < mins.length; i++) {
+    const next = mins[i];
+    if (next <= curEnd) {
+      curEnd = next + 30;
+    } else {
+      blocks.push({ start: curStart, end: curEnd });
+      curStart = next;
+      curEnd = next + 30;
+    }
+  }
+  blocks.push({ start: curStart, end: curEnd });
+
+  // Return full WorkingHour objects
+  return blocks.map((b) => ({
+    dayOfWeek: 0, // Will be set later
+    startTime: minutesToTime(b.start),
+    endTime: minutesToTime(b.end),
+  }));
+};
+
+/* ---------- GET ---------- */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
   const specialistId = searchParams.get("specialistId");
@@ -17,138 +81,82 @@ export async function GET(request: Request) {
     );
   }
 
-  try {
-    const start = new Date(startDate);
-    const end = new Date(endDate);
+  const start = new Date(startDate);
+  const end = new Date(endDate);
 
-    // 1. Fetch booked appointments within the visible date range
-    const bookedAppointments = await prisma.appointment.findMany({
+  try {
+    /* ---- 1. BOOKED APPOINTMENTS + 30-MIN BUFFERS ---- */
+    const appointments: Appointment[] = await prisma.appointment.findMany({
       where: {
-        specialistId: specialistId,
-        // Find any appointments that overlap with the client's view
-        OR: [
-          {
-            startTime: { lt: end },
-            endTime: { gt: start },
-          },
-        ],
+        specialistId,
+        OR: [{ startTime: { lt: end }, endTime: { gt: start } }],
         status: { in: ["upcoming", "pending", "break"] },
       },
-      select: {
-        id: true,
-        startTime: true,
-        endTime: true,
-      },
+      select: { id: true, startTime: true, endTime: true },
     });
 
-    const events: any[] = [];
+    const events: Event[] = [];
+    const byDay = new Map<string, Appointment[]>();
 
-    // Group appointments by day (YYYY-MM-DD)
-    const appointmentsByDay = new Map<string, typeof bookedAppointments>();
-
-    bookedAppointments.forEach((appt) => {
-      const dayKey = appt.startTime.toISOString().split("T")[0];
-      if (!appointmentsByDay.has(dayKey)) {
-        appointmentsByDay.set(dayKey, []);
-      }
-      appointmentsByDay.get(dayKey)!.push(appt);
+    appointments.forEach((a) => {
+      const key = a.startTime.toISOString().split("T")[0];
+      if (!byDay.has(key)) byDay.set(key, []);
+      byDay.get(key)!.push(a);
     });
 
-    // Process each day
-    for (const [dayKey, appts] of appointmentsByDay) {
-      // Sort by start time
-      appts.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
+    for (const [, dayAppts] of byDay) {
+      // Fixed: Removed extra arrow function
+      dayAppts.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
 
-      // Add actual bookings
-      appts.forEach((appt) => {
+      dayAppts.forEach((a) => {
         events.push({
-          id: appt.id,
+          id: a.id,
           title: "Booked",
-          start: appt.startTime,
-          end: appt.endTime,
+          start: a.startTime,
+          end: a.endTime,
         });
       });
 
-      // Add 30-min block after each session *except the last one*
-      for (let i = 0; i < appts.length - 1; i++) {
-        const current = appts[i];
-        const blockStart = new Date(current.endTime);
-        const blockEnd = new Date(blockStart.getTime() + 30 * 60 * 1000);
-
+      for (let i = 0; i < dayAppts.length - 1; i++) {
+        const cur = dayAppts[i];
+        const bufStart = new Date(cur.endTime);
+        const bufEnd = new Date(bufStart.getTime() + 30 * 60 * 1000);
         events.push({
-          id: `block-${current.id}-${i}`,
+          id: `buf-${cur.id}-${i}`,
           title: "Blocked (Buffer)",
-          start: blockStart,
-          end: blockEnd,
+          start: bufStart,
+          end: bufEnd,
         });
       }
     }
 
-    // 2. Fetch the specialist's general availability rules to determine working hours
-    const availabilities = await prisma.availability.findMany({
-      where: {
-        specialistId,
-        date: {
-          gte: start,
-          lte: end,
-        },
-      },
-      select: { date: true, slots: true },
+    /* ---- 2. WORKING HOURS (per contiguous block) ---- */
+    const weekly = await prisma.availability.findMany({
+      where: { specialistId },
+      select: { dayOfWeek: true, slots: true },
     });
 
-    // Helper to convert "9:00 AM" to a comparable number
-    const timeToMinutes = (time: string): number => {
-      const [hourStr, period] = time.split(" ");
-      let [hour] = hourStr.split(":").map(Number);
-      if (period === "PM" && hour !== 12) hour += 12;
-      if (period === "AM" && hour === 12) hour = 0; // Midnight case
-      return hour * 60;
-    };
+    const workingHours: WorkingHour[] = [];
+    const current = new Date(start);
 
-    // Derive working hour boundaries (e.g., 9am-5pm) from the list of available slots
-    const workingHours = availabilities
-      .map((avail) => {
-        if (!avail.slots || avail.slots.length === 0) return null;
+    while (current <= end) {
+      const dow = current.getDay();
+      const rule = weekly.find((r) => r.dayOfWeek === dow);
+      if (rule?.slots?.length) {
+        const blocks = mergeContiguousSlots(rule.slots);
+        blocks.forEach((b) => {
+          workingHours.push({
+            ...b,
+            dayOfWeek: dow, // Now correctly set
+          });
+        });
+      }
+      current.setDate(current.getDate() + 1);
+    }
 
-        const dayOfWeek = new Date(avail.date).getUTCDay(); // 0 = Sunday, 1 = Monday, etc.
-
-        // Sort slots by time to reliably find the first and last slot of the day
-        const sortedSlots = [...avail.slots].sort(
-          (a, b) => timeToMinutes(a as string) - timeToMinutes(b as string)
-        );
-
-        const firstSlot = sortedSlots[0] as string;
-        const lastSlot = sortedSlots[sortedSlots.length - 1] as string;
-
-        // Convert first slot to a "HH:mm" start time
-        const startHour = Math.floor(timeToMinutes(firstSlot) / 60);
-        const startTime = `${String(startHour).padStart(2, "0")}:00`;
-
-        // The end time is the hour *after* the last available slot starts
-        const endHour = Math.floor(timeToMinutes(lastSlot) / 60) + 1;
-        const endTime = `${String(endHour).padStart(2, "0")}:00`;
-
-        return { dayOfWeek, startTime, endTime };
-      })
-      .filter(
-        (wh): wh is { dayOfWeek: number; startTime: string; endTime: string } =>
-          wh !== null
-      );
-
-    // Remove duplicates to get a clean list of working hours per day of the week
-    const uniqueWorkingHours = Array.from(
-      new Map(workingHours.map((item) => [`${item.dayOfWeek}`, item])).values()
-    );
-
-    return NextResponse.json(
-      {
-        events,
-        workingHours: uniqueWorkingHours,
-      },
-      { status: 200 }
-    );
-  } catch (error) {
-    console.error("Schedule fetch error:", error);
+    return NextResponse.json({ events, workingHours }, { status: 200 });
+  } catch (err) {
+    console.error("Schedule fetch error:", err);
     return NextResponse.json(
       { error: "Failed to fetch schedule" },
       { status: 500 }

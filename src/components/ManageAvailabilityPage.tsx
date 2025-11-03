@@ -1,486 +1,331 @@
-/* eslint-disable react-hooks/exhaustive-deps */
 "use client";
+
 import React, { useState, useEffect } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { useSession } from "next-auth/react";
 import { toast } from "sonner";
+import { motion } from "framer-motion";
+import Link from "next/link";
+import { MessageSquare } from "lucide-react";
+
 import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
 import {
   Select,
+  SelectTrigger,
   SelectContent,
   SelectItem,
-  SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Skeleton } from "@/components/ui/skeleton";
-import { allSlots } from "@/lib/constants";
-import { motion } from "framer-motion";
-import Link from "next/link";
-import { MessageSquare } from "lucide-react";
-import {
-  Calendar as BigCalendar,
-  momentLocalizer,
-  SlotInfo,
-} from "react-big-calendar";
-import moment from "moment";
-import "react-big-calendar/lib/css/react-big-calendar.css";
-import { format, startOfToday } from "date-fns";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import {
-  Accordion,
-  AccordionContent,
-  AccordionItem,
-  AccordionTrigger,
-} from "@/components/ui/accordion";
 import { Badge } from "@/components/ui/badge";
 
+import { allSlots } from "@/lib/constants";
+
+// --- Animation presets ---
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: {
     opacity: 1,
     y: 0,
-    transition: { duration: 0.5, staggerChildren: 0.2 },
+    transition: { duration: 0.4, staggerChildren: 0.1 },
   },
 };
 
-const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0 },
-};
+const itemVariants = { hidden: { opacity: 0 }, visible: { opacity: 1 } };
 
-const localizer = momentLocalizer(moment);
+const days = ["Sun", "Mon", "Tue", "Wed", "Thu", "Fri", "Sat"];
 
 const ManageAvailabilityPage: React.FC = () => {
-  const [date, setDate] = useState<Date | undefined>(new Date());
-  const [selectedSlots, setSelectedSlots] = useState<string[]>([]);
-  const [breakDuration, setBreakDuration] = useState<number>(30);
-  const [loading, setLoading] = useState(true);
-  const [specialistId, setSpecialistId] = useState<string | null>(null);
-  const [currentViewDate, setCurrentViewDate] = useState<Date>(new Date());
+  const { data: session, status } = useSession();
   const router = useRouter();
   const searchParams = useSearchParams();
-  const { data: session, status } = useSession();
 
+  const [loading, setLoading] = useState(true);
+  const [specialistId, setSpecialistId] = useState<string | null>(null);
+
+  // --- Each day has its own slots + breakDuration
+  const [availability, setAvailability] = useState<
+    Record<number, { slots: string[]; breakDuration: number }>
+  >({});
+
+  const specialistIdFromQuery = searchParams.get("specialistId");
+
+  // --- Verify authentication ---
   useEffect(() => {
-    const fetchSpecialistStatus = async () => {
+    if (status === "unauthenticated") router.push("/login");
+  }, [status, router]);
+
+  // --- Verify specialist ---
+  useEffect(() => {
+    const init = async () => {
+      if (status !== "authenticated") return;
       try {
-        const specialistIdFromQuery = searchParams.get("specialistId");
         const res = await fetch("/api/specialists/application/me", {
           cache: "no-store",
           credentials: "include",
         });
-        if (!res.ok)
-          throw new Error(`Failed to fetch specialist status: ${res.status}`);
-        const { status: appStatus, specialistId: fetchedSpecialistId } =
-          await res.json();
-        if (appStatus !== "approved" || !fetchedSpecialistId) {
-          toast.error(
-            "You must have an approved specialist profile to manage availability."
-          );
+        if (!res.ok) throw new Error();
+        const { status: appStatus, specialistId: fetchedId } = await res.json();
+        if (appStatus !== "approved" || !fetchedId) {
+          toast.error("Approved specialist profile required");
           router.push("/dashboard");
           return;
         }
-        if (specialistIdFromQuery !== fetchedSpecialistId) {
-          toast.error("Invalid specialist ID.");
+        if (specialistIdFromQuery && specialistIdFromQuery !== fetchedId) {
+          toast.error("Invalid specialist ID");
           router.push("/dashboard");
           return;
         }
-        setSpecialistId(fetchedSpecialistId);
-        if (date) {
-          fetchAvailability(fetchedSpecialistId);
-        }
-      } catch (err) {
-        console.error("Fetch Specialist Status Error:", err);
-        toast.error("Failed to verify specialist status. Please try again.");
+        setSpecialistId(fetchedId);
+      } catch {
+        toast.error("Verification failed");
         router.push("/dashboard");
       } finally {
         setLoading(false);
       }
     };
+    init();
+  }, [status, router, specialistIdFromQuery]);
 
-    if (status === "authenticated") {
-      fetchSpecialistStatus();
-    } else if (status === "unauthenticated") {
-      router.push("/login");
-    }
-  }, [status, router, searchParams, date]);
-
-  const fetchAvailability = async (specialistId: string) => {
-    if (!date) return;
-    try {
-      const res = await fetch(
-        `/api/specialists/availability?specialistId=${specialistId}&date=${format(date, "yyyy-MM-dd")}`,
-        { credentials: "include" }
-      );
-      if (res.ok) {
-        const data = await res.json();
-        setSelectedSlots(data.slots || []);
-        setBreakDuration(data.breakDuration || 30);
-      } else {
-        throw new Error("Failed to fetch availability");
-      }
-    } catch (err) {
-      console.error("Fetch Availability Error:", err);
-      toast.error("Failed to fetch availability. Please try again.");
-    }
-  };
-
-  const isSlotValidWithBreak = (
-    newSlot: string,
-    currentSlots: string[],
-    breakDuration: number
-  ) => {
-    const timeToMinutes = (time: string) => {
-      const [hourStr, period] = time.split(" ");
-      const [hour, minute] = hourStr.split(":").map(Number);
-      return ((hour % 12) + (period === "PM" ? 12 : 0)) * 60 + minute;
-    };
-    const newSlotMinutes = timeToMinutes(newSlot);
-    for (const slot of currentSlots) {
-      const slotMinutes = timeToMinutes(slot);
-      const gap = Math.abs(newSlotMinutes - slotMinutes);
-      if (gap < breakDuration && gap !== 0) {
-        return false;
-      }
-    }
-    return true;
-  };
-
-  const toggleSlot = (time: string) => {
-    setSelectedSlots((prev) => {
-      if (prev.includes(time)) {
-        return prev.filter((t) => t !== time);
-      } else {
-        if (isSlotValidWithBreak(time, prev, breakDuration)) {
-          return [...prev, time].sort((a, b) => {
-            const timeA = new Date(`1970-01-01 ${a}`);
-            const timeB = new Date(`1970-01-01 ${b}`);
-            return timeA.getTime() - timeB.getTime();
-          });
-        } else {
-          toast.error(
-            `Selected slot conflicts with ${breakDuration}-minute break requirement.`
+  // --- Load data for all 7 days ---
+  useEffect(() => {
+    if (!specialistId) return;
+    const load = async () => {
+      try {
+        const weekData: Record<
+          number,
+          { slots: string[]; breakDuration: number }
+        > = {};
+        for (let i = 0; i < 7; i++) {
+          const res = await fetch(
+            `/api/specialists/availability?specialistId=${specialistId}&dayOfWeek=${i}`
           );
-          return prev;
+          if (res.ok) {
+            const { slots, breakDuration } = await res.json();
+            weekData[i] = {
+              slots: slots ?? [],
+              breakDuration: breakDuration ?? 30,
+            };
+          } else {
+            weekData[i] = { slots: [], breakDuration: 30 };
+          }
         }
+        setAvailability(weekData);
+      } catch {
+        toast.error("Failed to load availability");
       }
+    };
+    load();
+  }, [specialistId]);
+
+  // --- Toggle a single slot ---
+  const toggleSlot = (day: number, slot: string) => {
+    setAvailability((prev) => {
+      const current = prev[day]?.slots ?? [];
+      const newSlots = current.includes(slot)
+        ? current.filter((t) => t !== slot)
+        : [...current, slot];
+      return { ...prev, [day]: { ...prev[day], slots: newSlots } };
     });
   };
 
-  const handleSubmitAvailability = async () => {
-    if (!date || !specialistId) return;
-    try {
-      const res = await fetch("/api/specialists/availability", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          date: format(date, "yyyy-MM-dd"),
-          slots: selectedSlots,
-          breakDuration,
-          specialistId,
-        }),
-        credentials: "include",
-      });
-      if (res.ok) {
-        toast.success("Availability updated successfully");
-      } else {
-        const errorData = await res.json();
-        throw new Error(errorData.error || "Failed to update availability");
-      }
-    } catch (error) {
-      toast.error(
-        error instanceof Error ? error.message : "Failed to update availability"
-      );
-    }
+  // --- Change break duration for a day ---
+  const changeBreakDuration = (day: number, val: number) => {
+    setAvailability((prev) => ({
+      ...prev,
+      [day]: { ...prev[day], breakDuration: val },
+    }));
   };
 
-  const handleSelectSlot = (slotInfo: SlotInfo) => {
-    const clickedDate = new Date(slotInfo.start);
-    const today = startOfToday();
-
-    if (clickedDate < today) return; // Disable past dates
-
-    setDate(clickedDate);
-  };
-
-  const handleNavigate = (newDate: Date) => {
-    setCurrentViewDate(newDate);
-  };
-
-  const dayPropGetter = (calendarDate: Date) => {
-    const dateStr = format(calendarDate, "yyyy-MM-dd");
-    const today = startOfToday();
-
-    if (calendarDate < today) {
+  // --- Mark entire day available / clear day ---
+  const toggleAllDay = (day: number) => {
+    setAvailability((prev) => {
+      const allSelected = prev[day]?.slots.length === allSlots.length;
       return {
-        className: "rbc-day-bg bg-gray-200 text-gray-400 cursor-not-allowed",
+        ...prev,
+        [day]: {
+          ...prev[day],
+          slots: allSelected ? [] : [...allSlots],
+        },
+      };
+    });
+  };
+
+  // --- Mark all days fully available / clear all ---
+  const toggleAllDays = () => {
+    const allFull = Object.values(availability).every(
+      (d) => d?.slots.length === allSlots.length
+    );
+    const newData: Record<number, { slots: string[]; breakDuration: number }> =
+      {};
+    for (let i = 0; i < 7; i++) {
+      newData[i] = {
+        ...availability[i],
+        slots: allFull ? [] : [...allSlots],
       };
     }
-    if (date && dateStr === format(date, "yyyy-MM-dd")) {
-      return { className: "rbc-day-bg bg-[#F3CFC6] text-black" };
+    setAvailability(newData);
+  };
+
+  // --- Save all data ---
+  const save = async () => {
+    if (!specialistId) return;
+    try {
+      for (const [dayOfWeek, { slots, breakDuration }] of Object.entries(
+        availability
+      )) {
+        const res = await fetch("/api/specialists/availability", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({
+            dayOfWeek: Number(dayOfWeek),
+            slots,
+            breakDuration,
+            specialistId,
+          }),
+          credentials: "include",
+        });
+        if (!res.ok) throw new Error();
+      }
+      toast.success("Availability saved for all days");
+    } catch {
+      toast.error("Failed to save availability");
     }
-    return { className: "rbc-day-bg bg-green-100 cursor-pointer" };
   };
 
-  // Group slots by time of day for better UX
-  const timeToMinutes = (time: string) => {
-    const [hourStr, period] = time.split(" ");
-    const [hour] = hourStr.split(":").map(Number);
-    return (hour % 12) + (period === "PM" ? 12 : 0);
-  };
-
-  const groupedSlots = {
-    morning: allSlots.filter((slot) => timeToMinutes(slot) < 12),
-    afternoon: allSlots.filter((slot) => {
-      const hour = timeToMinutes(slot);
-      return hour >= 12 && hour < 17;
-    }),
-    evening: allSlots.filter((slot) => timeToMinutes(slot) >= 17),
-  };
-
-  if (status === "loading" || loading) {
+  // --- Loading skeleton ---
+  if (status === "loading" || loading)
     return (
       <div className="p-4 space-y-6 max-w-7xl mx-auto">
-        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
-          <CardHeader>
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
-              <Skeleton className="h-4 w-64 bg-[#C4C4C4]/50" />
-            </div>
-          </CardHeader>
-          <CardContent className="flex space-x-4">
-            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
-          </CardContent>
-        </Card>
-        <Card className="shadow-lg">
-          <CardContent className="space-y-4 pt-6">
-            <Skeleton className="h-40 w-full bg-[#C4C4C4]/50" />
-            <div className="space-y-2">
-              <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
-              <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
-            </div>
-            <Skeleton className="h-40 w-full bg-[#C4C4C4]/50" />
-            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
-          </CardContent>
-        </Card>
+        <Skeleton className="h-40 w-full" />
+        <Skeleton className="h-60 w-full" />
       </div>
     );
-  }
 
-  if (status === "unauthenticated") {
-    router.push("/login");
-    return null;
-  }
+  if (status === "unauthenticated") return null;
 
   return (
-    <TooltipProvider>
-      <motion.div
-        className="p-4 space-y-6 max-w-7xl mx-auto"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
-          <CardHeader>
-            <motion.div variants={itemVariants}>
-              <CardTitle className="text-2xl text-black dark:text-white">
-                Manage Availability
-              </CardTitle>
-              <p className="text-sm text-black">
-                Set your availability for sessions. Select a date and available
-                time slots.
-              </p>
-            </motion.div>
-          </CardHeader>
-          <CardContent className="flex space-x-4">
-            <motion.div
-              variants={itemVariants}
-              whileHover={{
-                scale: 1.05,
-                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-              }}
-              transition={{ duration: 0.2 }}
-            >
-              <Button
-                asChild
-                variant="outline"
-                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
-              >
-                <Link href={`/dashboard/profile/${session?.user?.id}`}>
-                  <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" /> Back
-                  to Profile
-                </Link>
-              </Button>
-            </motion.div>
-          </CardContent>
-        </Card>
-        <Card className="shadow-lg">
-          <CardContent className="space-y-6 pt-6">
-            <motion.div variants={itemVariants} className="space-y-4">
-              <BigCalendar
-                localizer={localizer}
-                defaultView="month"
-                views={["month"]}
-                date={currentViewDate}
-                onNavigate={handleNavigate}
-                selectable={true}
-                onSelectSlot={handleSelectSlot}
-                style={{ height: 500 }}
-                min={new Date()} // Prevent past dates
-                dayPropGetter={dayPropGetter}
-                events={[]} // No events needed
-              />
-            </motion.div>
+    <motion.div
+      className="p-4 space-y-6 max-w-7xl mx-auto"
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      {/* --- Header --- */}
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+        <CardHeader>
+          <CardTitle className="text-2xl text-black">
+            Manage Availability
+          </CardTitle>
+          <p className="text-sm text-black">
+            Set your availability for each day. You can also mark all days
+            available instantly.
+          </p>
+        </CardHeader>
+        <CardContent className="flex space-x-4">
+          <Button asChild variant="outline" className="rounded-full">
+            <Link href={`/dashboard/profile/${session?.user?.id}`}>
+              <MessageSquare className="mr-2 h-4 w-4" /> Back to Profile
+            </Link>
+          </Button>
+          <Button
+            onClick={toggleAllDays}
+            className="bg-[#ffffff] hover:bg-[#C4C4C4] text-black rounded-full"
+          >
+            Mark All Days{" "}
+            {Object.values(availability).every(
+              (d) => d?.slots.length === allSlots.length
+            )
+              ? "Unavailable"
+              : "Available"}
+          </Button>
+        </CardContent>
+      </Card>
 
-            {/* Improved Break Duration Section */}
-            <motion.div variants={itemVariants} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <Label
-                    htmlFor="breakDuration"
-                    className="text-lg font-semibold text-black dark:text-white"
+      {/* --- Weekly Grid --- */}
+      <Card className="shadow-lg">
+        <CardContent className="space-y-8 pt-6">
+          {days.map((day, i) => (
+            <motion.div key={i} variants={itemVariants} className="space-y-3">
+              <div className="flex justify-between items-center">
+                <h3 className="text-lg font-semibold">{day}</h3>
+                <div className="flex items-center space-x-3">
+                  <Label className="text-sm text-gray-600">Break</Label>
+                  <Select
+                    value={availability[i]?.breakDuration?.toString() ?? "30"}
+                    onValueChange={(v) => changeBreakDuration(i, Number(v))}
                   >
-                    Break Duration Between Slots
-                  </Label>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Choose the minimum break time between appointments. This
-                    will enforce gaps in your available slots.
-                  </p>
-                </div>
-                <Select
-                  value={breakDuration.toString()}
-                  onValueChange={(value) => setBreakDuration(Number(value))}
-                >
-                  <SelectTrigger className="w-40 border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
-                    <SelectValue placeholder="Select duration" />
-                  </SelectTrigger>
-                  <SelectContent>
-                    <SelectItem value="30">30 Minutes</SelectItem>
-                    <SelectItem value="60">1 Hour</SelectItem>
-                  </SelectContent>
-                </Select>
-              </div>
-            </motion.div>
-
-            {/* Improved Time Slots Section */}
-            <motion.div variants={itemVariants} className="space-y-4">
-              <div className="flex items-center justify-between">
-                <div>
-                  <h3 className="text-lg font-semibold text-black dark:text-white">
-                    Available Time Slots for{" "}
-                    {date ? format(date, "MMMM d, yyyy") : "Selected Date"}
-                  </h3>
-                  <p className="text-sm text-gray-500 dark:text-gray-400">
-                    Select slots ensuring at least {breakDuration} minutes
-                    between them.
-                    <Badge variant="secondary" className="ml-2">
-                      {selectedSlots.length} selected
-                    </Badge>
-                  </p>
-                </div>
-                <Button
-                  variant="ghost"
-                  onClick={() => setSelectedSlots([])}
-                  className="text-sm text-[#F3CFC6]"
-                >
-                  Clear All
-                </Button>
-              </div>
-              <Accordion type="single" collapsible className="w-full">
-                {Object.entries(groupedSlots).map(([group, slots]) => (
-                  <AccordionItem key={group} value={group}>
-                    <AccordionTrigger className="text-black dark:text-white">
-                      {group.charAt(0).toUpperCase() + group.slice(1)} (
-                      {slots.length} slots)
-                    </AccordionTrigger>
-                    <AccordionContent>
-                      <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 gap-4 max-h-60 overflow-y-auto p-2">
-                        {slots.map((time) => {
-                          const isDisabled =
-                            !isSlotValidWithBreak(
-                              time,
-                              selectedSlots,
-                              breakDuration
-                            ) && !selectedSlots.includes(time);
-                          return (
-                            <Tooltip key={time}>
-                              <TooltipTrigger asChild>
-                                <div
-                                  className={`flex items-center space-x-2 p-2 rounded-md border ${
-                                    selectedSlots.includes(time)
-                                      ? "bg-[#F3CFC6] text-black"
-                                      : isDisabled
-                                        ? "bg-gray-100 text-gray-400 cursor-not-allowed"
-                                        : "bg-white hover:bg-gray-50 cursor-pointer"
-                                  }`}
-                                  onClick={() =>
-                                    !isDisabled && toggleSlot(time)
-                                  }
-                                >
-                                  <Checkbox
-                                    id={time}
-                                    checked={selectedSlots.includes(time)}
-                                    onCheckedChange={() =>
-                                      !isDisabled && toggleSlot(time)
-                                    }
-                                    disabled={isDisabled}
-                                    className="mr-2"
-                                  />
-                                  <Label
-                                    htmlFor={time}
-                                    className="cursor-pointer"
-                                  >
-                                    {time}
-                                  </Label>
-                                </div>
-                              </TooltipTrigger>
-                              <TooltipContent>
-                                {isDisabled
-                                  ? `Conflicts with ${breakDuration}-min break`
-                                  : selectedSlots.includes(time)
-                                    ? "Selected"
-                                    : "Available to select"}
-                              </TooltipContent>
-                            </Tooltip>
-                          );
-                        })}
-                      </div>
-                    </AccordionContent>
-                  </AccordionItem>
-                ))}
-              </Accordion>
-            </motion.div>
-
-            {/* Save Button */}
-            <motion.div variants={itemVariants} className="flex justify-end">
-              <Tooltip>
-                <TooltipTrigger asChild>
+                    <SelectTrigger className="w-24">
+                      <SelectValue />
+                    </SelectTrigger>
+                    <SelectContent>
+                      <SelectItem value="30">30 min</SelectItem>
+                      <SelectItem value="60">1 hour</SelectItem>
+                      <SelectItem value="90">1.5 hr</SelectItem>
+                    </SelectContent>
+                  </Select>
                   <Button
-                    onClick={handleSubmitAvailability}
-                    className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full px-6"
+                    onClick={() => toggleAllDay(i)}
+                    variant="outline"
+                    size="sm"
+                    className="rounded-full"
                   >
-                    Save Availability
+                    {availability[i]?.slots.length === allSlots.length
+                      ? "Clear Day"
+                      : "All Day"}
                   </Button>
-                </TooltipTrigger>
-                <TooltipContent>
-                  {selectedSlots.length === 0
-                    ? "Saving will clear all availability for this date"
-                    : "Update your selected slots and breaks"}
-                </TooltipContent>
-              </Tooltip>
+                </div>
+              </div>
+
+              {/* --- Slots --- */}
+              <div className="grid grid-cols-2 sm:grid-cols-3 md:grid-cols-4 lg:grid-cols-6 gap-2">
+                {allSlots.map((slot) => {
+                  const selected = availability[i]?.slots.includes(slot);
+                  return (
+                    <div
+                      key={slot}
+                      onClick={() => toggleSlot(i, slot)}
+                      className={`flex items-center justify-center p-2 rounded cursor-pointer border transition 
+                      ${
+                        selected
+                          ? "bg-[#F3CFC6] border-[#F3CFC6] text-black"
+                          : "hover:bg-gray-50"
+                      }`}
+                    >
+                      <Checkbox
+                        checked={selected}
+                        onCheckedChange={() => toggleSlot(i, slot)}
+                        className="mr-2"
+                      />
+                      {slot}
+                    </div>
+                  );
+                })}
+              </div>
             </motion.div>
-          </CardContent>
-        </Card>
-      </motion.div>
-    </TooltipProvider>
+          ))}
+
+          {/* --- Summary --- */}
+          <div className="flex flex-wrap justify-between items-center gap-3">
+            <div className="text-sm text-gray-600">
+              Total selected slots:{" "}
+              <Badge>
+                {Object.values(availability).flatMap((d) => d?.slots).length}
+              </Badge>
+            </div>
+            <Button
+              onClick={save}
+              className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black rounded-full"
+            >
+              Save Availability
+            </Button>
+          </div>
+        </CardContent>
+      </Card>
+    </motion.div>
   );
 };
 

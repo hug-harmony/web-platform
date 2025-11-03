@@ -6,7 +6,7 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
 /**
- * Creates a new appointment based on a start and end time.
+ * Creates a new appointment + 30-min buffer (as 'break' appointment)
  */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -78,6 +78,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // --- Check for overlap with any appointment or buffer ---
     const overlappingAppointment = await prisma.appointment.findFirst({
       where: {
         specialistId,
@@ -97,46 +98,7 @@ export async function POST(request: Request) {
       );
     }
 
-    // --- NEW: Check if proposed booking overlaps with any 30-min buffer ---
-    const dayStart = new Date(start);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(start);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    const dayAppointments = await prisma.appointment.findMany({
-      where: {
-        specialistId,
-        status: { in: ["upcoming", "pending", "break"] },
-        startTime: { gte: dayStart, lte: dayEnd },
-      },
-      orderBy: { startTime: "asc" },
-    });
-
-    let hasBufferViolation = false;
-
-    for (let i = 0; i < dayAppointments.length - 1; i++) {
-      const curr = dayAppointments[i];
-      const bufferStart = new Date(curr.endTime);
-      const bufferEnd = new Date(bufferStart.getTime() + 30 * 60 * 1000);
-
-      // Check if new booking overlaps with this buffer
-      if (start < bufferEnd && end > bufferStart) {
-        hasBufferViolation = true;
-        break;
-      }
-    }
-
-    if (hasBufferViolation) {
-      return NextResponse.json(
-        {
-          error: "INVALID_TIME_BUFFER",
-          message:
-            "Cannot book during or across the 30-minute buffer between sessions.",
-        },
-        { status: 409 }
-      );
-    }
-
+    // --- Create main appointment ---
     const newAppointment = await prisma.appointment.create({
       data: {
         userId,
@@ -149,7 +111,24 @@ export async function POST(request: Request) {
       },
     });
 
-    return NextResponse.json({ appointment: newAppointment }, { status: 201 });
+    // --- Create 30-min buffer as 'break' appointment ---
+    const bufferStart = new Date(end);
+    const bufferEnd = new Date(bufferStart.getTime() + 30 * 60 * 1000);
+
+    await prisma.appointment.create({
+      data: {
+        specialistId,
+        userId: null, // No user
+        startTime: bufferStart,
+        endTime: bufferEnd,
+        status: "break",
+      },
+    });
+
+    return NextResponse.json(
+      { appointment: newAppointment, bufferCreated: true },
+      { status: 201 }
+    );
   } catch (error) {
     console.error("Booking POST error:", error);
     return NextResponse.json(

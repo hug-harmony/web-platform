@@ -115,7 +115,7 @@ model Appointment {
   rate             Float?
   adjustedRate     Float?
   modificationHistory Json?
-  venue            AppointmentVenue
+  venue            AppointmentVenue?
   createdAt        DateTime        @default(now())
   user             User?           @relation("UserAppointments", fields: [userId], references: [id], onDelete: SetNull)
   specialist       Specialist      @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)
@@ -220,12 +220,12 @@ model VideoSession {
 model Availability {
   id            String   @id @default(auto()) @map("_id") @db.ObjectId
   specialistId  String   @db.ObjectId
-  date          DateTime
+  dayOfWeek     Int      // 0 = Sunday … 6 = Saturday
   slots         String[]
-  breakDuration Int?
+  breakDuration Int?     @default(30) // minutes
   specialist    Specialist @relation(fields: [specialistId], references: [id], onDelete: Cascade)
 
-  @@unique([specialistId, date])
+  @@unique([specialistId, dayOfWeek])
 }
 
 model ProfileVisit {

@@ -1,48 +1,46 @@
 // app/api/specialists/availability/route.ts
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
 import { allSlots } from "@/lib/constants";
+import { getServerSession } from "next-auth";
+import { authOptions } from "@/lib/auth";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const date = searchParams.get("date");
   const specialistId = searchParams.get("specialistId");
+  const dayOfWeek = searchParams.get("dayOfWeek");
 
-  if (!date) {
+  if (!specialistId || dayOfWeek === null) {
     return NextResponse.json(
-      { error: "Missing required parameter: date" },
+      { error: "Missing specialistId or dayOfWeek" },
+      { status: 400 }
+    );
+  }
+
+  const day = Number(dayOfWeek);
+  if (isNaN(day) || day < 0 || day > 6) {
+    return NextResponse.json(
+      { error: "Invalid dayOfWeek (0-6)" },
       { status: 400 }
     );
   }
 
   try {
-    const utcDate = new Date(date);
-    utcDate.setUTCHours(0, 0, 0, 0); // Normalize to UTC midnight
+    const avail = await prisma.availability.findUnique({
+      where: { specialistId_dayOfWeek: { specialistId, dayOfWeek: day } },
+    });
 
-    if (specialistId) {
-      const availability = await prisma.availability.findUnique({
-        where: { specialistId_date: { specialistId, date: utcDate } },
-      });
-      return NextResponse.json(
-        {
-          slots: availability?.slots || [],
-          breakDuration: availability?.breakDuration || 30,
-        },
-        { status: 200 }
-      );
-    } else {
-      const availabilities = await prisma.availability.findMany({
-        where: { date: utcDate },
-        select: { specialistId: true, slots: true, breakDuration: true },
-      });
-      return NextResponse.json({ availabilities }, { status: 200 });
-    }
-  } catch (error) {
-    console.error("Availability fetch error:", error);
     return NextResponse.json(
-      { error: "Internal server error: Failed to fetch availability" },
+      {
+        slots: avail?.slots ?? [],
+        breakDuration: avail?.breakDuration ?? 30,
+      },
+      { status: 200 }
+    );
+  } catch (err) {
+    console.error(err);
+    return NextResponse.json(
+      { error: "Failed to fetch availability" },
       { status: 500 }
     );
   }
@@ -51,10 +49,7 @@ export async function GET(request: Request) {
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
-    return NextResponse.json(
-      { error: "Unauthorized: No session found" },
-      { status: 401 }
-    );
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const app = await prisma.specialistApplication.findUnique({
@@ -68,62 +63,57 @@ export async function POST(request: Request) {
   }
   const specialistId = app.specialistId;
 
-  const { date, slots, breakDuration } = await request.json();
+  const { dayOfWeek, slots, breakDuration } = await request.json();
+
   if (
-    !date ||
+    dayOfWeek === undefined ||
     !Array.isArray(slots) ||
-    slots.length === 0 ||
     ![30, 60].includes(breakDuration)
   ) {
     return NextResponse.json(
-      { error: "Missing or invalid parameters: date, slots, or breakDuration" },
+      { error: "Missing/invalid: dayOfWeek, slots, breakDuration" },
       { status: 400 }
     );
   }
 
-  const utcDate = new Date(date);
-  utcDate.setUTCHours(0, 0, 0, 0); // Normalize to UTC midnight
-
-  // Validate slots against allowed list
-  const invalidSlots = slots.filter((slot: string) => !allSlots.includes(slot));
-  if (invalidSlots.length > 0) {
+  const day = Number(dayOfWeek);
+  if (isNaN(day) || day < 0 || day > 6) {
     return NextResponse.json(
-      { error: `Invalid slots provided: ${invalidSlots.join(", ")}` },
+      { error: "dayOfWeek must be 0-6" },
       { status: 400 }
     );
   }
 
-  // Validate break duration between slots
-  const timeToMinutes = (time: string) => {
-    const [hourStr, period] = time.split(" ");
-    const [hour, minute] = hourStr.split(":").map(Number);
-    return ((hour % 12) + (period === "PM" ? 12 : 0)) * 60 + minute;
-  };
-  for (let i = 0; i < slots.length - 1; i++) {
-    const current = timeToMinutes(slots[i]);
-    const next = timeToMinutes(slots[i + 1]);
-    if (next - current < breakDuration && next - current !== 0) {
-      return NextResponse.json(
-        {
-          error: `Slots must have at least ${breakDuration} minutes between them`,
-        },
-        { status: 400 }
-      );
-    }
+  const invalid = slots.filter((s: string) => !allSlots.includes(s));
+  if (invalid.length) {
+    return NextResponse.json(
+      { error: `Invalid slots: ${invalid.join(", ")}` },
+      { status: 400 }
+    );
   }
 
   try {
-    await prisma.availability.upsert({
-      where: { specialistId_date: { specialistId, date: utcDate } },
-      update: { slots, breakDuration },
-      create: { specialistId, date: utcDate, slots, breakDuration },
+    // Try update first
+    const existing = await prisma.availability.findFirst({
+      where: { specialistId, dayOfWeek: day },
     });
 
-    return NextResponse.json({ success: true }, { status: 200 });
-  } catch (error) {
-    console.error("Availability update error:", error);
+    if (existing) {
+      await prisma.availability.update({
+        where: { id: existing.id },
+        data: { slots, breakDuration },
+      });
+    } else {
+      await prisma.availability.create({
+        data: { specialistId, dayOfWeek: day, slots, breakDuration },
+      });
+    }
+
+    return NextResponse.json({ success: true });
+  } catch (err) {
+    console.error(err);
     return NextResponse.json(
-      { error: "Internal server error: Failed to update availability" },
+      { error: "Failed to save availability" },
       { status: 500 }
     );
   }

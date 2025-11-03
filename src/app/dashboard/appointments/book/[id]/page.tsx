@@ -38,9 +38,8 @@ import {
   format,
   addHours,
   isBefore,
-  getDay,
-  getHours,
   differenceInMinutes,
+  addMinutes,
 } from "date-fns";
 
 interface Therapist {
@@ -57,7 +56,7 @@ interface BookedEvent extends Event {
   end: Date;
 }
 
-interface WorkingHours {
+interface WorkingHour {
   dayOfWeek: number;
   startTime: string;
   endTime: string;
@@ -70,7 +69,7 @@ interface NewBookingSlot {
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { difference: 0.5 } },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
 };
 
 const localizer = momentLocalizer(moment);
@@ -84,10 +83,9 @@ const BookingPage: React.FC = () => {
   const [loading, setLoading] = useState(true);
   const [bookingInProgress, setBookingInProgress] = useState(false);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookedEvents, setBookedEvents] = useState<BookedEvent[]>([]);
-  const [workingHours, setWorkingHours] = useState<WorkingHours[]>([]);
+  const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
   const [newBookingSlot, setNewBookingSlot] = useState<NewBookingSlot | null>(
     null
   );
@@ -95,17 +93,16 @@ const BookingPage: React.FC = () => {
     "host" | "visit" | undefined
   >(undefined);
 
+  // Fetch therapist
   useEffect(() => {
     if (!therapistId) return;
     const fetchTherapist = async () => {
       try {
         const res = await fetch(`/api/specialists?id=${therapistId}`);
-        if (!res.ok) throw new Error("Failed to fetch specialist details");
+        if (!res.ok) throw new Error("Failed to fetch specialist");
         const data = await res.json();
         setTherapist(data);
-        if (data.venue !== "both") {
-          setSelectedVenue(data.venue);
-        }
+        if (data.venue !== "both") setSelectedVenue(data.venue);
       } catch (error) {
         toast.error((error as Error).message);
       }
@@ -113,11 +110,11 @@ const BookingPage: React.FC = () => {
     fetchTherapist();
   }, [therapistId]);
 
+  // Fetch schedule
   const fetchSchedule = useCallback(
     async (date: Date) => {
       if (!therapistId) return;
       setLoading(true);
-
       const start = startOfWeek(date, { weekStartsOn: 1 });
       const end = endOfWeek(date, { weekStartsOn: 1 });
 
@@ -125,9 +122,8 @@ const BookingPage: React.FC = () => {
         const res = await fetch(
           `/api/specialists/schedule?specialistId=${therapistId}&startDate=${format(start, "yyyy-MM-dd")}&endDate=${format(end, "yyyy-MM-dd")}`
         );
-        if (!res.ok) throw new Error("Failed to load schedule data.");
-
-        const { events, workingHours: fetchedWorkingHours } = await res.json();
+        if (!res.ok) throw new Error("Failed to load schedule.");
+        const { events, workingHours: fetched } = await res.json();
 
         setBookedEvents(
           events.map((e: any) => ({
@@ -136,7 +132,7 @@ const BookingPage: React.FC = () => {
             end: new Date(e.end),
           }))
         );
-        setWorkingHours(fetchedWorkingHours);
+        setWorkingHours(fetched || []);
       } catch (error) {
         toast.error((error as Error).message);
       } finally {
@@ -154,52 +150,70 @@ const BookingPage: React.FC = () => {
 
   const handleSelectSlot = useCallback(
     (slotInfo: SlotInfo) => {
-      if (isBefore(slotInfo.start, new Date())) return;
-
-      const isOverlapping = bookedEvents.some(
-        (event) => slotInfo.start < event.end && slotInfo.end > event.start
-      );
-      if (isOverlapping) {
-        toast.warning(
-          "This time overlaps with a booked session or required 30-minute buffer."
-        );
+      // Block past dates
+      if (isBefore(slotInfo.start, new Date())) {
+        toast.warning("Cannot select past time.");
         return;
       }
 
-      const isClick = moment(slotInfo.start).isSame(
-        moment(slotInfo.end),
-        "minute"
-      );
-      const bookingEnd = isClick ? addHours(slotInfo.start, 1) : slotInfo.end;
+      // Helper: check if a time is within any working block
+      const isTimeAvailable = (date: Date): boolean => {
+        const day = date.getDay();
+        const hour = date.getHours();
+        const minute = date.getMinutes();
+        const slotMins = hour * 60 + minute;
 
-      const finalOverlapCheck = bookedEvents.some(
-        (event) => slotInfo.start < event.end && bookingEnd > event.start
-      );
-      if (finalOverlapCheck) {
-        toast.warning(
-          "Your selection overlaps with a booked session or 30-minute buffer."
-        );
+        const dayBlocks = workingHours.filter((w) => w.dayOfWeek === day);
+        if (dayBlocks.length === 0) return false;
+
+        return dayBlocks.some((block) => {
+          const [sh, sm] = block.startTime.split(":").map(Number);
+          const [eh, em] = block.endTime.split(":").map(Number);
+          const startMins = sh * 60 + sm;
+          const endMins = eh * 60 + em;
+          return slotMins >= startMins && slotMins < endMins;
+        });
+      };
+
+      // Check every 30-min step in selection
+      const start = slotInfo.start;
+      const isClick = moment(start).isSame(moment(slotInfo.end), "minute");
+      const end = isClick ? addHours(start, 1) : slotInfo.end;
+
+      let current = new Date(start);
+      while (current < end) {
+        if (!isTimeAvailable(current)) {
+          toast.warning("Selection includes unavailable time.");
+          return;
+        }
+        current = addMinutes(current, 30);
+      }
+
+      // Check overlap with booked events
+      const overlaps = bookedEvents.some((e) => start < e.end && end > e.start);
+      if (overlaps) {
+        toast.warning("Overlaps with booked session or buffer.");
         return;
       }
 
-      setNewBookingSlot({ start: slotInfo.start, end: bookingEnd });
+      // Valid → open dialog
+      setNewBookingSlot({ start, end });
       setIsDialogOpen(true);
     },
-    [bookedEvents]
+    [bookedEvents, workingHours]
   );
 
   const handleBookSession = async () => {
     if (!session?.user?.id || !newBookingSlot || !therapistId || !therapist)
       return;
-
     if (therapist.venue === "both" && !selectedVenue) {
-      toast.error("Please select a venue for the session.");
+      toast.error("Select venue.");
       return;
     }
 
     setBookingInProgress(true);
     try {
-      const response = await fetch("/api/specialists/booking", {
+      const res = await fetch("/api/specialists/booking", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -211,50 +225,75 @@ const BookingPage: React.FC = () => {
         }),
       });
 
-      const data = await response.json();
-      if (!response.ok) {
-        const msg = data.message || "Booking failed.";
-        toast.error(msg);
-        throw new Error(msg);
-      }
+      const data = await res.json();
+      if (!res.ok) throw new Error(data.message || "Booking failed.");
 
-      toast.success("Booking confirmed!");
+      toast.success("Booked!");
+
+      const newBooking: BookedEvent = {
+        id: `temp-${Date.now()}`,
+        title: "Booked",
+        start: newBookingSlot.start,
+        end: newBookingSlot.end,
+      };
+      setBookedEvents((prev) => [...prev, newBooking]);
+
       setIsDialogOpen(false);
-      fetchSchedule(currentDate);
+      setNewBookingSlot(null);
+      if (therapist.venue === "both") setSelectedVenue(undefined);
     } catch (error: any) {
-      toast.error(error.message || "Failed to confirm booking.");
+      toast.error(error.message || "Booking failed.");
     } finally {
       setBookingInProgress(false);
-      setTimeout(() => {
-        setNewBookingSlot(null);
-        if (therapist?.venue === "both") setSelectedVenue(undefined);
-      }, 300);
     }
   };
 
+  // SHOW ALL 24 HOURS
+  const { min, max } = useMemo(() => {
+    const today = new Date();
+    const base = new Date(
+      today.getFullYear(),
+      today.getMonth(),
+      today.getDate()
+    );
+    return {
+      min: new Date(base.setHours(0, 0, 0, 0)),
+      max: new Date(base.setHours(23, 59, 59, 999)),
+    };
+  }, []);
+
   const slotPropGetter = useCallback(
     (date: Date) => {
-      const day = getDay(date);
-      const hour = getHours(date);
+      const day = date.getDay();
+      const hour = date.getHours();
+      const minute = date.getMinutes();
+      const slotMins = hour * 60 + minute;
 
-      const dayWorkingHours = workingHours.find((wh) => wh.dayOfWeek === day);
+      const dayBlocks = workingHours.filter((w) => w.dayOfWeek === day);
 
-      if (!dayWorkingHours)
+      if (dayBlocks.length === 0) {
         return {
-          className: "rbc-slot-disabled",
-          style: { backgroundColor: "#B0B0B0" },
+          className: "rbc-slot-unavailable",
+          style: { backgroundColor: "#e5e5e5", opacity: 0.6 },
         };
+      }
 
-      const startHour = parseInt(dayWorkingHours.startTime.split(":")[0], 10);
-      const endHour = parseInt(dayWorkingHours.endTime.split(":")[0], 10);
+      const isAvailable = dayBlocks.some((block) => {
+        const [sh, sm] = block.startTime.split(":").map(Number);
+        const [eh, em] = block.endTime.split(":").map(Number);
+        const startMins = sh * 60 + sm;
+        const endMins = eh * 60 + em;
+        return slotMins >= startMins && slotMins < endMins;
+      });
 
-      if (hour < startHour || hour >= endHour)
+      if (!isAvailable) {
         return {
-          className: "rbc-slot-disabled",
-          style: { backgroundColor: "#B0B0B0" },
+          className: "rbc-slot-outside",
+          style: { backgroundColor: "#f0f0f0" },
         };
+      }
 
-      return { style: { backgroundColor: "#FFFFFF" } };
+      return { style: { backgroundColor: "#ffffff" } };
     },
     [workingHours]
   );
@@ -280,14 +319,6 @@ const BookingPage: React.FC = () => {
       },
     };
   }, []);
-
-  const { min, max } = useMemo(
-    () => ({
-      min: moment().startOf("day").add(8, "hours").toDate(),
-      max: moment().startOf("day").add(20, "hours").toDate(),
-    }),
-    []
-  );
 
   const durationMinutes = newBookingSlot
     ? differenceInMinutes(newBookingSlot.end, newBookingSlot.start)
@@ -321,9 +352,7 @@ const BookingPage: React.FC = () => {
             Book with {therapist.name}
           </CardTitle>
           <p className="text-sm text-black">
-            Click an empty slot for a 1-hour session, or click and drag to
-            select a custom duration. <strong>30-minute buffers</strong> are
-            required between sessions (except the last one).
+            Click for 1-hour, drag for custom. 30-min buffer added.
           </p>
         </CardHeader>
       </Card>
@@ -351,13 +380,14 @@ const BookingPage: React.FC = () => {
               eventPropGetter={eventPropGetter}
             />
           )}
+
           <div className="mt-4 text-sm text-gray-600">
             <p>
               <strong>Legend:</strong>
             </p>
             <div className="flex flex-wrap gap-x-4 gap-y-2">
               <div className="flex items-center">
-                <div className="w-4 h-4 bg-[#FFFFFF] border border-[#B0B0B0] mr-2"></div>
+                <div className="w-4 h-4 bg-white border border-[#B0B0B0] mr-2"></div>
                 Available
               </div>
               <div className="flex items-center">
@@ -369,7 +399,12 @@ const BookingPage: React.FC = () => {
                 Buffer (30 min)
               </div>
               <div className="flex items-center">
-                <div className="w-4 h-4 bg-[#B0B0B0] mr-2"></div>Outside Hours
+                <div className="w-4 h-4 bg-[#f0f0f0] mr-2"></div>
+                Outside Working Hours
+              </div>
+              <div className="flex items-center">
+                <div className="w-4 h-4 bg-[#e5e5e5] mr-2"></div>
+                No Availability Set
               </div>
             </div>
           </div>
@@ -379,10 +414,8 @@ const BookingPage: React.FC = () => {
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent className="bg-white">
           <DialogHeader>
-            <DialogTitle>Confirm Your Appointment</DialogTitle>
-            <DialogDescription>
-              Review the details below before confirming.
-            </DialogDescription>
+            <DialogTitle>Confirm Appointment</DialogTitle>
+            <DialogDescription>Review details.</DialogDescription>
           </DialogHeader>
           {newBookingSlot && therapist && (
             <div className="py-4 space-y-4">
@@ -394,7 +427,7 @@ const BookingPage: React.FC = () => {
                 </p>
                 <p>
                   <strong>Time:</strong>{" "}
-                  {format(newBookingSlot.start, "h:mm a")} -{" "}
+                  {format(newBookingSlot.start, "h:mm a")} –{" "}
                   {format(newBookingSlot.end, "h:mm a")}
                 </p>
                 <p>
@@ -415,19 +448,15 @@ const BookingPage: React.FC = () => {
                     Venue
                   </label>
                   <Select
-                    onValueChange={(value: "host" | "visit") =>
-                      setSelectedVenue(value)
-                    }
+                    onValueChange={(v: "host" | "visit") => setSelectedVenue(v)}
                     value={selectedVenue}
                   >
                     <SelectTrigger id="venue-select" className="w-full mt-1">
-                      <SelectValue placeholder="Select where to meet..." />
+                      <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="host">Specialist will host</SelectItem>
-                      <SelectItem value="visit">
-                        Specialist will visit you
-                      </SelectItem>
+                      <SelectItem value="host">Specialist hosts</SelectItem>
+                      <SelectItem value="visit">Specialist visits</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>
@@ -443,10 +472,10 @@ const BookingPage: React.FC = () => {
               className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black"
               disabled={
                 bookingInProgress ||
-                (therapist?.venue === "both" && !selectedVenue)
+                (therapist.venue === "both" && !selectedVenue)
               }
             >
-              {bookingInProgress ? "Confirming..." : "Confirm Booking"}
+              {bookingInProgress ? "Confirming..." : "Confirm"}
             </Button>
           </DialogFooter>
         </DialogContent>
