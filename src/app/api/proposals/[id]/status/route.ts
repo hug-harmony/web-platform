@@ -74,6 +74,14 @@ export async function PATCH(
     let appointmentId: string | undefined;
 
     if (action === "accepted") {
+      // NEW: Check for null startTime/endTime
+      if (!proposal.startTime || !proposal.endTime) {
+        return NextResponse.json(
+          { error: "Proposal missing start or end time" },
+          { status: 400 }
+        );
+      }
+
       // UPDATED: Use proposal's venue if set, else body or specialist default
       let venueChoice: "host" | "visit" | undefined = proposal.venue || venue;
 
@@ -93,8 +101,8 @@ export async function PATCH(
         data: {
           userId: proposal.userId,
           specialistId: proposal.specialistId,
-          startTime: proposal.startTime,
-          endTime: proposal.endTime,
+          startTime: proposal.startTime, // Now safe: non-null
+          endTime: proposal.endTime, // Now safe: non-null
           status: "pending", // UPDATED: "pending" for payment
           venue: venueChoice,
           rate: proposal.specialist.rate, // Assume rate is available
@@ -118,10 +126,18 @@ export async function PATCH(
         },
       });
     } else {
+      // NEW: Check for null before formatting (though rejection can handle null, but to be safe)
+      const startFormatted = proposal.startTime
+        ? format(proposal.startTime, "MMMM d, yyyy h:mm a")
+        : "unknown start";
+      const endFormatted = proposal.endTime
+        ? format(proposal.endTime, "h:mm a")
+        : "unknown end";
+
       // UPDATED: Rejection with range
       const rejectText = isUserResponder
-        ? `Your proposal for ${format(proposal.startTime, "MMMM d, yyyy h:mm a")} to ${format(proposal.endTime, "h:mm a")} has been rejected.`
-        : `Your appointment request for ${format(proposal.startTime, "MMMM d, yyyy h:mm a")} to ${format(proposal.endTime, "h:mm a")} has been declined.`;
+        ? `Your proposal for ${startFormatted} to ${endFormatted} has been rejected.`
+        : `Your appointment request for ${startFormatted} to ${endFormatted} has been declined.`;
 
       await prisma.message.create({
         data: {
