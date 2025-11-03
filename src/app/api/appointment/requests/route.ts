@@ -30,7 +30,8 @@ export async function POST(req: NextRequest) {
       where: { specialistId: body.specialistId, status: "approved" },
       include: { specialist: true },
     });
-    if (!specialistApp || !specialistApp.userId) {
+    if (!specialistApp || !specialistApp.userId || !specialistApp.specialist) {
+      // UPDATED: Added !specialistApp.specialist check
       return NextResponse.json(
         { error: "Specialist not found or not approved" },
         { status: 404 }
@@ -69,7 +70,7 @@ export async function POST(req: NextRequest) {
       }
       finalVenue = body.venue;
     } else {
-      finalVenue = specialist.venue as "host" | "visit";
+      finalVenue = specialist.venue as "host" | "visit"; // Safe since venue isn't "both"
     }
 
     // Create proposal (appointment request)
