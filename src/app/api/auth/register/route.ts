@@ -1,3 +1,4 @@
+// /api/auth/register
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import nodemailer from "nodemailer";
@@ -34,6 +35,18 @@ const passwordSchema = z
     "Must contain a special character"
   );
 
+const hearOptions = [
+  "Social Media (e.g., Facebook, Instagram, X)",
+  "Search Engine (e.g., Google)",
+  "Friend or Family Referral",
+  "Online Advertisement",
+  "Podcast or Radio",
+  "Email Newsletter",
+  "Event or Workshop",
+  "Professional Network (e.g., LinkedIn)",
+  "Other",
+] as const;
+
 const reqSchema = z.object({
   username: usernameSchema,
   email: z.string().email(),
@@ -42,6 +55,8 @@ const reqSchema = z.object({
   lastName: z.string().min(1),
   phoneNumber: z.string().min(1),
   ageVerification: z.boolean(),
+  heardFrom: z.enum(hearOptions),
+  heardFromOther: z.string().optional(),
 });
 
 const RESERVED = new Set([
@@ -91,11 +106,9 @@ export async function POST(request: NextRequest) {
     const json = await request.json();
     const parsed = reqSchema.safeParse(json);
     if (!parsed.success) {
-      return NextResponse.json(
-        { error: "All fields required" },
-        { status: 400 }
-      );
+      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
     }
+
     const {
       username,
       email,
@@ -104,11 +117,20 @@ export async function POST(request: NextRequest) {
       lastName,
       phoneNumber,
       ageVerification,
+      heardFrom,
+      heardFromOther,
     } = parsed.data;
 
     if (!ageVerification) {
       return NextResponse.json(
         { error: "You must confirm you are over 18 and agree to the terms" },
+        { status: 400 }
+      );
+    }
+
+    if (heardFrom === "Other" && !heardFromOther?.trim()) {
+      return NextResponse.json(
+        { error: "Please specify how you heard about us" },
         { status: 400 }
       );
     }
@@ -157,7 +179,6 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Hash the password
     const hashedPassword = await bcrypt.hash(password, 10);
 
     await prisma.user.create({
@@ -171,6 +192,8 @@ export async function POST(request: NextRequest) {
         lastName,
         phoneNumber: phoneE164,
         googleId: null,
+        heardFrom,
+        heardFromOther: heardFrom === "Other" ? heardFromOther?.trim() : null,
       },
     });
 
@@ -189,7 +212,7 @@ Warm hugs,
 The Hug Harmony Team`,
       html: `
         <div style="font-family: Arial, sans-serif; color: #333;">
-          <h2 style="color: #E7C4BB;">Welcome, ${firstName}! 🎉</h2>
+          <h2 style="color: #E7C4BB;">Welcome, ${firstName}! </h2>
           <p>We're thrilled to have you join the <strong>Hug Harmony</strong> family.</p>
           <p>Your journey starts here:</p>
           <p style="margin: 20px 0;">

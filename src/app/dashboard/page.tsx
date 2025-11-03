@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
-/* eslint-disable prefer-const */
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -12,7 +11,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
 import {
-  Calendar,
   MessageSquare,
   Clock,
   UserStar,
@@ -26,6 +24,7 @@ import { useRouter } from "next/navigation";
 import { notFound } from "next/navigation";
 import { toast } from "sonner";
 import { Skeleton } from "@/components/ui/skeleton";
+import HowDidYouHearDialog from "@/components/HowDidYouHearDialog";
 
 // Type definitions
 interface User {
@@ -33,6 +32,8 @@ interface User {
   name: string;
   email: string;
   profileImage?: string | null;
+  firstName?: string | null;
+  heardFrom?: string | null;
 }
 
 interface Conversation {
@@ -91,7 +92,8 @@ export default function HomePage() {
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
-  const { data: session, status } = useSession();
+  const [dialogOpen, setDialogOpen] = useState(false);
+  const { data: session, status, update } = useSession();
   const router = useRouter();
 
   useEffect(() => {
@@ -127,7 +129,7 @@ export default function HomePage() {
         }
 
         const userData = await userRes.json();
-        setUser({
+        const fullUser: User = {
           id: userData.id,
           name:
             userData.firstName && userData.lastName
@@ -135,7 +137,10 @@ export default function HomePage() {
               : userData.name || "User",
           email: userData.email || "",
           profileImage: userData.profileImage || null,
-        });
+          firstName: userData.firstName,
+          heardFrom: userData.heardFrom,
+        };
+        setUser(fullUser);
 
         // Fetch conversations
         const convRes = await fetch("/api/conversations", {
@@ -203,12 +208,48 @@ export default function HomePage() {
     fetchData();
   }, [status, session, router]);
 
+  useEffect(() => {
+    if (!loading && user && !user.heardFrom) {
+      setDialogOpen(true);
+    }
+  }, [loading, user]);
+
   const handleConversationClick = (convId: string) => {
     if (!/^[0-9a-fA-F]{24}$/.test(convId)) {
       toast.error("Invalid conversation ID");
       return;
     }
     router.push(`/dashboard/messaging/${convId}`);
+  };
+
+  const handleSurveySubmit = async (data: {
+    heardFrom: string;
+    heardFromOther?: string;
+  }) => {
+    try {
+      const res = await fetch("/api/user/update-hear", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(data),
+      });
+
+      if (!res.ok) throw new Error("Failed to save");
+
+      await update({
+        ...session,
+        user: {
+          ...session?.user,
+          heardFrom: data.heardFrom,
+          heardFromOther: data.heardFromOther,
+        },
+      });
+
+      setUser((prev) => (prev ? { ...prev, heardFrom: data.heardFrom } : prev));
+      toast.success("Thanks for letting us know!");
+    } catch {
+      toast.error("Failed to save response");
+      throw new Error("save failed");
+    }
   };
 
   // Filter appointments for upcoming and past
@@ -414,7 +455,7 @@ export default function HomePage() {
                     let otherParticipant: any | null;
                     let name: string;
                     let profileImage: string | undefined | null;
-                    let unread = conv.messageCount > 0;
+                    const unread = conv.messageCount > 0;
 
                     if (conv.user1?.id === session?.user.id) {
                       otherParticipant = conv.user2 || conv.specialist2 || null;
@@ -658,6 +699,12 @@ export default function HomePage() {
           </motion.div>
         ))}
       </div>
+
+      <HowDidYouHearDialog
+        open={dialogOpen}
+        onOpenChange={setDialogOpen}
+        onSubmit={handleSurveySubmit}
+      />
     </motion.div>
   );
 }

@@ -20,6 +20,10 @@ model User {
   lastName         String?
   password         String?
   phoneNumber      String?
+
+  heardFrom        String?
+  heardFromOther   String?
+
   googleId         String?
   profileImage     String?        // Used for Specialist.image
   location         String?

@@ -19,9 +19,18 @@ import { zodResolver } from "@hookform/resolvers/zod";
 import { signIn } from "next-auth/react";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
+import { Textarea } from "@/components/ui/textarea";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 import Image from "next/image";
 import Link from "next/link";
 import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { Eye, EyeOff } from "lucide-react";
 import register from "../../../public/register.webp";
 
 type UsernameStatus = "idle" | "checking" | "available" | "unavailable";
@@ -53,6 +62,18 @@ const phoneSchema = z
     return !!p?.isValid();
   }, "Enter a valid phone number in international format (e.g., +14155552671)");
 
+const hearOptions = [
+  "Social Media (e.g., Facebook, Instagram, X)",
+  "Search Engine (e.g., Google)",
+  "Friend or Family Referral",
+  "Online Advertisement",
+  "Podcast or Radio",
+  "Email Newsletter",
+  "Event or Workshop",
+  "Professional Network (e.g., LinkedIn)",
+  "Other",
+] as const;
+
 const formSchema = z
   .object({
     username: usernameSchema,
@@ -63,6 +84,10 @@ const formSchema = z
     password: passwordSchema,
     confirmPassword: z.string().min(1, "Confirm password is required"),
     ageVerification: z.boolean(),
+    heardFrom: z.enum(hearOptions, {
+      message: "Select how you heard about us",
+    }),
+    heardFromOther: z.string().optional(),
   })
   .refine((data) => data.password === data.confirmPassword, {
     message: "Passwords do not match",
@@ -71,13 +96,24 @@ const formSchema = z
   .refine((data) => data.ageVerification === true, {
     message: "You must confirm you are over 18 and agree to the terms",
     path: ["ageVerification"],
-  });
+  })
+  .refine(
+    (data) =>
+      data.heardFrom !== "Other" ||
+      (data.heardFromOther?.trim().length ?? 0) > 0,
+    {
+      message: "Please specify how you heard about us",
+      path: ["heardFromOther"],
+    }
+  );
 
 export default function RegisterPage() {
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
   const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
   const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
@@ -91,11 +127,12 @@ export default function RegisterPage() {
       password: "",
       confirmPassword: "",
       ageVerification: false,
+      heardFrom: undefined,
+      heardFromOther: "",
     },
     mode: "onChange",
   });
 
-  // Generate local suggestions if API doesn't return any
   const generateLocalSuggestions = (base: string) => {
     const clean = base
       .toLowerCase()
@@ -117,7 +154,6 @@ export default function RegisterPage() {
       .slice(0, 5);
   };
 
-  // Live username availability check with debounce
   const usernameValue = form.watch("username");
   useEffect(() => {
     let ignore = false;
@@ -134,9 +170,7 @@ export default function RegisterPage() {
       try {
         const res = await fetch(
           `/api/users/check-username?username=${encodeURIComponent(v)}`,
-          {
-            signal: controller.signal,
-          }
+          { signal: controller.signal }
         );
         if (!res.ok) throw new Error("Failed to check username");
         const data = await res.json();
@@ -157,9 +191,7 @@ export default function RegisterPage() {
           });
         }
       } catch {
-        if (!ignore) {
-          setUsernameStatus("idle");
-        }
+        if (!ignore) setUsernameStatus("idle");
       }
     }, 350);
 
@@ -172,7 +204,7 @@ export default function RegisterPage() {
 
   const normalizePhoneE164 = (raw: string): string | null => {
     const p = parsePhoneNumberFromString(raw || "");
-    return p?.isValid() ? p.number : null; // E.164
+    return p?.isValid() ? p.number : null;
   };
 
   const formatPhoneInternational = (raw: string): string => {
@@ -185,7 +217,6 @@ export default function RegisterPage() {
       setIsLoading(true);
       setError(null);
 
-      // Normalize phone to E.164
       const phoneE164 = normalizePhoneE164(values.phoneNumber);
       if (!phoneE164) {
         form.setError("phoneNumber", {
@@ -196,7 +227,6 @@ export default function RegisterPage() {
         return;
       }
 
-      // Final username availability guard
       if (usernameStatus === "unavailable") {
         form.setError("username", {
           type: "manual",
@@ -217,12 +247,13 @@ export default function RegisterPage() {
           phoneNumber: phoneE164,
           password: values.password,
           ageVerification: values.ageVerification,
+          heardFrom: values.heardFrom,
+          heardFromOther: values.heardFromOther?.trim(),
         }),
       });
 
       const data = await res.json();
       if (!res.ok) {
-        // If server returns suggestions on conflict, surface them
         if (res.status === 409 && Array.isArray(data?.suggestions)) {
           setUsernameSuggestions(data.suggestions);
           form.setError("username", {
@@ -243,13 +274,10 @@ export default function RegisterPage() {
       toast.success("Account created successfully!");
       router.push("/dashboard");
     } catch (error: unknown) {
-      if (error instanceof Error) {
-        toast.error(error.message || "Registration failed");
-        setError(error.message);
-      } else {
-        toast.error("Registration failed");
-        setError("Unknown error");
-      }
+      const msg =
+        error instanceof Error ? error.message : "Registration failed";
+      toast.error(msg);
+      setError(msg);
     } finally {
       setIsLoading(false);
     }
@@ -260,13 +288,15 @@ export default function RegisterPage() {
       case "checking":
         return "Checking availability…";
       case "available":
-        return "Username is available 🎉";
+        return "Username is available";
       case "unavailable":
         return "Username is taken. Try a suggestion below.";
       default:
         return "3–20 chars. Letters, numbers, underscores only.";
     }
   }, [usernameStatus]);
+
+  const heardFrom = form.watch("heardFrom");
 
   return (
     <div className="flex items-center justify-center min-h-screen p-4">
@@ -420,14 +450,62 @@ export default function RegisterPage() {
                           }}
                         />
                       </FormControl>
-                      <p className="text-xs text-gray-500">
-                        Use international format (e.g., +14155552671)
-                      </p>
-                      <FormMessage className="text-xs" />
+
+                      {/* <FormMessage className="text-xs" /> */}
                     </FormItem>
                   )}
                 />
               </div>
+
+              {/* How did you hear about us */}
+              <FormField
+                control={form.control}
+                name="heardFrom"
+                render={({ field }) => (
+                  <FormItem>
+                    <FormLabel className="text-sm font-medium">
+                      How did you hear about Hug Harmony?
+                    </FormLabel>
+                    <Select onValueChange={field.onChange} value={field.value}>
+                      <FormControl>
+                        <SelectTrigger className="text-sm">
+                          <SelectValue placeholder="Select an option" />
+                        </SelectTrigger>
+                      </FormControl>
+                      <SelectContent>
+                        {hearOptions.map((opt) => (
+                          <SelectItem key={opt} value={opt}>
+                            {opt}
+                          </SelectItem>
+                        ))}
+                      </SelectContent>
+                    </Select>
+                    <FormMessage className="text-xs" />
+                  </FormItem>
+                )}
+              />
+              {heardFrom === "Other" && (
+                <FormField
+                  control={form.control}
+                  name="heardFromOther"
+                  render={({ field }) => (
+                    <FormItem>
+                      <FormLabel className="text-sm font-medium">
+                        Please specify
+                      </FormLabel>
+                      <FormControl>
+                        <Textarea
+                          placeholder="Tell us how you found us..."
+                          className="text-sm resize-none"
+                          rows={2}
+                          {...field}
+                        />
+                      </FormControl>
+                      <FormMessage className="text-xs" />
+                    </FormItem>
+                  )}
+                />
+              )}
 
               {/* Passwords */}
               <FormField
@@ -439,13 +517,31 @@ export default function RegisterPage() {
                       Password
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        className="text-sm border-gray-300"
-                        placeholder="Password"
-                        type="password"
-                        autoComplete="new-password"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <Input
+                          className="text-sm border-gray-300"
+                          placeholder="Password"
+                          type={showPassword ? "text" : "password"}
+                          autoComplete="new-password"
+                          {...field}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6"
+                          onClick={() => setShowPassword(!showPassword)}
+                          aria-label={
+                            showPassword ? "Hide password" : "Show password"
+                          }
+                        >
+                          {showPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </FormControl>
                     <p className="text-xs text-gray-500">
                       At least 8 characters, 1 uppercase, 1 number, 1 special
@@ -464,13 +560,35 @@ export default function RegisterPage() {
                       Confirm Password
                     </FormLabel>
                     <FormControl>
-                      <Input
-                        className="text-sm border-gray-300"
-                        placeholder="Confirm Password"
-                        type="password"
-                        autoComplete="new-password"
-                        {...field}
-                      />
+                      <div className="relative">
+                        <Input
+                          className="text-sm border-gray-300"
+                          placeholder="Confirm Password"
+                          type={showConfirmPassword ? "text" : "password"}
+                          autoComplete="new-password"
+                          {...field}
+                        />
+                        <Button
+                          type="button"
+                          variant="ghost"
+                          size="icon"
+                          className="absolute right-2 top-1/2 -translate-y-1/2 h-6 w-6"
+                          onClick={() =>
+                            setShowConfirmPassword(!showConfirmPassword)
+                          }
+                          aria-label={
+                            showConfirmPassword
+                              ? "Hide confirm password"
+                              : "Show confirm password"
+                          }
+                        >
+                          {showConfirmPassword ? (
+                            <EyeOff className="h-4 w-4" />
+                          ) : (
+                            <Eye className="h-4 w-4" />
+                          )}
+                        </Button>
+                      </div>
                     </FormControl>
                     <FormMessage className="text-xs" />
                   </FormItem>
