@@ -40,15 +40,22 @@ export async function POST(req: Request) {
         select: { id: true, specialistId: true },
       });
 
+      // if (existing) {
+      //   if (existing.specialistId) {
+      //     await tx.specialist.deleteMany({
+      //       where: { id: existing.specialistId },
+      //     });
+      //   }
+      //   await tx.specialistApplication.deleteMany({
+      //     where: { id: existing.id },
+      //   });
+      // }
+
       if (existing) {
-        if (existing.specialistId) {
-          await tx.specialist.deleteMany({
-            where: { id: existing.specialistId },
-          });
-        }
-        await tx.specialistApplication.deleteMany({
-          where: { id: existing.id },
+        await tx.trainingVideoWatch.deleteMany({
+          where: { applicationId: existing.id },
         });
+        await tx.specialistApplication.delete({ where: { id: existing.id } });
       }
 
       const app = await tx.specialistApplication.create({

@@ -18,8 +18,8 @@ export async function getOrCreateProVideoWatch({
   applicationId: string;
 }) {
   return prisma.trainingVideoWatch.upsert({
-    where: { userId_videoId: { userId, videoId } },
-    update: { applicationId },
+    where: { applicationId },
+    update: {},
     create: {
       userId,
       videoId,
