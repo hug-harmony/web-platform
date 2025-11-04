@@ -27,7 +27,7 @@ export async function POST(req: NextRequest) {
   try {
     // Find specialist and its linked userId via SpecialistApplication
     const specialistApp = await prisma.specialistApplication.findFirst({
-      where: { specialistId: body.specialistId, status: "approved" },
+      where: { specialistId: body.specialistId, status: "APPROVED" },
       include: { specialist: true },
     });
     if (!specialistApp || !specialistApp.userId || !specialistApp.specialist) {
