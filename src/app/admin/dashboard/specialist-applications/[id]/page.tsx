@@ -85,7 +85,7 @@ export default function ApplicationDetailPage() {
     setLoading(true);
     try {
       const res = await fetch(
-        `/api/professionals/onboarding/status?admin=true&id=${id}`,
+        `/api/specialists/application?admin=true&id=${id}`,
         { credentials: "include" }
       );
       if (!res.ok) {

@@ -107,10 +107,9 @@ export default function SpecialistApplicationsPage() {
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (searchTerm) params.set("search", searchTerm);
 
-      const res = await fetch(
-        `/api/professionals/onboarding/status?admin=true&${params}`,
-        { credentials: "include" }
-      );
+      const res = await fetch("/api/specialists/application", {
+        credentials: "include",
+      });
       if (!res.ok) {
         const err = await res.json();
         if (res.status === 401) {
