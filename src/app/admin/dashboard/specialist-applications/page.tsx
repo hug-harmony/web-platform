@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";
@@ -12,16 +13,71 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { FileText, Search } from "lucide-react";
+import {
+  FileText,
+  Search,
+  CheckCircle,
+  XCircle,
+  Clock,
+  Video,
+} from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
+
+type ProStatus =
+  | "FORM_PENDING"
+  | "FORM_SUBMITTED"
+  | "VIDEO_PENDING"
+  | "QUIZ_PENDING"
+  | "QUIZ_PASSED"
+  | "QUIZ_FAILED"
+  | "ADMIN_REVIEW"
+  | "APPROVED"
+  | "REJECTED";
 
 interface Application {
   id: string;
   name: string;
-  status: "pending" | "reviewed" | "approved" | "rejected";
+  status: ProStatus;
   createdAt: string;
+  submittedAt?: string | null;
+  videoWatchedAt?: string | null;
+  quizPassedAt?: string | null;
+  video?: {
+    watchedSec: number;
+    durationSec: number;
+    isCompleted: boolean;
+  } | null;
+  latestQuiz?: {
+    score: number;
+    attemptedAt: string;
+    nextEligibleAt?: string | null;
+  } | null;
 }
+
+const statusColors: Record<ProStatus, string> = {
+  FORM_PENDING: "text-gray-500",
+  FORM_SUBMITTED: "text-gray-600",
+  VIDEO_PENDING: "text-orange-500",
+  QUIZ_PENDING: "text-yellow-500",
+  QUIZ_PASSED: "text-green-500",
+  QUIZ_FAILED: "text-red-500",
+  ADMIN_REVIEW: "text-blue-500",
+  APPROVED: "text-emerald-500",
+  REJECTED: "text-rose-500",
+};
+
+const statusIcons: Record<ProStatus, React.ReactNode> = {
+  FORM_PENDING: <Clock className="h-4 w-4" />,
+  FORM_SUBMITTED: <FileText className="h-4 w-4" />,
+  VIDEO_PENDING: <Video className="h-4 w-4" />,
+  QUIZ_PENDING: <Clock className="h-4 w-4" />,
+  QUIZ_PASSED: <CheckCircle className="h-4 w-4" />,
+  QUIZ_FAILED: <XCircle className="h-4 w-4" />,
+  ADMIN_REVIEW: <Clock className="h-4 w-4" />,
+  APPROVED: <CheckCircle className="h-4 w-4" />,
+  REJECTED: <XCircle className="h-4 w-4" />,
+};
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -31,7 +87,6 @@ const containerVariants = {
     transition: { duration: 0.5, staggerChildren: 0.2 },
   },
 };
-
 const itemVariants = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0 },
@@ -39,43 +94,43 @@ const itemVariants = {
 
 export default function SpecialistApplicationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState("all");
+  const [statusFilter, setStatusFilter] = useState<ProStatus | "all">("all");
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  useEffect(() => {
-    async function fetchApplications() {
-      setLoading(true);
-      setError(null);
-      try {
-        const response = await fetch(
-          `/api/specialists/application?status=${statusFilter}&search=${searchTerm}`,
-          { credentials: "include" }
-        );
-        if (!response.ok) {
-          const errorData = await response.json();
-          if (response.status === 401) {
-            window.location.href = "/login";
-            return;
-          }
-          throw new Error(errorData.error || "Failed to fetch applications");
+  const fetchApplications = useCallback(async () => {
+    setLoading(true);
+    setError(null);
+    try {
+      const params = new URLSearchParams();
+      if (statusFilter !== "all") params.set("status", statusFilter);
+      if (searchTerm) params.set("search", searchTerm);
+
+      const res = await fetch(
+        `/api/professionals/onboarding/status?admin=true&${params}`,
+        { credentials: "include" }
+      );
+      if (!res.ok) {
+        const err = await res.json();
+        if (res.status === 401) {
+          window.location.href = "/login";
+          return;
         }
-        const data = await response.json();
-        setApplications(data);
-      } catch (err) {
-        console.error("Error fetching applications:", err);
-        setError(
-          err instanceof Error
-            ? err.message
-            : "An error occurred while fetching applications"
-        );
-      } finally {
-        setLoading(false);
+        throw new Error(err.error ?? "Failed to fetch");
       }
+      const data: Application[] = await res.json();
+      setApplications(data);
+    } catch (e: unknown) {
+      setError(e instanceof Error ? e.message : "Unknown error");
+    } finally {
+      setLoading(false);
     }
-    fetchApplications();
   }, [searchTerm, statusFilter]);
+
+  useEffect(() => {
+    fetchApplications();
+  }, [fetchApplications]);
 
   return (
     <motion.div
@@ -88,56 +143,50 @@ export default function SpecialistApplicationsPage() {
         <CardHeader>
           <CardTitle className="flex items-center text-2xl font-bold">
             <FileText className="mr-2 h-6 w-6" />
-            Hug Harmony Professional Applications
+            Professional Applications
           </CardTitle>
           <p className="text-sm opacity-80">
-            Review and manage Professional applications.
+            Review onboarding progress and approve professionals.
           </p>
         </CardHeader>
       </Card>
 
       <div className="flex items-center gap-4">
         <div className="relative flex-1">
-          <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#C4C4C4]" />
+          <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-[#C4C4C4]" />
           <Input
-            placeholder="Search applications by applicant name..."
+            placeholder="Search by name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
-            className="pl-10 border-[#C4C4C4] focus:ring-[#F3CFC6] dark:bg-black dark:text-white dark:border-[#C4C4C4]"
-            aria-label="Search applications"
+            className="pl-10 border-[#C4C4C4] focus:ring-[#F3CFC6] dark:bg-black dark:text-white"
           />
         </div>
-        <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger
-            className="w-[180px] border-[#C4C4C4] focus:ring-[#F3CFC6] dark:bg-black dark:text-white dark:border-[#C4C4C4]"
-            aria-label="Filter by status"
-          >
+
+        <Select
+          value={statusFilter}
+          onValueChange={(v) => setStatusFilter(v as any)}
+        >
+          <SelectTrigger className="w-[200px] border-[#C4C4C4] focus:ring-[#F3CFC6] dark:bg-black dark:text-white">
             <SelectValue placeholder="Filter by status" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            <SelectItem value="pending">Pending</SelectItem>
-            <SelectItem value="reviewed">Reviewed</SelectItem>
-            <SelectItem value="approved">Approved</SelectItem>
-            <SelectItem value="rejected">Rejected</SelectItem>
+            {Object.keys(statusColors).map((s) => (
+              <SelectItem key={s} value={s}>
+                {s.replace(/_/g, " ")}
+              </SelectItem>
+            ))}
           </SelectContent>
         </Select>
       </div>
 
       <Card>
         <CardContent className="p-4">
-          <ScrollArea className="h-[500px]">
+          <ScrollArea className="h-[560px]">
             {error ? (
               <p className="p-4 text-center text-red-500">{error}</p>
             ) : loading ? (
-              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-                {[...Array(6)].map((_, i) => (
-                  <div
-                    key={i}
-                    className="h-32 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"
-                  />
-                ))}
-              </div>
+              <SkeletonGrid />
             ) : applications.length === 0 ? (
               <p className="p-4 text-center">No applications found.</p>
             ) : (
@@ -150,46 +199,70 @@ export default function SpecialistApplicationsPage() {
                       initial="hidden"
                       animate="visible"
                       exit={{ opacity: 0, x: -20 }}
-                      className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors border border-[#C4C4C4] rounded"
+                      className="flex flex-col p-4 border border-[#C4C4C4] rounded hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors"
                     >
-                      <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center text-black dark:text-white">
-                          {app.name[0]}
+                      <div className="flex items-center justify-between mb-2">
+                        <div className="flex items-center gap-3">
+                          <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center text-black dark:text-white font-bold">
+                            {app.name[0]}
+                          </div>
+                          <div>
+                            <p className="font-semibold">{app.name}</p>
+                            <p className="text-xs text-[#C4C4C4]">
+                              {new Date(app.createdAt).toLocaleDateString()}
+                            </p>
+                          </div>
                         </div>
-                        <div>
-                          <p className="font-semibold text-black dark:text-white">
-                            {app.name}
-                          </p>
-                          <p className="text-sm text-[#C4C4C4]">
-                            <span
-                              className={
-                                app.status === "pending"
-                                  ? "text-yellow-500"
-                                  : app.status === "reviewed"
-                                    ? "text-green-500"
-                                    : app.status === "approved"
-                                      ? "text-blue-500"
-                                      : "text-red-500"
-                              }
-                            >
-                              {app.status}
-                            </span>
-                          </p>
-                          <p className="text-sm text-[#C4C4C4]">
-                            {new Date(app.createdAt).toLocaleDateString()}
-                          </p>
+                        <div
+                          className={`flex items-center gap-1 ${statusColors[app.status]}`}
+                        >
+                          {statusIcons[app.status]}
+                          <span className="text-sm font-medium">
+                            {app.status.replace(/_/g, " ")}
+                          </span>
                         </div>
                       </div>
+
+                      {/* Video progress */}
+                      {app.video && (
+                        <div className="text-xs text-[#C4C4C4] mb-1">
+                          <span className="flex items-center gap-1">
+                            <Video className="h-3 w-3" />
+                            {app.video.isCompleted
+                              ? "Completed"
+                              : `${app.video.watchedSec}s / ${app.video.durationSec}s`}
+                          </span>
+                        </div>
+                      )}
+
+                      {/* Quiz info */}
+                      {app.latestQuiz && (
+                        <div className="text-xs text-[#C4C4C4] mb-1">
+                          Quiz:{" "}
+                          <strong>{app.latestQuiz.score.toFixed(0)}%</strong> –{" "}
+                          {new Date(
+                            app.latestQuiz.attemptedAt
+                          ).toLocaleDateString()}
+                          {app.latestQuiz.nextEligibleAt && (
+                            <span className="text-red-500">
+                              {" "}
+                              retry in{" "}
+                              {formatCooldown(app.latestQuiz.nextEligibleAt)}
+                            </span>
+                          )}
+                        </div>
+                      )}
+
                       <Button
                         asChild
                         variant="outline"
                         size="sm"
-                        className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                        className="mt-2 border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
                       >
                         <Link
                           href={`/admin/dashboard/specialist-applications/${app.id}`}
                         >
-                          View
+                          View Details
                         </Link>
                       </Button>
                     </motion.div>
@@ -201,5 +274,26 @@ export default function SpecialistApplicationsPage() {
         </CardContent>
       </Card>
     </motion.div>
+  );
+}
+
+/** Helper */
+function formatCooldown(iso: string): string {
+  const ms = new Date(iso).getTime() - Date.now();
+  const hrs = Math.floor(ms / 36e5);
+  const mins = Math.floor((ms % 36e5) / 6e4);
+  return `${hrs}h ${mins}m`;
+}
+
+function SkeletonGrid() {
+  return (
+    <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+      {[...Array(6)].map((_, i) => (
+        <div
+          key={i}
+          className="h-40 bg-gray-200 dark:bg-gray-700 animate-pulse rounded"
+        />
+      ))}
+    </div>
   );
 }

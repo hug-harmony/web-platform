@@ -1,3 +1,4 @@
+// app/dashboard/profile/professional-application/page.tsx
 "use client";
 
 import { useState } from "react";
@@ -35,7 +36,6 @@ const containerVariants = {
     transition: { duration: 0.5, staggerChildren: 0.2 },
   },
 };
-
 const itemVariants = {
   hidden: { opacity: 0, y: 10 },
   visible: { opacity: 1, y: 0 },
@@ -47,83 +47,44 @@ export default function ProfessionalApplicationPage() {
     rate: "",
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-
   const { data: session, status } = useSession();
   const router = useRouter();
 
   const handleSubmit = async () => {
     if (!session?.user?.name) {
-      console.error("Error: User must have a name to submit application");
-      toast.error("User must have a name to submit application");
+      toast.error("Please set your name in profile first.");
       return;
     }
 
     try {
-      const response = await fetch("/api/specialists/application", {
+      const res = await fetch("/api/professionals/onboarding/submit-form", {
         method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
+        headers: { "Content-Type": "application/json" },
         body: JSON.stringify(formData),
         credentials: "include",
       });
 
-      if (!response.ok) {
-        const errorData = await response.json();
-        console.error("Specialist API error:", response.status, errorData);
-        toast.error(`Failed to submit application: ${errorData.error}`);
-        if (response.status === 401) {
-          router.push("/login");
-        }
-        throw new Error(`Failed to submit application: ${errorData.error}`);
+      if (!res.ok) {
+        const err = await res.json();
+        toast.error(err.error ?? "Failed to submit");
+        if (res.status === 401) router.push("/login");
+        return;
       }
 
-      const result = await response.json();
-      console.log("Application submitted successfully:", result);
-      toast.success("Application submitted successfully!");
+      toast.success("Application submitted! Redirecting to video...");
       setIsDialogOpen(true);
     } catch (error) {
-      console.error("Error submitting application:", error);
+      console.error(error);
       toast.error("Error submitting application");
     }
   };
 
   const handleDialogClose = () => {
     setIsDialogOpen(false);
-    router.push("/dashboard");
+    router.push("/dashboard/profile/professional-application/video");
   };
 
-  if (status === "loading") {
-    return (
-      <div className="p-4 space-y-6 max-w-7xl mx-auto">
-        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
-          <CardHeader>
-            <div className="space-y-2">
-              <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
-              <Skeleton className="h-4 w-64 bg-[#C4C4C4]/50" />
-            </div>
-          </CardHeader>
-          <CardContent className="flex space-x-4">
-            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
-          </CardContent>
-        </Card>
-        <Card className="shadow-lg">
-          <CardContent className="space-y-4 pt-6">
-            {[...Array(2)].map((_, index) => (
-              <div key={index} className="space-y-2">
-                <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
-                <Skeleton
-                  className={`h-${index === 0 ? 20 : 10} w-full bg-[#C4C4C4]/50`}
-                />
-              </div>
-            ))}
-            <Skeleton className="h-10 w-40 rounded-full bg-[#C4C4C4]/50" />
-          </CardContent>
-        </Card>
-      </div>
-    );
-  }
-
+  if (status === "loading") return <LoadingSkeleton />;
   if (status === "unauthenticated") {
     router.push("/login");
     return null;
@@ -141,104 +102,108 @@ export default function ProfessionalApplicationPage() {
           <CardHeader>
             <motion.div variants={itemVariants}>
               <CardTitle className="text-2xl text-black dark:text-white">
-                Professional Application
+                Become a Professional
               </CardTitle>
               <p className="text-sm text-black">
-                Apply to become a specialist. Your name (
-                {session?.user?.name || "Not set"}) and profile picture will be
-                used for your specialist profile.
+                Step 1: Submit your application
               </p>
             </motion.div>
           </CardHeader>
           <CardContent className="flex space-x-4">
-            <motion.div
-              variants={itemVariants}
-              whileHover={{
-                scale: 1.05,
-                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-              }}
-              transition={{ duration: 0.2 }}
-            >
-              <Button
-                asChild
-                variant="outline"
-                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
-              >
-                <Link href="/dashboard">
-                  <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                  Back to Dashboard
-                </Link>
-              </Button>
-            </motion.div>
+            <Button asChild variant="outline" className="rounded-full">
+              <Link href="/dashboard">
+                <MessageSquare className="mr-2 h-4 w-4" /> Back
+              </Link>
+            </Button>
           </CardContent>
         </Card>
+
         <Card className="shadow-lg">
           <CardContent className="space-y-4 pt-6">
             <motion.div variants={itemVariants} className="space-y-4">
               <div className="space-y-2">
-                <Label
-                  htmlFor="biography"
-                  className="text-black dark:text-white"
-                >
-                  Biography
-                </Label>
+                <Label htmlFor="biography">Biography</Label>
                 <Textarea
                   id="biography"
                   value={formData.biography}
                   onChange={(e) =>
                     setFormData({ ...formData, biography: e.target.value })
                   }
-                  placeholder="Enter your professional biography"
-                  className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                  aria-label="Biography"
+                  placeholder="Tell us about your experience..."
+                  className="border-[#F3CFC6] focus:ring-[#F3CFC6]"
                 />
               </div>
               <div className="space-y-2">
-                <Label htmlFor="rate" className="text-black dark:text-white">
-                  Rate ($)
-                </Label>
+                <Label htmlFor="rate">Rate ($/hour)</Label>
                 <Input
                   id="rate"
+                  type="number"
                   value={formData.rate}
                   onChange={(e) =>
                     setFormData({ ...formData, rate: e.target.value })
                   }
-                  placeholder="Enter your rate (e.g., 50)"
-                  className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                  aria-label="Rate"
-                  type="number"
+                  placeholder="50"
+                  className="border-[#F3CFC6] focus:ring-[#F3CFC6]"
                 />
               </div>
               <Button
                 onClick={handleSubmit}
-                className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
-                disabled={!session?.user?.name}
+                disabled={
+                  !formData.biography || !formData.rate || !session?.user?.name
+                }
+                className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black rounded-full"
               >
-                Submit Application
+                Submit & Watch Video
               </Button>
             </motion.div>
           </CardContent>
         </Card>
       </motion.div>
+
       <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
         <DialogContent>
           <DialogHeader>
-            <DialogTitle>Application Submitted</DialogTitle>
+            <DialogTitle>Application Submitted!</DialogTitle>
             <DialogDescription>
-              Your application has been successfully submitted. You will be
-              notified when it is approved by the admin.
+              You&apos;re one step closer. Now watch the onboarding video.
             </DialogDescription>
           </DialogHeader>
           <DialogFooter>
             <Button
               onClick={handleDialogClose}
-              className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
+              className="bg-[#F3CFC6] hover:bg-[#C4C4C4] rounded-full"
             >
-              Close
+              Continue to Video
             </Button>
           </DialogFooter>
         </DialogContent>
       </Dialog>
     </>
+  );
+}
+
+function LoadingSkeleton() {
+  return (
+    <div className="p-4 space-y-6 max-w-7xl mx-auto">
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+        <CardHeader>
+          <Skeleton className="h-8 w-48" />
+        </CardHeader>
+        <CardContent>
+          <Skeleton className="h-10 w-40 rounded-full" />
+        </CardContent>
+      </Card>
+      <Card className="shadow-lg">
+        <CardContent className="space-y-4 pt-6">
+          {[...Array(2)].map((_, i) => (
+            <div key={i} className="space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className={`h-${i === 0 ? 20 : 10} w-full`} />
+            </div>
+          ))}
+          <Skeleton className="h-10 w-40 rounded-full" />
+        </CardContent>
+      </Card>
+    </div>
   );
 }

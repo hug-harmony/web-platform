@@ -155,16 +155,49 @@ model Reply {
 }
 
 model SpecialistApplication {
-  id           String      @id @default(auto()) @map("_id") @db.ObjectId
-  userId       String      @unique @db.ObjectId
-  biography    String
-  rate         Float
-  status       String      @default("pending")
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  user         User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialist   Specialist? @relation(fields: [specialistId], references: [id], onDelete: SetNull)
-  specialistId String?     @unique @db.ObjectId
+  id              String                @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String                @unique @db.ObjectId
+  biography       String
+  rate            Float
+  status          ProOnboardingStatus   @default(FORM_PENDING)
+  submittedAt     DateTime?
+  videoWatchedAt  DateTime?
+  quizPassedAt    DateTime?
+  createdAt       DateTime              @default(now())
+  updatedAt       DateTime              @updatedAt
+  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
+  specialist      Specialist?           @relation(fields: [specialistId], references: [id], onDelete: SetNull)
+  specialistId    String?               @unique @db.ObjectId
+  quizAttempts    ProQuizAttempt[]      @relation("ApplicationQuizAttempts")
+  videoWatch      TrainingVideoWatch?   @relation("ProOnboardingVideo")
+
+  @@index([status])
+}
+
+model ProQuizAttempt {
+  id              String                  @id @default(auto()) @map("_id") @db.ObjectId
+  applicationId   String                  @db.ObjectId
+  score           Float
+  passed          Boolean
+  answers         Json
+  attemptedAt     DateTime                @default(now())
+  nextEligibleAt  DateTime?
+  application     SpecialistApplication   @relation("ApplicationQuizAttempts", fields: [applicationId], references: [id], onDelete: Cascade)
+
+  @@index([applicationId])
+  @@index([nextEligibleAt])
+}
+
+enum ProOnboardingStatus {
+  FORM_PENDING      // Form not submitted
+  FORM_SUBMITTED    // Awaiting video
+  VIDEO_PENDING     // Must watch video
+  QUIZ_PENDING      // Video done, can take quiz
+  QUIZ_PASSED       // ≥80%, awaiting admin
+  QUIZ_FAILED       // <80%, on cooldown
+  ADMIN_REVIEW      // Quiz passed, admin deciding
+  APPROVED          // Professional!
+  REJECTED          // Denied
 }
 
 model VideoSession {
@@ -400,27 +433,30 @@ model OrderItem {
 }
 
 model TrainingVideo {
-  id          String              @id @default(auto()) @map("_id") @db.ObjectId
-  name        String
-  url         String
-  durationSec Int?
-  isActive    Boolean             @default(true)
-  createdAt   DateTime            @default(now())
-  updatedAt   DateTime            @updatedAt
-  watches     TrainingVideoWatch[]
+  id                String                @id @default(auto()) @map("_id") @db.ObjectId
+  name              String
+  url               String
+  durationSec       Int?
+  isActive          Boolean               @default(true)
+  isProOnboarding   Boolean               @default(false)  // Flag for onboarding videos
+  createdAt         DateTime              @default(now())
+  updatedAt         DateTime              @updatedAt
+  watches           TrainingVideoWatch[]
 
   @@index([isActive])
 }
 
 model TrainingVideoWatch {
-  id            String          @id @default(auto()) @map("_id") @db.ObjectId
-  userId        String          @db.ObjectId
-  videoId       String          @db.ObjectId
-  watchedSec    Int             @default(0)
-  isCompleted   Boolean         @default(false)
-  lastWatchedAt DateTime        @updatedAt
-  user          User            @relation(fields: [userId], references: [id], onDelete: Cascade)
-  video         TrainingVideo   @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  id              String                  @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String                  @db.ObjectId
+  videoId         String                  @db.ObjectId
+  watchedSec      Int                     @default(0)
+  isCompleted     Boolean                 @default(false)
+  lastWatchedAt   DateTime                @updatedAt
+  applicationId   String?                 @unique @db.ObjectId  // Scalar for 1-1 relation
+  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video           TrainingVideo           @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  proApplication  SpecialistApplication?  @relation("ProOnboardingVideo", fields: [applicationId], references: [id], onDelete: SetNull)
 
   @@unique([userId, videoId])
   @@index([userId])

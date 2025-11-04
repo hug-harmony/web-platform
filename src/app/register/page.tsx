@@ -451,7 +451,7 @@ export default function RegisterPage() {
                         />
                       </FormControl>
 
-                      {/* <FormMessage className="text-xs" /> */}
+                      <FormMessage className="text-xs" />
                     </FormItem>
                   )}
                 />
