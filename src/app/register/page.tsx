@@ -265,8 +265,9 @@ export default function RegisterPage() {
       }
 
       const signInResult = await signIn("credentials", {
-        email: values.email,
+        identifier: values.email,
         password: values.password,
+        redirect: true,
         callbackUrl: "/dashboard",
       });
       if (signInResult?.error) throw new Error(signInResult.error);
