@@ -73,7 +73,7 @@ export default function SpecialistsPage() {
             id: app.id,
             name: app.name,
             specialty: app.role || "Unknown",
-            status: app.status === "approved" ? "active" : "pending",
+            status: app.status === "APPROVED" ? "active" : "pending",
           })
         );
         setSpecialists(formattedSpecialists);

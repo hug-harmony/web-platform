@@ -23,7 +23,7 @@ interface Specialist {
   biography: string;
   rate: number;
   image?: string;
-  status: "approved";
+  status: "APPROVED";
   metrics: {
     totalEarnings: number;
     companyCutPercentage: number;
