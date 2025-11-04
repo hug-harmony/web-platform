@@ -111,13 +111,15 @@ export default function ApplicationDetailPage() {
 
   const updateStatus = async (status: "APPROVED" | "REJECTED") => {
     try {
-      const res = await fetch("/api/professionals/onboarding/status", {
+      const res = await fetch("/api/specialists/application", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status }),
         credentials: "include",
       });
+
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
+
       await fetchApp(); // refresh
     } catch (e: any) {
       setError(e.message);
