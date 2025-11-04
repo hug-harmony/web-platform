@@ -54,6 +54,10 @@ export async function POST(request: Request) {
 
   const app = await prisma.specialistApplication.findUnique({
     where: { userId: session.user.id },
+    select: {
+      status: true,
+      specialistId: true,
+    },
   });
   if (!app || app.status !== "APPROVED" || !app.specialistId) {
     return NextResponse.json(
