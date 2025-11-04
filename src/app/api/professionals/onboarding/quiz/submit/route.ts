@@ -35,8 +35,11 @@ export async function POST(req: Request) {
     }
 
     const correctMap = new Map([
-      ["q1", "b"],
-      ["q2", "a"],
+      ["q1", "b"], // 18
+      ["q2", "a"], // Recording without consent
+      ["q3", "b"], // Acknowledge it and offer to pause or stop
+      ["q4", "a"], // Keep it confidential and secure
+      ["q5", "a"], // Ensure consent and understanding of session rules
     ]);
 
     const results = answers.map(({ questionId, answerId }) => ({
