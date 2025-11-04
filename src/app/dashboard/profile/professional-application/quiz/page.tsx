@@ -6,7 +6,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Label } from "@/components/ui/label";
-import { ArrowLeft } from "lucide-react";
+import { ArrowLeft, CheckCircle2 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -105,31 +105,57 @@ export default function QuizPage() {
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back
               </Link>
             </Button>
-            <CardTitle>Step 3: Knowledge Quiz</CardTitle>
+            <CardTitle>Step 3: Knowledge Quiz (Answers Visible)</CardTitle>
             <div className="w-20" />
           </div>
         </CardHeader>
         <CardContent className="space-y-6">
-          {questions.map((q, i) => (
-            <div key={q.id} className="space-y-3">
-              <p className="font-medium">
-                Question {i + 1}: {q.text}
-              </p>
-              <RadioGroup
-                value={answers[q.id]}
-                onValueChange={(v) => setAnswers({ ...answers, [q.id]: v })}
-              >
-                {q.options.map((opt) => (
-                  <div key={opt.id} className="flex items-center space-x-2">
-                    <RadioGroupItem value={opt.id} id={opt.id} />
-                    <Label htmlFor={opt.id} className="cursor-pointer">
-                      {opt.text}
-                    </Label>
-                  </div>
-                ))}
-              </RadioGroup>
-            </div>
-          ))}
+          {questions.map((q, i) => {
+            const correctOpt = q.options.find((o) => o.correct);
+
+            return (
+              <div key={q.id} className="space-y-3">
+                <p className="font-medium">
+                  Question {i + 1}: {q.text}
+                </p>
+                <RadioGroup
+                  value={answers[q.id]}
+                  onValueChange={(v) => setAnswers({ ...answers, [q.id]: v })}
+                >
+                  {q.options.map((opt) => {
+                    const isCorrect = opt.correct;
+
+                    return (
+                      <div
+                        key={opt.id}
+                        className={`flex items-center space-x-2 p-2 rounded-md transition-colors ${
+                          isCorrect
+                            ? "bg-green-100 border border-green-500"
+                            : ""
+                        }`}
+                      >
+                        <RadioGroupItem value={opt.id} id={opt.id} />
+                        <Label
+                          htmlFor={opt.id}
+                          className="flex-1 cursor-pointer flex items-center justify-between"
+                        >
+                          <span>{opt.text}</span>
+                          {isCorrect && (
+                            <CheckCircle2 className="h-4 w-4 text-green-600" />
+                          )}
+                        </Label>
+                      </div>
+                    );
+                  })}
+                </RadioGroup>
+                {correctOpt && (
+                  <p className="text-sm text-green-700 font-medium">
+                    Correct: {correctOpt.text}
+                  </p>
+                )}
+              </div>
+            );
+          })}
           <Button
             onClick={handleSubmit}
             disabled={
