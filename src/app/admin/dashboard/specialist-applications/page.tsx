@@ -20,6 +20,8 @@ import {
   XCircle,
   Clock,
   Video,
+  DollarSign,
+  MapPin,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
@@ -45,6 +47,8 @@ interface Application {
   submittedAt?: string | null;
   videoWatchedAt?: string | null;
   quizPassedAt?: string | null;
+  rate: number; // from Application
+  venue: "host" | "visit"; // from Application
   video?: {
     watchedSec: number;
     durationSec: number;
@@ -109,7 +113,7 @@ export default function SpecialistApplicationsPage() {
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (searchTerm) params.set("search", searchTerm);
 
-      const res = await fetch("/api/specialists/application", {
+      const res = await fetch(`/api/specialists/application?${params}`, {
         credentials: "include",
       });
       if (!res.ok) {
@@ -232,6 +236,16 @@ export default function SpecialistApplicationsPage() {
                             {app.status.replace(/_/g, " ")}
                           </span>
                         </div>
+                      </div>
+
+                      {/* Rate & Venue */}
+                      <div className="text-xs text-[#C4C4C4] mb-1 flex items-center gap-2">
+                        <DollarSign className="h-3 w-3" />${app.rate.toFixed(2)}{" "}
+                        / session
+                      </div>
+                      <div className="text-xs text-[#C4C4C4] mb-1 flex items-center gap-1">
+                        <MapPin className="h-3 w-3" />
+                        {app.venue === "host" ? "Host" : "Visit"}
                       </div>
 
                       {/* Video progress */}

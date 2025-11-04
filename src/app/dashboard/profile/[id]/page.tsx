@@ -116,7 +116,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
   const dropdownRef = useRef<HTMLDivElement>(null);
 
   // ──────────────────────────────────────────────────────────────
-  //  Location autocomplete (Nominatim)
+  //  Location autocomplete (Nominatim) - Updated to use Nominatim v1 + modern headers
   // ──────────────────────────────────────────────────────────────
   const fetchLocationSuggestions = debounce(async (query: string) => {
     if (query.length < 3) {
@@ -127,17 +127,23 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
     setIsLocationLoading(true);
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=5&q=${encodeURIComponent(query)}`,
+        `https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&q=${encodeURIComponent(
+          query
+        )}`,
         {
-          headers: { "User-Agent": "YourAppName/1.0 (your.email@example.com)" },
+          headers: {
+            "User-Agent": "YourAppName/1.0 (your.email@example.com)",
+            Accept: "application/json",
+          },
         }
       );
       if (res.ok) {
-        const data = await res.json();
+        const data: LocationSuggestion[] = await res.json();
         setLocationSuggestions(data);
         setIsLocationDropdownOpen(true);
       }
-    } catch {
+    } catch (err) {
+      console.error("Nominatim error:", err);
       toast.error("Failed to fetch location suggestions");
     } finally {
       setIsLocationLoading(false);
@@ -159,12 +165,22 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
 
   const validateLocation = async (loc: string) => {
     if (!loc) return true;
-    const res = await fetch(
-      `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(loc)}`,
-      { headers: { "User-Agent": "YourAppName/1.0 (your.email@example.com)" } }
-    );
-    const data = await res.json();
-    return data.length > 0;
+    try {
+      const res = await fetch(
+        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
+          loc
+        )}`,
+        {
+          headers: {
+            "User-Agent": "YourAppName/1.0 (your.email@example.com)",
+          },
+        }
+      );
+      const data = await res.json();
+      return Array.isArray(data) && data.length > 0;
+    } catch {
+      return false;
+    }
   };
 
   // ──────────────────────────────────────────────────────────────
@@ -334,10 +350,10 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
   const validateUserProfileForm = async (form: FormData) => {
     const errors: Record<string, string> = {};
 
-    const firstName = form.get("firstName")?.toString() ?? "";
-    const lastName = form.get("lastName")?.toString() ?? "";
-    const phoneNumber = form.get("phoneNumber")?.toString() ?? "";
-    const location = form.get("location")?.toString() ?? "";
+    const firstName = form.get("firstName")?.toString().trim() ?? "";
+    const lastName = form.get("lastName")?.toString().trim() ?? "";
+    const phoneNumber = form.get("phoneNumber")?.toString().trim() ?? "";
+    const location = form.get("location")?.toString().trim() ?? "";
     const biography = form.get("biography")?.toString() ?? "";
     const relationshipStatus = form.get("relationshipStatus")?.toString() ?? "";
     const orientation = form.get("orientation")?.toString() ?? "";
@@ -353,7 +369,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
     if (!lastName) errors.lastName = "Last name is required";
     else if (lastName.length > 50) errors.lastName = "Max 50 characters";
     if (!phoneNumber) errors.phoneNumber = "Phone number is required";
-    else if (!/\+?[\d\s\-()]{7,15}/.test(phoneNumber))
+    else if (!/^\+?[\d\s\-\(\)]{7,15}$/.test(phoneNumber))
       errors.phoneNumber = "Invalid phone format";
     if (location && location.length > 100)
       errors.location = "Max 100 characters";
@@ -378,9 +394,9 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
       errors.petOwnership = "Max 50 characters";
 
     if (selectedFile) {
-      const validTypes = ["image/jpeg", "image/png"];
+      const validTypes = ["image/jpeg", "image/png", "image/webp"];
       if (!validTypes.includes(selectedFile.type))
-        errors.profileImage = "Only JPEG, PNG allowed";
+        errors.profileImage = "Only JPEG, PNG, WebP allowed";
       else if (selectedFile.size > 5 * 1024 * 1024)
         errors.profileImage = "Max 5 MB";
     }
@@ -390,7 +406,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
 
   const validateSpecialistProfileForm = async (form: FormData) => {
     const errors: Record<string, string> = {};
-    const biography = form.get("biography")?.toString() ?? "";
+    const biography = form.get("biography")?.toString().trim() ?? "";
     const rateStr = form.get("rate")?.toString() ?? "";
     const venue = form.get("venue")?.toString() ?? "";
 
@@ -433,18 +449,22 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
         const up = await fetch("/api/users/upload", {
           method: "POST",
           body: img,
+          credentials: "include",
         });
-        if (!up.ok) throw new Error("Image upload failed");
+        if (!up.ok) {
+          const err = await up.text();
+          throw new Error(err || "Image upload failed");
+        }
         const { url } = await up.json();
         imageUrl = url;
       }
 
       const payload = {
-        firstName: form.get("firstName")?.toString(),
-        lastName: form.get("lastName")?.toString(),
+        firstName: form.get("firstName")?.toString().trim(),
+        lastName: form.get("lastName")?.toString().trim(),
         name: `${form.get("firstName")} ${form.get("lastName")}`.trim(),
-        phoneNumber: form.get("phoneNumber")?.toString(),
-        location: form.get("location")?.toString(),
+        phoneNumber: form.get("phoneNumber")?.toString().trim(),
+        location: form.get("location")?.toString().trim(),
         biography: form.get("biography")?.toString(),
         relationshipStatus: form.get("relationshipStatus")?.toString(),
         orientation: form.get("orientation")?.toString(),
@@ -461,8 +481,12 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        credentials: "include",
       });
-      if (!res.ok) throw new Error("Update failed");
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err || "Update failed");
+      }
 
       const updated = await res.json();
       setProfile((p) => (p ? { ...p, ...updated, type: p.type } : p));
@@ -500,7 +524,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
 
     try {
       const payload = {
-        biography: form.get("biography")?.toString(),
+        biography: form.get("biography")?.toString().trim(),
         rate: parseFloat(form.get("rate")?.toString() ?? "0") || null,
         venue: form.get("venue")?.toString() as
           | "host"
@@ -513,8 +537,12 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
+        credentials: "include",
       });
-      if (!res.ok) throw new Error("Update failed");
+      if (!res.ok) {
+        const err = await res.text();
+        throw new Error(err || "Update failed");
+      }
 
       const updated = await res.json();
       setProfile((p) =>
@@ -590,9 +618,9 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
         </Card>
 
         {/* Main Columns */}
-        <div className="flex gap-6">
+        <div className="flex gap-6 flex-col lg:flex-row">
           {/* USER PROFILE */}
-          <Card className="grow">
+          <Card className="flex-1">
             <CardContent className="space-y-4 pt-6">
               <h2 className="text-xl text-black dark:text-white">
                 Personal Details
@@ -612,7 +640,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
                       <Input
                         id="profileImage"
                         type="file"
-                        accept="image/jpeg,image/png"
+                        accept="image/jpeg,image/png,image/webp"
                         ref={fileInputRef}
                         className="hidden"
                         disabled={!isEditing || updating}
@@ -1198,7 +1226,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
 
           {/* SPECIALIST PROFILE (only when approved) */}
           {isSpecialist && (
-            <Card className="grow">
+            <Card className="flex-1">
               <CardContent className="space-y-4 pt-6">
                 <h2 className="text-xl text-black dark:text-white">
                   Professional Profile Details
@@ -1329,7 +1357,9 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
                         Rate (per session)
                       </p>
                       <p className="text-black dark:text-white break-words">
-                        {profile.rate ? `$${profile.rate}` : "Not provided"}
+                        {profile.rate
+                          ? `$${profile.rate.toFixed(2)}`
+                          : "Not provided"}
                       </p>
                     </div>
                     <div>
@@ -1365,7 +1395,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
 export default ProfilePage;
 
 /* ------------------------------------------------------------------ */
-/* Loading Skeleton – unchanged from your original file               */
+/* Loading Skeleton – updated for better responsiveness               */
 /* ------------------------------------------------------------------ */
 function LoadingSkeleton() {
   return (
@@ -1385,10 +1415,10 @@ function LoadingSkeleton() {
         </CardContent>
       </Card>
 
-      <div className="flex gap-6">
-        <Card className="grow">
+      <div className="flex gap-6 flex-col lg:flex-row">
+        <Card className="flex-1">
           <CardContent className="space-y-4 pt-6">
-            {[...Array(10)].map((_, i) => (
+            {[...Array(14)].map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton className="h-4 w-24 bg-[#C4C4C4]/50" />
                 <Skeleton className="h-10 w-full bg-[#C4C4C4]/50" />
@@ -1400,12 +1430,12 @@ function LoadingSkeleton() {
             </div>
           </CardContent>
         </Card>
-        <Card className="grow">
+        <Card className="flex-1">
           <CardContent className="space-y-4 pt-6">
-            {[...Array(5)].map((_, i) => (
+            {[...Array(3)].map((_, i) => (
               <div key={i} className="space-y-2">
                 <Skeleton
-                  className={`h-${i === 2 ? 20 : 10} w-full bg-[#C4C4C4]/50`}
+                  className={`h-${i === 0 ? 20 : 10} w-full bg-[#C4C4C4]/50`}
                 />
               </div>
             ))}

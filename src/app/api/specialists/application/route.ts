@@ -4,7 +4,11 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { ProOnboardingStatus, AppointmentVenue } from "@prisma/client";
+import {
+  ProOnboardingStatus,
+  AppointmentVenue,
+  VenueType,
+} from "@prisma/client";
 
 const submitSchema = z.object({
   rate: z
@@ -16,6 +20,9 @@ const submitSchema = z.object({
   }),
 });
 
+/* ------------------------------------------------------------------
+   POST – submit application (rate + venue)
+   ------------------------------------------------------------------ */
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -82,9 +89,9 @@ export async function POST(req: Request) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* GET – single application (admin view)                               */
-/* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------
+   GET – single (admin) OR list
+   ------------------------------------------------------------------ */
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -204,9 +211,9 @@ export async function GET(req: Request) {
   }
 }
 
-/* ------------------------------------------------------------------ */
-/* PATCH – approve / reject                                            */
-/* ------------------------------------------------------------------ */
+/* ------------------------------------------------------------------
+   PATCH – approve / reject (creates Specialist on APPROVED)
+   ------------------------------------------------------------------ */
 export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -255,7 +262,7 @@ export async function PATCH(req: Request) {
             name: app.user.name,
             biography: app.user.biography ?? "",
             rate: app.rate,
-            venue: app.venue === "host" ? "host" : "visit",
+            venue: app.venue === "host" ? VenueType.host : VenueType.visit,
             image: app.user.profileImage ?? null,
           },
         });

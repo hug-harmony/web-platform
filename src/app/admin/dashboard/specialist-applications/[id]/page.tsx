@@ -34,9 +34,9 @@ interface Application {
   id: string;
   name: string;
   avatarUrl?: string | null;
-  biography: string; // <-- from User
-  rate: number;
-  venue: "host" | "visit"; // <-- new
+  biography: string; // from User
+  rate: number; // from Application
+  venue: "host" | "visit"; // from Application
   status: ProStatus;
   createdAt: string;
   submittedAt?: string | null;
@@ -88,10 +88,9 @@ export default function ApplicationDetailPage() {
   const fetchApp = async () => {
     setLoading(true);
     try {
-      const res = await fetch(
-        `/api/specialists/application?admin=true&id=${id}`,
-        { credentials: "include" }
-      );
+      const res = await fetch(`/api/specialists/application?id=${id}`, {
+        credentials: "include",
+      });
       if (!res.ok) {
         const err = await res.json();
         if (res.status === 401) {
@@ -124,7 +123,7 @@ export default function ApplicationDetailPage() {
 
       if (!res.ok) throw new Error((await res.json()).error ?? "Failed");
 
-      await fetchApp(); // refresh
+      await fetchApp();
     } catch (e: any) {
       setError(e.message);
     }

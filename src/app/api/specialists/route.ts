@@ -16,7 +16,7 @@ type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
     rate: true;
     biography: true;
     createdAt: true;
-    venue: true; // Changed from venuePreferences
+    venue: true;
     application: {
       select: {
         userId: true;
@@ -26,6 +26,9 @@ type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
   };
 }>;
 
+/* ------------------------------------------------------------------
+   GET – single or list (unchanged)
+   ------------------------------------------------------------------ */
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -35,11 +38,10 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    const venue = searchParams.get("venue"); // Changed from venuePreferences
+    const venue = searchParams.get("venue");
 
     if (id) {
       if (!/^[0-9a-fA-F]{24}$/.test(id)) {
-        console.log("Invalid specialist ID:", id);
         return NextResponse.json(
           { error: "Invalid specialist ID" },
           { status: 400 }
@@ -57,7 +59,7 @@ export async function GET(req: Request) {
             rate: true,
             biography: true,
             createdAt: true,
-            venue: true, // Changed from venuePreferences
+            venue: true,
             application: {
               select: {
                 userId: true,
@@ -67,7 +69,6 @@ export async function GET(req: Request) {
           },
         });
       if (!specialist) {
-        console.log("Specialist not found for ID:", id);
         return NextResponse.json(
           { error: "Specialist not found" },
           { status: 404 }
@@ -84,11 +85,10 @@ export async function GET(req: Request) {
         rate: specialist.rate,
         biography: specialist.biography,
         createdAt: specialist.createdAt,
-        venue: specialist.venue, // Changed from venuePreferences
+        venue: specialist.venue,
       });
     }
 
-    // Find the logged-in user's specialistId, if any
     const userApplication = await prisma.specialistApplication.findFirst({
       where: {
         userId: session.user.id,
@@ -101,16 +101,12 @@ export async function GET(req: Request) {
       await prisma.specialist.findMany({
         where: {
           ...(userApplication?.specialistId
-            ? {
-                id: {
-                  not: userApplication.specialistId,
-                },
-              }
+            ? { id: { not: userApplication.specialistId } }
             : {}),
           ...(venue
             ? {
                 venue: {
-                  in: venue.split(",").map((v) => v.trim()) as any, // Handle comma-separated venue values
+                  in: venue.split(",").map((v) => v.trim()) as any,
                 },
               }
             : {}),
@@ -124,7 +120,7 @@ export async function GET(req: Request) {
           rate: true,
           biography: true,
           createdAt: true,
-          venue: true, // Changed from venuePreferences
+          venue: true,
           application: {
             select: {
               userId: true,
@@ -135,18 +131,18 @@ export async function GET(req: Request) {
       });
 
     return NextResponse.json({
-      specialists: specialists.map((specialist) => ({
-        id: specialist.id,
-        name: specialist.name,
-        image: specialist.image,
-        location: specialist.application?.user?.location || null,
-        userId: specialist.application?.userId || null,
-        rating: specialist.rating,
-        reviewCount: specialist.reviewCount,
-        rate: specialist.rate,
-        biography: specialist.biography,
-        createdAt: specialist.createdAt,
-        venue: specialist.venue, // Changed from venuePreferences
+      specialists: specialists.map((s) => ({
+        id: s.id,
+        name: s.name,
+        image: s.image,
+        location: s.application?.user?.location || null,
+        userId: s.application?.userId || null,
+        rating: s.rating,
+        reviewCount: s.reviewCount,
+        rate: s.rate,
+        biography: s.biography,
+        createdAt: s.createdAt,
+        venue: s.venue,
       })),
     });
   } catch (error) {
@@ -157,94 +153,22 @@ export async function GET(req: Request) {
   }
 }
 
-export async function POST(req: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const {
-      name,
-      image,
-      location,
-      rating,
-      reviewCount,
-      rate,
-      biography,
-      venue,
-    } = await req.json();
-
-    if (!name || !biography) {
-      return NextResponse.json(
-        { error: "Required fields (name, biography) missing" },
-        { status: 400 }
-      );
-    }
-
-    // Validate venue
-    if (venue && !["host", "visit", "both"].includes(venue)) {
-      return NextResponse.json(
-        { error: "Invalid venue value" },
-        { status: 400 }
-      );
-    }
-
-    const specialist = await prisma.specialist.create({
-      data: {
-        name,
-        image,
-        rating,
-        reviewCount,
-        rate,
-        biography,
-        venue: venue || "both", // Default to "both" if not provided
-      },
-    });
-
-    // Create SpecialistApplication to link to the authenticated user
-    await prisma.specialistApplication.create({
-      data: {
-        userId: session.user.id,
-        specialistId: specialist.id,
-        biography,
-        rate,
-        status: "FORM_PENDING",
-      },
-    });
-
-    // Update location in the User model if provided
-    if (location) {
-      await prisma.user.update({
-        where: { id: session.user.id },
-        data: { location },
-      });
-    }
-
-    console.log("Specialist created:", specialist);
-    return NextResponse.json(
-      {
-        id: specialist.id,
-        name: specialist.name,
-        image: specialist.image,
-        location,
-        rating: specialist.rating,
-        reviewCount: specialist.reviewCount,
-        rate: specialist.rate,
-        biography: specialist.biography,
-        createdAt: specialist.createdAt,
-        venue: specialist.venue, // Changed from venuePreferences
-      },
-      { status: 201 }
-    );
-  } catch (error) {
-    console.error("POST Error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
-  }
+/* ------------------------------------------------------------------
+   POST – **DISABLED** (creation only via application approval)
+   ------------------------------------------------------------------ */
+export async function POST() {
+  return NextResponse.json(
+    {
+      error:
+        "Direct specialist creation is not allowed. Use the professional-application flow.",
+    },
+    { status: 405 }
+  );
 }
 
+/* ------------------------------------------------------------------
+   PATCH – edit approved specialist (unchanged)
+   ------------------------------------------------------------------ */
 export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -272,11 +196,9 @@ export async function PATCH(req: Request) {
     }
 
     if (!/^[0-9a-fA-F]{24}$/.test(id)) {
-      console.log("Invalid specialist ID:", id);
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     }
 
-    // Validate venue
     if (venue && !["host", "visit", "both"].includes(venue)) {
       return NextResponse.json(
         { error: "Invalid venue value" },
@@ -284,7 +206,6 @@ export async function PATCH(req: Request) {
       );
     }
 
-    // Check if the user is authorized to update this specialist
     const application = await prisma.specialistApplication.findFirst({
       where: { specialistId: id, userId: session.user.id, status: "APPROVED" },
     });
@@ -307,7 +228,7 @@ export async function PATCH(req: Request) {
         reviewCount,
         rate,
         biography,
-        venue, // Changed from venuePreferences
+        venue,
       },
       select: {
         id: true,
@@ -318,7 +239,7 @@ export async function PATCH(req: Request) {
         rate: true,
         biography: true,
         createdAt: true,
-        venue: true, // Changed from venuePreferences
+        venue: true,
         application: {
           select: {
             userId: true,
@@ -328,7 +249,6 @@ export async function PATCH(req: Request) {
       },
     });
 
-    // Update location in the User model if provided
     if (location) {
       await prisma.user.update({
         where: { id: application.userId },
@@ -347,7 +267,7 @@ export async function PATCH(req: Request) {
       rate: specialist.rate,
       biography: specialist.biography,
       createdAt: specialist.createdAt,
-      venue: specialist.venue, // Changed from venuePreferences
+      venue: specialist.venue,
     });
   } catch (error) {
     console.error("PATCH Error:", error);
@@ -357,6 +277,9 @@ export async function PATCH(req: Request) {
   }
 }
 
+/* ------------------------------------------------------------------
+   DELETE – remove specialist (unchanged)
+   ------------------------------------------------------------------ */
 export async function DELETE(req: Request) {
   try {
     const { id } = await req.json();
@@ -365,16 +288,12 @@ export async function DELETE(req: Request) {
     }
 
     if (!/^[0-9a-fA-F]{24}$/.test(id)) {
-      console.log("Invalid specialist ID:", id);
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     }
 
     const specialist = await prisma.specialist.delete({
       where: { id },
-      select: {
-        id: true,
-        name: true,
-      },
+      select: { id: true, name: true },
     });
 
     console.log("Specialist deleted:", specialist);
