@@ -18,7 +18,6 @@ import {
   Clock,
   User,
   LogOut,
-  Search,
   Video,
   CreditCard,
   Bell,
@@ -98,7 +97,7 @@ export default function Sidebar() {
 
         if (specialistRes.ok) {
           const { status } = await specialistRes.json();
-          setIsSpecialist(status === "approved");
+          setIsSpecialist(status?.toLowerCase() === "approved");
         }
       } catch (error) {
         console.error("Fetch Error:", error);
