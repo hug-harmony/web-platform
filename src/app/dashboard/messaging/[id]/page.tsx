@@ -98,7 +98,7 @@ const MessageInterface: React.FC = () => {
         });
         if (res.ok) {
           const { status } = await res.json();
-          setIsSpecialist(status === "approved");
+          setIsSpecialist(status === "APPROVED");
         }
       } catch (error) {
         console.error("Error checking specialist status:", error);

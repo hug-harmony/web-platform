@@ -69,7 +69,7 @@ const ManageAvailabilityPage: React.FC = () => {
         });
         if (!res.ok) throw new Error();
         const { status: appStatus, specialistId: fetchedId } = await res.json();
-        if (appStatus !== "approved" || !fetchedId) {
+        if (appStatus !== "APPROVED" || !fetchedId) {
           toast.error("Approved specialist profile required");
           router.push("/dashboard");
           return;

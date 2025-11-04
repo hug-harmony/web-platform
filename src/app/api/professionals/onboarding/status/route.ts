@@ -20,6 +20,7 @@ export async function GET() {
         submittedAt: true,
         videoWatchedAt: true,
         quizPassedAt: true,
+        specialistId: true,
       },
     });
 
@@ -53,6 +54,7 @@ export async function GET() {
         submittedAt: application.submittedAt,
         videoWatchedAt: application.videoWatchedAt,
         quizPassedAt: application.quizPassedAt,
+        specialistId: application.specialistId,
       },
       video,
     });

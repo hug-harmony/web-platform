@@ -93,7 +93,7 @@ export default function StatsPage() {
 
       // Fetch approved specialists
       const specialistsRes = await fetch(
-        "/api/specialists/application?status=approved"
+        "/api/specialists/application?status=APPROVED"
       );
       if (!specialistsRes.ok) throw new Error("Failed to fetch specialists");
       const applications = await specialistsRes.json();

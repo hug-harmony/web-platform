@@ -52,7 +52,7 @@ export default function BottomNav() {
         });
         if (res.ok) {
           const { status } = await res.json();
-          setIsSpecialist(status === "approved");
+          setIsSpecialist(status === "APPROVED");
         }
       } catch (error) {
         console.error("Error fetching specialist status:", error);

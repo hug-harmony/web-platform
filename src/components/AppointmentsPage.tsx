@@ -121,7 +121,7 @@ export default function AppointmentsPage() {
       let specialistStatus = false;
       if (specialistRes.ok) {
         const { status: appStatus } = await specialistRes.json();
-        specialistStatus = appStatus === "approved";
+        specialistStatus = appStatus === "APPROVED";
         setIsSpecialist(specialistStatus);
       }
 

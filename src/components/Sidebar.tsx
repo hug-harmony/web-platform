@@ -97,7 +97,7 @@ export default function Sidebar() {
 
         if (specialistRes.ok) {
           const { status } = await specialistRes.json();
-          setIsSpecialist(status?.toLowerCase() === "approved");
+          setIsSpecialist(status === "APPROVED");
         }
       } catch (error) {
         console.error("Fetch Error:", error);

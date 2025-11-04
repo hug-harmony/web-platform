@@ -149,7 +149,11 @@ export function RadiusDialog({
         <div className="space-y-4">
           {/* ---- Search + Current Location ---- */}
           <div className="flex gap-2">
-            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+            <Popover
+              open={popoverOpen}
+              onOpenChange={setPopoverOpen}
+              modal={false}
+            >
               {/* ---------- 1. Trigger (outside the Input) ---------- */}
               <PopoverTrigger asChild>
                 <div className="flex-1 relative">

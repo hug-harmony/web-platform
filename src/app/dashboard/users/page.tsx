@@ -84,7 +84,7 @@ export default function ExplorePage() {
                   image: user.profileImage || undefined,
                   location: user.location || "",
                   isSpecialist:
-                    user.specialistApplication?.status === "approved" || false,
+                    user.specialistApplication?.status === "APPROVED" || false,
                   specialistId:
                     user.specialistApplication?.specialistId || undefined,
                 }))

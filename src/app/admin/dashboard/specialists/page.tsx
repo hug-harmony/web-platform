@@ -44,7 +44,7 @@ export default function SpecialistsPage() {
         setLoading(true);
         setError(null);
         const response = await fetch(
-          `/api/specialists/application?status=approved&search=${encodeURIComponent(
+          `/api/specialists/application?status=APPROVED&search=${encodeURIComponent(
             searchTerm
           )}`,
           {

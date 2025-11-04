@@ -89,7 +89,9 @@ export default function StatusPage() {
       </div>
     );
 
-  const currentIndex = steps.findIndex((s) => s.key === status.step);
+  const currentIndex = steps.findIndex(
+    (s) => s.key === status.step?.toUpperCase()
+  );
   const isFailed = ["QUIZ_FAILED", "REJECTED"].includes(status.step);
 
   return (

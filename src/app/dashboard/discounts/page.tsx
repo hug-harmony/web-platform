@@ -73,7 +73,7 @@ function DiscountsContent() {
         const userData = await res.json();
         const application = userData.specialistApplication;
         if (
-          application?.status !== "approved" ||
+          application?.status !== "APPROVED" ||
           application.specialistId !== specialistId
         ) {
           toast.error("You are not an approved specialist.");
