@@ -113,7 +113,7 @@ model Specialist {
   rate                 Float?
   biography            String?
   companyCutPercentage Float?
-  venue                VenueType      @default(both)   // host | visit | both
+  venue                VenueType?      @default(both)   // host | visit | both
   createdAt            DateTime       @default(now())
   location             String?
 

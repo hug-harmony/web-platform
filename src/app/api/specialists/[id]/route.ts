@@ -167,93 +167,99 @@ export async function GET(
   }
 }
 
-export async function PATCH(req: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
-      return NextResponse.json(
-        { error: "Unauthorized: No session found" },
-        { status: 401 }
-      );
-    }
+export async function PATCH(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
 
-    const url = new URL(req.url);
-    const id = url.pathname.split("/").pop();
-
-    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
-      return NextResponse.json(
-        { error: "Invalid specialist ID" },
-        { status: 400 }
-      );
-    }
-
-    // Check if the user is the specialist
-    const application = await prisma.specialistApplication.findFirst({
-      where: { specialistId: id, userId: session.user.id, status: "APPROVED" },
-    });
-
-    if (!application) {
-      return NextResponse.json(
-        {
-          error:
-            "Unauthorized: You can only update your own approved specialist profile",
-        },
-        { status: 403 }
-      );
-    }
-
-    const body = await req.json();
-    const validatedData = updateSpecialistSchema.parse(body);
-
-    // Update Specialist model
-    const updatedSpecialist: UpdatedSpecialistWithRelations =
-      await prisma.specialist.update({
-        where: { id },
-        data: {
-          biography: validatedData.biography,
-          rate: validatedData.rate,
-        },
-        select: {
-          id: true,
-          name: true,
-          biography: true,
-          rate: true,
-          application: {
-            select: {
-              user: { select: { location: true } },
-            },
-          },
-        },
-      });
-
-    // Update location in the associated User model if provided
-    if (validatedData.location) {
-      await prisma.user.update({
-        where: { id: application.userId },
-        data: { location: validatedData.location },
-      });
-    }
-
-    return NextResponse.json({
-      id: updatedSpecialist.id,
-      name: updatedSpecialist.name || "Unknown Specialist",
-      biography: updatedSpecialist.biography || "",
-      location: updatedSpecialist.application?.user?.location || "",
-      rate: updatedSpecialist.rate || null,
-    });
-  } catch (error: any) {
-    console.error("Error updating specialist:", error);
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
-    }
-    if (error.code === "P2025") {
-      return NextResponse.json(
-        { error: "Specialist not found" },
-        { status: 404 }
-      );
-    }
+  const { id } = params;
+  if (!id) {
     return NextResponse.json(
-      { error: "Internal server error: Failed to update specialist" },
+      { error: "Missing specialist ID" },
+      { status: 400 }
+    );
+  }
+
+  // ------------------------------------------------------------
+  // 1. Verify ownership – **select only the fields we need**
+  // ------------------------------------------------------------
+  const app = await prisma.specialistApplication.findFirst({
+    where: {
+      specialistId: id,
+      userId: session.user.id,
+    },
+    select: {
+      status: true,
+      specialistId: true,
+    },
+  });
+
+  if (!app || app.status !== "APPROVED") {
+    return NextResponse.json(
+      { error: "Forbidden: Not an approved specialist" },
+      { status: 403 }
+    );
+  }
+
+  // ------------------------------------------------------------
+  // 2. Parse & validate payload
+  // ------------------------------------------------------------
+  let body: any;
+  try {
+    body = await request.json();
+  } catch {
+    return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
+  }
+
+  const { biography, rate, venue } = body;
+
+  if (
+    biography !== undefined &&
+    (typeof biography !== "string" || biography.length > 500)
+  ) {
+    return NextResponse.json(
+      { error: "Biography must be ≤ 500 chars" },
+      { status: 400 }
+    );
+  }
+  if (rate !== undefined && (isNaN(rate) || rate <= 0 || rate > 10000)) {
+    return NextResponse.json(
+      { error: "Rate must be 0.01–10,000" },
+      { status: 400 }
+    );
+  }
+  if (venue !== undefined && !["host", "visit", "both"].includes(venue)) {
+    return NextResponse.json({ error: "Invalid venue" }, { status: 400 });
+  }
+
+  // ------------------------------------------------------------
+  // 3. Update **only** the allowed fields
+  // ------------------------------------------------------------
+  try {
+    const updated = await prisma.specialist.update({
+      where: { id },
+      data: {
+        biography: biography ?? undefined,
+        rate: rate ?? undefined,
+        venue: venue ?? undefined, // Prisma will write NULL if `undefined`
+      },
+      select: {
+        id: true,
+        biography: true,
+        rate: true,
+        venue: true,
+      },
+    });
+
+    return NextResponse.json(updated);
+  } catch (err) {
+    console.error("Error updating specialist:", err);
+    return NextResponse.json(
+      { error: "Failed to update specialist" },
       { status: 500 }
     );
   }
