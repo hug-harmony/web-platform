@@ -56,7 +56,7 @@ export async function POST(
 
     if (!session.user.isAdmin) {
       const specialistProfile = await prisma.specialistApplication.findFirst({
-        where: { userId: session.user.id, status: "approved" },
+        where: { userId: session.user.id, status: "APPROVED" },
         select: { specialistId: true },
       });
 
