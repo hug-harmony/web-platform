@@ -23,6 +23,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect, useCallback } from "react";
+import Image from "next/image";
 
 type ProStatus =
   | "FORM_PENDING"
@@ -38,6 +39,7 @@ type ProStatus =
 interface Application {
   id: string;
   name: string;
+  avatarUrl: string | null;
   status: ProStatus;
   createdAt: string;
   submittedAt?: string | null;
@@ -202,9 +204,19 @@ export default function SpecialistApplicationsPage() {
                     >
                       <div className="flex items-center justify-between mb-2">
                         <div className="flex items-center gap-3">
-                          <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center text-black dark:text-white font-bold">
-                            {app.name[0]}
-                          </div>
+                          {app.avatarUrl ? (
+                            <Image
+                              src={app.avatarUrl}
+                              alt={app.name}
+                              width={100}
+                              height={100}
+                              className="h-10 w-10 rounded-full object-cover"
+                            />
+                          ) : (
+                            <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center">
+                              {app.name[0]}
+                            </div>
+                          )}
                           <div>
                             <p className="font-semibold">{app.name}</p>
                             <p className="text-xs text-[#C4C4C4]">

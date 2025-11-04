@@ -142,7 +142,7 @@ export async function GET(req: Request) {
     const apps = await prisma.specialistApplication.findMany({
       where,
       include: {
-        user: { select: { name: true } },
+        user: { select: { name: true, profileImage: true } },
         quizAttempts: {
           select: { score: true, attemptedAt: true, nextEligibleAt: true },
           orderBy: { attemptedAt: "desc" },
@@ -163,6 +163,7 @@ export async function GET(req: Request) {
         return {
           id: a.id,
           name: a.user?.name ?? "Unknown",
+          avatarUrl: a.user?.profileImage ?? null,
           status: a.status,
           createdAt: a.createdAt,
           submittedAt: a.submittedAt,

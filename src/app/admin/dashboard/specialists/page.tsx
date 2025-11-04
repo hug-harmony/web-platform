@@ -10,12 +10,14 @@ import { Stethoscope, Search } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
+import Image from "next/image";
 
 interface Specialist {
   id: string;
   name: string;
   specialty: string;
   status: "active" | "pending";
+  avatarUrl?: string | null;
 }
 
 const containerVariants = {
@@ -74,6 +76,7 @@ export default function SpecialistsPage() {
             name: app.name,
             specialty: app.role || "Unknown",
             status: app.status === "APPROVED" ? "active" : "pending",
+            avatarUrl: app.avatarUrl ?? null,
           })
         );
         setSpecialists(formattedSpecialists);
@@ -152,7 +155,19 @@ export default function SpecialistsPage() {
                     >
                       <div className="flex items-center gap-4">
                         <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center text-black dark:text-white">
-                          {spec.name[0]}
+                          {spec.avatarUrl ? (
+                            <Image
+                              src={spec.avatarUrl}
+                              alt={spec.name}
+                              width={100}
+                              height={100}
+                              className="h-full w-full object-cover"
+                            />
+                          ) : (
+                            <span className="text-black dark:text-white">
+                              {spec.name[0]}
+                            </span>
+                          )}
                         </div>
                         <div>
                           <p className="font-semibold text-black dark:text-white">

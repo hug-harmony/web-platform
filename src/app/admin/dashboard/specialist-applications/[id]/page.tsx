@@ -16,6 +16,7 @@ import {
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
+import Image from "next/image";
 
 type ProStatus =
   | "FORM_PENDING"
@@ -31,6 +32,7 @@ type ProStatus =
 interface Application {
   id: string;
   name: string;
+  avatarUrl?: string | null;
   biography: string;
   rate: number;
   status: ProStatus;
@@ -145,9 +147,19 @@ export default function ApplicationDetailPage() {
         <CardHeader>
           <div className="flex items-center gap-4">
             <Avatar className="h-16 w-16 border-2 border-white">
-              <AvatarFallback className="bg-[#C4C4C4] text-black">
-                {app.name[0]}
-              </AvatarFallback>
+              {app.avatarUrl ? (
+                <Image
+                  src={app.avatarUrl}
+                  alt={app.name}
+                  width={100}
+                  height={100}
+                  className="h-full w-full object-cover rounded-full"
+                />
+              ) : (
+                <AvatarFallback className="bg-[#C4C4C4] text-black">
+                  {app.name[0]}
+                </AvatarFallback>
+              )}
             </Avatar>
             <div>
               <CardTitle className="text-2xl font-bold flex items-center gap-2">
