@@ -17,7 +17,7 @@ export async function GET(
   try {
     // Find specialist's userId via SpecialistApplication
     const specialistApp = await prisma.specialistApplication.findFirst({
-      where: { specialistId, status: "approved" },
+      where: { specialistId, status: "APPROVED" },
     });
     if (!specialistApp || !specialistApp.userId) {
       return NextResponse.json(

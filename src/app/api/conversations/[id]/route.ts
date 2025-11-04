@@ -61,11 +61,11 @@ export async function GET(request: NextRequest) {
 
     // NEW: Determine and include specialistId if one participant is a specialist
     const specialistApp1 = await prisma.specialistApplication.findFirst({
-      where: { userId: conversation.userId1, status: "approved" },
+      where: { userId: conversation.userId1, status: "APPROVED" },
       select: { specialistId: true },
     });
     const specialistApp2 = await prisma.specialistApplication.findFirst({
-      where: { userId: conversation.userId2, status: "approved" },
+      where: { userId: conversation.userId2, status: "APPROVED" },
       select: { specialistId: true },
     });
 

@@ -92,7 +92,7 @@ export async function GET(req: Request) {
     const userApplication = await prisma.specialistApplication.findFirst({
       where: {
         userId: session.user.id,
-        status: "approved",
+        status: "APPROVED",
       },
       select: { specialistId: true },
     });
@@ -209,7 +209,7 @@ export async function POST(req: Request) {
         specialistId: specialist.id,
         biography,
         rate,
-        status: "pending",
+        status: "FORM_PENDING",
       },
     });
 
@@ -286,7 +286,7 @@ export async function PATCH(req: Request) {
 
     // Check if the user is authorized to update this specialist
     const application = await prisma.specialistApplication.findFirst({
-      where: { specialistId: id, userId: session.user.id, status: "approved" },
+      where: { specialistId: id, userId: session.user.id, status: "APPROVED" },
     });
     if (!application) {
       return NextResponse.json(

@@ -50,7 +50,7 @@ export async function GET(
       where: {
         specialistId: discount.specialistId,
         userId: session.user.id,
-        status: "approved",
+        status: "APPROVED",
       },
     });
 
@@ -105,7 +105,7 @@ export async function POST(req: Request) {
 
     // Check if the user is the specialist
     const application = await prisma.specialistApplication.findFirst({
-      where: { specialistId, userId: session.user.id, status: "approved" },
+      where: { specialistId, userId: session.user.id, status: "APPROVED" },
     });
 
     if (!application) {
@@ -192,7 +192,7 @@ export async function PATCH(
       where: {
         specialistId: discount.specialistId,
         userId: session.user.id,
-        status: "approved",
+        status: "APPROVED",
       },
     });
 
@@ -283,7 +283,7 @@ export async function DELETE(
       where: {
         specialistId: discount.specialistId,
         userId: session.user.id,
-        status: "approved",
+        status: "APPROVED",
       },
     });
 

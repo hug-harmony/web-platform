@@ -44,7 +44,7 @@ export async function PATCH(
     }
 
     const specialistApp = await prisma.specialistApplication.findFirst({
-      where: { specialistId: proposal.specialistId, status: "approved" },
+      where: { specialistId: proposal.specialistId, status: "APPROVED" },
     });
 
     const isUserResponder = proposal.initiator === "specialist";

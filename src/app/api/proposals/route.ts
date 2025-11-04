@@ -106,7 +106,7 @@ export async function GET(req: NextRequest) {
       select: { status: true, specialistId: true },
     });
     const isSpecialist =
-      specialistApp?.status === "approved" && specialistApp?.specialistId;
+      specialistApp?.status === "APPROVED" && specialistApp?.specialistId;
 
     if (role === "specialist" && !isSpecialist) {
       return NextResponse.json(
@@ -185,7 +185,7 @@ export async function POST(req: NextRequest) {
     }
 
     const isSpecialist = await prisma.specialistApplication.findFirst({
-      where: { userId: session.user.id, status: "approved" },
+      where: { userId: session.user.id, status: "APPROVED" },
       select: { specialistId: true },
     });
 
@@ -217,7 +217,7 @@ export async function POST(req: NextRequest) {
       }
 
       const specialistUser = await prisma.specialistApplication.findFirst({
-        where: { specialistId, status: "approved" },
+        where: { specialistId, status: "APPROVED" },
       });
 
       if (!specialistUser?.userId) {

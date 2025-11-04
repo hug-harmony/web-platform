@@ -189,7 +189,7 @@ export async function PATCH(req: Request) {
 
     // Check if the user is the specialist
     const application = await prisma.specialistApplication.findFirst({
-      where: { specialistId: id, userId: session.user.id, status: "approved" },
+      where: { specialistId: id, userId: session.user.id, status: "APPROVED" },
     });
 
     if (!application) {

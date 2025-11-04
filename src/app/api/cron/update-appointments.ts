@@ -176,14 +176,14 @@ export async function GET(request: NextRequest) {
 }
 
 // Helper function to parse appointment date and time (no longer needed but kept for reference)
-function parseAppointmentDateTime(startTime: Date): Date | null {
-  try {
-    return startTime; // startTime is already a Date object
-  } catch (error) {
-    console.error(`[CRON] Error parsing startTime: ${startTime}`, error);
-    return null;
-  }
-}
+// function parseAppointmentDateTime(startTime: Date): Date | null {
+//   try {
+//     return startTime; // startTime is already a Date object
+//   } catch (error) {
+//     console.error(`[CRON] Error parsing startTime: ${startTime}`, error);
+//     return null;
+//   }
+// }
 
 // For manual testing - you can remove this
 export async function POST(request: NextRequest) {

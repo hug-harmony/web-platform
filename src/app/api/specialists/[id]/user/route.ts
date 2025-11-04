@@ -18,7 +18,7 @@ export async function GET(
 
   try {
     const app = await prisma.specialistApplication.findFirst({
-      where: { specialistId: id, status: "approved" },
+      where: { specialistId: id, status: "APPROVED" },
       select: { userId: true },
     });
     if (!app) {

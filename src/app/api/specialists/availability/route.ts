@@ -55,7 +55,7 @@ export async function POST(request: Request) {
   const app = await prisma.specialistApplication.findUnique({
     where: { userId: session.user.id },
   });
-  if (!app || app.status !== "approved" || !app.specialistId) {
+  if (!app || app.status !== "APPROVED" || !app.specialistId) {
     return NextResponse.json(
       { error: "Forbidden: Not an approved specialist" },
       { status: 403 }

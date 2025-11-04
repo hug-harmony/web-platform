@@ -31,7 +31,7 @@ export async function POST(req: Request) {
       where: {
         specialistId: validatedData.specialistId,
         userId: session.user.id,
-        status: "approved",
+        status: "APPROVED",
       },
     });
 

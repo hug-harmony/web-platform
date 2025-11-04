@@ -61,7 +61,7 @@ export async function POST(req: Request) {
 
     // Update all approved specialists with the new company cut percentage
     await prisma.specialist.updateMany({
-      where: { application: { status: "approved" } },
+      where: { application: { status: "APPROVED" } },
       data: { companyCutPercentage },
     });
 
