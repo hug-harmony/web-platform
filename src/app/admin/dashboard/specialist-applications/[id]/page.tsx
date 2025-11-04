@@ -13,6 +13,7 @@ import {
   XCircle,
   Clock,
   Video,
+  MapPin,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
@@ -33,8 +34,9 @@ interface Application {
   id: string;
   name: string;
   avatarUrl?: string | null;
-  biography: string;
+  biography: string; // <-- from User
   rate: number;
+  venue: "host" | "visit"; // <-- new
   status: ProStatus;
   createdAt: string;
   submittedAt?: string | null;
@@ -173,8 +175,19 @@ export default function ApplicationDetailPage() {
 
         <CardContent className="space-y-6">
           {/* Core Info */}
-          <Section title="Biography">{app.biography}</Section>
+          <Section title="Biography">{app.biography || "—"}</Section>
+
           <Section title="Rate">${app.rate.toFixed(2)} / session</Section>
+
+          <Section title="Venue">
+            <span className="flex items-center gap-1">
+              <MapPin className="h-4 w-4" />
+              {app.venue === "host"
+                ? "I host at my location"
+                : "I visit the client"}
+            </span>
+          </Section>
+
           <Section title="Submitted">
             {app.submittedAt ? new Date(app.submittedAt).toLocaleString() : "—"}
           </Section>

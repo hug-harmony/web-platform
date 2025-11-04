@@ -157,8 +157,8 @@ model Reply {
 model SpecialistApplication {
   id              String                @id @default(auto()) @map("_id") @db.ObjectId
   userId          String                @unique @db.ObjectId
-  biography       String
   rate            Float
+  venue           AppointmentVenue      // New field
   status          ProOnboardingStatus   @default(FORM_PENDING)
   submittedAt     DateTime?
   videoWatchedAt  DateTime?

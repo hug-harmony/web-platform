@@ -4,16 +4,16 @@ import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import { ProOnboardingStatus } from "@prisma/client";
+import { ProOnboardingStatus, AppointmentVenue } from "@prisma/client";
 
-const specialistApplicationSchema = z.object({
-  biography: z.string().min(1, "Biography is required"),
+const submitSchema = z.object({
   rate: z
     .string()
-    .transform((val) => parseFloat(val))
-    .refine((val) => !isNaN(val) && val >= 0, {
-      message: "Rate must be non-negative",
-    }),
+    .transform((v) => parseFloat(v))
+    .refine((v) => !isNaN(v) && v > 0, "Rate must be > 0"),
+  venue: z.enum(["host", "visit"] as const, {
+    required_error: "Venue is required",
+  }),
 });
 
 export async function POST(req: Request) {
@@ -22,9 +22,7 @@ export async function POST(req: Request) {
     if (!session?.user?.id)
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
-    const { biography, rate } = specialistApplicationSchema.parse(
-      await req.json()
-    );
+    const { rate, venue } = submitSchema.parse(await req.json());
 
     const application = await prisma.$transaction(async (tx) => {
       const existing = await tx.specialistApplication.findFirst({
@@ -61,8 +59,8 @@ export async function POST(req: Request) {
       return await tx.specialistApplication.create({
         data: {
           userId: session.user.id,
-          biography,
           rate,
+          venue,
           status: "VIDEO_PENDING",
           submittedAt: new Date(),
         },
@@ -84,6 +82,9 @@ export async function POST(req: Request) {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* GET – single application (admin view)                               */
+/* ------------------------------------------------------------------ */
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -92,16 +93,19 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    const status = (searchParams.get("status") ?? "all") as
+    const statusParam = (searchParams.get("status") ?? "all") as
       | ProOnboardingStatus
       | "all";
     const search = searchParams.get("search") ?? "";
 
+    /* ---------- SINGLE APPLICATION DETAIL ---------- */
     if (id) {
       const app = await prisma.specialistApplication.findUnique({
         where: { id },
         include: {
-          user: { select: { name: true, profileImage: true } },
+          user: {
+            select: { name: true, profileImage: true, biography: true },
+          },
           quizAttempts: {
             orderBy: { attemptedAt: "desc" },
           },
@@ -126,16 +130,25 @@ export async function GET(req: Request) {
         : null;
 
       return NextResponse.json({
-        ...app,
+        id: app.id,
         name: app.user.name ?? "Unknown",
+        avatarUrl: app.user.profileImage ?? null,
+        biography: app.user.biography ?? "",
+        rate: app.rate,
+        venue: app.venue,
+        status: app.status,
+        createdAt: app.createdAt,
+        submittedAt: app.submittedAt,
+        videoWatchedAt: app.videoWatchedAt,
+        quizPassedAt: app.quizPassedAt,
         video,
         quizAttempts: app.quizAttempts,
       });
     }
 
-    // List view
+    /* ---------- LIST VIEW ---------- */
     const where: any = {};
-    if (status !== "all") where.status = status;
+    if (statusParam !== "all") where.status = statusParam;
     if (search)
       where.user = { name: { contains: search, mode: "insensitive" } };
 
@@ -191,6 +204,9 @@ export async function GET(req: Request) {
   }
 }
 
+/* ------------------------------------------------------------------ */
+/* PATCH – approve / reject                                            */
+/* ------------------------------------------------------------------ */
 export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
@@ -221,6 +237,7 @@ export async function PATCH(req: Request) {
       });
       if (!app) throw new Error("Application not found");
 
+      /* REJECT – clean up */
       if (status === "REJECTED") {
         if (app.specialistId)
           await tx.specialist.deleteMany({ where: { id: app.specialistId } });
@@ -228,14 +245,17 @@ export async function PATCH(req: Request) {
         return { ...app, status: "REJECTED", specialistId: null };
       }
 
+      /* APPROVE – create Specialist if needed */
       let specialistId: string | null = app.specialistId;
       if (status === "APPROVED" && !app.specialistId) {
         if (!app.user.name) throw new Error("User must have a name");
+
         const specialist = await tx.specialist.create({
           data: {
             name: app.user.name,
-            biography: app.biography,
+            biography: app.user.biography ?? "",
             rate: app.rate,
+            venue: app.venue === "host" ? "host" : "visit",
             image: app.user.profileImage ?? null,
           },
         });

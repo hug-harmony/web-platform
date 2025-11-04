@@ -7,7 +7,6 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
-import { Textarea } from "@/components/ui/textarea";
 import { MessageSquare } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -22,10 +21,17 @@ import {
   DialogTitle,
 } from "@/components/ui/dialog";
 import { toast } from "sonner";
+import {
+  Select,
+  SelectContent,
+  SelectItem,
+  SelectTrigger,
+  SelectValue,
+} from "@/components/ui/select";
 
 interface SpecialistApplication {
-  biography: string;
   rate: string;
+  venue: "host" | "visit";
 }
 
 const containerVariants = {
@@ -43,8 +49,8 @@ const itemVariants = {
 
 export default function ProfessionalApplicationPage() {
   const [formData, setFormData] = useState<SpecialistApplication>({
-    biography: "",
     rate: "",
+    venue: "host",
   });
   const [isDialogOpen, setIsDialogOpen] = useState(false);
   const { data: session, status } = useSession();
@@ -119,39 +125,57 @@ export default function ProfessionalApplicationPage() {
         </Card>
 
         <Card className="shadow-lg">
-          <CardContent className="space-y-4 pt-6">
-            <motion.div variants={itemVariants} className="space-y-4">
-              <div className="space-y-2">
-                <Label htmlFor="biography">Biography</Label>
-                <Textarea
-                  id="biography"
-                  value={formData.biography}
-                  onChange={(e) =>
-                    setFormData({ ...formData, biography: e.target.value })
-                  }
-                  placeholder="Tell us about your experience..."
-                  className="border-[#F3CFC6] focus:ring-[#F3CFC6]"
-                />
-              </div>
+          <CardContent className="space-y-6 pt-6">
+            <motion.div variants={itemVariants} className="space-y-6">
               <div className="space-y-2">
                 <Label htmlFor="rate">Rate ($/hour)</Label>
                 <Input
                   id="rate"
                   type="number"
+                  min="0"
+                  step="0.01"
                   value={formData.rate}
                   onChange={(e) =>
                     setFormData({ ...formData, rate: e.target.value })
                   }
-                  placeholder="50"
+                  placeholder="50.00"
                   className="border-[#F3CFC6] focus:ring-[#F3CFC6]"
                 />
               </div>
+
+              <div className="space-y-2">
+                <Label htmlFor="venue">Service Venue</Label>
+                <Select
+                  value={formData.venue}
+                  onValueChange={(value) =>
+                    setFormData({
+                      ...formData,
+                      venue: value as "host" | "visit",
+                    })
+                  }
+                >
+                  <SelectTrigger
+                    id="venue"
+                    className="border-[#F3CFC6] focus:ring-[#F3CFC6]"
+                  >
+                    <SelectValue placeholder="Select where you provide service" />
+                  </SelectTrigger>
+                  <SelectContent>
+                    <SelectItem value="host">I host at my location</SelectItem>
+                    <SelectItem value="visit">I visit the client</SelectItem>
+                  </SelectContent>
+                </Select>
+                <p className="text-xs text-muted-foreground">
+                  This determines where appointments take place.
+                </p>
+              </div>
+
               <Button
                 onClick={handleSubmit}
                 disabled={
-                  !formData.biography || !formData.rate || !session?.user?.name
+                  !formData.rate || !formData.venue || !session?.user?.name
                 }
-                className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black rounded-full"
+                className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black rounded-full w-full sm:w-auto"
               >
                 Submit & Watch Video
               </Button>
@@ -194,13 +218,15 @@ function LoadingSkeleton() {
         </CardContent>
       </Card>
       <Card className="shadow-lg">
-        <CardContent className="space-y-4 pt-6">
-          {[...Array(2)].map((_, i) => (
-            <div key={i} className="space-y-2">
-              <Skeleton className="h-4 w-24" />
-              <Skeleton className={`h-${i === 0 ? 20 : 10} w-full`} />
-            </div>
-          ))}
+        <CardContent className="space-y-6 pt-6">
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-24" />
+            <Skeleton className="h-10 w-full" />
+          </div>
+          <div className="space-y-2">
+            <Skeleton className="h-4 w-32" />
+            <Skeleton className="h-10 w-full" />
+          </div>
           <Skeleton className="h-10 w-40 rounded-full" />
         </CardContent>
       </Card>

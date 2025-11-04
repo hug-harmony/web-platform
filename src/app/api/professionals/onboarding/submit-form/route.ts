@@ -1,3 +1,4 @@
+// app/api/professionals/onboarding/submit-form/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -9,11 +10,14 @@ import {
 } from "@/lib/onboarding";
 
 const formSchema = z.object({
-  biography: z.string().min(1, "Biography is required"),
   rate: z
     .string()
     .transform((v) => parseFloat(v))
-    .refine((v) => !isNaN(v) && v >= 0, "Rate must be non-negative"),
+    .refine((v) => !isNaN(v) && v > 0, "Rate must be greater than 0"),
+  venue: z.enum(["host", "visit"], {
+    required_error: "Venue is required",
+    invalid_type_error: "Venue must be 'host' or 'visit'",
+  }),
 });
 
 export async function POST(req: Request) {
@@ -23,7 +27,7 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { biography, rate } = formSchema.parse(await req.json());
+    const { rate, venue } = formSchema.parse(await req.json());
     const userId = session.user.id;
 
     const video = await getProOnboardingVideo();
@@ -37,19 +41,8 @@ export async function POST(req: Request) {
     const result = await prisma.$transaction(async (tx) => {
       const existing = await tx.specialistApplication.findUnique({
         where: { userId },
-        select: { id: true, specialistId: true },
+        select: { id: true },
       });
-
-      // if (existing) {
-      //   if (existing.specialistId) {
-      //     await tx.specialist.deleteMany({
-      //       where: { id: existing.specialistId },
-      //     });
-      //   }
-      //   await tx.specialistApplication.deleteMany({
-      //     where: { id: existing.id },
-      //   });
-      // }
 
       if (existing) {
         await tx.trainingVideoWatch.deleteMany({
@@ -61,8 +54,8 @@ export async function POST(req: Request) {
       const app = await tx.specialistApplication.create({
         data: {
           userId,
-          biography,
           rate,
+          venue,
           status: "VIDEO_PENDING",
           submittedAt: new Date(),
         },
@@ -81,7 +74,10 @@ export async function POST(req: Request) {
   } catch (error) {
     console.error("Error submitting form:", error);
     if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
+      return NextResponse.json(
+        { error: error.errors.map((e) => e.message).join(", ") },
+        { status: 400 }
+      );
     }
     return NextResponse.json(
       { error: "Internal server error" },
