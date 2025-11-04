@@ -83,6 +83,8 @@ export async function GET(req: Request) {
         petOwnership: true,
         status: true,
         createdAt: true,
+        heardFrom: true,
+        heardFromOther: true,
       },
     });
 
@@ -114,6 +116,8 @@ export async function GET(req: Request) {
       petOwnership: user.petOwnership || "",
       status: user.status,
       createdAt: user.createdAt,
+      heardFrom: user.heardFrom || null,
+      heardFromOther: user.heardFromOther || null,
     });
   } catch (error) {
     console.error("GET /users/[id] error:", error);

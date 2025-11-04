@@ -4,6 +4,9 @@ import ClientSessionProvider from "@/components/ClientSessionProvider";
 import Sidebar from "@/components/Sidebar";
 import BottomNav from "@/components/BottomNav"; // Import the new component
 import { SidebarProvider } from "@/components/ui/sidebar";
+import Image from "next/image";
+
+import hhIcon from "../../../public/hh-icon.png";
 
 export default function Layout({
   children,
@@ -16,13 +19,19 @@ export default function Layout({
         <div className="flex min-h-screen w-full">
           <Sidebar />
           <main className="flex-1 transition-all duration-200 ease-in-out p-4 max-w-7xl mx-auto md:pb-0 pb-16">
-            {" "}
-            {/* Add pb-16 for mobile bottom bar height */}
+            <div className="bg-white p-2 w-15 h-15 absolute top-6 right-6 hidden md:flex items-center justify-center rounded-md border border-gray-200 shadow-sm">
+              <Image
+                src={hhIcon}
+                alt="Logo"
+                width={300}
+                height={300}
+                className="h-8 w-8 object-contain"
+              />
+            </div>
             {children}
           </main>
         </div>
-        <BottomNav />{" "}
-        {/* Render bottom nav (it will self-hide on md+ screens) */}
+        <BottomNav />
       </SidebarProvider>
     </ClientSessionProvider>
   );
