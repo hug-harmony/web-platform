@@ -22,6 +22,7 @@ import Link from "next/link";
 import { Card } from "@/components/ui/card";
 import Image from "next/image";
 import login from "../../../public/login.webp";
+import logo from "../../../public/hh-logo.png";
 import ResetPasswordModal from "@/components/auth/reset-password-modal";
 
 const formSchema = z.object({
@@ -124,6 +125,15 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen p-4">
       <Card className="flex flex-col md:flex-row w-full max-w-5xl p-0 overflow-hidden gap-0">
         <div className="w-full md:w-1/2 p-8">
+          <div className="flex justify-start mb-4">
+            <Image
+              src={logo}
+              alt="Hug Harmony Logo"
+              width={120}
+              height={40}
+              className="h-20 w-auto"
+            />
+          </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Login</h1>
           <p className="text-gray-600 text-sm mb-6">
             Login to access your Hug Harmony account
