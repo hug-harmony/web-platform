@@ -267,12 +267,11 @@ export default function RegisterPage() {
       const signInResult = await signIn("credentials", {
         email: values.email,
         password: values.password,
-        redirect: false,
+        callbackUrl: "/dashboard",
       });
       if (signInResult?.error) throw new Error(signInResult.error);
 
       toast.success("Account created successfully!");
-      router.push("/dashboard");
     } catch (error: unknown) {
       const msg =
         error instanceof Error ? error.message : "Registration failed";

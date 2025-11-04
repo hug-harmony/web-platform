@@ -1,14 +1,7 @@
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
-import { authOptions } from "@/lib/auth";
 
 export async function GET() {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id || !session.user.isAdmin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const logs = await prisma.securityLog.findMany({
       include: {
@@ -29,11 +22,6 @@ export async function GET() {
 }
 
 export async function POST(request: Request) {
-  const session = await getServerSession(authOptions);
-  if (!session?.user?.id || !session.user.isAdmin) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
     const { userId, eventType, ipAddress, details } = await request.json();
     if (!eventType || !details) {
