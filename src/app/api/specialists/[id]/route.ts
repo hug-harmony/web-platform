@@ -31,20 +31,21 @@ type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
   };
 }>;
 
+// ✅ CORRECTED: Next.js 15+ signature
 export async function GET(
-  req: Request,
-  context: { params: { id: string } } // FIX 1: Corrected function signature
+  request: Request,
+  { params }: { params: { id: string } }
 ) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session || !session.user) {
+    if (!session?.user) {
       return NextResponse.json(
         { error: "Unauthorized: No session found" },
         { status: 401 }
       );
     }
 
-    const { id } = context.params; // FIX 2: Correctly destructure params from context
+    const { id } = params; // Direct access
 
     if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
       return NextResponse.json(
@@ -111,7 +112,7 @@ export async function GET(
     const setting = await prisma.companySettings.findUnique({
       where: { key: "companyCutPercentage" },
     });
-    const companyCutPercentage = setting ? setting.value : 20;
+    const companyCutPercentage = setting ? Number(setting.value) : 20;
 
     return NextResponse.json({
       id: specialist.id,
@@ -138,22 +139,23 @@ export async function GET(
   } catch (error: any) {
     console.error("Error fetching specialist:", error);
     return NextResponse.json(
-      { error: "Internal server error: Failed to fetch specialist" },
+      { error: "Internal server error" },
       { status: 500 }
     );
   }
 }
 
+// ✅ CORRECTED: PATCH with modern signature
 export async function PATCH(
   request: Request,
-  context: { params: { id: string } } // FIX 3: Corrected function signature
+  { params }: { params: { id: string } }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = context.params; // FIX 4: Correctly destructure params from context
+  const { id } = params;
   if (!id) {
     return NextResponse.json(
       { error: "Missing specialist ID" },
@@ -161,9 +163,7 @@ export async function PATCH(
     );
   }
 
-  // ------------------------------------------------------------
-  // 1. Verify ownership – **select only the fields we need**
-  // ------------------------------------------------------------
+  // Verify ownership
   const app = await prisma.specialistApplication.findFirst({
     where: {
       specialistId: id,
@@ -182,9 +182,7 @@ export async function PATCH(
     );
   }
 
-  // ------------------------------------------------------------
-  // 2. Parse & validate payload
-  // ------------------------------------------------------------
+  // Parse body
   let body: any;
   try {
     body = await request.json();
@@ -194,6 +192,7 @@ export async function PATCH(
 
   const { biography, rate, venue } = body;
 
+  // Validation
   if (
     biography !== undefined &&
     (typeof biography !== "string" || biography.length > 500)
@@ -213,9 +212,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid venue" }, { status: 400 });
   }
 
-  // ------------------------------------------------------------
-  // 3. Update **only** the allowed fields
-  // ------------------------------------------------------------
+  // Update
   try {
     const updated = await prisma.specialist.update({
       where: { id },
