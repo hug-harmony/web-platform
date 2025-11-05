@@ -1,17 +1,9 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { z } from "zod";
+import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-import { Prisma } from "@prisma/client";
-
-// Validation schema for updating specialist data
-const updateSpecialistSchema = z.object({
-  biography: z.string().min(1, "Biography is required").optional(),
-  location: z.string().min(1, "Location is required").optional(),
-  rate: z.number().nullable().optional(),
-});
 
 type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
   select: {
@@ -39,23 +31,9 @@ type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
   };
 }>;
 
-type UpdatedSpecialistWithRelations = Prisma.SpecialistGetPayload<{
-  select: {
-    id: true;
-    name: true;
-    biography: true;
-    rate: true;
-    application: {
-      select: {
-        user: { select: { location: true } };
-      };
-    };
-  };
-}>;
-
 export async function GET(
   req: Request,
-  context: { params: Promise<{ id: string }> }
+  context: { params: { id: string } } // FIX 1: Corrected function signature
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -66,8 +44,7 @@ export async function GET(
       );
     }
 
-    const params = await context.params;
-    const id = params.id;
+    const { id } = context.params; // FIX 2: Correctly destructure params from context
 
     if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
       return NextResponse.json(
@@ -169,14 +146,14 @@ export async function GET(
 
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  context: { params: { id: string } } // FIX 3: Corrected function signature
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = params;
+  const { id } = context.params; // FIX 4: Correctly destructure params from context
   if (!id) {
     return NextResponse.json(
       { error: "Missing specialist ID" },
@@ -245,7 +222,7 @@ export async function PATCH(
       data: {
         biography: biography ?? undefined,
         rate: rate ?? undefined,
-        venue: venue ?? undefined, // Prisma will write NULL if `undefined`
+        venue: venue ?? undefined,
       },
       select: {
         id: true,
