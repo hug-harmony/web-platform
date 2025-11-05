@@ -1,4 +1,5 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+// src/app/api/specialists/[id]/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { Prisma } from "@prisma/client";
@@ -31,7 +32,7 @@ type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
   };
 }>;
 
-// ✅ CORRECTED: Next.js 15+ signature
+// GET: Fetch specialist by ID
 export async function GET(
   request: Request,
   { params }: { params: { id: string } }
@@ -45,7 +46,7 @@ export async function GET(
       );
     }
 
-    const { id } = params; // Direct access
+    const { id } = params;
 
     if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
       return NextResponse.json(
@@ -90,16 +91,13 @@ export async function GET(
       );
     }
 
-    // Compute metrics
     const completedAppointments = await prisma.appointment.findMany({
       where: {
         specialistId: id,
         payment: { status: "successful" },
       },
       select: {
-        payment: {
-          select: { amount: true },
-        },
+        payment: { select: { amount: true } },
       },
     });
 
@@ -121,13 +119,13 @@ export async function GET(
       location: specialist.application?.user?.location || "",
       rate: specialist.rate || null,
       createdAt: specialist.createdAt,
-      discounts: specialist.discounts.map((discount) => ({
-        id: discount.id,
-        name: discount.name,
-        rate: discount.rate,
-        discount: discount.discount,
-        createdAt: discount.createdAt,
-        updatedAt: discount.updatedAt,
+      discounts: specialist.discounts.map((d) => ({
+        id: d.id,
+        name: d.name,
+        rate: d.rate,
+        discount: d.discount,
+        createdAt: d.createdAt,
+        updatedAt: d.updatedAt,
       })),
       metrics: {
         totalEarnings,
@@ -145,7 +143,7 @@ export async function GET(
   }
 }
 
-// ✅ CORRECTED: PATCH with modern signature
+// PATCH: Update specialist
 export async function PATCH(
   request: Request,
   { params }: { params: { id: string } }
@@ -163,16 +161,12 @@ export async function PATCH(
     );
   }
 
-  // Verify ownership
   const app = await prisma.specialistApplication.findFirst({
     where: {
       specialistId: id,
       userId: session.user.id,
     },
-    select: {
-      status: true,
-      specialistId: true,
-    },
+    select: { status: true },
   });
 
   if (!app || app.status !== "APPROVED") {
@@ -182,7 +176,6 @@ export async function PATCH(
     );
   }
 
-  // Parse body
   let body: any;
   try {
     body = await request.json();
@@ -192,7 +185,6 @@ export async function PATCH(
 
   const { biography, rate, venue } = body;
 
-  // Validation
   if (
     biography !== undefined &&
     (typeof biography !== "string" || biography.length > 500)
@@ -212,7 +204,6 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid venue" }, { status: 400 });
   }
 
-  // Update
   try {
     const updated = await prisma.specialist.update({
       where: { id },
@@ -221,12 +212,7 @@ export async function PATCH(
         rate: rate ?? undefined,
         venue: venue ?? undefined,
       },
-      select: {
-        id: true,
-        biography: true,
-        rate: true,
-        venue: true,
-      },
+      select: { id: true, biography: true, rate: true, venue: true },
     });
 
     return NextResponse.json(updated);
