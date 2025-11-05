@@ -1,5 +1,4 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// src/app/api/specialists/[id]/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { Prisma } from "@prisma/client";
@@ -32,10 +31,12 @@ type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
   };
 }>;
 
-// GET: Fetch specialist by ID
+/* --------------------------------------------------------------
+   GET – fetch a specialist + metrics
+   -------------------------------------------------------------- */
 export async function GET(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // <-- Promise!
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -46,7 +47,7 @@ export async function GET(
       );
     }
 
-    const { id } = params;
+    const { id } = await params; // <-- await
 
     if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
       return NextResponse.json(
@@ -91,6 +92,7 @@ export async function GET(
       );
     }
 
+    // ----- metrics -----
     const completedAppointments = await prisma.appointment.findMany({
       where: {
         specialistId: id,
@@ -103,7 +105,7 @@ export async function GET(
 
     const completedSessions = completedAppointments.length;
     const totalEarnings = completedAppointments.reduce(
-      (sum, appt) => sum + (appt.payment?.amount || 0),
+      (sum, appt) => sum + (appt.payment?.amount ?? 0),
       0
     );
 
@@ -114,10 +116,10 @@ export async function GET(
 
     return NextResponse.json({
       id: specialist.id,
-      name: specialist.name || "Unknown Specialist",
-      biography: specialist.biography || "",
-      location: specialist.application?.user?.location || "",
-      rate: specialist.rate || null,
+      name: specialist.name ?? "Unknown Specialist",
+      biography: specialist.biography ?? "",
+      location: specialist.application?.user?.location ?? "",
+      rate: specialist.rate ?? null,
       createdAt: specialist.createdAt,
       discounts: specialist.discounts.map((d) => ({
         id: d.id,
@@ -131,7 +133,7 @@ export async function GET(
         totalEarnings,
         companyCutPercentage,
         completedSessions,
-        hourlyRate: specialist.rate || 0,
+        hourlyRate: specialist.rate ?? 0,
       },
     });
   } catch (error: any) {
@@ -143,17 +145,20 @@ export async function GET(
   }
 }
 
-// PATCH: Update specialist
+/* --------------------------------------------------------------
+   PATCH – update biography / rate / venue
+   -------------------------------------------------------------- */
 export async function PATCH(
   request: Request,
-  { params }: { params: { id: string } }
+  { params }: { params: Promise<{ id: string }> } // <-- Promise!
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = params;
+  const { id } = await params; // <-- await
+
   if (!id) {
     return NextResponse.json(
       { error: "Missing specialist ID" },
@@ -161,6 +166,7 @@ export async function PATCH(
     );
   }
 
+  // ---- ownership check ----
   const app = await prisma.specialistApplication.findFirst({
     where: {
       specialistId: id,
@@ -176,6 +182,7 @@ export async function PATCH(
     );
   }
 
+  // ---- parse body ----
   let body: any;
   try {
     body = await request.json();
@@ -185,6 +192,7 @@ export async function PATCH(
 
   const { biography, rate, venue } = body;
 
+  // ---- validation ----
   if (
     biography !== undefined &&
     (typeof biography !== "string" || biography.length > 500)
@@ -204,6 +212,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid venue" }, { status: 400 });
   }
 
+  // ---- update ----
   try {
     const updated = await prisma.specialist.update({
       where: { id },
@@ -212,7 +221,12 @@ export async function PATCH(
         rate: rate ?? undefined,
         venue: venue ?? undefined,
       },
-      select: { id: true, biography: true, rate: true, venue: true },
+      select: {
+        id: true,
+        biography: true,
+        rate: true,
+        venue: true,
+      },
     });
 
     return NextResponse.json(updated);
