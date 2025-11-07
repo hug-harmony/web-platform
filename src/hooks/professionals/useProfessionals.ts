@@ -1,10 +1,10 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// hooks/useSpecialists.ts
+// hooks/useProfessionals.ts
 import { useEffect, useState } from "react";
 import { redirect } from "next/navigation";
 import { Therapist } from "@/types/therapist";
 
-export function useSpecialists(searchQuery: string, appliedFilters: any) {
+export function useProfessionals(searchQuery: string, appliedFilters: any) {
   const [specialists, setSpecialists] = useState<Therapist[]>([]);
   const [loading, setLoading] = useState(true);
 

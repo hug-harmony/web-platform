@@ -2,7 +2,7 @@
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import SpecialistCard from "@/components/specialists/SpecialistCard";
+import SpecialistCard from "@/components/professionals/SpecialistCard";
 import Link from "next/link";
 import { Therapist } from "@/types/therapist";
 

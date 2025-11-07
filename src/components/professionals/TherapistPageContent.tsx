@@ -5,14 +5,14 @@ import { useState } from "react";
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CalendarIcon } from "lucide-react";
-import { useSpecialists } from "@/hooks/specialists/useSpecialists";
-import { useFilters } from "@/hooks/specialists/useFilters"; // Removed unused 'Filters'
-import { useAvailabilities } from "@/hooks/specialists/useAvailabilities";
-import { SearchBar } from "@/components/specialists/SearchBar";
-import { FilterAccordion } from "@/components/specialists/FilterAccordion";
-import { SpecialistsGrid } from "@/components/specialists/SpecialistsGrid";
-import { RadiusDialog } from "@/components/specialists/RadiusDialog";
-import { DateTimeDialog } from "@/components/specialists/DateTimeDialog";
+import { useProfessionals } from "@/hooks/professionals/useProfessionals";
+import { useFilters } from "@/hooks/professionals/useFilters";
+import { useAvailabilities } from "@/hooks/professionals/useAvailabilities";
+import { SearchBar } from "@/components/professionals/SearchBar";
+import { FilterAccordion } from "@/components/professionals/FilterAccordion";
+import { SpecialistsGrid } from "@/components/professionals/SpecialistsGrid";
+import { RadiusDialog } from "@/components/professionals/RadiusDialog";
+import { DateTimeDialog } from "@/components/professionals/DateTimeDialog";
 import { filterAndSort } from "@/lib/utils";
 import { Button } from "../ui/button";
 
@@ -35,7 +35,10 @@ export default function TherapistsPageContent() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [timeRange, setTimeRange] = useState<[number, number]>([540, 1020]); // 9AM–5PM
 
-  const { specialists, loading } = useSpecialists(searchQuery, appliedFilters);
+  const { specialists, loading } = useProfessionals(
+    searchQuery,
+    appliedFilters
+  );
   const availabilities = useAvailabilities(selectedDate);
   const locations = Array.from(
     new Set(specialists.map((t) => t.location).filter(Boolean))
