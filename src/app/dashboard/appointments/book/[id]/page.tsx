@@ -260,13 +260,15 @@ const BookingPage: React.FC = () => {
 
         toast.success("Booked!");
 
-        const newBooking: BookedEvent = {
-          id: `temp-${Date.now()}`,
-          title: "Booked",
-          start: newBookingSlot.start,
-          end: newBookingSlot.end,
-        };
-        setBookedEvents((prev) => [...prev, newBooking]);
+        // const newBooking: BookedEvent = {
+        //   id: `temp-${Date.now()}`,
+        //   title: "Booked",
+        //   start: newBookingSlot.start,
+        //   end: newBookingSlot.end,
+        // };
+        // setBookedEvents((prev) => [...prev, newBooking]);
+
+        await fetchSchedule(currentDate);
       }
 
       setIsDialogOpen(false);
