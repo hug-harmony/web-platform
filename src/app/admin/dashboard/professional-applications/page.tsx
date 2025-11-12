@@ -240,8 +240,9 @@ export default function ProfessionalApplicationsPage() {
 
                       {/* Rate & Venue */}
                       <div className="text-xs text-[#C4C4C4] mb-1 flex items-center gap-2">
-                        <DollarSign className="h-3 w-3" />${app.rate.toFixed(2)}{" "}
-                        / session
+                        <DollarSign className="h-3 w-3" />$
+                        {app.rate != null ? app.rate.toFixed(2) : "0.00"} /
+                        session
                       </div>
                       <div className="text-xs text-[#C4C4C4] mb-1 flex items-center gap-1">
                         <MapPin className="h-3 w-3" />
