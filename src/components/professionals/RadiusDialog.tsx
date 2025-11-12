@@ -70,16 +70,12 @@ export function RadiusDialog({
   onTempRadiusChange,
   onApply,
 }: Props) {
-  // ---- search input -------------------------------------------------------
   const [searchTerm, setSearchTerm] = useState("");
   const [debouncedTerm] = useDebounce(searchTerm, 300);
-
-  // ---- suggestions --------------------------------------------------------
   const [suggestions, setSuggestions] = useState<LocationResult[]>([]);
   const [loading, setLoading] = useState(false);
   const [popoverOpen, setPopoverOpen] = useState(false);
 
-  // ---- fetch suggestions --------------------------------------------------
   const fetchSuggestions = useCallback(async (query: string) => {
     if (!query.trim()) {
       setSuggestions([]);
@@ -93,35 +89,31 @@ export function RadiusDialog({
         )}&format=json&limit=6&addressdetails=1`,
         {
           headers: {
-            // REQUIRED by Nominatim policy
-            "User-Agent": "YourAppName/1.0 (+https://yourdomain.com)", // <-- CHANGE THIS
+            "User-Agent": "YourAppName/1.0 (+https://yourdomain.com)",
           },
         }
       );
       const data: LocationResult[] = await res.json();
       setSuggestions(data);
     } catch {
-      // silently fail – UI will just show no results
+      setSuggestions([]);
     } finally {
       setLoading(false);
     }
   }, []);
 
-  // trigger search on debounced term
   useEffect(() => {
     fetchSuggestions(debouncedTerm);
   }, [debouncedTerm, fetchSuggestions]);
 
-  // ---- select a suggestion ------------------------------------------------
   const selectSuggestion = (item: LocationResult) => {
     onTempLatChange(parseFloat(item.lat));
     onTempLngChange(parseFloat(item.lon));
     onTempLocationChange(item.display_name);
-    setSearchTerm(""); // clear input, keep the nice display name in the map
+    setSearchTerm("");
     setPopoverOpen(false);
   };
 
-  // ---- current location ---------------------------------------------------
   const handleCurrentLocation = () => {
     navigator.geolocation.getCurrentPosition(
       (pos) => {
@@ -135,7 +127,6 @@ export function RadiusDialog({
     );
   };
 
-  // ------------------------------------------------------------------------
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
@@ -147,30 +138,21 @@ export function RadiusDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* ---- Search + Current Location ---- */}
           <div className="flex gap-2">
-            <Popover
-              open={popoverOpen}
-              onOpenChange={setPopoverOpen}
-              modal={false}
-            >
-              {/* ---------- 1. Trigger (outside the Input) ---------- */}
+            <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
               <PopoverTrigger asChild>
                 <div className="flex-1 relative">
-                  {/* ---------- 2. The real Input (never re-mounts) ---------- */}
                   <Input
                     placeholder="Search city, address..."
                     value={searchTerm}
                     onChange={(e) => {
                       setSearchTerm(e.target.value);
-                      // keep popover open while typing
-                      if (e.target.value) setPopoverOpen(true);
+                      setPopoverOpen(!!e.target.value);
                     }}
                     onFocus={() => searchTerm && setPopoverOpen(true)}
-                    className="w-full pr-10" // padding for optional clear button
+                    className="w-full pr-10"
                     autoComplete="off"
                   />
-                  {/* optional clear-X */}
                   {searchTerm && (
                     <button
                       type="button"
@@ -186,7 +168,6 @@ export function RadiusDialog({
                 </div>
               </PopoverTrigger>
 
-              {/* ---------- 3. Suggestions ---------- */}
               <PopoverContent
                 className="w-[var(--radix-popover-trigger-width)] p-0"
                 align="start"
@@ -207,8 +188,7 @@ export function RadiusDialog({
                       <button
                         key={idx}
                         className={cn(
-                          "w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground",
-                          "flex items-center gap-2"
+                          "w-full text-left px-3 py-2 text-sm hover:bg-accent hover:text-accent-foreground flex items-center gap-2"
                         )}
                         onClick={() => selectSuggestion(item)}
                       >
@@ -221,7 +201,6 @@ export function RadiusDialog({
               </PopoverContent>
             </Popover>
 
-            {/* Current location button */}
             <Button
               variant="outline"
               size="icon"
@@ -232,7 +211,6 @@ export function RadiusDialog({
             </Button>
           </div>
 
-          {/* ---- Map preview ---- */}
           <div className="h-64 rounded-lg overflow-hidden bg-muted">
             {tempLat !== undefined && tempLng !== undefined ? (
               <DynamicMap
@@ -249,7 +227,6 @@ export function RadiusDialog({
             )}
           </div>
 
-          {/* ---- Radius selector ---- */}
           <div className="flex flex-col gap-1.5">
             <Label>Radius</Label>
             <Select
@@ -269,7 +246,6 @@ export function RadiusDialog({
             </Select>
           </div>
 
-          {/* ---- Apply ---- */}
           <Button
             onClick={onApply}
             className="bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80 w-full"
