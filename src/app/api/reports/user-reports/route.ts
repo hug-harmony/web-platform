@@ -12,7 +12,7 @@ type ReportWithRelations = Prisma.ReportGetPayload<{
     reportedUser: {
       select: { id: true; firstName: true; lastName: true; email: true };
     };
-    reportedSpecialist: {
+    reportedProfessional: {
       select: {
         id: true;
         name: true;
@@ -41,7 +41,7 @@ export async function GET() {
         reportedUser: {
           select: { id: true, firstName: true, lastName: true, email: true },
         },
-        reportedSpecialist: {
+        reportedProfessional: {
           select: {
             id: true,
             name: true,
@@ -58,11 +58,11 @@ export async function GET() {
 
     const formattedReports = reports.map((report) => ({
       ...report,
-      reportedSpecialist: report.reportedSpecialist
+      reportedProfessional: report.reportedProfessional
         ? {
-            ...report.reportedSpecialist,
+            ...report.reportedProfessional,
             location:
-              report.reportedSpecialist.application?.user?.location ||
+              report.reportedProfessional.application?.user?.location ||
               "Unknown",
           }
         : null,
@@ -85,9 +85,9 @@ export async function POST(request: Request) {
   }
 
   try {
-    const { reportedUserId, reportedSpecialistId, reason, details } =
+    const { reportedUserId, reportedProfessionalId, reason, details } =
       await request.json();
-    if (!reason || (!reportedUserId && !reportedSpecialistId)) {
+    if (!reason || (!reportedUserId && !reportedProfessionalId)) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -98,7 +98,7 @@ export async function POST(request: Request) {
       data: {
         reporterId: session.user.id,
         reportedUserId,
-        reportedSpecialistId,
+        reportedProfessionalId,
         reason,
         details,
       },

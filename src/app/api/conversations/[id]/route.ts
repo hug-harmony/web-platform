@@ -59,20 +59,22 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // NEW: Determine and include specialistId if one participant is a specialist
-    const specialistApp1 = await prisma.specialistApplication.findFirst({
+    // NEW: Determine and include professionalId if one participant is a professional
+    const professionalApp1 = await prisma.professionalApplication.findFirst({
       where: { userId: conversation.userId1, status: "APPROVED" },
-      select: { specialistId: true },
+      select: { professionalId: true },
     });
-    const specialistApp2 = await prisma.specialistApplication.findFirst({
+    const professionalApp2 = await prisma.professionalApplication.findFirst({
       where: { userId: conversation.userId2, status: "APPROVED" },
-      select: { specialistId: true },
+      select: { professionalId: true },
     });
 
-    const specialistId =
-      specialistApp1?.specialistId || specialistApp2?.specialistId || null;
+    const professionalId =
+      professionalApp1?.professionalId ||
+      professionalApp2?.professionalId ||
+      null;
 
-    return NextResponse.json({ ...conversation, specialistId });
+    return NextResponse.json({ ...conversation, professionalId });
   } catch (error) {
     console.error("Fetch conversation error:", error);
     return NextResponse.json(

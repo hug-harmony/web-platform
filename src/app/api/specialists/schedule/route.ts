@@ -1,4 +1,4 @@
-// src/app/api/specialists/schedule/route.ts
+// src/app/api/professionals/schedule/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -70,13 +70,13 @@ const mergeContiguousSlots = (slots: string[]): WorkingHour[] => {
 /* ---------- GET ---------- */
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const specialistId = searchParams.get("specialistId");
+  const professionalId = searchParams.get("professionalId");
   const startDate = searchParams.get("startDate");
   const endDate = searchParams.get("endDate");
 
-  if (!specialistId || !startDate || !endDate) {
+  if (!professionalId || !startDate || !endDate) {
     return NextResponse.json(
-      { error: "Missing specialistId, startDate, or endDate" },
+      { error: "Missing professionalId, startDate, or endDate" },
       { status: 400 }
     );
   }
@@ -88,7 +88,7 @@ export async function GET(request: Request) {
     /* ---- 1. BOOKED APPOINTMENTS + 30-MIN BUFFERS ---- */
     const appointments: Appointment[] = await prisma.appointment.findMany({
       where: {
-        specialistId,
+        professionalId,
         OR: [{ startTime: { lt: end }, endTime: { gt: start } }],
         status: { in: ["upcoming", "pending", "break"] },
       },
@@ -132,7 +132,7 @@ export async function GET(request: Request) {
 
     /* ---- 2. WORKING HOURS (per contiguous block) ---- */
     const weekly = await prisma.availability.findMany({
-      where: { specialistId },
+      where: { professionalId },
       select: { dayOfWeek: true, slots: true },
     });
 

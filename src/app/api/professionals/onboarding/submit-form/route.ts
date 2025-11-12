@@ -39,7 +39,7 @@ export async function POST(req: Request) {
     }
 
     const result = await prisma.$transaction(async (tx) => {
-      const existing = await tx.specialistApplication.findUnique({
+      const existing = await tx.professionalApplication.findUnique({
         where: { userId },
         select: { id: true },
       });
@@ -48,10 +48,10 @@ export async function POST(req: Request) {
         await tx.trainingVideoWatch.deleteMany({
           where: { applicationId: existing.id },
         });
-        await tx.specialistApplication.delete({ where: { id: existing.id } });
+        await tx.professionalApplication.delete({ where: { id: existing.id } });
       }
 
-      const app = await tx.specialistApplication.create({
+      const app = await tx.professionalApplication.create({
         data: {
           userId,
           rate,

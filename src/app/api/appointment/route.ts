@@ -15,21 +15,21 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const userId = searchParams.get("userId");
-    const specialistId = searchParams.get("specialistId"); // Added for the admin page
+    const professionalId = searchParams.get("professionalId"); // Added for the admin page
     const isAdminFetch = searchParams.get("admin") === "true";
 
     let whereClause: Prisma.AppointmentWhereInput = {};
 
     // Determine the query based on parameters and user role
-    if (specialistId) {
-      // This is for the admin's SpecialistDetailPage
+    if (professionalId) {
+      // This is for the admin's ProfessionalDetailPage
       if (!session.user.isAdmin) {
         return NextResponse.json(
-          { error: "Forbidden: Only admins can query by specialistId" },
+          { error: "Forbidden: Only admins can query by professionalId" },
           { status: 403 }
         );
       }
-      whereClause = { specialistId };
+      whereClause = { professionalId };
     } else if (userId) {
       // For an admin fetching a specific user's appointments
       if (!session.user.isAdmin) {
@@ -56,10 +56,10 @@ export async function GET(req: Request) {
         status: true,
         adjustedRate: true,
         rate: true,
-        specialistId: true,
+        professionalId: true,
         disputeStatus: true,
         venue: true,
-        specialist: {
+        professional: {
           select: {
             name: true,
             rating: true,
@@ -114,30 +114,30 @@ export async function GET(req: Request) {
           _id: appt.id,
           startTime: appt.startTime.toISOString(),
           endTime: appt.endTime.toISOString(),
-          specialistName:
-            appt.specialist?.name ||
-            (appt.specialist?.application?.user
-              ? buildDisplayName(appt.specialist.application.user)
-              : "Unknown Specialist"),
+          professionalName:
+            appt.professional?.name ||
+            (appt.professional?.application?.user
+              ? buildDisplayName(appt.professional.application.user)
+              : "Unknown Professional"),
           clientName: appt.user
             ? buildDisplayName(appt.user)
             : "Unknown Client",
           status: effectiveStatus,
-          rate: appt.adjustedRate ?? appt.rate ?? appt.specialist?.rate ?? 0,
+          rate: appt.adjustedRate ?? appt.rate ?? appt.professional?.rate ?? 0,
           venue: appt.venue,
-          specialistId: appt.specialistId,
-          specialistUserId: appt.specialist?.application?.userId || "",
+          professionalId: appt.professionalId,
+          professionalUserId: appt.professional?.application?.userId || "",
           clientId: appt.user?.id,
           disputeStatus: appt.disputeStatus || "none",
-          rating: appt.specialist?.rating ?? 0,
-          reviewCount: appt.specialist?.reviewCount ?? 0,
+          rating: appt.professional?.rating ?? 0,
+          reviewCount: appt.professional?.reviewCount ?? 0,
           // For admin page compatibility
           user: { name: appt.user ? buildDisplayName(appt.user) : "Unknown" },
         };
       })
     );
 
-    // The SpecialistDetailPage expects a flat array, so this is correct.
+    // The ProfessionalDetailPage expects a flat array, so this is correct.
     return NextResponse.json(formatted);
   } catch (error) {
     console.error("GET appointments error:", error);

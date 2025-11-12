@@ -29,7 +29,7 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 
-interface SpecialistApplication {
+interface ProfessionalApplication {
   rate: string;
   venue: "host" | "visit";
 }
@@ -48,7 +48,7 @@ const itemVariants = {
 };
 
 export default function ProfessionalApplicationPage() {
-  const [formData, setFormData] = useState<SpecialistApplication>({
+  const [formData, setFormData] = useState<ProfessionalApplication>({
     rate: "",
     venue: "host",
   });

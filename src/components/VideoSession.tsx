@@ -9,14 +9,14 @@
 
 // interface VideoSessionProps {
 //   roomId: string;
-//   specialistId: string;
-//   isSpecialist?: boolean;
+//   professionalId: string;
+//   isProfessional?: boolean;
 // }
 
 // export default function VideoSessionComponent({
 //   roomId,
-//   specialistId,
-//   isSpecialist,
+//   professionalId,
+//   isProfessional,
 // }: VideoSessionProps) {
 //   const videoRef = useRef<HTMLVideoElement | null>(null);
 //   const peerRef = useRef<Peer.Instance | null>(null);
@@ -31,8 +31,8 @@
 //     console.log(
 //       "VideoSessionComponent: Mounting, roomId:",
 //       roomId,
-//       "specialistId:",
-//       specialistId
+//       "professionalId:",
+//       professionalId
 //     );
 
 //     if (status === "unauthenticated") {
@@ -40,29 +40,29 @@
 //       return;
 //     }
 
-//     if (!roomId || !specialistId) {
-//       setError("Invalid session or specialist ID.");
+//     if (!roomId || !professionalId) {
+//       setError("Invalid session or professional ID.");
 //       setLoading(false);
 //       return;
 //     }
 
-//     const validateSpecialist = async () => {
+//     const validateProfessional = async () => {
 //       try {
-//         const response = await fetch(`/api/specialists?id=${specialistId}`, {
+//         const response = await fetch(`/api/professionals?id=${professionalId}`, {
 //           cache: "no-store",
 //         });
 //         if (!response.ok) {
 //           throw new Error(
 //             response.status === 404
-//               ? `Specialist not found for ID: ${specialistId}`
-//               : "Failed to validate specialist"
+//               ? `Professional not found for ID: ${professionalId}`
+//               : "Failed to validate professional"
 //           );
 //         }
 //       } catch (err: any) {
-//         console.error("Specialist validation failed:", err);
-//         setError(err.message || "Invalid specialist.");
+//         console.error("Professional validation failed:", err);
+//         setError(err.message || "Invalid professional.");
 //         setLoading(false);
-//         router.push("/dashboard/specialists");
+//         router.push("/dashboard/professionals");
 //         return false;
 //       }
 //       return true;
@@ -100,7 +100,7 @@
 //         );
 
 //         peerRef.current = new Peer({
-//           initiator: !isSpecialist,
+//           initiator: !isProfessional,
 //           trickle: false,
 //           stream: streamRef.current,
 //           config: {
@@ -166,8 +166,8 @@
 //     };
 
 //     const checkVideoElement = async () => {
-//       const isValidSpecialist = await validateSpecialist();
-//       if (!isValidSpecialist) return;
+//       const isValidProfessional = await validateProfessional();
+//       if (!isValidProfessional) return;
 
 //       // Check if video element exists in DOM
 //       const domVideoCheck = () => {
@@ -232,7 +232,7 @@
 //         streamRef.current = null;
 //       }
 //     };
-//   }, [roomId, specialistId, status, router, isSpecialist]);
+//   }, [roomId, professionalId, status, router, isProfessional]);
 
 //   if (status === "loading" || loading) {
 //     return (
@@ -249,9 +249,9 @@
 //         <Button
 //           variant="outline"
 //           className="mt-4 text-[#F3CFC6] border-[#F3CFC6]"
-//           onClick={() => router.push("/dashboard/specialists")}
+//           onClick={() => router.push("/dashboard/professionals")}
 //         >
-//           Back to Specialists
+//           Back to Professionals
 //         </Button>
 //       </div>
 //     );

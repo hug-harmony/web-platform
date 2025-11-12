@@ -6,7 +6,7 @@ import { z } from "zod";
 import { format } from "date-fns";
 
 const bodySchema = z.object({
-  specialistId: z.string(),
+  professionalId: z.string(),
   startTime: z
     .string()
     .refine((val) => !isNaN(Date.parse(val)), { message: "Invalid startTime" }),
@@ -25,27 +25,31 @@ export async function POST(req: NextRequest) {
   const body = bodySchema.parse(await req.json());
 
   try {
-    // Find specialist and its linked userId via SpecialistApplication
-    const specialistApp = await prisma.specialistApplication.findFirst({
-      where: { specialistId: body.specialistId, status: "APPROVED" },
-      include: { specialist: true },
+    // Find professional and its linked userId via ProfessionalApplication
+    const professionalApp = await prisma.professionalApplication.findFirst({
+      where: { professionalId: body.professionalId, status: "APPROVED" },
+      include: { professional: true },
     });
-    if (!specialistApp || !specialistApp.userId || !specialistApp.specialist) {
-      // UPDATED: Added !specialistApp.specialist check
+    if (
+      !professionalApp ||
+      !professionalApp.userId ||
+      !professionalApp.professional
+    ) {
+      // UPDATED: Added !professionalApp.professional check
       return NextResponse.json(
-        { error: "Specialist not found or not approved" },
+        { error: "Professional not found or not approved" },
         { status: 404 }
       );
     }
-    const specialist = specialistApp.specialist;
-    const specialistUserId = specialistApp.userId;
+    const professional = professionalApp.professional;
+    const professionalUserId = professionalApp.userId;
 
-    // Find or create conversation between current user and specialist's user
+    // Find or create conversation between current user and professional's user
     let conversation = await prisma.conversation.findFirst({
       where: {
         OR: [
-          { userId1: session.user.id, userId2: specialistUserId },
-          { userId1: specialistUserId, userId2: session.user.id },
+          { userId1: session.user.id, userId2: professionalUserId },
+          { userId1: professionalUserId, userId2: session.user.id },
         ],
       },
     });
@@ -54,14 +58,14 @@ export async function POST(req: NextRequest) {
       conversation = await prisma.conversation.create({
         data: {
           userId1: session.user.id,
-          userId2: specialistUserId,
+          userId2: professionalUserId,
         },
       });
     }
 
     // Determine venue (similar to your /api/proposals/route.ts)
     let finalVenue: "host" | "visit" | undefined;
-    if (specialist.venue === "both") {
+    if (professional.venue === "both") {
       if (!body.venue) {
         return NextResponse.json(
           { error: "Venue required for 'both'" },
@@ -70,13 +74,13 @@ export async function POST(req: NextRequest) {
       }
       finalVenue = body.venue;
     } else {
-      finalVenue = specialist.venue as "host" | "visit"; // Safe since venue isn't "both"
+      finalVenue = professional.venue as "host" | "visit"; // Safe since venue isn't "both"
     }
 
     // Create proposal (appointment request)
     const proposal = await prisma.proposal.create({
       data: {
-        specialistId: body.specialistId,
+        professionalId: body.professionalId,
         userId: session.user.id, // Client/user is initiator
         conversationId: conversation.id,
         startTime: new Date(body.startTime),
@@ -93,7 +97,7 @@ export async function POST(req: NextRequest) {
       data: {
         conversationId: conversation.id,
         senderId: session.user.id,
-        recipientId: specialistUserId,
+        recipientId: professionalUserId,
         text: messageText,
         isAudio: false,
         proposalId: proposal.id,

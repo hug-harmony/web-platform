@@ -73,7 +73,7 @@ interface Profile {
   rating?: number;
   reviewCount?: number;
   rate?: number;
-  type: "specialist";
+  type: "professional";
   relationshipStatus?: string;
   orientation?: string;
   height?: string;
@@ -99,14 +99,14 @@ interface Discount {
   discount: number;
   createdAt: string;
   updatedAt: string;
-  specialist: { id: string; name: string };
+  professional: { id: string; name: string };
 }
 interface Props {
   params: Promise<{ id: string }>;
   searchParams: Promise<Record<string, string | string[] | undefined>>;
 }
 
-const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
+const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [reviews, setReviews] = useState<Review[]>([]);
   const [discounts, setDiscounts] = useState<Discount[]>([]);
@@ -139,7 +139,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
           notFound();
         }
 
-        const profileRes = await fetch(`/api/specialists?id=${id}`, {
+        const profileRes = await fetch(`/api/professionals?id=${id}`, {
           cache: "no-store",
           credentials: "include",
         });
@@ -156,7 +156,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
             rating: data.rating || 0,
             reviewCount: data.reviewCount || 0,
             rate: data.rate || 0,
-            type: "specialist",
+            type: "professional",
             relationshipStatus: data.relationshipStatus || "",
             orientation: data.orientation || "",
             height: data.height || "",
@@ -170,17 +170,17 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         } else {
           if (profileRes.status === 401) router.push("/login");
           if (profileRes.status === 404) notFound();
-          throw new Error(`Failed to fetch specialist: ${profileRes.status}`);
+          throw new Error(`Failed to fetch professional: ${profileRes.status}`);
         }
 
-        const reviewsRes = await fetch(`/api/reviews?specialistId=${id}`, {
+        const reviewsRes = await fetch(`/api/reviews?professionalId=${id}`, {
           cache: "no-store",
           credentials: "include",
         });
         if (reviewsRes.ok) setReviews(await reviewsRes.json());
         else throw new Error(`Failed to fetch reviews: ${reviewsRes.status}`);
 
-        const discountsRes = await fetch(`/api/discounts/specialist/${id}`, {
+        const discountsRes = await fetch(`/api/discounts/professional/${id}`, {
           cache: "no-store",
           credentials: "include",
         });
@@ -209,7 +209,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         const res = await fetch("/api/profile-visits", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ specialistId: id }),
+          body: JSON.stringify({ professionalId: id }),
         });
         if (res.ok) {
           // Revalidate all filter keys
@@ -243,16 +243,16 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
     }
 
     try {
-      const res = await fetch(`/api/specialists?id=${profile._id}`, {
+      const res = await fetch(`/api/professionals?id=${profile._id}`, {
         credentials: "include",
       });
       if (!res.ok) {
         const err = await res.json();
-        throw new Error(err.error || "Failed to load specialist");
+        throw new Error(err.error || "Failed to load professional");
       }
       const data = await res.json();
       if (!data.userId) {
-        toast.error("This specialist is not available for chat");
+        toast.error("This professional is not available for chat");
         return;
       }
 
@@ -285,7 +285,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          specialistId: id,
+          professionalId: id,
           rating: selectedRating,
           feedback,
         }),
@@ -294,9 +294,9 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to submit review");
       }
-      const profileRes = await fetch(`/api/specialists?id=${id}`);
+      const profileRes = await fetch(`/api/professionals?id=${id}`);
       if (profileRes.ok) setProfile(await profileRes.json());
-      const reviewsRes = await fetch(`/api/reviews?specialistId=${id}`);
+      const reviewsRes = await fetch(`/api/reviews?professionalId=${id}`);
       if (reviewsRes.ok) setReviews(await reviewsRes.json());
       setIsReviewDialogOpen(false);
       setSelectedRating(0);
@@ -317,7 +317,7 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
-          reportedSpecialistId: id,
+          reportedProfessionalId: id,
           reason: reportReason,
           details: reportDetails,
         }),
@@ -343,7 +343,10 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
       const res = await fetch("/api/notes", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ targetSpecialistId: id, content: noteContent }),
+        body: JSON.stringify({
+          targetProfessionalId: id,
+          content: noteContent,
+        }),
       });
       if (!res.ok) throw new Error("Failed to save note");
       toast.success("Note saved successfully");
@@ -955,4 +958,4 @@ const SpecialistProfilePage: React.FC<Props> = ({ params }) => {
   );
 };
 
-export default SpecialistProfilePage;
+export default ProfessionalProfilePage;

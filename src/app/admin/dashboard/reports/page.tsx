@@ -38,7 +38,7 @@ interface UserReport {
     lastName: string;
     email: string;
   };
-  reportedSpecialist?: { id: string; name: string; location: string };
+  reportedProfessional?: { id: string; name: string; location: string };
 }
 
 const containerVariants = {
@@ -101,7 +101,7 @@ export default function ReportsPage() {
   );
 
   const filteredReports = reports.filter((r) =>
-    `${r.reason} ${r.details} ${r.reporter.email} ${r.reportedUser?.email || ""} ${r.reportedSpecialist?.name || ""}`
+    `${r.reason} ${r.details} ${r.reporter.email} ${r.reportedUser?.email || ""} ${r.reportedProfessional?.name || ""}`
       .toLowerCase()
       .includes(searchTerm.toLowerCase())
   );
@@ -231,8 +231,8 @@ export default function ReportsPage() {
                                 Reported:{" "}
                                 {report.reportedUser
                                   ? `${report.reportedUser.firstName} ${report.reportedUser.lastName} (${report.reportedUser.email})`
-                                  : report.reportedSpecialist
-                                    ? `${report.reportedSpecialist.name} (${report.reportedSpecialist.location})`
+                                  : report.reportedProfessional
+                                    ? `${report.reportedProfessional.name} (${report.reportedProfessional.location})`
                                     : "Unknown"}
                               </p>
                               <p className="text-sm text-black dark:text-white mt-1">

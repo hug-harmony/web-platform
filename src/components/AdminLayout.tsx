@@ -67,7 +67,7 @@ export default function AdminDashboardLayout({
     {
       id: 2,
       type: "verification",
-      message: "Specialist verification pending",
+      message: "Professional verification pending",
       time: "1h ago",
     },
     {
@@ -159,14 +159,14 @@ export default function AdminDashboardLayout({
                         ),
                       },
                       {
-                        href: "/admin/dashboard/specialists",
+                        href: "/admin/dashboard/professionals",
                         label: "Professionals",
                         icon: (
                           <UserCheck className="h-5 w-5 text-black dark:text-white" />
                         ),
                       },
                       {
-                        href: "/admin/dashboard/specialist-applications",
+                        href: "/admin/dashboard/professional-applications",
                         label: "Applications",
                         icon: (
                           <UserCheck className="h-5 w-5 text-black dark:text-white" />

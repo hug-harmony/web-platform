@@ -24,7 +24,7 @@ import {
 
 interface Payment {
   id: string;
-  specialist: { name: string; id: string };
+  professional: { name: string; id: string };
   amount: number;
   date: string;
   status: "pending" | "completed" | "failed";
@@ -84,9 +84,9 @@ export default function PaymentsPage() {
             Array.isArray(paymentsData)
               ? paymentsData.map((payment: any) => ({
                   id: payment.id || "",
-                  specialist: {
-                    name: payment.specialist?.name || "Unknown Specialist",
-                    id: payment.specialist?.id || "",
+                  professional: {
+                    name: payment.professional?.name || "Unknown Professional",
+                    id: payment.professional?.id || "",
                   },
                   amount: payment.amount || 0,
                   date: payment.date || "",
@@ -139,7 +139,7 @@ export default function PaymentsPage() {
     data
       .filter((payment) =>
         searchQuery
-          ? payment.specialist.name
+          ? payment.professional.name
               .toLowerCase()
               .includes(searchQuery.toLowerCase())
           : true
@@ -216,7 +216,7 @@ export default function PaymentsPage() {
               <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#fff]" />
               <Input
                 type="text"
-                placeholder="Search by specialist name..."
+                placeholder="Search by professional name..."
                 value={searchQuery}
                 onChange={handleSearchChange}
                 className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
@@ -310,7 +310,7 @@ export default function PaymentsPage() {
                             >
                               <div>
                                 <p className="font-semibold text-black dark:text-white">
-                                  {payment.specialist.name}
+                                  {payment.professional.name}
                                 </p>
                                 <p className="text-sm text-[#C4C4C4]">
                                   ${payment.amount} - Due {payment.date}
@@ -411,7 +411,7 @@ export default function PaymentsPage() {
                         >
                           <div>
                             <p className="font-semibold text-black dark:text-white">
-                              {payment.specialist.name}
+                              {payment.professional.name}
                             </p>
                             <p className="text-sm text-[#C4C4C4]">
                               ${payment.amount} - {payment.date} -{" "}

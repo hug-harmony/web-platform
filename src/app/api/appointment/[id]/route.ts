@@ -28,7 +28,7 @@ export async function GET(
         endTime: true,
         venue: true,
         user: { select: { name: true } },
-        specialist: { select: { name: true, rate: true, venue: true } },
+        professional: { select: { name: true, rate: true, venue: true } },
       },
     });
 
@@ -46,12 +46,12 @@ export async function GET(
     return NextResponse.json(
       {
         userName: appointment.user.name,
-        therapistName: appointment.specialist.name,
+        therapistName: appointment.professional.name,
         startTime: appointment.startTime,
         endTime: appointment.endTime,
-        amount: appointment.specialist.rate || 50,
+        amount: appointment.professional.rate || 50,
         venue: appointment.venue,
-        specialistVenue: appointment.specialist.venue,
+        professionalVenue: appointment.professional.venue,
       },
       { status: 200 }
     );

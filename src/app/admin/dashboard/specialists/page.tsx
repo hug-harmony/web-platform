@@ -12,7 +12,7 @@ import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import Image from "next/image";
 
-interface Specialist {
+interface Professional {
   id: string;
   name: string;
   specialty: string;
@@ -34,19 +34,19 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-export default function SpecialistsPage() {
-  const [specialists, setSpecialists] = useState<Specialist[]>([]);
+export default function ProfessionalsPage() {
+  const [professionals, setProfessionals] = useState<Professional[]>([]);
   const [searchTerm, setSearchTerm] = useState("");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
   useEffect(() => {
-    const fetchSpecialists = async () => {
+    const fetchProfessionals = async () => {
       try {
         setLoading(true);
         setError(null);
         const response = await fetch(
-          `/api/specialists/application?status=APPROVED&search=${encodeURIComponent(
+          `/api/professionals/application?status=APPROVED&search=${encodeURIComponent(
             searchTerm
           )}`,
           {
@@ -60,17 +60,17 @@ export default function SpecialistsPage() {
           throw new Error("Unauthorized: Admin access required");
         }
         if (response.status === 404) {
-          setSpecialists([]);
+          setProfessionals([]);
           return;
         }
         if (!response.ok) {
           throw new Error(
-            `Failed to fetch specialists: ${response.statusText}`
+            `Failed to fetch professionals: ${response.statusText}`
           );
         }
         const data = await response.json();
         const applications = Array.isArray(data) ? data : [];
-        const formattedSpecialists: Specialist[] = applications.map(
+        const formattedProfessionals: Professional[] = applications.map(
           (app: any) => ({
             id: app.id,
             name: app.name,
@@ -79,20 +79,20 @@ export default function SpecialistsPage() {
             avatarUrl: app.avatarUrl ?? null,
           })
         );
-        setSpecialists(formattedSpecialists);
+        setProfessionals(formattedProfessionals);
       } catch (error: any) {
-        console.error("Error fetching specialists:", error);
+        console.error("Error fetching professionals:", error);
         setError(
-          error.message || "Failed to load specialists. Please try again."
+          error.message || "Failed to load professionals. Please try again."
         );
         toast.error(
-          error.message || "Failed to load specialists. Please try again."
+          error.message || "Failed to load professionals. Please try again."
         );
       } finally {
         setLoading(false);
       }
     };
-    fetchSpecialists();
+    fetchProfessionals();
   }, [searchTerm]);
 
   return (
@@ -118,11 +118,11 @@ export default function SpecialistsPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#C4C4C4]" />
           <Input
-            placeholder="Search specialists by name or specialty..."
+            placeholder="Search professionals by name or specialty..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 border-[#C4C4C4] focus:ring-[#F3CFC6] dark:bg-black dark:text-white dark:border-[#C4C4C4]"
-            aria-label="Search specialists"
+            aria-label="Search professionals"
           />
         </div>
       </div>
@@ -141,10 +141,10 @@ export default function SpecialistsPage() {
               </div>
             ) : error ? (
               <div className="p-4 text-center text-red-500">{error}</div>
-            ) : specialists.length > 0 ? (
+            ) : professionals.length > 0 ? (
               <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <AnimatePresence>
-                  {specialists.map((spec) => (
+                  {professionals.map((spec) => (
                     <motion.div
                       key={spec.id}
                       variants={itemVariants}
@@ -187,7 +187,9 @@ export default function SpecialistsPage() {
                         size="sm"
                         className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
                       >
-                        <Link href={`/admin/dashboard/specialists/${spec.id}`}>
+                        <Link
+                          href={`/admin/dashboard/professionals/${spec.id}`}
+                        >
                           View
                         </Link>
                       </Button>
@@ -197,7 +199,7 @@ export default function SpecialistsPage() {
               </div>
             ) : (
               <div className="p-4 text-center text-[#C4C4C4]">
-                No approved specialists found
+                No approved professionals found
               </div>
             )}
           </ScrollArea>

@@ -10,7 +10,7 @@ import { useFilters } from "@/hooks/professionals/useFilters";
 import { useAvailabilities } from "@/hooks/professionals/useAvailabilities";
 import { SearchBar } from "@/components/professionals/SearchBar";
 import { FilterAccordion } from "@/components/professionals/FilterAccordion";
-import { SpecialistsGrid } from "@/components/professionals/SpecialistsGrid";
+import { ProfessionalsGrid } from "@/components/professionals/ProfessionalsGrid";
 import { RadiusDialog } from "@/components/professionals/RadiusDialog";
 import { DateTimeDialog } from "@/components/professionals/DateTimeDialog";
 import { filterAndSort } from "@/lib/utils";
@@ -35,13 +35,13 @@ export default function TherapistsPageContent() {
   const [selectedDate, setSelectedDate] = useState<Date | undefined>();
   const [timeRange, setTimeRange] = useState<[number, number]>([540, 1020]); // 9AM–5PM
 
-  const { specialists, loading } = useProfessionals(
+  const { professionals, loading } = useProfessionals(
     searchQuery,
     appliedFilters
   );
   const availabilities = useAvailabilities(selectedDate);
   const locations = Array.from(
-    new Set(specialists.map((t) => t.location).filter(Boolean))
+    new Set(professionals.map((t) => t.location).filter(Boolean))
   ) as string[];
 
   const handleCustomLocation = () => {
@@ -78,7 +78,7 @@ export default function TherapistsPageContent() {
   };
 
   const filtered = filterAndSort(
-    specialists,
+    professionals,
     { ...appliedFilters, selectedDate, timeRange }, // ← Fixed: timeRange
     searchQuery
   );
@@ -130,7 +130,7 @@ export default function TherapistsPageContent() {
         </CardContent>
       </Card>
 
-      <SpecialistsGrid loading={loading} specialists={filtered} />
+      <ProfessionalsGrid loading={loading} professionals={filtered} />
 
       <RadiusDialog
         open={isRadiusDialogOpen}

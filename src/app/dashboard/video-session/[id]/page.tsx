@@ -13,7 +13,7 @@
 // interface VideoSession {
 //   id: string;
 //   roomId: string;
-//   specialist: { name: string; id: string };
+//   professional: { name: string; id: string };
 //   date: string;
 //   time: string;
 // }
@@ -33,17 +33,17 @@
 //     if (status === "authenticated" && session?.user?.id) {
 //       const createOrFetchSession = async () => {
 //         try {
-//           // Verify specialist exists
-//           const specialistRes = await fetch(`/api/specialists?id=${id}`, {
+//           // Verify professional exists
+//           const professionalRes = await fetch(`/api/professionals?id=${id}`, {
 //             cache: "no-store",
 //           });
-//           if (!specialistRes.ok) {
-//             throw new Error("Specialist not found");
+//           if (!professionalRes.ok) {
+//             throw new Error("Professional not found");
 //           }
 
 //           // Fetch existing session
 //           const res = await fetch(
-//             `/api/videoSessions?userId=${session.user.id}&specialistId=${id}`,
+//             `/api/videoSessions?userId=${session.user.id}&professionalId=${id}`,
 //             { cache: "no-store" }
 //           );
 //           if (!res.ok) {
@@ -61,7 +61,7 @@
 //             headers: { "Content-Type": "application/json" },
 //             body: JSON.stringify({
 //               userId: session.user.id,
-//               specialistId: id,
+//               professionalId: id,
 //               date: new Date().toISOString(),
 //               time: new Date().toLocaleTimeString(),
 //             }),
@@ -79,7 +79,7 @@
 //         } catch (err: any) {
 //           setError(err.message || "Failed to load or create video session.");
 //           setVideoSession(null);
-//           router.push("/dashboard/specialists");
+//           router.push("/dashboard/professionals");
 //         }
 //       };
 //       createOrFetchSession();
@@ -98,13 +98,13 @@
 //   if (error || !videoSession) {
 //     return (
 //       <div className="p-4 text-center text-red-500">
-//         {error || "Specialist information not available."}
+//         {error || "Professional information not available."}
 //         <Button
 //           variant="outline"
 //           className="mt-4 text-[#F3CFC6] border-[#F3CFC6]"
-//           onClick={() => router.push("/dashboard/specialists")}
+//           onClick={() => router.push("/dashboard/professionals")}
 //         >
-//           Back to Specialists
+//           Back to Professionals
 //         </Button>
 //       </div>
 //     );
@@ -115,7 +115,7 @@
 //       <CardHeader>
 //         <CardTitle className="flex items-center">
 //           <Video className="mr-2 h-6 w-6 text-[#F3CFC6]" />
-//           Video Session with {videoSession.specialist.name}
+//           Video Session with {videoSession.professional.name}
 //         </CardTitle>
 //         <p className="text-sm text-[#C4C4C4]">
 //           {videoSession.date} at {videoSession.time}
@@ -124,7 +124,7 @@
 //       <CardContent>
 //         <VideoSessionComponent
 //           roomId={videoSession.roomId}
-//           specialistId={videoSession.specialist.id}
+//           professionalId={videoSession.professional.id}
 //         />
 //         <Button
 //           variant="outline"

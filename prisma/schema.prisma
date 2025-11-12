@@ -41,7 +41,7 @@ model User {
   conversations2     Conversation[]      @relation("User2Conversations")
   posts              Post[]              @relation("UserPosts")
   replies            Reply[]             @relation("UserReplies")
-  specialistApplication SpecialistApplication?
+  professionalApplication ProfessionalApplication?
   isAdmin            Boolean             @default(false)
   status             String              @default("active")
   VideoSession       VideoSession[]
@@ -72,7 +72,7 @@ model PasswordResetToken {
 model Appointment {
   id                   String         @id @default(auto()) @map("_id") @db.ObjectId
   userId               String?        @db.ObjectId
-  specialistId         String         @db.ObjectId
+  professionalId         String         @db.ObjectId
   startTime            DateTime
   endTime              DateTime
   status               String         @default("upcoming")
@@ -85,10 +85,10 @@ model Appointment {
   venue                AppointmentVenue?
   createdAt            DateTime       @default(now())
   user                 User?          @relation("UserAppointments", fields: [userId], references: [id], onDelete: SetNull)
-  specialist           Specialist     @relation("SpecialistAppointments", fields: [specialistId], references: [id], onDelete: Cascade)
+  professional           Professional     @relation("ProfessionalAppointments", fields: [professionalId], references: [id], onDelete: Cascade)
   payment              Payment?
 
-  @@index([specialistId, startTime, endTime])
+  @@index([professionalId, startTime, endTime])
 }
 
 model Conversation {
@@ -104,7 +104,7 @@ model Conversation {
   Proposal       Proposal[]   @relation
 }
 
-model Specialist {
+model Professional {
   id                   String         @id @default(auto()) @map("_id") @db.ObjectId
   name                 String
   image                String?
@@ -117,16 +117,16 @@ model Specialist {
   createdAt            DateTime       @default(now())
   location             String?
 
-  appointments         Appointment[]  @relation("SpecialistAppointments")
-  application          SpecialistApplication? @relation
+  appointments         Appointment[]  @relation("ProfessionalAppointments")
+  application          ProfessionalApplication? @relation
   VideoSession         VideoSession[]
   availability         Availability[] @relation
   profileVisits        ProfileVisit[] @relation("Visitee")
   Proposal             Proposal[]     @relation
-  reviews              Review[]       @relation("SpecialistReviews")
+  reviews              Review[]       @relation("ProfessionalReviews")
   discounts            Discount[]     @relation
-  reported             Report[]       @relation("ReportedSpecialist")
-  notesReceived        Note[]         @relation("TargetSpecialistNotes")
+  reported             Report[]       @relation("ReportedProfessional")
+  notesReceived        Note[]         @relation("TargetProfessionalNotes")
 }
 
 model Post {
@@ -155,7 +155,7 @@ model Reply {
   updatedAt     DateTime @updatedAt
 }
 
-model SpecialistApplication {
+model ProfessionalApplication {
   id              String                @id @default(auto()) @map("_id") @db.ObjectId
   userId          String                @unique @db.ObjectId
   rate            Float                 // <-- REQUIRED BEFORE APPROVAL
@@ -169,8 +169,8 @@ model SpecialistApplication {
   updatedAt       DateTime              @updatedAt
 
   user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialist      Specialist?           @relation(fields: [specialistId], references: [id], onDelete: SetNull)
-  specialistId    String?               @unique @db.ObjectId
+  professional      Professional?           @relation(fields: [professionalId], references: [id], onDelete: SetNull)
+  professionalId    String?               @unique @db.ObjectId
 
   quizAttempts    ProQuizAttempt[]      @relation("ApplicationQuizAttempts")
   videoWatch      TrainingVideoWatch?   @relation("ProOnboardingVideo")
@@ -186,7 +186,7 @@ model ProQuizAttempt {
   answers         Json
   attemptedAt     DateTime                @default(now())
   nextEligibleAt  DateTime?
-  application     SpecialistApplication   @relation("ApplicationQuizAttempts", fields: [applicationId], references: [id], onDelete: Cascade)
+  application     ProfessionalApplication   @relation("ApplicationQuizAttempts", fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@index([applicationId])
   @@index([nextEligibleAt])
@@ -208,7 +208,7 @@ model VideoSession {
   id            String      @id @default(auto()) @map("_id") @db.ObjectId
   roomId        String      @unique
   userId        String      @db.ObjectId
-  specialistId  String      @db.ObjectId
+  professionalId  String      @db.ObjectId
   date          DateTime
   time          String
   status        String      @default("upcoming")
@@ -217,28 +217,28 @@ model VideoSession {
   createdAt     DateTime    @default(now())
   updatedAt     DateTime    @updatedAt
   user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  specialist    Specialist  @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  professional    Professional  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
 }
 
 model Availability {
   id            String      @id @default(auto()) @map("_id") @db.ObjectId
-  specialistId  String      @db.ObjectId
+  professionalId  String      @db.ObjectId
   dayOfWeek     Int
   slots         String[]
   breakDuration Int?        @default(30)
-  specialist    Specialist  @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  professional    Professional  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
 
-  @@unique([specialistId, dayOfWeek], name: "specialistId_dayOfWeek")
+  @@unique([professionalId, dayOfWeek], name: "professionalId_dayOfWeek")
 }
 
 model ProfileVisit {
   id             String       @id @default(auto()) @map("_id") @db.ObjectId
   userId         String       @db.ObjectId
-  specialistId   String?      @db.ObjectId
+  professionalId   String?      @db.ObjectId
   visitedUserId  String?      @db.ObjectId
   createdAt      DateTime     @default(now())
   user           User         @relation("Visitor", fields: [userId], references: [id], onDelete: Cascade)
-  specialist     Specialist?  @relation("Visitee", fields: [specialistId], references: [id], onDelete: SetNull)
+  professional     Professional?  @relation("Visitee", fields: [professionalId], references: [id], onDelete: SetNull)
   visitedUser    User?        @relation("VisitedUser", fields: [visitedUserId], references: [id], onDelete: SetNull)
 }
 
@@ -261,43 +261,43 @@ model Message {
 
 model Proposal {
   id             String       @id @default(auto()) @map("_id") @db.ObjectId
-  specialistId   String       @db.ObjectId
+  professionalId   String       @db.ObjectId
   userId         String       @db.ObjectId
   conversationId String       @db.ObjectId
   startTime      DateTime?
   endTime        DateTime?
   venue          AppointmentVenue?
   status         String       @default("pending")
-  initiator      String       @default("specialist")
+  initiator      String       @default("professional")
   createdAt      DateTime     @default(now())
-  specialist     Specialist   @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  professional     Professional   @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
   conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
   messages       Message[]    @relation
 
-  @@index([specialistId, startTime, endTime])
+  @@index([professionalId, startTime, endTime])
 }
 
 model Review {
   id           String      @id @default(auto()) @map("_id") @db.ObjectId
-  specialistId String      @db.ObjectId
+  professionalId String      @db.ObjectId
   reviewerId   String      @db.ObjectId
   rating       Int
   feedback     String
   createdAt    DateTime    @default(now())
-  specialist   Specialist  @relation("SpecialistReviews", fields: [specialistId], references: [id], onDelete: Cascade)
+  professional   Professional  @relation("ProfessionalReviews", fields: [professionalId], references: [id], onDelete: Cascade)
   reviewer     User        @relation("UserReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
 }
 
 model Discount {
   id           String      @id @default(auto()) @map("_id") @db.ObjectId
-  specialistId String      @db.ObjectId
+  professionalId String      @db.ObjectId
   name         String
   rate         Float
   discount     Float
   createdAt    DateTime    @default(now())
   updatedAt    DateTime    @updatedAt
-  specialist   Specialist  @relation(fields: [specialistId], references: [id], onDelete: Cascade)
+  professional   Professional  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
 }
 
 model Payment {
@@ -346,26 +346,26 @@ model Report {
   id                   String      @id @default(auto()) @map("_id") @db.ObjectId
   reporterId           String      @db.ObjectId
   reportedUserId       String?     @db.ObjectId
-  reportedSpecialistId String?     @db.ObjectId
+  reportedProfessionalId String?     @db.ObjectId
   reason               String
   details              String?
   status               String      @default("pending")
   createdAt            DateTime    @default(now())
   reporter             User        @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
   reportedUser         User?       @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
-  reportedSpecialist   Specialist? @relation("ReportedSpecialist", fields: [reportedSpecialistId], references: [id], onDelete: SetNull)
+  reportedProfessional   Professional? @relation("ReportedProfessional", fields: [reportedProfessionalId], references: [id], onDelete: SetNull)
 }
 
 model Note {
   id                 String      @id @default(auto()) @map("_id") @db.ObjectId
   authorId           String      @db.ObjectId
   targetUserId       String?     @db.ObjectId
-  targetSpecialistId String?     @db.ObjectId
+  targetProfessionalId String?     @db.ObjectId
   content            String
   createdAt          DateTime    @default(now())
   author             User        @relation("AuthorNotes", fields: [authorId], references: [id], onDelete: Cascade)
   targetUser         User?       @relation("TargetUserNotes", fields: [targetUserId], references: [id], onDelete: SetNull)
-  targetSpecialist   Specialist? @relation("TargetSpecialistNotes", fields: [targetSpecialistId], references: [id], onDelete: SetNull)
+  targetProfessional   Professional? @relation("TargetProfessionalNotes", fields: [targetProfessionalId], references: [id], onDelete: SetNull)
 }
 
 enum VenueType {
@@ -460,7 +460,7 @@ model TrainingVideoWatch {
   applicationId   String?                 @unique @db.ObjectId  // Scalar for 1-1 relation
   user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
   video           TrainingVideo           @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  proApplication  SpecialistApplication?  @relation("ProOnboardingVideo", fields: [applicationId], references: [id], onDelete: SetNull)
+  proApplication  ProfessionalApplication?  @relation("ProOnboardingVideo", fields: [applicationId], references: [id], onDelete: SetNull)
 
   @@unique([userId, videoId])
   @@index([userId])

@@ -80,7 +80,7 @@ export default function NoteDetailPage() {
           const apiEndpoint =
             targetType === "user"
               ? `/api/users/${targetId}`
-              : `/api/specialists/${targetId}`;
+              : `/api/professionals/${targetId}`;
           const targetRes = await fetch(apiEndpoint, {
             cache: "no-store",
             credentials: "include",
@@ -129,7 +129,7 @@ export default function NoteDetailPage() {
       const body =
         targetType === "user"
           ? { targetUserId: targetId, content: newContent }
-          : { targetSpecialistId: targetId, content: newContent };
+          : { targetProfessionalId: targetId, content: newContent };
 
       const res = await fetch("/api/notes", {
         method: "POST",

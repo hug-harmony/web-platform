@@ -15,7 +15,7 @@ export async function GET() {
     select: {
       id: true,
       email: true,
-      specialistApplication: true,
+      professionalApplication: true,
     },
   });
 

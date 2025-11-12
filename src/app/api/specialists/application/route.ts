@@ -32,9 +32,9 @@ export async function POST(req: Request) {
     const { rate, venue } = submitSchema.parse(await req.json());
 
     const application = await prisma.$transaction(async (tx) => {
-      const existing = await tx.specialistApplication.findFirst({
+      const existing = await tx.professionalApplication.findFirst({
         where: { userId: session.user.id },
-        select: { id: true, status: true, specialistId: true },
+        select: { id: true, status: true, professionalId: true },
       });
 
       const activeStatuses: ProOnboardingStatus[] = [
@@ -53,17 +53,17 @@ export async function POST(req: Request) {
       }
 
       if (existing) {
-        if (existing.specialistId) {
-          await tx.specialist.deleteMany({
-            where: { id: existing.specialistId },
+        if (existing.professionalId) {
+          await tx.professional.deleteMany({
+            where: { id: existing.professionalId },
           });
         }
-        await tx.specialistApplication.deleteMany({
+        await tx.professionalApplication.deleteMany({
           where: { id: existing.id },
         });
       }
 
-      return await tx.specialistApplication.create({
+      return await tx.professionalApplication.create({
         data: {
           userId: session.user.id,
           rate,
@@ -107,7 +107,7 @@ export async function GET(req: Request) {
 
     /* ---------- SINGLE APPLICATION DETAIL ---------- */
     if (id) {
-      const app = await prisma.specialistApplication.findUnique({
+      const app = await prisma.professionalApplication.findUnique({
         where: { id },
         include: {
           user: {
@@ -159,7 +159,7 @@ export async function GET(req: Request) {
     if (search)
       where.user = { name: { contains: search, mode: "insensitive" } };
 
-    const apps = await prisma.specialistApplication.findMany({
+    const apps = await prisma.professionalApplication.findMany({
       where,
       include: {
         user: { select: { name: true, profileImage: true } },
@@ -212,7 +212,7 @@ export async function GET(req: Request) {
 }
 
 /* ------------------------------------------------------------------
-   PATCH – approve / reject (creates Specialist on APPROVED)
+   PATCH – approve / reject (creates Professional on APPROVED)
    ------------------------------------------------------------------ */
 export async function PATCH(req: Request) {
   try {
@@ -238,7 +238,7 @@ export async function PATCH(req: Request) {
       .parse(await req.json());
 
     const updated = await prisma.$transaction(async (tx) => {
-      const app = await tx.specialistApplication.findUnique({
+      const app = await tx.professionalApplication.findUnique({
         where: { id },
         include: { user: true },
       });
@@ -246,18 +246,20 @@ export async function PATCH(req: Request) {
 
       /* REJECT – clean up */
       if (status === "REJECTED") {
-        if (app.specialistId)
-          await tx.specialist.deleteMany({ where: { id: app.specialistId } });
-        await tx.specialistApplication.deleteMany({ where: { id } });
-        return { ...app, status: "REJECTED", specialistId: null };
+        if (app.professionalId)
+          await tx.professional.deleteMany({
+            where: { id: app.professionalId },
+          });
+        await tx.professionalApplication.deleteMany({ where: { id } });
+        return { ...app, status: "REJECTED", professionalId: null };
       }
 
-      /* APPROVE – create Specialist if needed */
-      let specialistId: string | null = app.specialistId;
-      if (status === "APPROVED" && !app.specialistId) {
+      /* APPROVE – create Professional if needed */
+      let professionalId: string | null = app.professionalId;
+      if (status === "APPROVED" && !app.professionalId) {
         if (!app.user.name) throw new Error("User must have a name");
 
-        const specialist = await tx.specialist.create({
+        const professional = await tx.professional.create({
           data: {
             name: app.user.name,
             biography: app.user.biography ?? "",
@@ -266,12 +268,12 @@ export async function PATCH(req: Request) {
             image: app.user.profileImage ?? null,
           },
         });
-        specialistId = specialist.id;
+        professionalId = professional.id;
       }
 
-      return await tx.specialistApplication.update({
+      return await tx.professionalApplication.update({
         where: { id },
-        data: { status, specialistId },
+        data: { status, professionalId },
         include: { user: { select: { name: true } } },
       });
     });

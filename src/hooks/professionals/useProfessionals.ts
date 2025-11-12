@@ -5,11 +5,11 @@ import { redirect } from "next/navigation";
 import { Therapist } from "@/types/therapist";
 
 export function useProfessionals(searchQuery: string, appliedFilters: any) {
-  const [specialists, setSpecialists] = useState<Therapist[]>([]);
+  const [professionals, setProfessionals] = useState<Therapist[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
-    const fetchSpecialists = async () => {
+    const fetchProfessionals = async () => {
       setLoading(true);
       const queryParams = new URLSearchParams();
       if (searchQuery) queryParams.append("search", searchQuery);
@@ -19,7 +19,7 @@ export function useProfessionals(searchQuery: string, appliedFilters: any) {
         }
       });
 
-      const res = await fetch(`/api/specialists?${queryParams}`, {
+      const res = await fetch(`/api/professionals?${queryParams}`, {
         cache: "no-store",
         credentials: "include",
       });
@@ -27,9 +27,9 @@ export function useProfessionals(searchQuery: string, appliedFilters: any) {
         if (res.status === 401) redirect("/login");
         throw new Error("Failed");
       }
-      const { specialists } = await res.json();
-      setSpecialists(
-        (specialists || [])
+      const { professionals } = await res.json();
+      setProfessionals(
+        (professionals || [])
           .filter((s: any) => s.id)
           .map((s: any) => ({
             _id: s.id,
@@ -60,8 +60,8 @@ export function useProfessionals(searchQuery: string, appliedFilters: any) {
       );
       setLoading(false);
     };
-    fetchSpecialists();
+    fetchProfessionals();
   }, [searchQuery, appliedFilters]);
 
-  return { specialists, loading };
+  return { professionals, loading };
 }

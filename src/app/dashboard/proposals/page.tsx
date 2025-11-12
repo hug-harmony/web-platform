@@ -25,14 +25,14 @@ import ProposalCard from "@/components/ProposalCard";
 interface Proposal {
   id: string;
   userId: string;
-  specialistId: string;
+  professionalId: string;
   startTime: string; // UPDATED: Replaced date
   endTime: string; // UPDATED: Replaced time
   venue?: "host" | "visit"; // NEW: Optional venue
   status: "pending" | "accepted" | "rejected";
   conversationId: string;
   user: { name: string };
-  specialist: { name: string; rate: number };
+  professional: { name: string; rate: number };
 }
 
 const containerVariants = {
@@ -52,7 +52,7 @@ const cardVariants = {
 export default function ProposalsPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
-  const [isSpecialist, setIsSpecialist] = useState(false);
+  const [isProfessional, setIsProfessional] = useState(false);
   const [loading, setLoading] = useState(true);
   const [receivedProposals, setReceivedProposals] = useState<Proposal[]>([]);
   const [sentProposals, setSentProposals] = useState<Proposal[]>([]);
@@ -81,35 +81,37 @@ export default function ProposalsPage() {
         }
 
         const userData = await userRes.json();
-        setIsSpecialist(userData.isSpecialist);
+        setIsProfessional(userData.isProfessional);
         setReceivedProposals(
           Array.isArray(userData.proposals) ? userData.proposals : []
         );
 
-        if (userData.isSpecialist) {
-          const specialistQuery = new URLSearchParams({ role: "specialist" });
-          const specialistRes = await fetch(
-            `/api/proposals?${specialistQuery}`,
+        if (userData.isProfessional) {
+          const professionalQuery = new URLSearchParams({
+            role: "professional",
+          });
+          const professionalRes = await fetch(
+            `/api/proposals?${professionalQuery}`,
             {
               cache: "no-store",
               credentials: "include",
             }
           );
 
-          if (!specialistRes.ok) {
-            if (specialistRes.status === 403) {
+          if (!professionalRes.ok) {
+            if (professionalRes.status === 403) {
               toast.error("You are not authorized to view sent proposals");
               return;
             }
             throw new Error(
-              `Failed to fetch sent proposals: ${specialistRes.status}`
+              `Failed to fetch sent proposals: ${professionalRes.status}`
             );
           }
 
-          const specialistData = await specialistRes.json();
+          const professionalData = await professionalRes.json();
           setSentProposals(
-            Array.isArray(specialistData.proposals)
-              ? specialistData.proposals
+            Array.isArray(professionalData.proposals)
+              ? professionalData.proposals
               : []
           );
         }
@@ -174,7 +176,7 @@ export default function ProposalsPage() {
       .filter((proposal) =>
         searchQuery
           ? isReceived
-            ? proposal.specialist.name
+            ? proposal.professional.name
                 .toLowerCase()
                 .includes(searchQuery.toLowerCase())
             : proposal.user.name
@@ -246,7 +248,7 @@ export default function ProposalsPage() {
             </CardTitle>
             <p className="text-sm opacity-80">
               {filteredReceivedProposals.length} received
-              {isSpecialist ? `, ${filteredSentProposals.length} sent` : ""}
+              {isProfessional ? `, ${filteredSentProposals.length} sent` : ""}
             </p>
           </motion.div>
         </CardHeader>
@@ -310,7 +312,7 @@ export default function ProposalsPage() {
         <CardContent className="pt-6">
           <Tabs defaultValue="received" className="w-full">
             <TabsList
-              className={`grid w-full ${isSpecialist ? "grid-cols-2" : "grid-cols-1"} bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20`}
+              className={`grid w-full ${isProfessional ? "grid-cols-2" : "grid-cols-1"} bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20`}
             >
               <TabsTrigger
                 value="received"
@@ -318,7 +320,7 @@ export default function ProposalsPage() {
               >
                 Received Proposals
               </TabsTrigger>
-              {isSpecialist && (
+              {isProfessional && (
                 <TabsTrigger
                   value="sent"
                   className="data-[state=active]:bg-[#F3CFC6] data-[state=active]:text-black dark:data-[state=active]:text-white"
@@ -356,7 +358,7 @@ export default function ProposalsPage() {
                         <ProposalCard
                           proposal={proposal}
                           isReceived={true}
-                          isSpecialist={isSpecialist}
+                          isProfessional={isProfessional}
                           onStatusUpdate={handleStatusUpdate}
                           onViewConversation={handleViewConversation}
                         />
@@ -366,7 +368,7 @@ export default function ProposalsPage() {
                 </motion.div>
               )}
             </TabsContent>
-            {isSpecialist && (
+            {isProfessional && (
               <TabsContent value="sent">
                 {filteredSentProposals.length === 0 ? (
                   <motion.div
@@ -396,7 +398,7 @@ export default function ProposalsPage() {
                           <ProposalCard
                             proposal={proposal}
                             isReceived={false}
-                            isSpecialist={isSpecialist}
+                            isProfessional={isProfessional}
                             onStatusUpdate={handleStatusUpdate}
                             onViewConversation={handleViewConversation}
                           />

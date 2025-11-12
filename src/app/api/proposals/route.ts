@@ -9,7 +9,7 @@ const prisma = new PrismaClient();
 // Extend Proposal type to include relations (now used in GET)
 type ProposalWithRelations = Proposal & {
   user: { name: string | null };
-  specialist: { name: string; rate: number | null };
+  professional: { name: string; rate: number | null };
 };
 
 /*
@@ -30,30 +30,30 @@ export async function GET(req: NextRequest) {
     if (startDate) dateFilter.gte = new Date(startDate);
     if (endDate) dateFilter.lte = new Date(endDate);
 
-    const specialistApp = await prisma.specialistApplication.findUnique({
+    const professionalApp = await prisma.professionalApplication.findUnique({
       where: { userId },
-      select: { status: true, specialistId: true },
+      select: { status: true, professionalId: true },
     });
-    const isSpecialist =
-      specialistApp?.status === "approved" && specialistApp?.specialistId;
+    const isProfessional =
+      professionalApp?.status === "approved" && professionalApp?.professionalId;
 
-    if (role === "specialist" && !isSpecialist) {
+    if (role === "professional" && !isProfessional) {
       return NextResponse.json(
-        { error: "Forbidden: Not a specialist" },
+        { error: "Forbidden: Not a professional" },
         { status: 403 }
       );
     }
 
     const whereClause =
-      role === "specialist"
-        ? { specialistId: specialistApp!.specialistId!, startTime: dateFilter } // UPDATED: Use startTime for filtering
+      role === "professional"
+        ? { professionalId: professionalApp!.professionalId!, startTime: dateFilter } // UPDATED: Use startTime for filtering
         : { userId, startTime: dateFilter }; // UPDATED
 
     const proposals = await prisma.proposal.findMany({
       where: whereClause,
       include: {
         user: { select: { name: true } },
-        specialist: { select: { name: true, rate: true } },
+        professional: { select: { name: true, rate: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -63,7 +63,7 @@ export async function GET(req: NextRequest) {
         // UPDATED: Use ProposalWithRelations to fix no-explicit-any
         id: p.id,
         userId: p.userId,
-        specialistId: p.specialistId,
+        professionalId: p.professionalId,
         conversationId: p.conversationId,
         startTime: p.startTime,
         endTime: p.endTime,
@@ -71,9 +71,9 @@ export async function GET(req: NextRequest) {
         status: p.status,
         initiator: p.initiator,
         user: { name: p.user.name || "User" },
-        specialist: { name: p.specialist.name, rate: p.specialist.rate || 0 },
+        professional: { name: p.professional.name, rate: p.professional.rate || 0 },
       })),
-      isSpecialist,
+      isProfessional,
     });
   } catch (error) {
     console.error("Error fetching proposals:", error);
@@ -101,24 +101,24 @@ export async function GET(req: NextRequest) {
     if (startDate) dateFilter.gte = new Date(startDate);
     if (endDate) dateFilter.lte = new Date(endDate);
 
-    const specialistApp = await prisma.specialistApplication.findUnique({
+    const professionalApp = await prisma.professionalApplication.findUnique({
       where: { userId },
-      select: { status: true, specialistId: true },
+      select: { status: true, professionalId: true },
     });
-    const isSpecialist =
-      specialistApp?.status === "APPROVED" && specialistApp?.specialistId;
+    const isProfessional =
+      professionalApp?.status === "APPROVED" && professionalApp?.professionalId;
 
-    if (role === "specialist" && !isSpecialist) {
+    if (role === "professional" && !isProfessional) {
       return NextResponse.json(
-        { error: "Forbidden: Not a specialist" },
+        { error: "Forbidden: Not a professional" },
         { status: 403 }
       );
     }
 
     const whereClause =
-      role === "specialist"
+      role === "professional"
         ? {
-            specialistId: specialistApp!.specialistId!,
+            professionalId: professionalApp!.professionalId!,
             startTime: { ...dateFilter, not: null },
           } // UPDATED: Add not: null to filter out nulls
         : { userId, startTime: { ...dateFilter, not: null } }; // UPDATED
@@ -127,7 +127,7 @@ export async function GET(req: NextRequest) {
       where: whereClause,
       include: {
         user: { select: { name: true } },
-        specialist: { select: { name: true, rate: true } },
+        professional: { select: { name: true, rate: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -136,7 +136,7 @@ export async function GET(req: NextRequest) {
       proposals: proposals.map((p: ProposalWithRelations) => ({
         id: p.id,
         userId: p.userId,
-        specialistId: p.specialistId,
+        professionalId: p.professionalId,
         conversationId: p.conversationId,
         startTime: p.startTime, // Now can be null, but we filtered
         endTime: p.endTime,
@@ -144,9 +144,12 @@ export async function GET(req: NextRequest) {
         status: p.status,
         initiator: p.initiator,
         user: { name: p.user.name || "User" },
-        specialist: { name: p.specialist.name, rate: p.specialist.rate || 0 },
+        professional: {
+          name: p.professional.name,
+          rate: p.professional.rate || 0,
+        },
       })),
-      isSpecialist,
+      isProfessional,
     });
   } catch (error) {
     console.error("Error fetching proposals:", error);
@@ -166,7 +169,7 @@ export async function POST(req: NextRequest) {
     const body = await req.json();
     let conversationId: string;
     let recipientId: string;
-    let specialistId: string;
+    let professionalId: string;
     let userId: string;
     const startTime = new Date(body.startTime); // UPDATED: Use startTime/endTime
     const endTime = new Date(body.endTime);
@@ -184,20 +187,22 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const isSpecialist = await prisma.specialistApplication.findFirst({
+    const isProfessional = await prisma.professionalApplication.findFirst({
       where: { userId: session.user.id, status: "APPROVED" },
-      select: { specialistId: true },
+      select: { professionalId: true },
     });
 
-    if (isSpecialist && isSpecialist.specialistId) {
-      // Specialist-initiated proposal
+    if (isProfessional && isProfessional.professionalId) {
+      // Professional-initiated proposal
       conversationId = body.conversationId;
       userId = body.userId; // Recipient user
-      specialistId = isSpecialist.specialistId;
+      professionalId = isProfessional.professionalId;
 
       if (!conversationId || !userId) {
         return NextResponse.json(
-          { error: "Missing conversationId or userId for specialist proposal" },
+          {
+            error: "Missing conversationId or userId for professional proposal",
+          },
           { status: 400 }
         );
       }
@@ -206,28 +211,30 @@ export async function POST(req: NextRequest) {
     } else {
       // User-initiated appointment request
       conversationId = body.conversationId;
-      specialistId = body.specialistId; // Recipient specialist
+      professionalId = body.professionalId; // Recipient professional
       userId = session.user.id;
 
-      if (!conversationId || !specialistId) {
+      if (!conversationId || !professionalId) {
         return NextResponse.json(
-          { error: "Missing conversationId or specialistId for user request" },
+          {
+            error: "Missing conversationId or professionalId for user request",
+          },
           { status: 400 }
         );
       }
 
-      const specialistUser = await prisma.specialistApplication.findFirst({
-        where: { specialistId, status: "APPROVED" },
+      const professionalUser = await prisma.professionalApplication.findFirst({
+        where: { professionalId, status: "APPROVED" },
       });
 
-      if (!specialistUser?.userId) {
+      if (!professionalUser?.userId) {
         return NextResponse.json(
-          { error: "Specialist not found" },
+          { error: "Professional not found" },
           { status: 404 }
         );
       }
 
-      recipientId = specialistUser.userId;
+      recipientId = professionalUser.userId;
     }
 
     // Verify conversation
@@ -246,32 +253,32 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // NEW: Fetch specialist details for venue and rate
-    const specialist = await prisma.specialist.findUnique({
-      where: { id: specialistId },
+    // NEW: Fetch professional details for venue and rate
+    const professional = await prisma.professional.findUnique({
+      where: { id: professionalId },
       select: { venue: true, rate: true },
     });
-    if (!specialist) {
+    if (!professional) {
       return NextResponse.json(
-        { error: "Specialist not found" },
+        { error: "Professional not found" },
         { status: 404 }
       );
     }
 
     // NEW: Determine final venue
     let finalVenue: "host" | "visit" | undefined;
-    if (specialist.venue === "both") {
+    if (professional.venue === "both") {
       if (!venue)
         return NextResponse.json({ error: "Venue required" }, { status: 400 });
       finalVenue = venue;
     } else {
-      finalVenue = specialist.venue as "host" | "visit"; // UPDATED: Type assertion to fix TS2367 (exclude "both" from type)
+      finalVenue = professional.venue as "host" | "visit"; // UPDATED: Type assertion to fix TS2367 (exclude "both" from type)
     }
 
     // NEW: Overlap check
     const overlapping = await prisma.appointment.findFirst({
       where: {
-        specialistId,
+        professionalId,
         status: { in: ["upcoming", "pending", "break"] },
         startTime: { lt: endTime },
         endTime: { gt: startTime },
@@ -292,7 +299,7 @@ export async function POST(req: NextRequest) {
 
     const dayAppointments = await prisma.appointment.findMany({
       where: {
-        specialistId,
+        professionalId,
         status: { in: ["upcoming", "pending", "break"] },
         startTime: { gte: dayStart, lte: dayEnd },
       },
@@ -316,23 +323,23 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // REMOVED: Working hours check (as per user request; specialists can propose any time)
+    // REMOVED: Working hours check (as per user request; professionals can propose any time)
 
     const proposal = await prisma.proposal.create({
       data: {
-        specialistId,
+        professionalId,
         userId,
         conversationId,
         startTime, // UPDATED
         endTime, // UPDATED
         venue: finalVenue, // NEW
         status: "pending",
-        initiator: isSpecialist ? "specialist" : "user",
+        initiator: isProfessional ? "professional" : "user",
       },
     });
 
     // UPDATED: Tailored message with range
-    const messageText = isSpecialist
+    const messageText = isProfessional
       ? `Session proposal: ${format(startTime, "MMMM d, yyyy h:mm a")} to ${format(endTime, "h:mm a")}. Venue: ${finalVenue || "TBD"}. Please accept or reject.`
       : `Appointment request: ${format(startTime, "MMMM d, yyyy h:mm a")} to ${format(endTime, "h:mm a")}. Venue: ${finalVenue || "TBD"}. Please accept or decline.`;
 

@@ -38,10 +38,10 @@ import "react-big-calendar/lib/css/react-big-calendar.css";
 // Updated interfaces
 interface Appointment {
   _id: string;
-  specialistName?: string;
+  professionalName?: string;
   clientName?: string;
-  specialistId: string;
-  specialistUserId?: string; // ← NEW: User ID of specialist
+  professionalId: string;
+  professionalUserId?: string; // ← NEW: User ID of professional
   clientId?: string; // ← NEW: User ID of client
   startTime: string;
   endTime: string;
@@ -55,21 +55,21 @@ interface Appointment {
 interface Proposal {
   id: string;
   userId: string;
-  specialistId: string;
+  professionalId: string;
   startTime: string; // UPDATED: Replaced date
   endTime: string; // UPDATED: Replaced time
   venue?: "host" | "visit"; // NEW: Optional venue
   status: "pending" | "accepted" | "rejected";
   conversationId: string;
   user: { name: string };
-  specialist: { name: string; rate: number };
+  professional: { name: string; rate: number };
 }
 
 type SelectedState =
   | {
       type: "appointment";
       data: Appointment;
-      isOwnerSpecialist: boolean;
+      isOwnerProfessional: boolean;
       displayName: string;
     }
   | {
@@ -103,7 +103,7 @@ export default function AppointmentsPage() {
   const [receivedProposals, setReceivedProposals] = useState<Proposal[]>([]);
   const [sentProposals, setSentProposals] = useState<Proposal[]>([]);
   const [loading, setLoading] = useState(true);
-  const [isSpecialist, setIsSpecialist] = useState(false);
+  const [isProfessional, setIsProfessional] = useState(false);
   const [searchQuery, setSearchQuery] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
   const [selected, setSelected] = useState<SelectedState>(null);
@@ -115,14 +115,14 @@ export default function AppointmentsPage() {
     }
 
     try {
-      const specialistRes = await fetch("/api/specialists/application/me", {
+      const professionalRes = await fetch("/api/professionals/application/me", {
         cache: "no-store",
       });
-      let specialistStatus = false;
-      if (specialistRes.ok) {
-        const { status: appStatus } = await specialistRes.json();
-        specialistStatus = appStatus === "APPROVED";
-        setIsSpecialist(specialistStatus);
+      let professionalStatus = false;
+      if (professionalRes.ok) {
+        const { status: appStatus } = await professionalRes.json();
+        professionalStatus = appStatus === "APPROVED";
+        setIsProfessional(professionalStatus);
       }
 
       const [userApptsRes, proposalsRes] = await Promise.all([
@@ -139,14 +139,14 @@ export default function AppointmentsPage() {
       setAppointments(userApptsData || []);
       setReceivedProposals(proposalsData.proposals || []);
 
-      if (specialistStatus) {
+      if (professionalStatus) {
         const [clientApptsRes, sentProposalsRes] = await Promise.all([
           fetch("/api/appointment/clients", { cache: "no-store" }),
-          fetch(`/api/proposals?role=specialist`, { cache: "no-store" }),
+          fetch(`/api/proposals?role=professional`, { cache: "no-store" }),
         ]);
 
         if (!clientApptsRes.ok || !sentProposalsRes.ok)
-          throw new Error("Failed to fetch specialist data");
+          throw new Error("Failed to fetch professional data");
 
         const clientApptsData = await clientApptsRes.json();
         const sentProposalsData = await sentProposalsRes.json();
@@ -173,11 +173,11 @@ export default function AppointmentsPage() {
   // Unified message handler
   const handleMessage = async (
     appt: Appointment,
-    isOwnerSpecialist: boolean
+    isOwnerProfessional: boolean
   ) => {
-    const recipientId = isOwnerSpecialist
+    const recipientId = isOwnerProfessional
       ? appt.clientId
-      : appt.specialistUserId;
+      : appt.professionalUserId;
     if (!recipientId) {
       toast.error("Cannot start chat: missing user ID");
       return;
@@ -206,12 +206,15 @@ export default function AppointmentsPage() {
   const filteredAppointments = useMemo(() => {
     const all = [
       ...appointments.map((a) => ({ ...a, type: "client" as const })),
-      ...clientAppointments.map((a) => ({ ...a, type: "specialist" as const })),
+      ...clientAppointments.map((a) => ({
+        ...a,
+        type: "professional" as const,
+      })),
     ];
 
     return all.filter((item) => {
       const nameToSearch =
-        item.type === "specialist" ? item.clientName : item.specialistName;
+        item.type === "professional" ? item.clientName : item.professionalName;
       return (
         (searchQuery
           ? nameToSearch?.toLowerCase().includes(searchQuery.toLowerCase())
@@ -226,7 +229,7 @@ export default function AppointmentsPage() {
       ...sentProposals.map((p) => ({ ...p, isReceived: false })),
     ];
     return all.filter((p) => {
-      const nameToSearch = p.isReceived ? p.specialist.name : p.user.name;
+      const nameToSearch = p.isReceived ? p.professional.name : p.user.name;
       return (
         (searchQuery
           ? nameToSearch.toLowerCase().includes(searchQuery.toLowerCase())
@@ -238,10 +241,10 @@ export default function AppointmentsPage() {
   /*
   const calendarEvents = useMemo(() => {
     const appointmentEvents = filteredAppointments.map((appt) => {
-      const isOwnerSpecialist = appt.type === "specialist";
-      const displayName = isOwnerSpecialist
+      const isOwnerProfessional = appt.type === "professional";
+      const displayName = isOwnerProfessional
         ? appt.clientName
-        : appt.specialistName;
+        : appt.professionalName;
       return {
         title: `${displayName} (${appt.status})`,
         start: new Date(appt.startTime),
@@ -249,7 +252,7 @@ export default function AppointmentsPage() {
         resource: {
           type: "appointment" as const,
           data: appt,
-          isOwnerSpecialist,
+          isOwnerProfessional,
           displayName,
         },
       };
@@ -257,7 +260,7 @@ export default function AppointmentsPage() {
 
     const proposalEvents = filteredProposals.map((proposal) => {
       const displayName = proposal.isReceived
-        ? proposal.specialist.name
+        ? proposal.professional.name
         : proposal.user.name;
       return {
         title: `Proposal: ${displayName} (${proposal.status})`,
@@ -277,10 +280,10 @@ export default function AppointmentsPage() {
 
   const calendarEvents = useMemo(() => {
     const appointmentEvents = filteredAppointments.map((appt) => {
-      const isOwnerSpecialist = appt.type === "specialist";
-      const displayName = isOwnerSpecialist
+      const isOwnerProfessional = appt.type === "professional";
+      const displayName = isOwnerProfessional
         ? appt.clientName
-        : appt.specialistName;
+        : appt.professionalName;
       return {
         title: `${displayName} (${appt.status})`,
         start: new Date(appt.startTime),
@@ -288,7 +291,7 @@ export default function AppointmentsPage() {
         resource: {
           type: "appointment" as const,
           data: appt,
-          isOwnerSpecialist,
+          isOwnerProfessional,
           displayName,
         },
       };
@@ -298,7 +301,7 @@ export default function AppointmentsPage() {
       .filter((proposal) => proposal.startTime && proposal.endTime) // NEW: Skip if null
       .map((proposal) => {
         const displayName = proposal.isReceived
-          ? proposal.specialist.name
+          ? proposal.professional.name
           : proposal.user.name;
         return {
           title: `Proposal: ${displayName} (${proposal.status})`,
@@ -323,9 +326,9 @@ export default function AppointmentsPage() {
     let color = "#3174ad";
     if (type === "appointment") {
       if (data.status === "upcoming")
-        color = resource.isOwnerSpecialist ? "#5cb85c" : "#5bc0de";
+        color = resource.isOwnerProfessional ? "#5cb85c" : "#5bc0de";
       if (data.status === "completed")
-        color = resource.isOwnerSpecialist ? "#4cae4c" : "#46b8da";
+        color = resource.isOwnerProfessional ? "#4cae4c" : "#46b8da";
       if (data.status === "cancelled") color = "#777777";
       if (data.status === "disputed") color = "#d9534f";
     } else {
@@ -443,10 +446,10 @@ export default function AppointmentsPage() {
           {selected?.type === "appointment" && (
             <AppointmentCard
               appointment={selected.data}
-              isSpecialist={isSpecialist}
-              isOwnerSpecialist={selected.isOwnerSpecialist}
+              isProfessional={isProfessional}
+              isOwnerProfessional={selected.isOwnerProfessional}
               onMessage={() =>
-                handleMessage(selected.data, selected.isOwnerSpecialist)
+                handleMessage(selected.data, selected.isOwnerProfessional)
               }
               onUpdate={fetchData}
             />
@@ -455,7 +458,7 @@ export default function AppointmentsPage() {
             <ProposalCard
               proposal={selected.data}
               isReceived={selected.isReceived}
-              isSpecialist={isSpecialist}
+              isProfessional={isProfessional}
               onStatusUpdate={fetchData}
               onViewConversation={() => {
                 router.push(

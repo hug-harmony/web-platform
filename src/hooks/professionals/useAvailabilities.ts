@@ -14,16 +14,19 @@ export function useAvailabilities(selectedDate: Date | undefined) {
     }
     const fetchAvail = async () => {
       const dateStr = selectedDate.toISOString().split("T")[0];
-      const res = await fetch(`/api/specialists/availability?date=${dateStr}`, {
-        credentials: "include",
-      });
+      const res = await fetch(
+        `/api/professionals/availability?date=${dateStr}`,
+        {
+          credentials: "include",
+        }
+      );
       if (res.ok) {
         const { availabilities } = await res.json();
         setAvailabilities(
           availabilities.reduce(
-            (acc: any, { specialistId, slots }: any) => ({
+            (acc: any, { professionalId, slots }: any) => ({
               ...acc,
-              [specialistId]: slots,
+              [professionalId]: slots,
             }),
             {}
           )

@@ -11,8 +11,8 @@ export async function POST(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { specialistId, rating, feedback } = await req.json();
-    if (!specialistId || !rating || !feedback) {
+    const { professionalId, rating, feedback } = await req.json();
+    if (!professionalId || !rating || !feedback) {
       return NextResponse.json(
         { error: "Missing required fields" },
         { status: 400 }
@@ -26,35 +26,35 @@ export async function POST(req: Request) {
       );
     }
 
-    const specialist = await prisma.specialist.findUnique({
-      where: { id: specialistId },
+    const professional = await prisma.professional.findUnique({
+      where: { id: professionalId },
     });
-    if (!specialist) {
+    if (!professional) {
       return NextResponse.json(
-        { error: "Specialist not found" },
+        { error: "Professional not found" },
         { status: 404 }
       );
     }
 
     const review = await prisma.review.create({
       data: {
-        specialistId,
+        professionalId,
         reviewerId: session.user.id,
         rating,
         feedback,
       },
     });
 
-    // Update specialist's rating and review count
+    // Update professional's rating and review count
     const reviews = await prisma.review.findMany({
-      where: { specialistId },
+      where: { professionalId },
     });
     const avgRating =
       reviews.length > 0
         ? reviews.reduce((sum, r) => sum + r.rating, 0) / reviews.length
         : 0;
-    await prisma.specialist.update({
-      where: { id: specialistId },
+    await prisma.professional.update({
+      where: { id: professionalId },
       data: {
         rating: avgRating,
         reviewCount: reviews.length,
@@ -71,21 +71,21 @@ export async function POST(req: Request) {
   }
 }
 
-// GET: Fetch reviews for a specialist
+// GET: Fetch reviews for a professional
 export async function GET(req: Request) {
   try {
     const { searchParams } = new URL(req.url);
-    const specialistId = searchParams.get("specialistId");
+    const professionalId = searchParams.get("professionalId");
 
-    if (!specialistId) {
+    if (!professionalId) {
       return NextResponse.json(
-        { error: "Specialist ID is required" },
+        { error: "Professional ID is required" },
         { status: 400 }
       );
     }
 
     const reviews = await prisma.review.findMany({
-      where: { specialistId },
+      where: { professionalId },
       include: {
         reviewer: { select: { name: true, id: true } },
       },

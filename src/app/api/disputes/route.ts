@@ -27,7 +27,7 @@ export async function GET() {
         user: {
           select: { id: true, name: true, email: true, phoneNumber: true },
         },
-        specialist: {
+        professional: {
           select: {
             id: true,
             name: true,
@@ -128,8 +128,8 @@ export async function PATCH(request: NextRequest) {
       // Restore slot to weekly availability
       await prisma.availability.upsert({
         where: {
-          specialistId_dayOfWeek: {
-            specialistId: appointment.specialistId,
+          professionalId_dayOfWeek: {
+            professionalId: appointment.professionalId,
             dayOfWeek: dayOfWeekNum,
           },
         },
@@ -139,7 +139,7 @@ export async function PATCH(request: NextRequest) {
           },
         },
         create: {
-          specialistId: appointment.specialistId,
+          professionalId: appointment.professionalId,
           dayOfWeek: dayOfWeekNum,
           slots: [slotTime],
           breakDuration: 30,
@@ -161,7 +161,7 @@ export async function PATCH(request: NextRequest) {
       data: updatedData,
       include: {
         user: { select: { name: true, email: true } },
-        specialist: { select: { name: true } },
+        professional: { select: { name: true } },
         payment: { select: { status: true } },
       },
     });

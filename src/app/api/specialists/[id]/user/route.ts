@@ -1,4 +1,4 @@
-// app/api/specialists/[id]/user/route.ts
+// app/api/professionals/[id]/user/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -17,13 +17,13 @@ export async function GET(
   }
 
   try {
-    const app = await prisma.specialistApplication.findFirst({
-      where: { specialistId: id, status: "APPROVED" },
+    const app = await prisma.professionalApplication.findFirst({
+      where: { professionalId: id, status: "APPROVED" },
       select: { userId: true },
     });
     if (!app) {
       return NextResponse.json(
-        { error: "Specialist not found" },
+        { error: "Professional not found" },
         { status: 404 }
       );
     }
@@ -35,7 +35,7 @@ export async function GET(
 
     return NextResponse.json({ userId: user?.id, name: user?.name });
   } catch (error) {
-    console.error("Fetch specialist user error:", error);
+    console.error("Fetch professional user error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   } finally {
     await prisma.$disconnect();

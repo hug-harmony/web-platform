@@ -13,16 +13,16 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { specialistId, visitedUserId } = await req.json();
-    if (!specialistId && !visitedUserId) {
+    const { professionalId, visitedUserId } = await req.json();
+    if (!professionalId && !visitedUserId) {
       return NextResponse.json(
-        { error: "Specialist ID or User ID is required" },
+        { error: "Professional ID or User ID is required" },
         { status: 400 }
       );
     }
-    if (specialistId && visitedUserId) {
+    if (professionalId && visitedUserId) {
       return NextResponse.json(
-        { error: "Provide only one of Specialist ID or User ID" },
+        { error: "Provide only one of Professional ID or User ID" },
         { status: 400 }
       );
     }
@@ -30,7 +30,7 @@ export async function POST(req: NextRequest) {
     const profileVisit = await prisma.profileVisit.create({
       data: {
         userId: session.user.id,
-        specialistId,
+        professionalId,
         visitedUserId,
       },
       include: {
@@ -45,7 +45,7 @@ export async function POST(req: NextRequest) {
         id: profileVisit.id,
         userName: profileVisit.user.name || "User",
         userAvatar: profileVisit.user.profileImage || null,
-        specialistId: profileVisit.specialistId,
+        professionalId: profileVisit.professionalId,
         visitedUserId: profileVisit.visitedUserId,
         createdAt: profileVisit.createdAt,
       },
@@ -81,7 +81,7 @@ export async function GET(req: NextRequest) {
 
     const visits = await prisma.profileVisit.findMany({
       where: {
-        OR: [{ specialist: { id: userId } }, { visitedUser: { id: userId } }],
+        OR: [{ professional: { id: userId } }, { visitedUser: { id: userId } }],
         createdAt: dateFilter,
       },
       include: {
@@ -92,7 +92,7 @@ export async function GET(req: NextRequest) {
             profileImage: true,
           },
         },
-        specialist: {
+        professional: {
           select: {
             id: true,
             name: true,
@@ -118,9 +118,10 @@ export async function GET(req: NextRequest) {
           avatar: visit.user.profileImage,
         },
         visited: {
-          id: visit.specialistId || visit.visitedUserId,
-          name: visit.specialist?.name || visit.visitedUser?.name || "Unknown",
-          type: visit.specialistId ? "specialist" : "user",
+          id: visit.professionalId || visit.visitedUserId,
+          name:
+            visit.professional?.name || visit.visitedUser?.name || "Unknown",
+          type: visit.professionalId ? "professional" : "user",
         },
         createdAt: visit.createdAt,
       })),

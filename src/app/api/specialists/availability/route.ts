@@ -1,4 +1,4 @@
-// app/api/specialists/availability/route.ts
+// app/api/professionals/availability/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { allSlots } from "@/lib/constants";
@@ -7,12 +7,12 @@ import { authOptions } from "@/lib/auth";
 
 export async function GET(request: Request) {
   const { searchParams } = new URL(request.url);
-  const specialistId = searchParams.get("specialistId");
+  const professionalId = searchParams.get("professionalId");
   const dayOfWeek = searchParams.get("dayOfWeek");
 
-  if (!specialistId || dayOfWeek === null) {
+  if (!professionalId || dayOfWeek === null) {
     return NextResponse.json(
-      { error: "Missing specialistId or dayOfWeek" },
+      { error: "Missing professionalId or dayOfWeek" },
       { status: 400 }
     );
   }
@@ -27,7 +27,7 @@ export async function GET(request: Request) {
 
   try {
     const avail = await prisma.availability.findUnique({
-      where: { specialistId_dayOfWeek: { specialistId, dayOfWeek: day } },
+      where: { professionalId_dayOfWeek: { professionalId, dayOfWeek: day } },
     });
 
     return NextResponse.json(
@@ -52,20 +52,20 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const app = await prisma.specialistApplication.findUnique({
+  const app = await prisma.professionalApplication.findUnique({
     where: { userId: session.user.id },
     select: {
       status: true,
-      specialistId: true,
+      professionalId: true,
     },
   });
-  if (!app || app.status !== "APPROVED" || !app.specialistId) {
+  if (!app || app.status !== "APPROVED" || !app.professionalId) {
     return NextResponse.json(
-      { error: "Forbidden: Not an approved specialist" },
+      { error: "Forbidden: Not an approved professional" },
       { status: 403 }
     );
   }
-  const specialistId = app.specialistId;
+  const professionalId = app.professionalId;
 
   const { dayOfWeek, slots, breakDuration } = await request.json();
 
@@ -99,7 +99,7 @@ export async function POST(request: Request) {
   try {
     // Try update first
     const existing = await prisma.availability.findFirst({
-      where: { specialistId, dayOfWeek: day },
+      where: { professionalId, dayOfWeek: day },
     });
 
     if (existing) {
@@ -109,7 +109,7 @@ export async function POST(request: Request) {
       });
     } else {
       await prisma.availability.create({
-        data: { specialistId, dayOfWeek: day, slots, breakDuration },
+        data: { professionalId, dayOfWeek: day, slots, breakDuration },
       });
     }
 

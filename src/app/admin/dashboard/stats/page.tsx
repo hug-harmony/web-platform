@@ -73,7 +73,7 @@ const chartOptions = {
 export default function StatsPage() {
   const [statsData, setStatsData] = useState([
     { name: "Users", value: 0 },
-    { name: "Specialists", value: 0 },
+    { name: "Professionals", value: 0 },
     { name: "Appointments", value: 0 },
     { name: "Reports", value: 0 },
     { name: "Completed Sessions", value: 0 },
@@ -91,13 +91,14 @@ export default function StatsPage() {
       const users = await usersRes.json();
       const userCount = Array.isArray(users) ? users.length : 0;
 
-      // Fetch approved specialists
-      const specialistsRes = await fetch(
-        "/api/specialists/application?status=APPROVED"
+      // Fetch approved professionals
+      const professionalsRes = await fetch(
+        "/api/professionals/application?status=APPROVED"
       );
-      if (!specialistsRes.ok) throw new Error("Failed to fetch specialists");
-      const applications = await specialistsRes.json();
-      const specialistCount = Array.isArray(applications)
+      if (!professionalsRes.ok)
+        throw new Error("Failed to fetch professionals");
+      const applications = await professionalsRes.json();
+      const professionalCount = Array.isArray(applications)
         ? applications.length
         : 0;
 
@@ -145,7 +146,7 @@ export default function StatsPage() {
       // Set stats data
       setStatsData([
         { name: "Users", value: userCount },
-        { name: "Specialists", value: specialistCount },
+        { name: "Professionals", value: professionalCount },
         { name: "Appointments", value: appointmentCount },
         { name: "Reports", value: 0 },
         { name: "Completed Sessions", value: completedSessions },

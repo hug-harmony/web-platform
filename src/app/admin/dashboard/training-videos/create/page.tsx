@@ -87,7 +87,7 @@ export default function CreateTrainingVideoPage() {
                 required
                 value={form.name}
                 onChange={(e) => setForm({ ...form, name: e.target.value })}
-                placeholder="e.g. Specialist Onboarding 2025"
+                placeholder="e.g. Professional Onboarding 2025"
                 className="border-[#C4C4C4] focus:ring-[#F3CFC6]"
               />
             </div>

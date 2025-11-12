@@ -41,7 +41,7 @@ interface DisputeAppointment {
   disputeStatus: string;
   adminNotes: string | null;
   user: { id: string; name: string; email: string; phoneNumber: string | null };
-  specialist: {
+  professional: {
     id: string;
     name: string;
     application: { user: { name: string; email: string } };
@@ -252,9 +252,9 @@ export default function DisputeHandlingPage() {
                           )}
                         </TableCell>
                         <TableCell>
-                          <div>{dispute.specialist.name}</div>
+                          <div>{dispute.professional.name}</div>
                           <div className="text-sm text-[#C4C4C4]">
-                            {dispute.specialist.application.user.email}
+                            {dispute.professional.application.user.email}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -293,9 +293,9 @@ export default function DisputeHandlingPage() {
                                     </p>
                                     <p>
                                       <strong>Cuddler:</strong>{" "}
-                                      {dispute.specialist.name} (
+                                      {dispute.professional.name} (
                                       {
-                                        dispute.specialist.application.user
+                                        dispute.professional.application.user
                                           .email
                                       }
                                       )

@@ -47,7 +47,7 @@ interface ProposalDialogProps {
     venue?: "host" | "visit"
   ) => void;
   sending: boolean;
-  specialistId: string;
+  professionalId: string;
 }
 
 const cardVariants = {
@@ -60,7 +60,7 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
   setIsOpen,
   handleSendProposal,
   sending,
-  specialistId,
+  professionalId,
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
   const [bookedEvents, setBookedEvents] = useState<any[]>([]);
@@ -72,26 +72,26 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
   const [selectedVenue, setSelectedVenue] = useState<
     "host" | "visit" | undefined
   >(undefined);
-  const [specialistVenue, setSpecialistVenue] = useState<
+  const [professionalVenue, setProfessionalVenue] = useState<
     "host" | "visit" | "both"
   >("both");
   const [loading, setLoading] = useState(false);
 
   useEffect(() => {
-    if (!isOpen || !specialistId) return;
-    const fetchSpecialist = async () => {
+    if (!isOpen || !professionalId) return;
+    const fetchProfessional = async () => {
       try {
-        const res = await fetch(`/api/specialists?id=${specialistId}`);
-        if (!res.ok) throw new Error("Failed to fetch specialist");
+        const res = await fetch(`/api/professionals?id=${professionalId}`);
+        if (!res.ok) throw new Error("Failed to fetch professional");
         const data = await res.json();
-        setSpecialistVenue(data.venue);
+        setProfessionalVenue(data.venue);
         if (data.venue !== "both") setSelectedVenue(data.venue);
       } catch (error) {
-        toast.error("Failed to fetch specialist details");
+        toast.error("Failed to fetch professional details");
       }
     };
-    fetchSpecialist();
-  }, [isOpen, specialistId]);
+    fetchProfessional();
+  }, [isOpen, professionalId]);
 
   const fetchSchedule = useCallback(
     async (date: Date) => {
@@ -100,7 +100,7 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
       const end = endOfWeek(date, { weekStartsOn: 1 });
       try {
         const res = await fetch(
-          `/api/specialists/schedule?specialistId=${specialistId}&startDate=${format(start, "yyyy-MM-dd")}&endDate=${format(end, "yyyy-MM-dd")}`
+          `/api/professionals/schedule?professionalId=${professionalId}&startDate=${format(start, "yyyy-MM-dd")}&endDate=${format(end, "yyyy-MM-dd")}`
         );
         if (!res.ok) throw new Error("Failed to load schedule");
         const { events, workingHours: fetchedWorkingHours } = await res.json();
@@ -118,7 +118,7 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
         setLoading(false);
       }
     },
-    [specialistId]
+    [professionalId]
   );
 
   useEffect(() => {
@@ -212,7 +212,7 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
       toast.error("Please select a time slot");
       return;
     }
-    if (specialistVenue === "both" && !selectedVenue) {
+    if (professionalVenue === "both" && !selectedVenue) {
       toast.error("Please select a venue");
       return;
     }
@@ -280,7 +280,7 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
                     </p>
                   </div>
                 )}
-                {specialistVenue === "both" && (
+                {professionalVenue === "both" && (
                   <div className="mt-4">
                     <Label className="text-sm font-medium text-black dark:text-white mb-2">
                       Venue
@@ -296,10 +296,10 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
                       </SelectTrigger>
                       <SelectContent>
                         <SelectItem value="host">
-                          Specialist will host
+                          Professional will host
                         </SelectItem>
                         <SelectItem value="visit">
-                          Specialist will visit you
+                          Professional will visit you
                         </SelectItem>
                       </SelectContent>
                     </Select>
@@ -319,7 +319,7 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
                   disabled={
                     sending ||
                     !newProposalSlot ||
-                    (specialistVenue === "both" && !selectedVenue)
+                    (professionalVenue === "both" && !selectedVenue)
                   }
                   className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white"
                 >

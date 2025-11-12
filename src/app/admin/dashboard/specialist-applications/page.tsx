@@ -98,7 +98,7 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-export default function SpecialistApplicationsPage() {
+export default function ProfessionalApplicationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
   const [statusFilter, setStatusFilter] = useState<ProStatus | "all">("all");
   const [applications, setApplications] = useState<Application[]>([]);
@@ -113,7 +113,7 @@ export default function SpecialistApplicationsPage() {
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (searchTerm) params.set("search", searchTerm);
 
-      const res = await fetch(`/api/specialists/application?${params}`, {
+      const res = await fetch(`/api/professionals/application?${params}`, {
         credentials: "include",
       });
       if (!res.ok) {
@@ -285,7 +285,7 @@ export default function SpecialistApplicationsPage() {
                         className="mt-2 border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
                       >
                         <Link
-                          href={`/admin/dashboard/specialist-applications/${app.id}`}
+                          href={`/admin/dashboard/professional-applications/${app.id}`}
                         >
                           View Details
                         </Link>

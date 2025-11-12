@@ -12,7 +12,7 @@ interface MessageInputProps {
   handleSend: () => void;
   handleFileChange: (e: React.ChangeEvent<HTMLInputElement>) => void;
   sending: boolean;
-  isSpecialist: boolean;
+  isProfessional: boolean;
   setIsProposalDialogOpen: (value: boolean) => void;
 }
 
@@ -24,7 +24,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
   handleSend,
   handleFileChange,
   sending,
-  isSpecialist,
+  isProfessional,
   setIsProposalDialogOpen,
 }) => {
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -53,7 +53,7 @@ const MessageInput: React.FC<MessageInputProps> = ({
       )}
 
       <div className="flex items-center space-x-2 w-full">
-        {isSpecialist && (
+        {isProfessional && (
           <Button
             variant="outline"
             size="icon"

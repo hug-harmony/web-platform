@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth";
 
 export async function GET(
   req: Request,
-  { params }: { params: Promise<{ specialistId: string }> }
+  { params }: { params: Promise<{ professionalId: string }> }
 ) {
   try {
     const session = await getServerSession(authOptions);
@@ -17,17 +17,17 @@ export async function GET(
       );
     }
 
-    const { specialistId } = await params;
-    if (!specialistId || !/^[0-9a-fA-F]{24}$/.test(specialistId)) {
+    const { professionalId } = await params;
+    if (!professionalId || !/^[0-9a-fA-F]{24}$/.test(professionalId)) {
       return NextResponse.json(
-        { error: "Invalid specialist ID" },
+        { error: "Invalid professional ID" },
         { status: 400 }
       );
     }
 
-    //     // Check if the user is the specialist
-    //     const application = await prisma.specialistApplication.findFirst({
-    //       where: { specialistId, userId: session.user.id, status: "approved" },
+    //     // Check if the user is the professional
+    //     const application = await prisma.professionalApplication.findFirst({
+    //       where: { professionalId, userId: session.user.id, status: "approved" },
     //     });
 
     //     if (!application) {
@@ -38,8 +38,8 @@ export async function GET(
     //     }
 
     const discounts = await prisma.discount.findMany({
-      where: { specialistId },
-      include: { specialist: { select: { id: true, name: true } } },
+      where: { professionalId },
+      include: { professional: { select: { id: true, name: true } } },
       orderBy: { createdAt: "desc" },
     });
 
@@ -49,9 +49,9 @@ export async function GET(
         name: discount.name,
         rate: discount.rate,
         discount: discount.discount,
-        specialist: {
-          id: discount.specialist.id,
-          name: discount.specialist.name,
+        professional: {
+          id: discount.professional.id,
+          name: discount.professional.name,
         },
         createdAt: discount.createdAt,
         updatedAt: discount.updatedAt,

@@ -50,8 +50,8 @@ interface Conversation {
     lastName?: string | null;
     profileImage?: string | null;
   } | null;
-  specialist1?: { id: string; name: string; image?: string | null } | null;
-  specialist2?: { id: string; name: string; image?: string | null } | null;
+  professional1?: { id: string; name: string; image?: string | null } | null;
+  professional2?: { id: string; name: string; image?: string | null } | null;
   lastMessage?: { text: string; createdAt: string } | null;
   messageCount: number;
 }
@@ -59,7 +59,7 @@ interface Conversation {
 interface Appointment {
   _id: string;
   name: string;
-  specialistName: string;
+  professionalName: string;
   date: string;
   time: string;
   location: string;
@@ -67,7 +67,7 @@ interface Appointment {
   rating?: number | null;
   reviewCount?: number | null;
   rate?: number | null;
-  specialistId: string;
+  professionalId: string;
 }
 
 // Animation variants
@@ -184,8 +184,9 @@ export default function HomePage() {
             ? apptData.map((appt: any) => ({
                 _id: appt._id || "",
                 name: appt.name || "Unknown",
-                specialistId: appt.specialistId || "",
-                specialistName: appt.specialistName || "Unknown Specialist",
+                professionalId: appt.professionalId || "",
+                professionalName:
+                  appt.professionalName || "Unknown Professional",
                 date: appt.date || "",
                 time: appt.time || "",
                 location: appt.location || "Unknown",
@@ -395,7 +396,7 @@ export default function HomePage() {
       <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
         {[
           {
-            href: "/dashboard/specialists",
+            href: "/dashboard/professionals",
             label: "Find a Professional",
             icon: <UserStar className="h-8 w-8 text-[#F3CFC6]" />,
             description: "Connect with certified professionals.",
@@ -458,41 +459,45 @@ export default function HomePage() {
                     const unread = conv.messageCount > 0;
 
                     if (conv.user1?.id === session?.user.id) {
-                      otherParticipant = conv.user2 || conv.specialist2 || null;
+                      otherParticipant =
+                        conv.user2 || conv.professional2 || null;
                       name = conv.user2
                         ? `${conv.user2.firstName || ""} ${conv.user2.lastName || ""}`.trim() ||
                           "Unknown User"
-                        : conv.specialist2?.name || "Unknown Specialist";
+                        : conv.professional2?.name || "Unknown Professional";
                       profileImage = conv.user2
                         ? conv.user2.profileImage
-                        : conv.specialist2?.image;
+                        : conv.professional2?.image;
                     } else if (conv.user2?.id === session?.user.id) {
-                      otherParticipant = conv.user1 || conv.specialist1 || null;
+                      otherParticipant =
+                        conv.user1 || conv.professional1 || null;
                       name = conv.user1
                         ? `${conv.user1.firstName || ""} ${conv.user1.lastName || ""}`.trim() ||
                           "Unknown User"
-                        : conv.specialist1?.name || "Unknown Specialist";
+                        : conv.professional1?.name || "Unknown Professional";
                       profileImage = conv.user1
                         ? conv.user1.profileImage
-                        : conv.specialist1?.image;
-                    } else if (conv.specialist1?.id === session?.user.id) {
-                      otherParticipant = conv.user2 || conv.specialist2 || null;
+                        : conv.professional1?.image;
+                    } else if (conv.professional1?.id === session?.user.id) {
+                      otherParticipant =
+                        conv.user2 || conv.professional2 || null;
                       name = conv.user2
                         ? `${conv.user2.firstName || ""} ${conv.user2.lastName || ""}`.trim() ||
                           "Unknown User"
-                        : conv.specialist2?.name || "Unknown Specialist";
+                        : conv.professional2?.name || "Unknown Professional";
                       profileImage = conv.user2
                         ? conv.user2.profileImage
-                        : conv.specialist2?.image;
-                    } else if (conv.specialist2?.id === session?.user.id) {
-                      otherParticipant = conv.user1 || conv.specialist1 || null;
+                        : conv.professional2?.image;
+                    } else if (conv.professional2?.id === session?.user.id) {
+                      otherParticipant =
+                        conv.user1 || conv.professional1 || null;
                       name = conv.user1
                         ? `${conv.user1.firstName || ""} ${conv.user1.lastName || ""}`.trim() ||
                           "Unknown User"
-                        : conv.specialist1?.name || "Unknown Specialist";
+                        : conv.professional1?.name || "Unknown Professional";
                       profileImage = conv.user1
                         ? conv.user1.profileImage
-                        : conv.specialist1?.image;
+                        : conv.professional1?.image;
                     } else {
                       otherParticipant = null;
                       name = "Unknown Participant";
@@ -593,7 +598,7 @@ export default function HomePage() {
                       >
                         <div>
                           <p className="font-semibold text-black dark:text-white">
-                            {appt.specialistName}
+                            {appt.professionalName}
                           </p>
                           <p className="text-sm text-[#C4C4C4]">
                             {appt.date} at {appt.time} - {appt.location}
@@ -630,7 +635,7 @@ export default function HomePage() {
                       >
                         <div>
                           <p className="font-semibold text-black dark:text-white">
-                            {appt.specialistName}
+                            {appt.professionalName}
                           </p>
                           <p className="text-sm text-[#C4C4C4]">
                             {appt.date} at {appt.time} - {appt.location}

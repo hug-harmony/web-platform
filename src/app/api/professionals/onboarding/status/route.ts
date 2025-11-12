@@ -12,7 +12,7 @@ export async function GET() {
 
     const userId = session.user.id;
 
-    const application = await prisma.specialistApplication.findUnique({
+    const application = await prisma.professionalApplication.findUnique({
       where: { userId },
       select: {
         id: true,
@@ -20,7 +20,7 @@ export async function GET() {
         submittedAt: true,
         videoWatchedAt: true,
         quizPassedAt: true,
-        specialistId: true,
+        professionalId: true,
       },
     });
 
@@ -54,7 +54,7 @@ export async function GET() {
         submittedAt: application.submittedAt,
         videoWatchedAt: application.videoWatchedAt,
         quizPassedAt: application.quizPassedAt,
-        specialistId: application.specialistId,
+        professionalId: application.professionalId,
       },
       video,
     });
@@ -79,7 +79,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "Missing fields" }, { status: 400 });
     }
 
-    await prisma.specialistApplication.update({
+    await prisma.professionalApplication.update({
       where: { id },
       data: { status },
     });

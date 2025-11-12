@@ -11,14 +11,14 @@ export async function GET(req: Request) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const application = await prisma.specialistApplication.findFirst({
+    const application = await prisma.professionalApplication.findFirst({
       where: { userId: session.user.id },
-      select: { status: true, specialistId: true },
+      select: { status: true, professionalId: true },
     });
 
     return NextResponse.json({
       status: application?.status || "none",
-      specialistId: application?.specialistId || null,
+      professionalId: application?.professionalId || null,
     });
   } catch (error: unknown) {
     console.error("Error fetching user application:", error);

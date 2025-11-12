@@ -9,19 +9,19 @@ import { format } from "date-fns";
 interface Proposal {
   id: string;
   userId: string;
-  specialistId: string;
+  professionalId: string;
   startTime: string; // UPDATED
   endTime: string; // UPDATED
   status: "pending" | "accepted" | "rejected";
   conversationId: string;
   user: { name: string };
-  specialist: { name: string; rate: number };
+  professional: { name: string; rate: number };
 }
 
 interface ProposalCardProps {
   proposal: Proposal;
   isReceived: boolean;
-  isSpecialist: boolean;
+  isProfessional: boolean;
   onStatusUpdate: (proposalId: string, status: "accepted" | "rejected") => void;
   onViewConversation: (conversationId: string) => void;
 }
@@ -34,7 +34,7 @@ const itemVariants = {
 export default function ProposalCard({
   proposal,
   isReceived,
-  isSpecialist,
+  isProfessional,
   onStatusUpdate,
   onViewConversation,
 }: ProposalCardProps) {
@@ -44,11 +44,11 @@ export default function ProposalCard({
         <CardContent className="p-4">
           <div className="space-y-2">
             <p className="text-lg font-medium text-black dark:text-white">
-              {isSpecialist && isReceived
-                ? `From: ${proposal.specialist.name}`
-                : isSpecialist
+              {isProfessional && isReceived
+                ? `From: ${proposal.professional.name}`
+                : isProfessional
                   ? `To: ${proposal.user.name}`
-                  : `From: ${proposal.specialist.name}`}
+                  : `From: ${proposal.professional.name}`}
             </p>
             <p className="text-sm text-[#C4C4C4]">
               Date: {format(new Date(proposal.startTime), "MMMM d, yyyy")}
@@ -62,9 +62,9 @@ export default function ProposalCard({
               {proposal.status.charAt(0).toUpperCase() +
                 proposal.status.slice(1)}
             </p>
-            {isSpecialist && (
+            {isProfessional && (
               <p className="text-sm text-[#C4C4C4]">
-                Amount: ${proposal.specialist.rate.toFixed(2)}
+                Amount: ${proposal.professional.rate.toFixed(2)}
               </p>
             )}
             <div className="flex space-x-2 mt-2">

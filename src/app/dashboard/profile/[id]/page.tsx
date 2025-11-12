@@ -42,7 +42,7 @@ interface OnboardingStatus {
     submittedAt?: string;
     videoWatchedAt?: string;
     quizPassedAt?: string;
-    specialistId?: string;
+    professionalId?: string;
   };
   video?: {
     watchedSec: number;
@@ -61,7 +61,7 @@ interface Profile {
   location?: string | null;
   biography?: string | null;
   email: string;
-  type: "user" | "specialist";
+  type: "user" | "professional";
   rating?: number | null;
   reviewCount?: number | null;
   rate?: number | null;
@@ -95,13 +95,13 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [onboarding, setOnboarding] = useState<OnboardingStatus | null>(null);
   const [isEditing, setIsEditing] = useState(false);
-  const [isEditingSpecialist, setIsEditingSpecialist] = useState(false);
+  const [isEditingProfessional, setIsEditingProfessional] = useState(false);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState(false);
-  const [updatingSpecialist, setUpdatingSpecialist] = useState(false);
+  const [updatingProfessional, setUpdatingProfessional] = useState(false);
   const [selectedFile, setSelectedFile] = useState<File | null>(null);
-  const [isSpecialist, setIsSpecialist] = useState(false);
-  const [specialistId, setSpecialistId] = useState<string | null>(null);
+  const [isProfessional, setIsProfessional] = useState(false);
+  const [professionalId, setProfessionalId] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
   const [locationSuggestions, setLocationSuggestions] = useState<
     LocationSuggestion[]
@@ -236,21 +236,21 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
             const data = await statusRes.json();
             setOnboarding(data);
 
-            // If approved, load specialist details
-            if (data.step === "APPROVED" && data.application?.specialistId) {
+            // If approved, load professional details
+            if (data.step === "APPROVED" && data.application?.professionalId) {
               const specRes = await fetch(
-                `/api/specialists/${data.application.specialistId}`,
+                `/api/professionals/${data.application.professionalId}`,
                 { credentials: "include" }
               );
               if (specRes.ok) {
                 const spec = await specRes.json();
-                setIsSpecialist(true);
-                setSpecialistId(spec.id);
+                setIsProfessional(true);
+                setProfessionalId(spec.id);
                 setProfile((p) =>
                   p
                     ? {
                         ...p,
-                        type: "specialist",
+                        type: "professional",
                         biography: spec.biography,
                         rate: spec.rate,
                         venue: spec.venue,
@@ -277,8 +277,8 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
     const own = session?.user?.id === profile?.id;
     if (!own) return null;
 
-    // APPROVED → show specialist management
-    if (onboarding?.step === "APPROVED" && specialistId) {
+    // APPROVED → show professional management
+    if (onboarding?.step === "APPROVED" && professionalId) {
       return (
         <div className="flex gap-2">
           <motion.div
@@ -292,7 +292,9 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
             <Button
               variant="outline"
               onClick={() =>
-                router.push(`/dashboard/discounts?specialistId=${specialistId}`)
+                router.push(
+                  `/dashboard/discounts?professionalId=${professionalId}`
+                )
               }
               className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
             >
@@ -311,7 +313,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
               variant="outline"
               onClick={() =>
                 router.push(
-                  `/dashboard/availability?specialistId=${specialistId}`
+                  `/dashboard/availability?professionalId=${professionalId}`
                 )
               }
               className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
@@ -404,7 +406,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
     return errors;
   };
 
-  const validateSpecialistProfileForm = async (form: FormData) => {
+  const validateProfessionalProfileForm = async (form: FormData) => {
     const errors: Record<string, string> = {};
     const biography = form.get("biography")?.toString().trim() ?? "";
     const rateStr = form.get("rate")?.toString() ?? "";
@@ -508,17 +510,17 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
     }
   };
 
-  const handleUpdateSpecialist = async (
+  const handleUpdateProfessional = async (
     e: React.FormEvent<HTMLFormElement>
   ) => {
     e.preventDefault();
-    setUpdatingSpecialist(true);
+    setUpdatingProfessional(true);
     const form = new FormData(e.currentTarget);
-    const errors = await validateSpecialistProfileForm(form);
+    const errors = await validateProfessionalProfileForm(form);
     if (Object.keys(errors).length) {
       setFormErrors(errors);
-      toast.error("Fix specialist form errors");
-      setUpdatingSpecialist(false);
+      toast.error("Fix professional form errors");
+      setUpdatingProfessional(false);
       return;
     }
 
@@ -533,7 +535,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
           | null,
       };
 
-      const res = await fetch(`/api/specialists/${specialistId}`, {
+      const res = await fetch(`/api/professionals/${professionalId}`, {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
@@ -555,12 +557,12 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
             }
           : p
       );
-      toast.success("Specialist profile updated");
-      setIsEditingSpecialist(false);
+      toast.success("Professional profile updated");
+      setIsEditingProfessional(false);
     } catch (err) {
       toast.error(err instanceof Error ? err.message : "Failed");
     } finally {
-      setUpdatingSpecialist(false);
+      setUpdatingProfessional(false);
     }
   };
 
@@ -604,7 +606,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
                   {profile.name ?? "User"}
                 </CardTitle>
                 <p className="text-black text-sm">{profile.email}</p>
-                {isSpecialist && (
+                {isProfessional && (
                   <span className="mt-1 inline-block bg-black text-[#F3CFC6] text-xs font-medium px-2 py-1 rounded">
                     Professional
                   </span>
@@ -1224,16 +1226,19 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
             </CardContent>
           </Card>
 
-          {/* SPECIALIST PROFILE (only when approved) */}
-          {isSpecialist && (
+          {/* PROFESSIONAL PROFILE (only when approved) */}
+          {isProfessional && (
             <Card className="flex-1">
               <CardContent className="space-y-4 pt-6">
                 <h2 className="text-xl text-black dark:text-white">
                   Professional Profile Details
                 </h2>
 
-                {isEditingSpecialist ? (
-                  <form onSubmit={handleUpdateSpecialist} className="space-y-4">
+                {isEditingProfessional ? (
+                  <form
+                    onSubmit={handleUpdateProfessional}
+                    className="space-y-4"
+                  >
                     <div className="space-y-2">
                       <Label
                         htmlFor="biography"
@@ -1248,7 +1253,9 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
                         onChange={(e) =>
                           setProfile({ ...profile, biography: e.target.value })
                         }
-                        disabled={!isEditingSpecialist || updatingSpecialist}
+                        disabled={
+                          !isEditingProfessional || updatingProfessional
+                        }
                         className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
                         maxLength={500}
                         required
@@ -1278,7 +1285,9 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
                             rate: parseFloat(e.target.value) || null,
                           })
                         }
-                        disabled={!isEditingSpecialist || updatingSpecialist}
+                        disabled={
+                          !isEditingProfessional || updatingProfessional
+                        }
                         className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
                         min={0}
                         max={10000}
@@ -1305,7 +1314,9 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
                         onValueChange={(v) =>
                           setProfile({ ...profile, venue: v as any })
                         }
-                        disabled={!isEditingSpecialist || updatingSpecialist}
+                        disabled={
+                          !isEditingProfessional || updatingProfessional
+                        }
                       >
                         <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
                           <SelectValue placeholder="Select…" />
@@ -1327,18 +1338,22 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
                       <Button
                         variant="outline"
                         type="button"
-                        onClick={() => setIsEditingSpecialist(false)}
-                        disabled={!isEditingSpecialist || updatingSpecialist}
+                        onClick={() => setIsEditingProfessional(false)}
+                        disabled={
+                          !isEditingProfessional || updatingProfessional
+                        }
                         className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
                       >
                         Cancel
                       </Button>
                       <Button
                         type="submit"
-                        disabled={!isEditingSpecialist || updatingSpecialist}
+                        disabled={
+                          !isEditingProfessional || updatingProfessional
+                        }
                         className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white rounded-full"
                       >
-                        {updatingSpecialist
+                        {updatingProfessional
                           ? "Saving..."
                           : "Save Professional Details"}
                       </Button>
@@ -1375,7 +1390,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
                     {ownProfile && (
                       <Button
                         variant="outline"
-                        onClick={() => setIsEditingSpecialist(true)}
+                        onClick={() => setIsEditingProfessional(true)}
                         className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
                       >
                         Edit Professional Details

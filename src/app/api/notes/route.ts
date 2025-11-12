@@ -8,11 +8,11 @@ import { z } from "zod";
 const schema = z
   .object({
     targetUserId: z.string().optional(),
-    targetSpecialistId: z.string().optional(),
+    targetProfessionalId: z.string().optional(),
     content: z.string().min(1, "Content is required"),
   })
-  .refine((data) => data.targetUserId || data.targetSpecialistId, {
-    message: "Either targetUserId or targetSpecialistId is required",
+  .refine((data) => data.targetUserId || data.targetProfessionalId, {
+    message: "Either targetUserId or targetProfessionalId is required",
   });
 
 export async function POST(request: NextRequest) {
@@ -27,7 +27,7 @@ export async function POST(request: NextRequest) {
       data: {
         authorId: session.user.id,
         targetUserId: data.targetUserId,
-        targetSpecialistId: data.targetSpecialistId,
+        targetProfessionalId: data.targetProfessionalId,
         content: data.content,
       },
     });
@@ -60,7 +60,7 @@ export async function GET(request: NextRequest) {
       if (targetType === "user") {
         whereClause.targetUserId = targetId;
       } else if (targetType === "professional") {
-        whereClause.targetSpecialistId = targetId;
+        whereClause.targetProfessionalId = targetId;
       }
     }
 
@@ -68,7 +68,7 @@ export async function GET(request: NextRequest) {
       where: whereClause,
       include: {
         targetUser: { select: { name: true } },
-        targetSpecialist: { select: { name: true } },
+        targetProfessional: { select: { name: true } },
       },
       orderBy: { createdAt: "desc" },
     });
@@ -79,8 +79,8 @@ export async function GET(request: NextRequest) {
       createdAt: note.createdAt.toISOString(),
       targetType: note.targetUserId ? "user" : "professional",
       targetName:
-        note.targetUser?.name || note.targetSpecialist?.name || "Unknown",
-      targetId: note.targetUserId || note.targetSpecialistId || "",
+        note.targetUser?.name || note.targetProfessional?.name || "Unknown",
+      targetId: note.targetUserId || note.targetProfessionalId || "",
     }));
 
     return NextResponse.json(formattedNotes);

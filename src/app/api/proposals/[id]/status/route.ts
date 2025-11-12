@@ -26,7 +26,7 @@ export async function PATCH(
   try {
     const proposal = await prisma.proposal.findUnique({
       where: { id },
-      include: { conversation: true, user: true, specialist: true },
+      include: { conversation: true, user: true, professional: true },
     });
 
     if (!proposal) {
@@ -43,14 +43,14 @@ export async function PATCH(
       );
     }
 
-    const specialistApp = await prisma.specialistApplication.findFirst({
-      where: { specialistId: proposal.specialistId, status: "APPROVED" },
+    const professionalApp = await prisma.professionalApplication.findFirst({
+      where: { professionalId: proposal.professionalId, status: "APPROVED" },
     });
 
-    const isUserResponder = proposal.initiator === "specialist";
+    const isUserResponder = proposal.initiator === "professional";
     const isValidUpdater = isUserResponder
       ? proposal.userId === session.user.id
-      : specialistApp?.userId === session.user.id;
+      : professionalApp?.userId === session.user.id;
 
     if (!isValidUpdater) {
       return NextResponse.json({ error: "Forbidden" }, { status: 403 });
@@ -63,7 +63,7 @@ export async function PATCH(
 
     const recipientId = isUserResponder
       ? proposal.userId
-      : specialistApp?.userId;
+      : professionalApp?.userId;
     if (!recipientId) {
       return NextResponse.json(
         { error: "Recipient not found" },
@@ -82,17 +82,17 @@ export async function PATCH(
         );
       }
 
-      // UPDATED: Use proposal's venue if set, else body or specialist default
+      // UPDATED: Use proposal's venue if set, else body or professional default
       let venueChoice: "host" | "visit" | undefined = proposal.venue || venue;
 
       if (!venueChoice) {
-        if (proposal.specialist.venue === "both") {
+        if (proposal.professional.venue === "both") {
           return NextResponse.json(
             { error: "Venue is required" },
             { status: 400 }
           );
         } else {
-          venueChoice = proposal.specialist.venue as "host" | "visit"; // Type assertion: Safe because we've checked it's not "both"
+          venueChoice = proposal.professional.venue as "host" | "visit"; // Type assertion: Safe because we've checked it's not "both"
         }
       }
 
@@ -100,12 +100,12 @@ export async function PATCH(
       const appointment = await prisma.appointment.create({
         data: {
           userId: proposal.userId,
-          specialistId: proposal.specialistId,
+          professionalId: proposal.professionalId,
           startTime: proposal.startTime, // Now safe: non-null
           endTime: proposal.endTime, // Now safe: non-null
           status: "pending", // UPDATED: "pending" for payment
           venue: venueChoice,
-          rate: proposal.specialist.rate, // Assume rate is available
+          rate: proposal.professional.rate, // Assume rate is available
         },
       });
       appointmentId = appointment.id;

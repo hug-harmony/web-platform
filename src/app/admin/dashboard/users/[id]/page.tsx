@@ -25,7 +25,7 @@ interface User {
 
 interface Appointment {
   _id: string;
-  specialistName: string;
+  professionalName: string;
   date: string;
   time: string;
   location: string;
@@ -34,7 +34,7 @@ interface Appointment {
 
 interface VideoSession {
   _id: string;
-  specialistName: string;
+  professionalName: string;
   date: string;
   time: string;
   status: "upcoming" | "completed" | "cancelled";
@@ -58,14 +58,14 @@ const itemVariants = {
 const dummyVideoSessions: VideoSession[] = [
   {
     _id: "vid_1",
-    specialistName: "Dr. Sarah",
+    professionalName: "Dr. Sarah",
     date: "2025-08-10",
     time: "14:00",
     status: "completed",
   },
   {
     _id: "vid_2",
-    specialistName: "Dr. John",
+    professionalName: "Dr. John",
     date: "2025-08-12",
     time: "10:30",
     status: "upcoming",
@@ -272,7 +272,7 @@ export default function UserDetailPage() {
                       >
                         <p className="flex items-center text-black dark:text-white">
                           <Calendar className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                          {appt.specialistName} - {appt.date} {appt.time} (
+                          {appt.professionalName} - {appt.date} {appt.time} (
                           {appt.status})
                         </p>
                       </motion.div>
@@ -297,7 +297,7 @@ export default function UserDetailPage() {
                       >
                         <p className="flex items-center text-black dark:text-white">
                           <Video className="mr-2 h-4 w-4 text-[#F3CFC6]" />
-                          {session.specialistName} - {session.date}{" "}
+                          {session.professionalName} - {session.date}{" "}
                           {session.time} ({session.status})
                         </p>
                       </motion.div>

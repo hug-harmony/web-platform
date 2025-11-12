@@ -2,7 +2,7 @@
 import prisma from "@/lib/prisma";
 
 /**
- * Send a system message between client and specialist
+ * Send a system message between client and professional
  */
 export async function sendSystemMessage({
   conversationId,

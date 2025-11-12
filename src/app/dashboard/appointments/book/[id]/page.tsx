@@ -100,8 +100,8 @@ const BookingPage: React.FC = () => {
     if (!therapistId) return;
     const fetchTherapist = async () => {
       try {
-        const res = await fetch(`/api/specialists?id=${therapistId}`);
-        if (!res.ok) throw new Error("Failed to fetch specialist");
+        const res = await fetch(`/api/professionals?id=${therapistId}`);
+        if (!res.ok) throw new Error("Failed to fetch professional");
         const data = await res.json();
         setTherapist(data);
         if (data.venue !== "both") setSelectedVenue(data.venue);
@@ -122,7 +122,7 @@ const BookingPage: React.FC = () => {
 
       try {
         const res = await fetch(
-          `/api/specialists/schedule?specialistId=${therapistId}&startDate=${format(start, "yyyy-MM-dd")}&endDate=${format(end, "yyyy-MM-dd")}`
+          `/api/professionals/schedule?professionalId=${therapistId}&startDate=${format(start, "yyyy-MM-dd")}&endDate=${format(end, "yyyy-MM-dd")}`
         );
         if (!res.ok) throw new Error("Failed to load schedule.");
         const { events, workingHours: fetched } = await res.json();
@@ -228,7 +228,7 @@ const BookingPage: React.FC = () => {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            specialistId: therapistId,
+            professionalId: therapistId,
             startTime: newBookingSlot.start.toISOString(),
             endTime: newBookingSlot.end.toISOString(),
             venue: selectedVenue,
@@ -238,16 +238,16 @@ const BookingPage: React.FC = () => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to send request.");
 
-        toast.success("Appointment request sent to specialist for approval.");
+        toast.success("Appointment request sent to professional for approval.");
         // NEW: Redirect to chat using returned conversationId
         router.push(`/messages/${data.conversationId}`); // Adjust path to your chat route
       } else {
         // Existing: Direct booking
-        const res = await fetch("/api/specialists/booking", {
+        const res = await fetch("/api/professionals/booking", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
-            specialistId: therapistId,
+            professionalId: therapistId,
             userId: session.user.id,
             startTime: newBookingSlot.start.toISOString(),
             endTime: newBookingSlot.end.toISOString(),
@@ -389,7 +389,7 @@ const BookingPage: React.FC = () => {
           </CardTitle>
           <p className="text-sm text-black">
             Click for 1-hour, drag for custom. 30-min buffer added. Slots within
-            24 hours require specialist approval.
+            24 hours require professional approval.
           </p>{" "}
           {/* UPDATED: Added note about 24h rule */}
         </CardHeader>
@@ -456,14 +456,14 @@ const BookingPage: React.FC = () => {
             {/* UPDATED: Dynamic description based on mode */}
             <DialogDescription>
               {isRequestMode
-                ? "This slot is within 24 hours—request will be sent for specialist approval."
+                ? "This slot is within 24 hours—request will be sent for professional approval."
                 : "Review booking details."}
             </DialogDescription>
           </DialogHeader>
           {newBookingSlot && therapist && (
             <div className="py-4 space-y-4">
               <div>
-                <p className="font-medium">Specialist: {therapist.name}</p>
+                <p className="font-medium">Professional: {therapist.name}</p>
                 <p>
                   <strong>Date:</strong>{" "}
                   {format(newBookingSlot.start, "MMMM d, yyyy")}
@@ -498,8 +498,8 @@ const BookingPage: React.FC = () => {
                       <SelectValue placeholder="Select..." />
                     </SelectTrigger>
                     <SelectContent>
-                      <SelectItem value="host">Specialist hosts</SelectItem>
-                      <SelectItem value="visit">Specialist visits</SelectItem>
+                      <SelectItem value="host">Professional hosts</SelectItem>
+                      <SelectItem value="visit">Professional visits</SelectItem>
                     </SelectContent>
                   </Select>
                 </div>

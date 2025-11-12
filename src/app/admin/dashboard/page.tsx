@@ -40,16 +40,16 @@ export default function AdminDashboardPage() {
       description: "Manage registered users and their profiles.",
     },
     {
-      href: "/admin/dashboard/specialists",
+      href: "/admin/dashboard/professionals",
       label: "Professionals",
       icon: <UserCheck className="h-8 w-8 text-[#F3CFC6]" />,
-      description: "View and edit specialist details.",
+      description: "View and edit professional details.",
     },
     {
-      href: "/admin/dashboard/specialist-applications",
+      href: "/admin/dashboard/professional-applications",
       label: "Applications",
       icon: <UserCheck className="h-8 w-8 text-[#F3CFC6]" />,
-      description: "Review specialist applications.",
+      description: "Review professional applications.",
     },
     {
       href: "/admin/dashboard/stats",

@@ -17,11 +17,11 @@ type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
     adjustedRate: true;
     rate: true;
     userId: true;
-    specialistId: true;
+    professionalId: true;
     disputeStatus: true;
     venue: true;
     user: { select: { id: true; name: true; firstName: true; lastName: true } };
-    specialist: {
+    professional: {
       select: {
         name: true;
         rating: true;
@@ -46,20 +46,21 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const specialistApplication = await prisma.specialistApplication.findFirst({
-      where: { userId: session.user.id, status: "APPROVED" },
-      select: { specialistId: true },
-    });
-    if (!specialistApplication?.specialistId) {
+    const professionalApplication =
+      await prisma.professionalApplication.findFirst({
+        where: { userId: session.user.id, status: "APPROVED" },
+        select: { professionalId: true },
+      });
+    if (!professionalApplication?.professionalId) {
       return NextResponse.json(
-        { error: "Forbidden: User is not a specialist" },
+        { error: "Forbidden: User is not a professional" },
         { status: 403 }
       );
     }
 
     const appointments: AppointmentWithRelations[] =
       await prisma.appointment.findMany({
-        where: { specialistId: specialistApplication.specialistId },
+        where: { professionalId: professionalApplication.professionalId },
         select: {
           id: true,
           startTime: true, // UPDATED
@@ -68,13 +69,13 @@ export async function GET() {
           adjustedRate: true,
           rate: true,
           userId: true,
-          specialistId: true,
+          professionalId: true,
           disputeStatus: true,
           venue: true,
           user: {
             select: { id: true, name: true, firstName: true, lastName: true },
           },
-          specialist: {
+          professional: {
             select: {
               name: true,
               rating: true,
@@ -126,21 +127,21 @@ export async function GET() {
           clientName: appt.user
             ? buildDisplayName(appt.user)
             : "Unknown Client",
-          specialistId: appt.specialistId,
+          professionalId: appt.professionalId,
           // This logic remains the same
-          specialistName:
-            appt.specialist?.name ||
-            (appt.specialist?.application?.user
-              ? buildDisplayName(appt.specialist.application.user)
-              : "Unknown Specialist"),
+          professionalName:
+            appt.professional?.name ||
+            (appt.professional?.application?.user
+              ? buildDisplayName(appt.professional.application.user)
+              : "Unknown Professional"),
           startTime: appt.startTime.toISOString(), // UPDATED
           endTime: appt.endTime.toISOString(), // UPDATED
           status: effectiveStatus,
-          rating: appt.specialist?.rating ?? 0,
-          reviewCount: appt.specialist?.reviewCount ?? 0,
-          rate: appt.adjustedRate ?? appt.rate ?? appt.specialist?.rate ?? 0,
+          rating: appt.professional?.rating ?? 0,
+          reviewCount: appt.professional?.reviewCount ?? 0,
+          rate: appt.adjustedRate ?? appt.rate ?? appt.professional?.rate ?? 0,
           venue: appt.venue,
-          specialistVenue: appt.specialist?.venue,
+          professionalVenue: appt.professional?.venue,
           clientId: appt.userId,
           disputeStatus: appt.disputeStatus || "none",
         };
@@ -148,7 +149,7 @@ export async function GET() {
     );
 
     console.log(
-      `Fetching client appointments for specialistId: ${specialistApplication.specialistId}, found: ${appointments.length}`
+      `Fetching client appointments for professionalId: ${professionalApplication.professionalId}, found: ${appointments.length}`
     );
 
     return NextResponse.json(formatted);

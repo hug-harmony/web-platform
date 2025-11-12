@@ -56,7 +56,7 @@ interface Profile {
 
 export default function Sidebar() {
   const [profile, setProfile] = useState<Profile | null>(null);
-  const [isSpecialist, setIsSpecialist] = useState(false);
+  const [isProfessional, setIsProfessional] = useState(false);
 
   const router = useRouter();
   const pathname = usePathname();
@@ -65,16 +65,16 @@ export default function Sidebar() {
 
   // === Fetch profile (non-blocking) ===
   useEffect(() => {
-    const fetchProfileAndSpecialistStatus = async () => {
+    const fetchProfileAndProfessionalStatus = async () => {
       if (!session?.user?.id) return;
 
       try {
-        const [profileRes, specialistRes] = await Promise.all([
+        const [profileRes, professionalRes] = await Promise.all([
           fetch(`/api/users/${session.user.id}`, {
             cache: "no-store",
             credentials: "include",
           }),
-          fetch("/api/specialists/application/me", {
+          fetch("/api/professionals/application/me", {
             cache: "no-store",
             credentials: "include",
           }),
@@ -95,9 +95,9 @@ export default function Sidebar() {
           });
         }
 
-        if (specialistRes.ok) {
-          const { status } = await specialistRes.json();
-          setIsSpecialist(status === "APPROVED");
+        if (professionalRes.ok) {
+          const { status } = await professionalRes.json();
+          setIsProfessional(status === "APPROVED");
         }
       } catch (error) {
         console.error("Fetch Error:", error);
@@ -105,7 +105,7 @@ export default function Sidebar() {
     };
 
     if (status === "authenticated") {
-      fetchProfileAndSpecialistStatus();
+      fetchProfileAndProfessionalStatus();
     }
   }, [session, status]);
 
@@ -131,7 +131,7 @@ export default function Sidebar() {
         icon: <User className="h-5 w-5" />,
       },
       {
-        href: "/dashboard/specialists",
+        href: "/dashboard/professionals",
         label: "Professionals",
         icon: <User className="h-5 w-5" />,
       },
@@ -186,7 +186,7 @@ export default function Sidebar() {
       //   icon: <Video className="h-5 w-5" />,
       // },
     ];
-    return isSpecialist
+    return isProfessional
       ? [
           ...base,
           {
@@ -196,7 +196,7 @@ export default function Sidebar() {
           },
         ]
       : base;
-  }, [user.id, isSpecialist]);
+  }, [user.id, isProfessional]);
 
   const isActive = (href: string) =>
     pathname === href ||
@@ -257,7 +257,7 @@ export default function Sidebar() {
                 >
                   <p className="font-semibold">{user.name}</p>
                   <p className="text-xs text-muted-foreground">{user.email}</p>
-                  {isSpecialist && (
+                  {isProfessional && (
                     <span className="mt-1 inline-block bg-black text-[#F3CFC6] text-xs font-medium px-2 py-1 rounded">
                       Professional
                     </span>

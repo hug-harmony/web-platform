@@ -22,7 +22,7 @@ export async function POST(req: Request) {
     const { answers } = submitSchema.parse(await req.json());
     const userId = session.user.id;
 
-    const app = await prisma.specialistApplication.findUnique({
+    const app = await prisma.professionalApplication.findUnique({
       where: { userId },
       select: { id: true, status: true },
     });
@@ -68,7 +68,7 @@ export async function POST(req: Request) {
       });
 
       const newStatus = passed ? "ADMIN_REVIEW" : "QUIZ_FAILED";
-      await tx.specialistApplication.update({
+      await tx.professionalApplication.update({
         where: { id: app.id },
         data: {
           status: newStatus,

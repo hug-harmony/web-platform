@@ -5,7 +5,7 @@ import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
+type ProfessionalWithRelations = Prisma.ProfessionalGetPayload<{
   select: {
     id: true;
     name: true;
@@ -32,7 +32,7 @@ type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
 }>;
 
 /* --------------------------------------------------------------
-   GET – fetch a specialist + metrics
+   GET – fetch a professional + metrics
    -------------------------------------------------------------- */
 export async function GET(
   request: Request,
@@ -51,13 +51,13 @@ export async function GET(
 
     if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
       return NextResponse.json(
-        { error: "Invalid specialist ID" },
+        { error: "Invalid professional ID" },
         { status: 400 }
       );
     }
 
-    const specialist: SpecialistWithRelations | null =
-      await prisma.specialist.findUnique({
+    const professional: ProfessionalWithRelations | null =
+      await prisma.professional.findUnique({
         where: { id },
         select: {
           id: true,
@@ -85,9 +85,9 @@ export async function GET(
         },
       });
 
-    if (!specialist) {
+    if (!professional) {
       return NextResponse.json(
-        { error: "Specialist not found" },
+        { error: "Professional not found" },
         { status: 404 }
       );
     }
@@ -95,7 +95,7 @@ export async function GET(
     // ----- metrics -----
     const completedAppointments = await prisma.appointment.findMany({
       where: {
-        specialistId: id,
+        professionalId: id,
         payment: { status: "successful" },
       },
       select: {
@@ -115,13 +115,13 @@ export async function GET(
     const companyCutPercentage = setting ? Number(setting.value) : 20;
 
     return NextResponse.json({
-      id: specialist.id,
-      name: specialist.name ?? "Unknown Specialist",
-      biography: specialist.biography ?? "",
-      location: specialist.application?.user?.location ?? "",
-      rate: specialist.rate ?? null,
-      createdAt: specialist.createdAt,
-      discounts: specialist.discounts.map((d) => ({
+      id: professional.id,
+      name: professional.name ?? "Unknown Professional",
+      biography: professional.biography ?? "",
+      location: professional.application?.user?.location ?? "",
+      rate: professional.rate ?? null,
+      createdAt: professional.createdAt,
+      discounts: professional.discounts.map((d) => ({
         id: d.id,
         name: d.name,
         rate: d.rate,
@@ -133,11 +133,11 @@ export async function GET(
         totalEarnings,
         companyCutPercentage,
         completedSessions,
-        hourlyRate: specialist.rate ?? 0,
+        hourlyRate: professional.rate ?? 0,
       },
     });
   } catch (error: any) {
-    console.error("Error fetching specialist:", error);
+    console.error("Error fetching professional:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }
@@ -161,15 +161,15 @@ export async function PATCH(
 
   if (!id) {
     return NextResponse.json(
-      { error: "Missing specialist ID" },
+      { error: "Missing professional ID" },
       { status: 400 }
     );
   }
 
   // ---- ownership check ----
-  const app = await prisma.specialistApplication.findFirst({
+  const app = await prisma.professionalApplication.findFirst({
     where: {
-      specialistId: id,
+      professionalId: id,
       userId: session.user.id,
     },
     select: { status: true },
@@ -177,7 +177,7 @@ export async function PATCH(
 
   if (!app || app.status !== "APPROVED") {
     return NextResponse.json(
-      { error: "Forbidden: Not an approved specialist" },
+      { error: "Forbidden: Not an approved professional" },
       { status: 403 }
     );
   }
@@ -214,7 +214,7 @@ export async function PATCH(
 
   // ---- update ----
   try {
-    const updated = await prisma.specialist.update({
+    const updated = await prisma.professional.update({
       where: { id },
       data: {
         biography: biography ?? undefined,
@@ -231,9 +231,9 @@ export async function PATCH(
 
     return NextResponse.json(updated);
   } catch (err) {
-    console.error("Error updating specialist:", err);
+    console.error("Error updating professional:", err);
     return NextResponse.json(
-      { error: "Failed to update specialist" },
+      { error: "Failed to update professional" },
       { status: 500 }
     );
   }

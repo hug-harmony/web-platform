@@ -150,7 +150,7 @@ export async function PATCH(req: Request) {
 
     const user = await prisma.user.findUnique({
       where: { id },
-      include: { specialistApplication: { include: { specialist: true } } },
+      include: { professionalApplication: { include: { professional: true } } },
     });
     if (!user)
       return NextResponse.json({ error: "User not found" }, { status: 404 });
@@ -213,26 +213,26 @@ export async function PATCH(req: Request) {
       },
     });
 
-    // === UPDATE SPECIALIST (AFTER USER) ===
-    const hasSpecialistUpdates =
+    // === UPDATE PROFESSIONAL (AFTER USER) ===
+    const hasProfessionalUpdates =
       validatedData.name ||
       validatedData.profileImage !== undefined ||
       validatedData.biography ||
       validatedData.location;
 
-    if (user.specialistApplication?.specialist && hasSpecialistUpdates) {
-      const specialistUpdate: any = {};
-      if (validatedData.name) specialistUpdate.name = validatedData.name;
+    if (user.professionalApplication?.professional && hasProfessionalUpdates) {
+      const professionalUpdate: any = {};
+      if (validatedData.name) professionalUpdate.name = validatedData.name;
       if (validatedData.profileImage !== undefined)
-        specialistUpdate.image = validatedData.profileImage;
+        professionalUpdate.image = validatedData.profileImage;
       if (validatedData.biography)
-        specialistUpdate.biography = validatedData.biography;
+        professionalUpdate.biography = validatedData.biography;
       if (validatedData.location)
-        specialistUpdate.location = validatedData.location;
+        professionalUpdate.location = validatedData.location;
 
-      await prisma.specialist.update({
-        where: { id: user.specialistApplication.specialistId! },
-        data: specialistUpdate,
+      await prisma.professional.update({
+        where: { id: user.professionalApplication.professionalId! },
+        data: professionalUpdate,
       });
     }
 

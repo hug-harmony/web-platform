@@ -42,7 +42,7 @@ const cardVariants = {
 function DiscountsContent() {
   const { status } = useSession();
   const searchParams = useSearchParams();
-  const specialistId = searchParams.get("specialistId");
+  const professionalId = searchParams.get("professionalId");
   const [discounts, setDiscounts] = useState<Discount[]>([]);
   const [loading, setLoading] = useState(true);
   const [isDialogOpen, setIsDialogOpen] = useState(false);
@@ -58,9 +58,9 @@ function DiscountsContent() {
       redirect("/login");
     }
 
-    const fetchSpecialistData = async () => {
-      if (!specialistId) {
-        toast.error("You are not an approved specialist.");
+    const fetchProfessionalData = async () => {
+      if (!professionalId) {
+        toast.error("You are not an approved professional.");
         redirect("/dashboard");
       }
 
@@ -71,27 +71,30 @@ function DiscountsContent() {
           throw new Error("Failed to fetch user data");
         }
         const userData = await res.json();
-        const application = userData.specialistApplication;
+        const application = userData.professionalApplication;
         if (
           application?.status !== "APPROVED" ||
-          application.specialistId !== specialistId
+          application.professionalId !== professionalId
         ) {
-          toast.error("You are not an approved specialist.");
+          toast.error("You are not an approved professional.");
           redirect("/dashboard");
         }
       } catch (error) {
-        console.error("Error fetching specialist data:", error);
-        toast.error("Failed to fetch specialist data.");
+        console.error("Error fetching professional data:", error);
+        toast.error("Failed to fetch professional data.");
         redirect("/dashboard");
       }
     };
 
     const fetchDiscounts = async () => {
-      if (!specialistId) return;
+      if (!professionalId) return;
       try {
-        const res = await fetch(`/api/discounts/specialist/${specialistId}`, {
-          credentials: "include",
-        });
+        const res = await fetch(
+          `/api/discounts/professional/${professionalId}`,
+          {
+            credentials: "include",
+          }
+        );
         if (!res.ok) {
           throw new Error("Failed to fetch discounts");
         }
@@ -105,9 +108,9 @@ function DiscountsContent() {
       }
     };
 
-    fetchSpecialistData();
+    fetchProfessionalData();
     fetchDiscounts();
-  }, [specialistId, status]);
+  }, [professionalId, status]);
 
   const handleInputChange = (e: React.ChangeEvent<HTMLInputElement>) => {
     setFormData({ ...formData, [e.target.name]: e.target.value });
@@ -119,7 +122,7 @@ function DiscountsContent() {
         name: formData.name,
         rate: parseFloat(formData.rate),
         discount: parseFloat(formData.discount),
-        specialistId,
+        professionalId,
       };
 
       const url = editingDiscount

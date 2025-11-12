@@ -1,8 +1,8 @@
-// components/SpecialistsGrid.tsx
+// components/ProfessionalsGrid.tsx
 import { motion, AnimatePresence } from "framer-motion";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import SpecialistCard from "@/components/professionals/SpecialistCard";
+import ProfessionalCard from "@/components/professionals/ProfessionalCard";
 import Link from "next/link";
 import { Therapist } from "@/types/therapist";
 
@@ -13,10 +13,10 @@ const cardVariants = {
 
 interface Props {
   loading: boolean;
-  specialists: Therapist[];
+  professionals: Therapist[];
 }
 
-export function SpecialistsGrid({ loading, specialists }: Props) {
+export function ProfessionalsGrid({ loading, professionals }: Props) {
   return (
     <Card className="shadow-lg">
       <CardHeader>
@@ -34,10 +34,10 @@ export function SpecialistsGrid({ loading, specialists }: Props) {
               />
             ))}
           </div>
-        ) : specialists.length > 0 ? (
+        ) : professionals.length > 0 ? (
           <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence>
-              {specialists.map((therapist) => (
+              {professionals.map((therapist) => (
                 <motion.div
                   key={therapist._id}
                   variants={cardVariants}
@@ -45,8 +45,8 @@ export function SpecialistsGrid({ loading, specialists }: Props) {
                   animate="visible"
                   whileHover={{ scale: 1.05 }}
                 >
-                  <Link href={`/dashboard/specialists/${therapist._id}`}>
-                    <SpecialistCard
+                  <Link href={`/dashboard/professionals/${therapist._id}`}>
+                    <ProfessionalCard
                       name={therapist.name}
                       imageSrc={therapist.image || ""}
                       location={therapist.location || ""}
@@ -61,7 +61,7 @@ export function SpecialistsGrid({ loading, specialists }: Props) {
             </AnimatePresence>
           </motion.div>
         ) : (
-          <p className="text-center text-[#C4C4C4]">No specialists found.</p>
+          <p className="text-center text-[#C4C4C4]">No professionals found.</p>
         )}
       </CardContent>
     </Card>

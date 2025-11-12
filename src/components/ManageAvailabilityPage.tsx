@@ -44,42 +44,43 @@ const ManageAvailabilityPage: React.FC = () => {
   const searchParams = useSearchParams();
 
   const [loading, setLoading] = useState(true);
-  const [specialistId, setSpecialistId] = useState<string | null>(null);
+  const [professionalId, setProfessionalId] = useState<string | null>(null);
 
   // --- Each day has its own slots + breakDuration
   const [availability, setAvailability] = useState<
     Record<number, { slots: string[]; breakDuration: number }>
   >({});
 
-  const specialistIdFromQuery = searchParams.get("specialistId");
+  const professionalIdFromQuery = searchParams.get("professionalId");
 
   // --- Verify authentication ---
   useEffect(() => {
     if (status === "unauthenticated") router.push("/login");
   }, [status, router]);
 
-  // --- Verify specialist ---
+  // --- Verify professional ---
   useEffect(() => {
     const init = async () => {
       if (status !== "authenticated") return;
       try {
-        const res = await fetch("/api/specialists/application/me", {
+        const res = await fetch("/api/professionals/application/me", {
           cache: "no-store",
           credentials: "include",
         });
         if (!res.ok) throw new Error();
-        const { status: appStatus, specialistId: fetchedId } = await res.json();
+        const { status: appStatus, professionalId: fetchedId } =
+          await res.json();
         if (appStatus !== "APPROVED" || !fetchedId) {
-          toast.error("Approved specialist profile required");
+          toast.error("Approved professional profile required");
           router.push("/dashboard");
           return;
         }
-        if (specialistIdFromQuery && specialistIdFromQuery !== fetchedId) {
-          toast.error("Invalid specialist ID");
+        if (professionalIdFromQuery && professionalIdFromQuery !== fetchedId) {
+          toast.error("Invalid professional ID");
           router.push("/dashboard");
           return;
         }
-        setSpecialistId(fetchedId);
+        setProfessionalId(fetchedId);
       } catch {
         toast.error("Verification failed");
         router.push("/dashboard");
@@ -88,11 +89,11 @@ const ManageAvailabilityPage: React.FC = () => {
       }
     };
     init();
-  }, [status, router, specialistIdFromQuery]);
+  }, [status, router, professionalIdFromQuery]);
 
   // --- Load data for all 7 days ---
   useEffect(() => {
-    if (!specialistId) return;
+    if (!professionalId) return;
     const load = async () => {
       try {
         const weekData: Record<
@@ -101,7 +102,7 @@ const ManageAvailabilityPage: React.FC = () => {
         > = {};
         for (let i = 0; i < 7; i++) {
           const res = await fetch(
-            `/api/specialists/availability?specialistId=${specialistId}&dayOfWeek=${i}`
+            `/api/professionals/availability?professionalId=${professionalId}&dayOfWeek=${i}`
           );
           if (res.ok) {
             const { slots, breakDuration } = await res.json();
@@ -119,7 +120,7 @@ const ManageAvailabilityPage: React.FC = () => {
       }
     };
     load();
-  }, [specialistId]);
+  }, [professionalId]);
 
   // --- Toggle a single slot ---
   const toggleSlot = (day: number, slot: string) => {
@@ -172,19 +173,19 @@ const ManageAvailabilityPage: React.FC = () => {
 
   // --- Save all data ---
   const save = async () => {
-    if (!specialistId) return;
+    if (!professionalId) return;
     try {
       for (const [dayOfWeek, { slots, breakDuration }] of Object.entries(
         availability
       )) {
-        const res = await fetch("/api/specialists/availability", {
+        const res = await fetch("/api/professionals/availability", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
           body: JSON.stringify({
             dayOfWeek: Number(dayOfWeek),
             slots,
             breakDuration,
-            specialistId,
+            professionalId,
           }),
           credentials: "include",
         });

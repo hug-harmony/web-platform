@@ -15,7 +15,7 @@ export async function GET(req: Request) {
     const users = await prisma.user.findMany({
       where: {
         id: { not: session.user.id }, // Exclude the current user's ID
-        specialistApplication: null, // Filter out users with specialist applications
+        professionalApplication: null, // Filter out users with professional applications
       },
       select: {
         id: true,
@@ -29,7 +29,7 @@ export async function GET(req: Request) {
 
     return NextResponse.json(users);
   } catch (error) {
-    console.error("Error fetching non-specialist users:", error);
+    console.error("Error fetching non-professional users:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

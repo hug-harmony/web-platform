@@ -9,7 +9,7 @@ import {
 import { format, differenceInMinutes } from "date-fns";
 import { motion } from "framer-motion";
 
-interface Specialist {
+interface Professional {
   id: string;
   name: string;
   rate?: number;
@@ -22,7 +22,7 @@ interface ConfirmDialogProps {
     id: string;
     startTime: string; // UPDATED: ISO string
     endTime: string; // UPDATED: ISO string
-    specialist: Specialist;
+    professional: Professional;
     appointmentId?: string;
   } | null;
   handlePayNow: () => void;
@@ -48,7 +48,7 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
   const start = new Date(selectedProposal.startTime);
   const end = new Date(selectedProposal.endTime);
   const durationHours = differenceInMinutes(end, start) / 60;
-  const amount = (selectedProposal.specialist.rate || 50) * durationHours;
+  const amount = (selectedProposal.professional.rate || 50) * durationHours;
 
   return (
     <Dialog open={isOpen} onOpenChange={setIsOpen}>
@@ -62,8 +62,8 @@ const ConfirmDialog: React.FC<ConfirmDialogProps> = ({
               <strong>Name:</strong> {sessionUserName || "N/A"}
             </p>
             <p className="text-black dark:text-white">
-              <strong>Specialist:</strong>{" "}
-              {selectedProposal?.specialist.name || "N/A"}
+              <strong>Professional:</strong>{" "}
+              {selectedProposal?.professional.name || "N/A"}
             </p>
             <p className="text-black dark:text-white">
               <strong>Date:</strong> {format(start, "MMMM d, yyyy")}

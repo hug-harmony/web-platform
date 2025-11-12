@@ -32,7 +32,7 @@ import useSWR, { mutate } from "swr";
 interface ProfileVisit {
   id: string;
   user: { id: string; name: string; avatar?: string | null };
-  visited: { id: string; name: string; type: "user" | "specialist" };
+  visited: { id: string; name: string; type: "user" | "professional" };
   createdAt: string;
 }
 interface VisitorStats {

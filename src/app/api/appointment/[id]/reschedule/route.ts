@@ -39,7 +39,7 @@ export async function POST(
     const appt = await prisma.appointment.findUnique({
       where: { id },
       select: {
-        specialistId: true,
+        professionalId: true,
         startTime: true,
         endTime: true,
         modificationHistory: true,
@@ -55,14 +55,15 @@ export async function POST(
     }
 
     if (!session.user.isAdmin) {
-      const specialistProfile = await prisma.specialistApplication.findFirst({
-        where: { userId: session.user.id, status: "APPROVED" },
-        select: { specialistId: true },
-      });
+      const professionalProfile =
+        await prisma.professionalApplication.findFirst({
+          where: { userId: session.user.id, status: "APPROVED" },
+          select: { professionalId: true },
+        });
 
       if (
-        !specialistProfile ||
-        specialistProfile.specialistId !== appt.specialistId
+        !professionalProfile ||
+        professionalProfile.professionalId !== appt.professionalId
       ) {
         return NextResponse.json(
           {

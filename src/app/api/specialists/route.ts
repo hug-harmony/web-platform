@@ -6,7 +6,7 @@ import { authOptions } from "@/lib/auth";
 
 const prisma = new PrismaClient();
 
-type SpecialistWithRelations = Prisma.SpecialistGetPayload<{
+type ProfessionalWithRelations = Prisma.ProfessionalGetPayload<{
   select: {
     id: true;
     name: true;
@@ -43,12 +43,12 @@ export async function GET(req: Request) {
     if (id) {
       if (!/^[0-9a-fA-F]{24}$/.test(id)) {
         return NextResponse.json(
-          { error: "Invalid specialist ID" },
+          { error: "Invalid professional ID" },
           { status: 400 }
         );
       }
-      const specialist: SpecialistWithRelations | null =
-        await prisma.specialist.findUnique({
+      const professional: ProfessionalWithRelations | null =
+        await prisma.professional.findUnique({
           where: { id },
           select: {
             id: true,
@@ -68,40 +68,40 @@ export async function GET(req: Request) {
             },
           },
         });
-      if (!specialist) {
+      if (!professional) {
         return NextResponse.json(
-          { error: "Specialist not found" },
+          { error: "Professional not found" },
           { status: 404 }
         );
       }
       return NextResponse.json({
-        id: specialist.id,
-        name: specialist.name,
-        image: specialist.image,
-        location: specialist.application?.user?.location || null,
-        userId: specialist.application?.userId || null,
-        rating: specialist.rating,
-        reviewCount: specialist.reviewCount,
-        rate: specialist.rate,
-        biography: specialist.biography,
-        createdAt: specialist.createdAt,
-        venue: specialist.venue,
+        id: professional.id,
+        name: professional.name,
+        image: professional.image,
+        location: professional.application?.user?.location || null,
+        userId: professional.application?.userId || null,
+        rating: professional.rating,
+        reviewCount: professional.reviewCount,
+        rate: professional.rate,
+        biography: professional.biography,
+        createdAt: professional.createdAt,
+        venue: professional.venue,
       });
     }
 
-    const userApplication = await prisma.specialistApplication.findFirst({
+    const userApplication = await prisma.professionalApplication.findFirst({
       where: {
         userId: session.user.id,
         status: "APPROVED",
       },
-      select: { specialistId: true },
+      select: { professionalId: true },
     });
 
-    const specialists: SpecialistWithRelations[] =
-      await prisma.specialist.findMany({
+    const professionals: ProfessionalWithRelations[] =
+      await prisma.professional.findMany({
         where: {
-          ...(userApplication?.specialistId
-            ? { id: { not: userApplication.specialistId } }
+          ...(userApplication?.professionalId
+            ? { id: { not: userApplication.professionalId } }
             : {}),
           ...(venue
             ? {
@@ -131,7 +131,7 @@ export async function GET(req: Request) {
       });
 
     return NextResponse.json({
-      specialists: specialists.map((s) => ({
+      professionals: professionals.map((s) => ({
         id: s.id,
         name: s.name,
         image: s.image,
@@ -160,14 +160,14 @@ export async function POST() {
   return NextResponse.json(
     {
       error:
-        "Direct specialist creation is not allowed. Use the professional-application flow.",
+        "Direct professional creation is not allowed. Use the professional-application flow.",
     },
     { status: 405 }
   );
 }
 
 /* ------------------------------------------------------------------
-   PATCH – edit approved specialist (unchanged)
+   PATCH – edit approved professional (unchanged)
    ------------------------------------------------------------------ */
 export async function PATCH(req: Request) {
   try {
@@ -206,48 +206,53 @@ export async function PATCH(req: Request) {
       );
     }
 
-    const application = await prisma.specialistApplication.findFirst({
-      where: { specialistId: id, userId: session.user.id, status: "APPROVED" },
+    const application = await prisma.professionalApplication.findFirst({
+      where: {
+        professionalId: id,
+        userId: session.user.id,
+        status: "APPROVED",
+      },
     });
     if (!application) {
       return NextResponse.json(
         {
           error:
-            "Unauthorized: You can only update your own approved specialist profile",
+            "Unauthorized: You can only update your own approved professional profile",
         },
         { status: 403 }
       );
     }
 
-    const specialist: SpecialistWithRelations = await prisma.specialist.update({
-      where: { id },
-      data: {
-        name,
-        image,
-        rating,
-        reviewCount,
-        rate,
-        biography,
-        venue,
-      },
-      select: {
-        id: true,
-        name: true,
-        image: true,
-        rating: true,
-        reviewCount: true,
-        rate: true,
-        biography: true,
-        createdAt: true,
-        venue: true,
-        application: {
-          select: {
-            userId: true,
-            user: { select: { location: true } },
+    const professional: ProfessionalWithRelations =
+      await prisma.professional.update({
+        where: { id },
+        data: {
+          name,
+          image,
+          rating,
+          reviewCount,
+          rate,
+          biography,
+          venue,
+        },
+        select: {
+          id: true,
+          name: true,
+          image: true,
+          rating: true,
+          reviewCount: true,
+          rate: true,
+          biography: true,
+          createdAt: true,
+          venue: true,
+          application: {
+            select: {
+              userId: true,
+              user: { select: { location: true } },
+            },
           },
         },
-      },
-    });
+      });
 
     if (location) {
       await prisma.user.update({
@@ -257,17 +262,17 @@ export async function PATCH(req: Request) {
     }
 
     return NextResponse.json({
-      id: specialist.id,
-      name: specialist.name,
-      image: specialist.image,
-      location: specialist.application?.user?.location || null,
-      userId: specialist.application?.userId || null,
-      rating: specialist.rating,
-      reviewCount: specialist.reviewCount,
-      rate: specialist.rate,
-      biography: specialist.biography,
-      createdAt: specialist.createdAt,
-      venue: specialist.venue,
+      id: professional.id,
+      name: professional.name,
+      image: professional.image,
+      location: professional.application?.user?.location || null,
+      userId: professional.application?.userId || null,
+      rating: professional.rating,
+      reviewCount: professional.reviewCount,
+      rate: professional.rate,
+      biography: professional.biography,
+      createdAt: professional.createdAt,
+      venue: professional.venue,
     });
   } catch (error) {
     console.error("PATCH Error:", error);
@@ -278,7 +283,7 @@ export async function PATCH(req: Request) {
 }
 
 /* ------------------------------------------------------------------
-   DELETE – remove specialist (unchanged)
+   DELETE – remove professional (unchanged)
    ------------------------------------------------------------------ */
 export async function DELETE(req: Request) {
   try {
@@ -291,13 +296,13 @@ export async function DELETE(req: Request) {
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     }
 
-    const specialist = await prisma.specialist.delete({
+    const professional = await prisma.professional.delete({
       where: { id },
       select: { id: true, name: true },
     });
 
-    console.log("Specialist deleted:", specialist);
-    return NextResponse.json({ message: "Specialist deleted" });
+    console.log("Professional deleted:", professional);
+    return NextResponse.json({ message: "Professional deleted" });
   } catch (error) {
     console.error("DELETE Error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

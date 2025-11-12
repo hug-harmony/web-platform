@@ -27,10 +27,10 @@ import { format, parseISO } from "date-fns";
 
 interface Appointment {
   _id: string;
-  specialistName?: string;
+  professionalName?: string;
   clientName?: string;
-  specialistId: string;
-  specialistUserId?: string;
+  professionalId: string;
+  professionalUserId?: string;
   clientId?: string;
   startTime: string;
   endTime: string;
@@ -43,8 +43,8 @@ interface Appointment {
 
 interface AppointmentCardProps {
   appointment: Appointment;
-  isSpecialist: boolean;
-  isOwnerSpecialist: boolean;
+  isProfessional: boolean;
+  isOwnerProfessional: boolean;
   onMessage: () => void;
   onUpdate: () => void;
 }
@@ -56,15 +56,15 @@ const cardVariants = {
 
 const AppointmentCard: React.FC<AppointmentCardProps> = ({
   appointment,
-  isSpecialist,
-  isOwnerSpecialist,
+  isProfessional,
+  isOwnerProfessional,
   onMessage,
   onUpdate,
 }) => {
   const {
     _id,
     clientName,
-    specialistName,
+    professionalName,
     startTime,
     endTime,
     rate,
@@ -188,7 +188,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
     }
   };
 
-  const displayName = isOwnerSpecialist ? clientName : specialistName;
+  const displayName = isOwnerProfessional ? clientName : professionalName;
   const startDate = parseISO(startTime);
   const endDate = parseISO(endTime);
 
@@ -205,7 +205,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
         <Clock className="h-4 w-4 text-[#F3CFC6]" />
         <span>{`${format(startDate, "h:mm a")} - ${format(endDate, "h:mm a")}`}</span>
       </div>
-      {!isOwnerSpecialist && (
+      {!isOwnerProfessional && (
         <div className="flex items-center space-x-2 text-sm">
           <span className="text-yellow-500">
             {"★".repeat(Math.round(rating || 0))}
@@ -231,7 +231,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
           <MessageSquare className="mr-2 h-4 w-4" /> Message
         </Button>
 
-        {isSpecialist && isOwnerSpecialist && (
+        {isProfessional && isOwnerProfessional && (
           <>
             {status === "completed" && disputeStatus === "none" && (
               <Dialog>

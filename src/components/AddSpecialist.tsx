@@ -15,7 +15,7 @@ import { Textarea } from "@/components/ui/textarea";
 import { PlusCircle, Upload } from "lucide-react";
 import Image from "next/image";
 
-interface SpecialistFormData {
+interface ProfessionalFormData {
   name: string;
   image?: string;
   location?: string;
@@ -29,15 +29,15 @@ interface SpecialistFormData {
   license?: string;
 }
 
-interface AddSpecialistProps {
-  onSpecialistAdded?: () => void; // Callback to refresh specialists list
+interface AddProfessionalProps {
+  onProfessionalAdded?: () => void; // Callback to refresh professionals list
 }
 
-export default function AddSpecialist({
-  onSpecialistAdded,
-}: AddSpecialistProps) {
+export default function AddProfessional({
+  onProfessionalAdded,
+}: AddProfessionalProps) {
   const [isDialogOpen, setIsDialogOpen] = useState(false);
-  const [formData, setFormData] = useState<SpecialistFormData>({
+  const [formData, setFormData] = useState<ProfessionalFormData>({
     name: "",
     image: "",
     location: "",
@@ -119,7 +119,7 @@ export default function AddSpecialist({
       "license",
     ];
     const missingFields = requiredFields.filter(
-      (field) => !formData[field as keyof SpecialistFormData]
+      (field) => !formData[field as keyof ProfessionalFormData]
     );
     if (missingFields.length > 0) {
       setFormError(`Missing required fields: ${missingFields.join(", ")}`);
@@ -138,7 +138,7 @@ export default function AddSpecialist({
         imageUrl = uploadedUrl;
       }
 
-      const response = await fetch("/api/specialists", {
+      const response = await fetch("/api/professionals", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({
@@ -154,7 +154,7 @@ export default function AddSpecialist({
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to add specialist");
+        throw new Error(errorData.error || "Failed to add professional");
       }
 
       setFormData({
@@ -174,7 +174,7 @@ export default function AddSpecialist({
       setImagePreview(null);
       if (fileInputRef.current) fileInputRef.current.value = "";
       setIsDialogOpen(false);
-      if (onSpecialistAdded) onSpecialistAdded();
+      if (onProfessionalAdded) onProfessionalAdded();
     } catch (error) {
       setFormError(
         error instanceof Error ? error.message : "An error occurred"
@@ -204,7 +204,7 @@ export default function AddSpecialist({
       </DialogTrigger>
       <DialogContent className="sm:max-w-[600px]">
         <DialogHeader>
-          <DialogTitle>Add New Specialist</DialogTitle>
+          <DialogTitle>Add New Professional</DialogTitle>
         </DialogHeader>
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="grid grid-cols-1 md:grid-cols-2 gap-6">
@@ -365,7 +365,7 @@ export default function AddSpecialist({
           {formError && <p className="text-red-500 text-sm">{formError}</p>}
           <div className="flex justify-end">
             <Button type="submit" disabled={isSubmitting}>
-              {isSubmitting ? "Submitting..." : "Add Specialist"}
+              {isSubmitting ? "Submitting..." : "Add Professional"}
             </Button>
           </div>
         </form>

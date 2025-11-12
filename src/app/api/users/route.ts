@@ -34,10 +34,10 @@ export async function GET(req: NextRequest) {
           biography: true,
           status: true,
           createdAt: true,
-          specialistApplication: {
+          professionalApplication: {
             select: {
               status: true,
-              specialistId: true,
+              professionalId: true,
             },
           },
         },
@@ -62,9 +62,9 @@ export async function GET(req: NextRequest) {
         biography: user.biography || "",
         status: user.status,
         createdAt: user.createdAt,
-        specialistApplication: {
-          status: user.specialistApplication?.status || null,
-          specialistId: user.specialistApplication?.specialistId || null,
+        professionalApplication: {
+          status: user.professionalApplication?.status || null,
+          professionalId: user.professionalApplication?.professionalId || null,
         },
       });
     }
@@ -85,10 +85,10 @@ export async function GET(req: NextRequest) {
         biography: true,
         status: true,
         createdAt: true,
-        specialistApplication: {
+        professionalApplication: {
           select: {
             status: true,
-            specialistId: true,
+            professionalId: true,
           },
         },
       },
@@ -115,9 +115,9 @@ export async function GET(req: NextRequest) {
         biography: user.biography || "",
         status: user.status,
         createdAt: user.createdAt,
-        specialistApplication: {
-          status: user.specialistApplication?.status || null,
-          specialistId: user.specialistApplication?.specialistId || null,
+        professionalApplication: {
+          status: user.professionalApplication?.status || null,
+          professionalId: user.professionalApplication?.professionalId || null,
         },
       }))
     );

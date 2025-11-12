@@ -17,7 +17,7 @@ export async function GET(req: NextRequest) {
       where: { authorId: session.user.id },
       include: {
         targetUser: { select: { id: true, name: true, profileImage: true } },
-        targetSpecialist: { select: { id: true, name: true, image: true } },
+        targetProfessional: { select: { id: true, name: true, image: true } },
       },
     });
 
@@ -37,11 +37,11 @@ export async function GET(req: NextRequest) {
         targetType = "user";
         targetName = note.targetUser?.name || "Unknown User";
         targetImage = note.targetUser?.profileImage || null;
-      } else if (note.targetSpecialistId) {
-        targetId = note.targetSpecialistId;
+      } else if (note.targetProfessionalId) {
+        targetId = note.targetProfessionalId;
         targetType = "professional";
-        targetName = note.targetSpecialist?.name || "Unknown Professional";
-        targetImage = note.targetSpecialist?.image || null;
+        targetName = note.targetProfessional?.name || "Unknown Professional";
+        targetImage = note.targetProfessional?.image || null;
       } else {
         return; // Skip invalid
       }

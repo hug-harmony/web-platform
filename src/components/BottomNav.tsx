@@ -39,26 +39,26 @@ export default function BottomNav() {
   const pathname = usePathname();
 
   const { data: session } = useSession();
-  const [isSpecialist, setIsSpecialist] = useState(false);
+  const [isProfessional, setIsProfessional] = useState(false);
   const [open, setOpen] = useState(false);
 
   useEffect(() => {
-    const fetchSpecialistStatus = async () => {
+    const fetchProfessionalStatus = async () => {
       if (!session?.user?.id) return;
       try {
-        const res = await fetch("/api/specialists/application/me", {
+        const res = await fetch("/api/professionals/application/me", {
           cache: "no-store",
           credentials: "include",
         });
         if (res.ok) {
           const { status } = await res.json();
-          setIsSpecialist(status === "APPROVED");
+          setIsProfessional(status === "APPROVED");
         }
       } catch (error) {
-        console.error("Error fetching specialist status:", error);
+        console.error("Error fetching professional status:", error);
       }
     };
-    fetchSpecialistStatus();
+    fetchProfessionalStatus();
   }, [session]);
 
   const navItems: NavItem[] = useMemo(
@@ -69,7 +69,7 @@ export default function BottomNav() {
         icon: <User className="h-5 w-5" />,
       },
       {
-        href: "/dashboard/specialists",
+        href: "/dashboard/professionals",
         label: "Professionals",
         icon: <User className="h-5 w-5" />,
       },
@@ -123,7 +123,7 @@ export default function BottomNav() {
       //   label: "Training",
       //   icon: <Video className="h-5 w-5" />,
       // },
-      ...(isSpecialist
+      ...(isProfessional
         ? [
             {
               href: "/dashboard/payment",
@@ -133,7 +133,7 @@ export default function BottomNav() {
           ]
         : []),
     ],
-    [isSpecialist]
+    [isProfessional]
   );
 
   const mainTabs = [

@@ -88,7 +88,7 @@ export default function ApplicationDetailPage() {
   const fetchApp = async () => {
     setLoading(true);
     try {
-      const res = await fetch(`/api/specialists/application?id=${id}`, {
+      const res = await fetch(`/api/professionals/application?id=${id}`, {
         credentials: "include",
       });
       if (!res.ok) {
@@ -114,7 +114,7 @@ export default function ApplicationDetailPage() {
 
   const updateStatus = async (status: "APPROVED" | "REJECTED") => {
     try {
-      const res = await fetch("/api/specialists/application", {
+      const res = await fetch("/api/professionals/application", {
         method: "PATCH",
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ id, status }),
@@ -262,7 +262,7 @@ export default function ApplicationDetailPage() {
       </Card>
 
       <Button asChild variant="link" className="text-[#F3CFC6]">
-        <Link href="/admin/dashboard/specialist-applications">
+        <Link href="/admin/dashboard/professional-applications">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back
         </Link>
@@ -276,7 +276,7 @@ function Breadcrumb() {
   return (
     <div className="flex items-center gap-2 text-sm text-[#C4C4C4]">
       <Link
-        href="/admin/dashboard/specialist-applications"
+        href="/admin/dashboard/professional-applications"
         className="hover:text-[#F3CFC6]"
       >
         Professional Applications

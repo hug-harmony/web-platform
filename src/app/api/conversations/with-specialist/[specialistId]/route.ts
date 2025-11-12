@@ -5,9 +5,9 @@ import { authOptions } from "@/lib/auth"; // Adjust path
 
 export async function GET(
   req: NextRequest,
-  { params }: { params: Promise<{ specialistId: string }> }
+  { params }: { params: Promise<{ professionalId: string }> }
 ) {
-  const { specialistId } = await params;
+  const { professionalId } = await params;
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -15,24 +15,24 @@ export async function GET(
   }
 
   try {
-    // Find specialist's userId via SpecialistApplication
-    const specialistApp = await prisma.specialistApplication.findFirst({
-      where: { specialistId, status: "APPROVED" },
+    // Find professional's userId via ProfessionalApplication
+    const professionalApp = await prisma.professionalApplication.findFirst({
+      where: { professionalId, status: "APPROVED" },
     });
-    if (!specialistApp || !specialistApp.userId) {
+    if (!professionalApp || !professionalApp.userId) {
       return NextResponse.json(
-        { error: "Specialist not found or not approved" },
+        { error: "Professional not found or not approved" },
         { status: 404 }
       );
     }
-    const specialistUserId = specialistApp.userId;
+    const professionalUserId = professionalApp.userId;
 
     // Find existing conversation
     let conversation = await prisma.conversation.findFirst({
       where: {
         OR: [
-          { userId1: session.user.id, userId2: specialistUserId },
-          { userId1: specialistUserId, userId2: session.user.id },
+          { userId1: session.user.id, userId2: professionalUserId },
+          { userId1: professionalUserId, userId2: session.user.id },
         ],
       },
     });
@@ -42,7 +42,7 @@ export async function GET(
       conversation = await prisma.conversation.create({
         data: {
           userId1: session.user.id,
-          userId2: specialistUserId,
+          userId2: professionalUserId,
         },
       });
     }

@@ -11,7 +11,7 @@ export async function GET(request: Request) {
 
   const { searchParams } = new URL(request.url);
   const userId = searchParams.get("userId");
-  const specialistId = searchParams.get("specialistId");
+  const professionalId = searchParams.get("professionalId");
 
   if (!userId)
     return NextResponse.json({ error: "User ID required" }, { status: 400 });
@@ -20,9 +20,9 @@ export async function GET(request: Request) {
     const videoSessions = await prisma.videoSession.findMany({
       where: {
         userId,
-        ...(specialistId ? { specialistId } : {}),
+        ...(professionalId ? { professionalId } : {}),
       },
-      include: { specialist: { select: { name: true, id: true } } },
+      include: { professional: { select: { name: true, id: true } } },
     });
 
     return NextResponse.json(videoSessions);
@@ -41,31 +41,31 @@ export async function POST(request: Request) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
 
   const body = await request.json();
-  const { userId, specialistId, date, time } = body;
+  const { userId, professionalId, date, time } = body;
   console.log("POST /api/videoSessions payload:", {
     userId,
-    specialistId,
+    professionalId,
     date,
     time,
   });
 
-  if (!userId || !specialistId)
+  if (!userId || !professionalId)
     return NextResponse.json(
-      { error: "User ID and Specialist ID required" },
+      { error: "User ID and Professional ID required" },
       { status: 400 }
     );
 
   try {
-    // Verify specialist exists
-    const specialist = await prisma.specialist.findUnique({
-      where: { id: specialistId },
+    // Verify professional exists
+    const professional = await prisma.professional.findUnique({
+      where: { id: professionalId },
       select: { id: true, name: true },
     });
 
-    if (!specialist) {
-      console.error(`Specialist not found for ID: ${specialistId}`);
+    if (!professional) {
+      console.error(`Professional not found for ID: ${professionalId}`);
       return NextResponse.json(
-        { error: "Specialist not found" },
+        { error: "Professional not found" },
         { status: 404 }
       );
     }
@@ -74,12 +74,12 @@ export async function POST(request: Request) {
       data: {
         roomId: `room_${Math.random().toString(36).substring(2)}`,
         userId,
-        specialistId,
+        professionalId,
         date: new Date(date || Date.now()),
         time: time || new Date().toLocaleTimeString(),
         status: "upcoming",
       },
-      include: { specialist: { select: { name: true, id: true } } },
+      include: { professional: { select: { name: true, id: true } } },
     });
 
     return NextResponse.json(videoSession);

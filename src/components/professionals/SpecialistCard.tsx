@@ -6,7 +6,7 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Card, CardContent, CardFooter } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 
-interface SpecialistCardProps {
+interface ProfessionalCardProps {
   name: string;
   imageSrc: string;
   location: string;
@@ -17,7 +17,7 @@ interface SpecialistCardProps {
   className?: string;
 }
 
-const SpecialistCard: React.FC<SpecialistCardProps> = ({
+const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
   name,
   imageSrc,
   location,
@@ -73,4 +73,4 @@ const SpecialistCard: React.FC<SpecialistCardProps> = ({
   );
 };
 
-export default SpecialistCard;
+export default ProfessionalCard;

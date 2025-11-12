@@ -12,7 +12,7 @@ export type User = {
   isAdmin?: boolean;
 };
 
-export type Specialist = {
+export type Professional = {
   id?: string;
   name: string;
   image?: string | null;
@@ -32,8 +32,8 @@ export type Conversation = {
   id?: string;
   userId1?: string | null;
   userId2?: string | null;
-  specialistId1?: string | null;
-  specialistId2?: string | null;
+  professionalId1?: string | null;
+  professionalId2?: string | null;
   createdAt?: Date;
   updatedAt?: Date;
   messages?: Message[];

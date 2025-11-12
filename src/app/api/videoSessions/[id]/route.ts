@@ -14,7 +14,7 @@ export async function GET(request: Request) {
 
   const videoSession = await prisma.videoSession.findUnique({
     where: { id },
-    include: { specialist: { select: { name: true, id: true } } },
+    include: { professional: { select: { name: true, id: true } } },
   });
 
   if (!videoSession)
@@ -36,7 +36,7 @@ export async function PATCH(request: Request) {
   const videoSession = await prisma.videoSession.update({
     where: { id },
     data: { status, updatedAt: new Date() },
-    include: { specialist: { select: { name: true, id: true } } },
+    include: { professional: { select: { name: true, id: true } } },
   });
 
   return NextResponse.json(videoSession);

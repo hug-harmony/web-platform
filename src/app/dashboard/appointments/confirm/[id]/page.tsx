@@ -12,7 +12,7 @@ import { MessageSquare } from "lucide-react";
 // Type definitions
 interface BookingDetails {
   name: string;
-  specialistName: string;
+  professionalName: string;
   date: string;
   time: string;
   paymentMethod: string;
@@ -71,7 +71,7 @@ const BookingConfirmationPage: React.FC = () => {
 
         setBookingDetails({
           name: bookingData.userName || session?.user?.name || "N/A",
-          specialistName: bookingData.therapistName || "Unknown Specialist",
+          professionalName: bookingData.therapistName || "Unknown Professional",
           date: new Date(bookingData.date).toLocaleDateString("en-US", {
             year: "numeric",
             month: "long",
@@ -225,7 +225,7 @@ const BookingConfirmationPage: React.FC = () => {
                 Professional Name
               </p>
               <p className="text-lg text-gray-500 dark:text-gray-400">
-                {bookingDetails.specialistName}
+                {bookingDetails.professionalName}
               </p>
             </div>
             <div className="flex items-center justify-between p-2 hover:bg-gray-50 dark:hover:bg-gray-800 rounded-xl">

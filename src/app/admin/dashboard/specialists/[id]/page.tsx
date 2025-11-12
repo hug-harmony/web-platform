@@ -1,4 +1,4 @@
-// File: app/admin/dashboard/specialists/[id]/page.tsx
+// File: app/admin/dashboard/professionals/[id]/page.tsx
 "use client";
 
 import { useParams } from "next/navigation";
@@ -16,8 +16,8 @@ import { format, parseISO } from "date-fns";
 
 // --- Interfaces for the component's state ---
 
-// A more complete type for the Specialist data
-interface Specialist {
+// A more complete type for the Professional data
+interface Professional {
   id: string;
   name: string;
   biography: string;
@@ -81,31 +81,31 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-export default function SpecialistDetailPage() {
+export default function ProfessionalDetailPage() {
   const { id } = useParams();
-  const [specialist, setSpecialist] = useState<Specialist | null>(null);
+  const [professional, setProfessional] = useState<Professional | null>(null);
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [videoSessions, setVideoSessions] = useState<VideoSession[]>([]);
   const [loading, setLoading] = useState(true);
 
-  // Fetch all necessary data for the specialist's detail page
+  // Fetch all necessary data for the professional's detail page
   useEffect(() => {
     async function fetchData() {
       if (!id || typeof id !== "string") return;
       setLoading(true);
       try {
-        // Fetch specialist details and appointments in parallel for performance
-        const [specialistResponse, apptResponse] = await Promise.all([
-          fetch(`/api/specialists?id=${id}`),
+        // Fetch professional details and appointments in parallel for performance
+        const [professionalResponse, apptResponse] = await Promise.all([
+          fetch(`/api/professionals?id=${id}`),
           // UPDATED: This now correctly calls the updated /api/appointment route
           // The `admin=true` flag is crucial for authorization
-          fetch(`/api/appointment?specialistId=${id}&admin=true`),
+          fetch(`/api/appointment?professionalId=${id}&admin=true`),
         ]);
 
-        if (!specialistResponse.ok)
-          throw new Error("Failed to fetch specialist details");
-        const specialistData = await specialistResponse.json();
-        setSpecialist(specialistData);
+        if (!professionalResponse.ok)
+          throw new Error("Failed to fetch professional details");
+        const professionalData = await professionalResponse.json();
+        setProfessional(professionalData);
 
         if (!apptResponse.ok) throw new Error("Failed to fetch appointments");
         const apptData = await apptResponse.json();
@@ -115,7 +115,7 @@ export default function SpecialistDetailPage() {
         setVideoSessions(dummyVideoSessions);
       } catch (error) {
         toast.error(
-          (error as Error).message || "Failed to load specialist data"
+          (error as Error).message || "Failed to load professional data"
         );
         console.error("Data fetch error:", error);
       } finally {
@@ -126,15 +126,17 @@ export default function SpecialistDetailPage() {
   }, [id]);
 
   if (loading)
-    return <div className="p-4 text-center">Loading specialist profile...</div>;
-  if (!specialist)
+    return (
+      <div className="p-4 text-center">Loading professional profile...</div>
+    );
+  if (!professional)
     return <div className="p-4 text-center">Professional not found.</div>;
 
   // Safer calculation for metrics
   const cutAmount =
-    (specialist.metrics?.totalEarnings || 0) *
-    ((specialist.metrics?.companyCutPercentage || 0) / 100);
-  const netEarnings = (specialist.metrics?.totalEarnings || 0) - cutAmount;
+    (professional.metrics?.totalEarnings || 0) *
+    ((professional.metrics?.companyCutPercentage || 0) / 100);
+  const netEarnings = (professional.metrics?.totalEarnings || 0) - cutAmount;
 
   return (
     <motion.div
@@ -145,13 +147,13 @@ export default function SpecialistDetailPage() {
     >
       <div className="flex items-center gap-2 text-sm text-gray-500 dark:text-gray-400">
         <Link
-          href="/admin/dashboard/specialists"
+          href="/admin/dashboard/professionals"
           className="hover:text-[#F3CFC6]"
         >
           Professionals
         </Link>
         <span>/</span>
-        <span>{specialist.name}</span>
+        <span>{professional.name}</span>
       </div>
 
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black shadow-lg">
@@ -160,18 +162,18 @@ export default function SpecialistDetailPage() {
             <Avatar className="h-16 w-16 border-2 border-white">
               <AvatarImage
                 src={
-                  specialist.image || "/assets/images/avatar-placeholder.png"
+                  professional.image || "/assets/images/avatar-placeholder.png"
                 }
-                alt={specialist.name}
+                alt={professional.name}
               />
               <AvatarFallback className="bg-[#C4C4C4] text-black">
-                {specialist.name?.[0]}
+                {professional.name?.[0]}
               </AvatarFallback>
             </Avatar>
             <div>
               <CardTitle className="text-2xl font-bold flex items-center">
                 <Stethoscope className="mr-2 h-6 w-6" />
-                {specialist.name}
+                {professional.name}
               </CardTitle>
               <p className="text-sm opacity-80">Professional Profile</p>
             </div>
@@ -181,7 +183,7 @@ export default function SpecialistDetailPage() {
           <p>
             Status:{" "}
             <span className="font-semibold text-green-800">
-              {specialist.status}
+              {professional.status}
             </span>
           </p>
         </CardContent>
@@ -202,14 +204,14 @@ export default function SpecialistDetailPage() {
               className="p-4 space-y-2 text-black dark:text-white"
             >
               <p>
-                <strong>Name:</strong> {specialist.name}
+                <strong>Name:</strong> {professional.name}
               </p>
               <p>
-                <strong>Hourly Rate:</strong> ${specialist.rate}
+                <strong>Hourly Rate:</strong> ${professional.rate}
               </p>
               <p>
                 <strong>Biography:</strong>{" "}
-                {specialist.biography || "Not provided."}
+                {professional.biography || "Not provided."}
               </p>
             </TabsContent>
 
@@ -262,7 +264,7 @@ export default function SpecialistDetailPage() {
       </Card>
 
       <Button asChild variant="link" className="text-[#F3CFC6]">
-        <Link href="/admin/dashboard/specialists">
+        <Link href="/admin/dashboard/professionals">
           <ArrowLeft className="mr-2 h-4 w-4" />
           Back to Professionals
         </Link>

@@ -10,7 +10,9 @@ const discountSchema = z.object({
   name: z.string().min(1, "Discount name is required"),
   rate: z.number().min(0, "Rate must be non-negative"),
   discount: z.number().min(0).max(100, "Discount must be between 0 and 100"),
-  specialistId: z.string().regex(/^[0-9a-fA-F]{24}$/, "Invalid specialist ID"),
+  professionalId: z
+    .string()
+    .regex(/^[0-9a-fA-F]{24}$/, "Invalid professional ID"),
 });
 
 export async function POST(req: Request) {
@@ -26,10 +28,10 @@ export async function POST(req: Request) {
     const body = await req.json();
     const validatedData = discountSchema.parse(body);
 
-    // Check if the user is the specialist
-    const application = await prisma.specialistApplication.findFirst({
+    // Check if the user is the professional
+    const application = await prisma.professionalApplication.findFirst({
       where: {
-        specialistId: validatedData.specialistId,
+        professionalId: validatedData.professionalId,
         userId: session.user.id,
         status: "APPROVED",
       },
@@ -39,7 +41,7 @@ export async function POST(req: Request) {
       return NextResponse.json(
         {
           error:
-            "Unauthorized: You can only create discounts for your own approved specialist profile",
+            "Unauthorized: You can only create discounts for your own approved professional profile",
         },
         { status: 403 }
       );
@@ -47,12 +49,12 @@ export async function POST(req: Request) {
 
     const discount = await prisma.discount.create({
       data: {
-        specialistId: validatedData.specialistId,
+        professionalId: validatedData.professionalId,
         name: validatedData.name,
         rate: validatedData.rate,
         discount: validatedData.discount,
       },
-      include: { specialist: { select: { id: true, name: true } } },
+      include: { professional: { select: { id: true, name: true } } },
     });
 
     return NextResponse.json(
@@ -61,9 +63,9 @@ export async function POST(req: Request) {
         name: discount.name,
         rate: discount.rate,
         discount: discount.discount,
-        specialist: {
-          id: discount.specialist.id,
-          name: discount.specialist.name,
+        professional: {
+          id: discount.professional.id,
+          name: discount.professional.name,
         },
         createdAt: discount.createdAt,
         updatedAt: discount.updatedAt,

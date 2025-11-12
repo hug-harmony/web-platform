@@ -17,7 +17,7 @@ import { Prisma } from "@prisma/client";
 type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
   include: {
     user: { select: { name: true; email: true } };
-    specialist: {
+    professional: {
       select: {
         name: true;
         rate: true;
@@ -53,7 +53,7 @@ export async function GET(
         where: { id: bookingId },
         include: {
           user: { select: { name: true, email: true } },
-          specialist: {
+          professional: {
             select: {
               name: true,
               rate: true,
@@ -87,13 +87,13 @@ export async function GET(
     const event: EventAttributes = {
       start: formatICalDate(appointmentStartDateTime),
       end: formatICalDate(appointmentEndDateTime),
-      title: `Appointment with ${appointment.specialist?.name || "Specialist"}`,
-      description: `Appointment with ${appointment.specialist?.name || "Specialist"} for ${appointment.user?.name || "Client"}. Rate: $${appointment.specialist?.rate?.toFixed(2) || "50.00"}`,
+      title: `Appointment with ${appointment.professional?.name || "Professional"}`,
+      description: `Appointment with ${appointment.professional?.name || "Professional"} for ${appointment.user?.name || "Client"}. Rate: $${appointment.professional?.rate?.toFixed(2) || "50.00"}`,
       location:
-        appointment.specialist?.application?.user?.location ||
+        appointment.professional?.application?.user?.location ||
         "Virtual Session",
       organizer: {
-        name: appointment.specialist?.name || "Specialist",
+        name: appointment.professional?.name || "Professional",
         email: "no-reply@yourapp.com",
       },
       attendees: [
@@ -105,8 +105,8 @@ export async function GET(
           role: "REQ-PARTICIPANT" as ParticipationRole,
         },
         {
-          name: appointment.specialist?.name || "Specialist",
-          email: "specialist@example.com",
+          name: appointment.professional?.name || "Professional",
+          email: "professional@example.com",
           rsvp: true,
           partstat: "ACCEPTED" as ParticipationStatus,
           role: "REQ-PARTICIPANT" as ParticipationRole,

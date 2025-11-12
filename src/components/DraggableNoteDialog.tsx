@@ -64,7 +64,7 @@ const DraggableNoteDialog: React.FC<DraggableNoteDialogProps> = ({
         const body =
           targetType === "user"
             ? { targetUserId: targetId, content }
-            : { targetSpecialistId: targetId, content };
+            : { targetProfessionalId: targetId, content };
         res = await fetch("/api/notes", {
           method: "POST",
           headers: { "Content-Type": "application/json" },

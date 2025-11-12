@@ -1,4 +1,4 @@
-// File: app/api/specialists/booking/route.ts
+// File: app/api/professionals/booking/route.ts
 
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
@@ -15,19 +15,19 @@ export async function POST(request: Request) {
   }
 
   const body = await request.json();
-  const { specialistId, startTime, endTime, userId, venue } = body as {
-    specialistId?: string;
+  const { professionalId, startTime, endTime, userId, venue } = body as {
+    professionalId?: string;
     startTime?: string;
     endTime?: string;
     userId?: string;
     venue?: "host" | "visit";
   };
 
-  if (!specialistId || !startTime || !endTime || !userId) {
+  if (!professionalId || !startTime || !endTime || !userId) {
     return NextResponse.json(
       {
         error:
-          "Missing required booking details: specialistId, startTime, endTime, or userId",
+          "Missing required booking details: professionalId, startTime, endTime, or userId",
       },
       { status: 400 }
     );
@@ -51,29 +51,29 @@ export async function POST(request: Request) {
   }
 
   try {
-    const specialist = await prisma.specialist.findUnique({
-      where: { id: specialistId },
+    const professional = await prisma.professional.findUnique({
+      where: { id: professionalId },
       select: { venue: true, rate: true },
     });
 
-    if (!specialist) {
+    if (!professional) {
       return NextResponse.json(
-        { error: "Specialist not found" },
+        { error: "Professional not found" },
         { status: 404 }
       );
     }
 
     let finalVenue: "host" | "visit";
-    if (specialist.venue === "host" || specialist.venue === "visit") {
-      finalVenue = specialist.venue;
-    } else if (specialist.venue === "both") {
+    if (professional.venue === "host" || professional.venue === "visit") {
+      finalVenue = professional.venue;
+    } else if (professional.venue === "both") {
       if (!venue) {
         return NextResponse.json({ error: "VENUE_REQUIRED" }, { status: 400 });
       }
       finalVenue = venue;
     } else {
       return NextResponse.json(
-        { error: "Invalid specialist venue configuration" },
+        { error: "Invalid professional venue configuration" },
         { status: 500 }
       );
     }
@@ -81,7 +81,7 @@ export async function POST(request: Request) {
     // --- Check for overlap with any appointment or buffer ---
     const overlappingAppointment = await prisma.appointment.findFirst({
       where: {
-        specialistId,
+        professionalId,
         status: { in: ["upcoming", "pending", "break"] },
         startTime: { lt: end },
         endTime: { gt: start },
@@ -102,12 +102,12 @@ export async function POST(request: Request) {
     const newAppointment = await prisma.appointment.create({
       data: {
         userId,
-        specialistId,
+        professionalId,
         startTime: start,
         endTime: end,
         status: "upcoming",
         venue: finalVenue,
-        rate: specialist.rate,
+        rate: professional.rate,
       },
     });
 
@@ -117,7 +117,7 @@ export async function POST(request: Request) {
 
     await prisma.appointment.create({
       data: {
-        specialistId,
+        professionalId,
         userId: null, // No user
         startTime: bufferStart,
         endTime: bufferEnd,

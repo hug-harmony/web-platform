@@ -40,10 +40,10 @@ interface Conversation {
   id: string;
   user1?: Participant;
   user2?: Participant;
-  specialistId?: string; // NEW: From updated backend response
+  professionalId?: string; // NEW: From updated backend response
 }
 
-interface Specialist {
+interface Professional {
   id: string;
   name: string;
   rate?: number;
@@ -68,14 +68,14 @@ const MessageInterface: React.FC = () => {
   const [loading, setLoading] = useState(false);
   const [sending, setSending] = useState(false);
   const [imagePreview, setImagePreview] = useState<string | null>(null);
-  const [isSpecialist, setIsSpecialist] = useState(false);
+  const [isProfessional, setIsProfessional] = useState(false);
   const [isProposalDialogOpen, setIsProposalDialogOpen] = useState(false);
   const [confirmDialogOpen, setConfirmDialogOpen] = useState(false);
   const [selectedProposal, setSelectedProposal] = useState<{
     id: string;
     startTime: string; // UPDATED: For range
     endTime: string; // UPDATED
-    specialist: Specialist;
+    professional: Professional;
     appointmentId?: string;
   } | null>(null);
   const [proposalActionMessage, setProposalActionMessage] = useState<
@@ -86,25 +86,25 @@ const MessageInterface: React.FC = () => {
   const [otherUserType, setOtherUserType] = useState<
     "user" | "professional" | null
   >(null);
-  const [specialistId, setSpecialistId] = useState<string | null>(null); // NEW: For ProposalDialog
+  const [professionalId, setProfessionalId] = useState<string | null>(null); // NEW: For ProposalDialog
 
   useEffect(() => {
-    const checkSpecialistStatus = async () => {
+    const checkProfessionalStatus = async () => {
       if (!session?.user?.id) return;
       try {
-        const res = await fetch("/api/specialists/application/me", {
+        const res = await fetch("/api/professionals/application/me", {
           cache: "no-store",
           credentials: "include",
         });
         if (res.ok) {
           const { status } = await res.json();
-          setIsSpecialist(status === "APPROVED");
+          setIsProfessional(status === "APPROVED");
         }
       } catch (error) {
-        console.error("Error checking specialist status:", error);
+        console.error("Error checking professional status:", error);
       }
     };
-    if (status === "authenticated") checkSpecialistStatus();
+    if (status === "authenticated") checkProfessionalStatus();
   }, [status, session]);
 
   const fetchMessages = useCallback(async () => {
@@ -169,10 +169,10 @@ const MessageInterface: React.FC = () => {
             ? convData.user2
             : convData.user1;
         setOtherUserId(otherUser?.id || null);
-        setOtherUserType(otherUser?.isSpecialist ? "professional" : "user"); // Mock; replace with real logic if available
+        setOtherUserType(otherUser?.isProfessional ? "professional" : "user"); // Mock; replace with real logic if available
 
-        // NEW: Set specialistId from conversation response
-        setSpecialistId(convData.specialistId || null);
+        // NEW: Set professionalId from conversation response
+        setProfessionalId(convData.professionalId || null);
       } catch {
         toast.error("Failed to load conversation or messages");
       } finally {
@@ -366,8 +366,8 @@ const MessageInterface: React.FC = () => {
         id: string;
         startTime: string; // UPDATED
         endTime: string; // UPDATED
-        initiator: "specialist" | "client";
-        specialistId: string;
+        initiator: "professional" | "client";
+        professionalId: string;
       };
       const appointmentId: string | undefined = data.appointmentId;
 
@@ -375,30 +375,30 @@ const MessageInterface: React.FC = () => {
       setTimeout(() => setProposalActionMessage(null), 3000);
 
       if (action === "accepted") {
-        if (proposal.initiator === "specialist") {
-          const specialistRes = await fetch(
-            `/api/specialists/${proposal.specialistId}`,
+        if (proposal.initiator === "professional") {
+          const professionalRes = await fetch(
+            `/api/professionals/${proposal.professionalId}`,
             {
               cache: "no-store",
               credentials: "include",
             }
           );
 
-          if (!specialistRes.ok) {
+          if (!professionalRes.ok) {
             throw new Error(
-              `Failed to fetch specialist details: ${specialistRes.status}`
+              `Failed to fetch professional details: ${professionalRes.status}`
             );
           }
-          const specialist = await specialistRes.json();
+          const professional = await professionalRes.json();
 
           setSelectedProposal({
             id: proposal.id,
             startTime: proposal.startTime, // UPDATED
             endTime: proposal.endTime, // UPDATED
-            specialist: {
-              id: proposal.specialistId,
-              name: specialist.name,
-              rate: specialist.rate || 50,
+            professional: {
+              id: proposal.professionalId,
+              name: professional.name,
+              rate: professional.rate || 50,
             },
             appointmentId,
           });
@@ -410,7 +410,7 @@ const MessageInterface: React.FC = () => {
         }
       } else {
         toast.success(
-          proposal.initiator === "specialist"
+          proposal.initiator === "professional"
             ? "Proposal rejected"
             : "Appointment request declined"
         );
@@ -456,8 +456,8 @@ const MessageInterface: React.FC = () => {
         id: string;
         startTime: string;
         endTime: string;
-        initiator: "specialist" | "user"; // UPDATED: Use "user" as per your code
-        specialistId: string;
+        initiator: "professional" | "user"; // UPDATED: Use "user" as per your code
+        professionalId: string;
       };
       const appointmentId: string | undefined = data.appointmentId;
 
@@ -465,30 +465,30 @@ const MessageInterface: React.FC = () => {
       setTimeout(() => setProposalActionMessage(null), 3000);
 
       if (action === "accepted") {
-        if (proposal.initiator === "specialist") {
-          const specialistRes = await fetch(
-            `/api/specialists/${proposal.specialistId}`,
+        if (proposal.initiator === "professional") {
+          const professionalRes = await fetch(
+            `/api/professionals/${proposal.professionalId}`,
             {
               cache: "no-store",
               credentials: "include",
             }
           );
 
-          if (!specialistRes.ok) {
+          if (!professionalRes.ok) {
             throw new Error(
-              `Failed to fetch specialist details: ${specialistRes.status}`
+              `Failed to fetch professional details: ${professionalRes.status}`
             );
           }
-          const specialist = await specialistRes.json();
+          const professional = await professionalRes.json();
 
           setSelectedProposal({
             id: proposal.id,
             startTime: proposal.startTime,
             endTime: proposal.endTime,
-            specialist: {
-              id: proposal.specialistId,
-              name: specialist.name,
-              rate: specialist.rate || 50,
+            professional: {
+              id: proposal.professionalId,
+              name: professional.name,
+              rate: professional.rate || 50,
             },
             appointmentId,
           });
@@ -502,7 +502,7 @@ const MessageInterface: React.FC = () => {
       } else {
         // UPDATED: Tailored toasts for rejection
         toast.success(
-          proposal.initiator === "specialist"
+          proposal.initiator === "professional"
             ? "Proposal rejected"
             : "Appointment request declined"
         );
@@ -626,7 +626,7 @@ const MessageInterface: React.FC = () => {
           handleSend={handleSend}
           handleFileChange={handleFileChange}
           sending={sending}
-          isSpecialist={isSpecialist}
+          isProfessional={isProfessional}
           setIsProposalDialogOpen={setIsProposalDialogOpen}
         />
       </Card>
@@ -641,7 +641,7 @@ const MessageInterface: React.FC = () => {
         setIsOpen={setIsProposalDialogOpen}
         handleSendProposal={handleSendProposal} // UPDATED: Pass the new handler
         sending={sending}
-        specialistId={specialistId!} // NEW: Pass specialistId
+        professionalId={professionalId!} // NEW: Pass professionalId
       />
       <ConfirmDialog
         isOpen={confirmDialogOpen}

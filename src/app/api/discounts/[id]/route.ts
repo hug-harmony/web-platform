@@ -35,7 +35,7 @@ export async function GET(
 
     const discount = await prisma.discount.findUnique({
       where: { id },
-      include: { specialist: { select: { id: true, name: true } } },
+      include: { professional: { select: { id: true, name: true } } },
     });
 
     if (!discount) {
@@ -45,10 +45,10 @@ export async function GET(
       );
     }
 
-    // Ensure the user is the specialist who owns the discount
-    const application = await prisma.specialistApplication.findFirst({
+    // Ensure the user is the professional who owns the discount
+    const application = await prisma.professionalApplication.findFirst({
       where: {
-        specialistId: discount.specialistId,
+        professionalId: discount.professionalId,
         userId: session.user.id,
         status: "APPROVED",
       },
@@ -66,9 +66,9 @@ export async function GET(
       name: discount.name,
       rate: discount.rate,
       discount: discount.discount,
-      specialist: {
-        id: discount.specialist.id,
-        name: discount.specialist.name,
+      professional: {
+        id: discount.professional.id,
+        name: discount.professional.name,
       },
       createdAt: discount.createdAt,
       updatedAt: discount.updatedAt,
@@ -94,18 +94,18 @@ export async function POST(req: Request) {
 
     const body = await req.json();
     const validatedData = discountSchema.parse(body);
-    const { specialistId } = body;
+    const { professionalId } = body;
 
-    if (!specialistId || !/^[0-9a-fA-F]{24}$/.test(specialistId)) {
+    if (!professionalId || !/^[0-9a-fA-F]{24}$/.test(professionalId)) {
       return NextResponse.json(
-        { error: "Invalid specialist ID" },
+        { error: "Invalid professional ID" },
         { status: 400 }
       );
     }
 
-    // Check if the user is the specialist
-    const application = await prisma.specialistApplication.findFirst({
-      where: { specialistId, userId: session.user.id, status: "APPROVED" },
+    // Check if the user is the professional
+    const application = await prisma.professionalApplication.findFirst({
+      where: { professionalId, userId: session.user.id, status: "APPROVED" },
     });
 
     if (!application) {
@@ -120,12 +120,12 @@ export async function POST(req: Request) {
 
     const discount = await prisma.discount.create({
       data: {
-        specialistId,
+        professionalId,
         name: validatedData.name,
         rate: validatedData.rate,
         discount: validatedData.discount,
       },
-      include: { specialist: { select: { id: true, name: true } } },
+      include: { professional: { select: { id: true, name: true } } },
     });
 
     return NextResponse.json(
@@ -134,9 +134,9 @@ export async function POST(req: Request) {
         name: discount.name,
         rate: discount.rate,
         discount: discount.discount,
-        specialist: {
-          id: discount.specialist.id,
-          name: discount.specialist.name,
+        professional: {
+          id: discount.professional.id,
+          name: discount.professional.name,
         },
         createdAt: discount.createdAt,
         updatedAt: discount.updatedAt,
@@ -187,10 +187,10 @@ export async function PATCH(
       );
     }
 
-    // Check if the user is the specialist
-    const application = await prisma.specialistApplication.findFirst({
+    // Check if the user is the professional
+    const application = await prisma.professionalApplication.findFirst({
       where: {
-        specialistId: discount.specialistId,
+        professionalId: discount.professionalId,
         userId: session.user.id,
         status: "APPROVED",
       },
@@ -213,7 +213,7 @@ export async function PATCH(
         rate: validatedData.rate,
         discount: validatedData.discount,
       },
-      include: { specialist: { select: { id: true, name: true } } },
+      include: { professional: { select: { id: true, name: true } } },
     });
 
     return NextResponse.json({
@@ -221,9 +221,9 @@ export async function PATCH(
       name: updatedDiscount.name,
       rate: updatedDiscount.rate,
       discount: updatedDiscount.discount,
-      specialist: {
-        id: updatedDiscount.specialist.id,
-        name: updatedDiscount.specialist.name,
+      professional: {
+        id: updatedDiscount.professional.id,
+        name: updatedDiscount.professional.name,
       },
       createdAt: updatedDiscount.createdAt,
       updatedAt: updatedDiscount.updatedAt,
@@ -278,10 +278,10 @@ export async function DELETE(
       );
     }
 
-    // Check if the user is the specialist
-    const application = await prisma.specialistApplication.findFirst({
+    // Check if the user is the professional
+    const application = await prisma.professionalApplication.findFirst({
       where: {
-        specialistId: discount.specialistId,
+        professionalId: discount.professionalId,
         userId: session.user.id,
         status: "APPROVED",
       },

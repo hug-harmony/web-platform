@@ -25,8 +25,8 @@ interface Therapist {
   name: string;
   image?: string;
   location?: string;
-  isSpecialist: boolean;
-  specialistId?: string;
+  isProfessional: boolean;
+  professionalId?: string;
 }
 
 const containerVariants = {
@@ -83,10 +83,11 @@ export default function ExplorePage() {
                       : user.name || "Unknown User",
                   image: user.profileImage || undefined,
                   location: user.location || "",
-                  isSpecialist:
-                    user.specialistApplication?.status === "APPROVED" || false,
-                  specialistId:
-                    user.specialistApplication?.specialistId || undefined,
+                  isProfessional:
+                    user.professionalApplication?.status === "APPROVED" ||
+                    false,
+                  professionalId:
+                    user.professionalApplication?.professionalId || undefined,
                 }))
             : []
         );
@@ -223,15 +224,15 @@ export default function ExplorePage() {
                   >
                     <Link
                       href={
-                        user.isSpecialist
-                          ? `/dashboard/specialists/${user.specialistId}`
+                        user.isProfessional
+                          ? `/dashboard/professionals/${user.professionalId}`
                           : `/dashboard/users/${user._id}`
                       }
                     >
                       <UserCard
                         name={user.name}
                         imageSrc={user.image || ""}
-                        isSpecialist={user.isSpecialist}
+                        isProfessional={user.isProfessional}
                         className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors"
                       />
                     </Link>
