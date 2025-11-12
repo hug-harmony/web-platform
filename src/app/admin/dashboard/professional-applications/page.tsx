@@ -264,7 +264,13 @@ export default function ProfessionalApplicationsPage() {
                       {app.latestQuiz && (
                         <div className="text-xs text-[#C4C4C4] mb-1">
                           Quiz:{" "}
-                          <strong>{app.latestQuiz.score.toFixed(0)}%</strong> –{" "}
+                          <strong>
+                            {typeof app.latestQuiz.score === "number"
+                              ? app.latestQuiz.score.toFixed(0)
+                              : "N/A"}
+                            %
+                          </strong>{" "}
+                          –{" "}
                           {new Date(
                             app.latestQuiz.attemptedAt
                           ).toLocaleDateString()}
