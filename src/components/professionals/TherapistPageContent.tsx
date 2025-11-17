@@ -28,7 +28,7 @@ export default function TherapistsPageContent() {
   const [isRadiusDialogOpen, setIsRadiusDialogOpen] = useState(false);
   const [isDateTimeDialogOpen, setIsDateTimeDialogOpen] = useState(false);
   const [tempRadius, setTempRadius] = useState(10);
-  const [tempUnit] = useState<"km" | "miles">("miles");
+  const [tempUnit, setTempUnit] = useState<"km" | "miles">("miles");
   const [tempLat, setTempLat] = useState<number | undefined>();
   const [tempLng, setTempLng] = useState<number | undefined>();
   const [tempLocation, setTempLocation] = useState<string>("");
@@ -144,6 +144,7 @@ export default function TherapistsPageContent() {
         onTempLngChange={setTempLng}
         onTempLocationChange={setTempLocation}
         onTempRadiusChange={setTempRadius}
+        onTempUnitChange={setTempUnit}
         onApply={applyRadius}
       />
 
