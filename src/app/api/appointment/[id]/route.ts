@@ -6,11 +6,11 @@ import { createEvent, EventAttributes } from "ics";
 
 export async function GET(
   _request: NextRequest,
-  props: { params: Promise<{ userId: string }> }
+  props: { params: Promise<{ id: string }> } // Changed from userId to id
 ) {
   // Await the params promise to get the parameters
   const params = await props.params;
-  const { userId } = params;
+  const { id: userId } = params; // Destructure as id and rename to userId for clarity
 
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
