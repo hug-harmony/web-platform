@@ -1,5 +1,6 @@
 "use client";
-import { useState, useMemo } from "react";
+
+import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import {
   Dialog,
@@ -8,60 +9,85 @@ import {
   DialogTitle,
   DialogTrigger,
 } from "@/components/ui/dialog";
+import { useSession } from "next-auth/react";
 
-export default function SyncAllCalendarButton({ userId }: { userId: string }) {
+interface SyncAllCalendarButtonProps {
+  userId?: string;
+}
+
+export default function SyncAllCalendarButton({
+  userId,
+}: SyncAllCalendarButtonProps) {
+  const { data: session } = useSession();
   const [open, setOpen] = useState(false);
+
+  if (!session?.user?.id && !userId) return null;
+
+  const resolvedUserId = userId || session!.user.id;
 
   const generateCalendarSubscriptionLinks = (userId: string) => {
     const feedUrl = `${window.location.origin}/api/calendar/feed/${userId}`;
     return {
-      google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(
-        feedUrl
-      )}`,
-      apple: `webcal://${window.location.host}/api/calendar/feed/${userId}`, // iOS/macOS
-      outlook: feedUrl, // Outlook can subscribe via client
-      download: feedUrl, // fallback
+      google: `https://calendar.google.com/calendar/r?cid=${encodeURIComponent(feedUrl)}`,
+      apple: `webcal://${window.location.host}/api/calendar/feed/${userId}`,
+      outlook: feedUrl,
+      download: feedUrl,
     };
   };
 
-  const links = useMemo(
-    () => generateCalendarSubscriptionLinks(userId),
-    [userId]
-  );
+  const handleCalendarSelect = (
+    option: "google" | "apple" | "outlook" | "download"
+  ) => {
+    const links = generateCalendarSubscriptionLinks(resolvedUserId);
 
-  const handleCalendarSelect = (calendar: "google" | "apple" | "outlook") => {
-    if (/Mobi|Android/i.test(navigator.userAgent) && calendar === "apple") {
-      // Mobile automatically opens Apple Calendar subscription
-      window.location.href = links.apple;
-    } else {
-      if (calendar === "google") window.open(links.google, "_blank");
-      else if (calendar === "apple") window.location.href = links.apple;
-      else if (calendar === "outlook") window.open(links.outlook, "_blank");
+    switch (option) {
+      case "google":
+        window.open(links.google, "_blank");
+        break;
+      case "apple":
+        window.location.href = links.apple;
+        break;
+      case "outlook":
+        window.open(links.outlook, "_blank");
+        break;
+      case "download":
+        const link = document.createElement("a");
+        link.href = links.download;
+        link.download = "appointments.ics";
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        break;
     }
+
     setOpen(false);
   };
 
   return (
     <Dialog open={open} onOpenChange={setOpen}>
       <DialogTrigger asChild>
-        <Button variant="default" disabled={!userId}>
-          Sync All Appointments
-        </Button>
+        <Button variant="outline">Sync All Appointments</Button>
       </DialogTrigger>
-
-      <DialogContent className="max-w-sm">
+      <DialogContent>
         <DialogHeader>
-          <DialogTitle>Choose Calendar to Subscribe</DialogTitle>
+          <DialogTitle>Select Calendar to Sync</DialogTitle>
         </DialogHeader>
+
         <div className="flex flex-col gap-2 mt-4">
           <Button onClick={() => handleCalendarSelect("google")}>
             Google Calendar
           </Button>
           <Button onClick={() => handleCalendarSelect("apple")}>
-            Apple Calendar
+            Apple Calendar (iOS/macOS)
           </Button>
           <Button onClick={() => handleCalendarSelect("outlook")}>
-            Outlook / Office 365
+            Outlook
+          </Button>
+          <Button
+            variant="secondary"
+            onClick={() => handleCalendarSelect("download")}
+          >
+            Download ICS File
           </Button>
         </div>
       </DialogContent>

@@ -1,5 +1,7 @@
+// File: src/app/api/calendar/feed/[userId]/route.ts
+
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth";
+import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { createEvent, EventAttributes } from "ics";
@@ -9,6 +11,7 @@ export async function GET(
   { params }: { params: { userId: string } }
 ) {
   const session = await getServerSession(authOptions);
+
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
@@ -54,9 +57,7 @@ export async function GET(
         start,
         end,
         title: `Appointment with ${appt.professional?.name || "Professional"}`,
-        description: `Appointment with ${
-          appt.professional?.name || "Professional"
-        } for ${appt.user?.name || "Client"}. Rate: $${appt.professional?.rate || 50}`,
+        description: `Appointment with ${appt.professional?.name || "Professional"} for ${appt.user?.name || "Client"}. Rate: $${appt.professional?.rate || 50}`,
         location:
           appt.professional?.application?.user?.location || "Virtual Session",
       };
@@ -83,6 +84,7 @@ export async function GET(
       status: 200,
       headers: {
         "Content-Type": "text/calendar; charset=utf-8",
+        "Cache-Control": "public, max-age=3600", // Optional caching
       },
     });
   } catch (error) {
