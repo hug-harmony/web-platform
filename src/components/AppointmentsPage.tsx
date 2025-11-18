@@ -34,6 +34,7 @@ import {
 } from "react-big-calendar";
 import moment from "moment";
 import "react-big-calendar/lib/css/react-big-calendar.css";
+import SyncAllCalendarButton from "./SyncAllCalendarButton";
 
 // Updated interfaces
 interface Appointment {
@@ -95,7 +96,7 @@ const localizer = momentLocalizer(moment);
 
 export default function AppointmentsPage() {
   const router = useRouter();
-  const { status } = useSession();
+  const { data: session, status } = useSession();
   const [appointments, setAppointments] = useState<Appointment[]>([]);
   const [clientAppointments, setClientAppointments] = useState<Appointment[]>(
     []
@@ -410,29 +411,12 @@ export default function AppointmentsPage() {
       </Card>
 
       <Card className="shadow-lg">
-        <CardContent className="pt-6">
-          <Button
-            variant="outline"
-            onClick={async () => {
-              try {
-                const res = await fetch("/api/appointment/calendar");
-                if (!res.ok) throw new Error("Failed");
-
-                const blob = await res.blob();
-                const url = URL.createObjectURL(blob);
-                const link = document.createElement("a");
-                link.href = url;
-                link.download = "all-appointments.ics";
-                link.click();
-                URL.revokeObjectURL(url);
-              } catch (err) {
-                toast.error("Could not sync all appointments");
-                console.error(err);
-              }
-            }}
-          >
-            Sync All Appointments
-          </Button>
+        <CardContent className="">
+          {session?.user?.id && (
+            <div className="w-full flex justify-center sm:justify-end mb-4">
+              <SyncAllCalendarButton userId={session.user.id} />
+            </div>
+          )}
           {calendarEvents.length > 0 ? (
             <BigCalendar
               localizer={localizer}

@@ -193,11 +193,15 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   const generateCalendarLinks = () => {
     const start = new Date(appointment.startTime);
     const end = new Date(appointment.endTime);
-    const title = encodeURIComponent(`${displayName} – Appointment`);
-    const description = encodeURIComponent(
+
+    // Always encode all components properly
+    const sanitize = (str: string) => encodeURIComponent(str);
+
+    const title = sanitize(`${displayName} – Appointment`);
+    const description = sanitize(
       `Appointment with ${displayName}. Rate: $${rate || 50}`
     );
-    const location = encodeURIComponent("Virtual / In-person (check details)");
+    const location = sanitize("Virtual / In-person (check details)");
 
     const formatDateForWeb = (date: Date) =>
       date.toISOString().replace(/-|:|\.\d+/g, "");
@@ -206,8 +210,13 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
     const endStr = formatDateForWeb(end);
 
     return {
-      google: `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${description}&location=${location}&sf=true&output=xml`,
+      // Google Calendar
+      google: `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${description}&location=${location}`,
+
+      // Outlook / Office 365
       outlook: `https://outlook.live.com/owa/?path=/calendar/action/compose&subject=${title}&startdt=${start.toISOString()}&enddt=${end.toISOString()}&body=${description}&location=${location}`,
+
+      // Yahoo Calendar
       yahoo: `https://calendar.yahoo.com/?v=60&view=d&type=20&title=${title}&st=${startStr}&et=${endStr}&desc=${description}&in_loc=${location}`,
     };
   };
