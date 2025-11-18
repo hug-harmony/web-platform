@@ -411,6 +411,28 @@ export default function AppointmentsPage() {
 
       <Card className="shadow-lg">
         <CardContent className="pt-6">
+          <Button
+            variant="outline"
+            onClick={async () => {
+              try {
+                const res = await fetch("/api/appointment/calendar");
+                if (!res.ok) throw new Error("Failed");
+
+                const blob = await res.blob();
+                const url = URL.createObjectURL(blob);
+                const link = document.createElement("a");
+                link.href = url;
+                link.download = "all-appointments.ics";
+                link.click();
+                URL.revokeObjectURL(url);
+              } catch (err) {
+                toast.error("Could not sync all appointments");
+                console.error(err);
+              }
+            }}
+          >
+            Sync All Appointments
+          </Button>
           {calendarEvents.length > 0 ? (
             <BigCalendar
               localizer={localizer}
