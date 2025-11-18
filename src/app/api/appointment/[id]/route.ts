@@ -1,11 +1,13 @@
+// File: src/app/api/calendar/feed/[userId]/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { createEvent, EventAttributes } from "ics";
 
 export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> }
+  _request: Request,
+  { params }: { params: Promise<{ userId: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -13,52 +15,85 @@ export async function GET(
   }
 
   const resolvedParams = await params;
-  const bookingId = resolvedParams.id;
+  const userId = resolvedParams.userId;
 
-  if (!bookingId || bookingId === "undefined") {
-    return NextResponse.json({ error: "Invalid booking ID" }, { status: 400 });
+  if (!userId) {
+    return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
+  }
+
+  if (session.user.id !== userId && !session.user.isAdmin) {
+    return NextResponse.json({ error: "Forbidden" }, { status: 403 });
   }
 
   try {
-    const appointment = await prisma.appointment.findUnique({
-      where: { id: bookingId },
-      select: {
-        id: true,
-        startTime: true,
-        endTime: true,
-        venue: true,
-        user: { select: { name: true } },
-        professional: { select: { name: true, rate: true, venue: true } },
+    const appointments = await prisma.appointment.findMany({
+      where: { userId, startTime: { gte: new Date() } },
+      include: {
+        user: { select: { name: true, email: true } },
+        professional: {
+          select: {
+            name: true,
+            rate: true,
+            application: { select: { user: { select: { location: true } } } },
+          },
+        },
       },
     });
 
-    if (!appointment) {
-      return NextResponse.json({ error: "Booking not found" }, { status: 404 });
+    const icsEvents: string[] = [];
+
+    const formatICalDate = (
+      date: Date
+    ): [number, number, number, number, number] => [
+      date.getUTCFullYear(),
+      date.getUTCMonth() + 1,
+      date.getUTCDate(),
+      date.getUTCHours(),
+      date.getUTCMinutes(),
+    ];
+
+    for (const appt of appointments) {
+      const event: EventAttributes = {
+        start: formatICalDate(appt.startTime),
+        end: formatICalDate(appt.endTime),
+        title: `Appointment with ${appt.professional?.name || "Professional"}`,
+        description: `Appointment with ${
+          appt.professional?.name || "Professional"
+        } for ${appt.user?.name || "Client"}. Rate: $${appt.professional?.rate || 50}`,
+        location:
+          appt.professional?.application?.user?.location || "Virtual Session",
+      };
+
+      const { value, error } = createEvent(event);
+      if (!error && value) {
+        // Remove VCALENDAR wrapper for bulk ICS
+        const cleaned = value
+          .replace(/^BEGIN:VCALENDAR\r?\n/, "")
+          .replace(/END:VCALENDAR\r?\n?$/, "");
+        icsEvents.push(cleaned);
+      }
     }
 
-    if (!appointment.user) {
-      return NextResponse.json(
-        { error: "User not found for this appointment" },
-        { status: 400 }
-      );
-    }
+    const ics = [
+      "BEGIN:VCALENDAR",
+      "VERSION:2.0",
+      "CALSCALE:GREGORIAN",
+      ...icsEvents,
+      "END:VCALENDAR",
+    ].join("\r\n");
 
-    return NextResponse.json(
-      {
-        userName: appointment.user.name,
-        therapistName: appointment.professional.name,
-        startTime: appointment.startTime,
-        endTime: appointment.endTime,
-        amount: appointment.professional.rate || 50,
-        venue: appointment.venue,
-        professionalVenue: appointment.professional.venue,
+    return new NextResponse(ics, {
+      status: 200,
+      headers: {
+        "Content-Type": "text/calendar; charset=utf-8",
+        "Content-Disposition": `inline; filename="appointments-${userId}.ics"`,
+        "Cache-Control": "public, max-age=3600",
       },
-      { status: 200 }
-    );
+    });
   } catch (error) {
-    console.error("Booking details error:", error);
+    console.error("Calendar feed error:", error);
     return NextResponse.json(
-      { error: "Failed to fetch booking details" },
+      { error: "Failed to generate calendar feed" },
       { status: 500 }
     );
   }
