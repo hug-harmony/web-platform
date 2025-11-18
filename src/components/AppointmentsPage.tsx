@@ -414,7 +414,7 @@ export default function AppointmentsPage() {
         <CardContent className="">
           {session?.user?.id && (
             <div className="w-full flex justify-center sm:justify-end mb-4">
-              <SyncAllCalendarButton userId={session.user.id} />
+              <SyncAllCalendarButton />
             </div>
           )}
           {calendarEvents.length > 0 ? (

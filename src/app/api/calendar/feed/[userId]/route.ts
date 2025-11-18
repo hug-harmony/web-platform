@@ -1,15 +1,15 @@
 // File: src/app/api/calendar/feed/[userId]/route.ts
-
 import { NextResponse } from "next/server";
-import { getServerSession } from "next-auth/next";
+import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { createEvent, EventAttributes } from "ics";
 
-export async function GET(
-  request: Request,
-  { params }: { params: { userId: string } }
-) {
+interface Props {
+  params: { userId: string };
+}
+
+export async function GET(_req: Request, { params }: Props) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
@@ -50,21 +50,21 @@ export async function GET(
     ];
 
     for (const appt of appointments) {
-      const start = formatICalDate(appt.startTime);
-      const end = formatICalDate(appt.endTime);
-
       const event: EventAttributes = {
-        start,
-        end,
+        start: formatICalDate(appt.startTime),
+        end: formatICalDate(appt.endTime),
         title: `Appointment with ${appt.professional?.name || "Professional"}`,
-        description: `Appointment with ${appt.professional?.name || "Professional"} for ${appt.user?.name || "Client"}. Rate: $${appt.professional?.rate || 50}`,
+        description: `Appointment with ${
+          appt.professional?.name || "Professional"
+        } for ${appt.user?.name || "Client"}. Rate: $${appt.professional?.rate || 50}`,
         location:
           appt.professional?.application?.user?.location || "Virtual Session",
       };
 
       const { value, error } = createEvent(event);
+
       if (!error && value) {
-        // Remove VCALENDAR wrapper
+        // Strip VCALENDAR wrapper
         const cleaned = value
           .replace(/^BEGIN:VCALENDAR\r?\n/, "")
           .replace(/END:VCALENDAR\r?\n?$/, "");
@@ -80,11 +80,13 @@ export async function GET(
       "END:VCALENDAR",
     ].join("\r\n");
 
+    // Stream ICS content directly
     return new NextResponse(ics, {
       status: 200,
       headers: {
         "Content-Type": "text/calendar; charset=utf-8",
-        "Cache-Control": "public, max-age=3600", // Optional caching
+        "Content-Disposition": `inline; filename="appointments.ics"`,
+        "Cache-Control": "public, max-age=3600", // optional caching
       },
     });
   } catch (error) {
