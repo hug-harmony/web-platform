@@ -1,21 +1,21 @@
-// File: src/app/api/calendar/feed/[userId]/route.ts
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { createEvent, EventAttributes } from "ics";
 
 export async function GET(
-  _request: Request,
-  { params }: { params: Promise<{ userId: string }> }
+  _request: NextRequest,
+  props: { params: Promise<{ userId: string }> }
 ) {
+  // Await the params promise to get the parameters
+  const params = await props.params;
+  const { userId } = params;
+
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-
-  const resolvedParams = await params;
-  const userId = resolvedParams.userId;
 
   if (!userId) {
     return NextResponse.json({ error: "Invalid user ID" }, { status: 400 });
