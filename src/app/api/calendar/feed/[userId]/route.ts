@@ -5,18 +5,17 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { createEvent, EventAttributes } from "ics";
 
-interface Props {
-  params: { userId: string };
-}
-
-export async function GET(_req: Request, { params }: Props) {
+export async function GET(
+  _req: Request,
+  { params }: { params: Promise<{ userId: string }> }
+) {
   const session = await getServerSession(authOptions);
 
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { userId } = params;
+  const { userId } = await params; // <-- Added 'await' here
 
   if (session.user.id !== userId && !session.user.isAdmin) {
     return NextResponse.json({ error: "Forbidden" }, { status: 403 });
