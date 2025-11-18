@@ -188,6 +188,58 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
     }
   };
 
+  const isMobile = () => /Mobi|Android/i.test(navigator.userAgent);
+
+  const generateCalendarLinks = () => {
+    const start = new Date(appointment.startTime);
+    const end = new Date(appointment.endTime);
+    const title = encodeURIComponent(`${displayName} – Appointment`);
+    const description = encodeURIComponent(
+      `Appointment with ${displayName}. Rate: $${rate || 50}`
+    );
+    const location = encodeURIComponent("Virtual / In-person (check details)");
+
+    const formatDateForWeb = (date: Date) =>
+      date.toISOString().replace(/-|:|\.\d+/g, "");
+
+    const startStr = formatDateForWeb(start);
+    const endStr = formatDateForWeb(end);
+
+    return {
+      google: `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${description}&location=${location}&sf=true&output=xml`,
+      outlook: `https://outlook.live.com/owa/?path=/calendar/action/compose&subject=${title}&startdt=${start.toISOString()}&enddt=${end.toISOString()}&body=${description}&location=${location}`,
+      yahoo: `https://calendar.yahoo.com/?v=60&view=d&type=20&title=${title}&st=${startStr}&et=${endStr}&desc=${description}&in_loc=${location}`,
+    };
+  };
+
+  const handleAddToCalendar = async () => {
+    if (isMobile()) {
+      // Mobile → download ICS
+      try {
+        const res = await fetch(`/api/appointment/${appointment._id}/calendar`);
+        if (!res.ok) throw new Error("Failed to fetch calendar event");
+
+        const blob = await res.blob();
+        const url = URL.createObjectURL(blob);
+        const link = document.createElement("a");
+        link.href = url;
+        link.download = `appointment-${appointment._id}.ics`;
+        document.body.appendChild(link);
+        link.click();
+        document.body.removeChild(link);
+        URL.revokeObjectURL(url);
+      } catch (error) {
+        console.error(error);
+        toast.error("Could not download calendar event. Please try again.");
+      }
+    } else {
+      // Desktop → open Google/Outlook/Yahoo links
+      const links = generateCalendarLinks();
+      // You can choose which calendar to open, e.g., Google Calendar:
+      window.open(links.google, "_blank");
+    }
+  };
+
   const displayName = isOwnerProfessional ? clientName : professionalName;
   const startDate = parseISO(startTime);
   const endDate = parseISO(endTime);
@@ -229,6 +281,15 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
       <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
         <Button variant="outline" className="rounded-full" onClick={onMessage}>
           <MessageSquare className="mr-2 h-4 w-4" /> Message
+        </Button>
+
+        <Button
+          variant="outline"
+          className="rounded-full"
+          onClick={handleAddToCalendar}
+        >
+          <CalendarIcon className="mr-2 h-4 w-4" />
+          Add to Calendar
         </Button>
 
         {isProfessional && isOwnerProfessional && (
