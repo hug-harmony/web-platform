@@ -120,14 +120,10 @@ export function PersonalInfoSection({
             />
           </div>
 
-          {/* Rest of fields (biography, selects, etc.) */}
-          {/* ... same as before, just moved here ... */}
-          {/* I’ll skip pasting all 15+ fields here for brevity — you can copy them from your original file into this component */}
-
           {/* Biography */}
           <div className="space-y-2">
             <Label htmlFor="biography" className="text-black dark:text-white">
-              Biography
+              Bio
             </Label>
             <Textarea
               id="biography"
@@ -420,7 +416,7 @@ export function PersonalInfoSection({
             </p>
           </div>
           <div>
-            <p className="text-sm text-[#C4C4C4]">Biography</p>
+            <p className="text-sm text-[#C4C4C4]">Bio</p>
             <p className="text-black dark:text-white break-words">
               {profile.biography || "Not provided"}
             </p>

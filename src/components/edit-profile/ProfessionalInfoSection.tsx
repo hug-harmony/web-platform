@@ -104,7 +104,7 @@ export function ProfessionalInfoSection({
       {isEditing ? (
         <form onSubmit={handleSubmit} className="space-y-6">
           <div className="space-y-2">
-            <Label>Biography</Label>
+            <Label>Professional Bio</Label>
             <Textarea
               name="biography"
               value={profile.biography || ""}
@@ -193,7 +193,7 @@ export function ProfessionalInfoSection({
       ) : (
         <div className="space-y-6">
           <div>
-            <p className="text-sm text-[#C4C4C4]">Biography</p>
+            <p className="text-sm text-[#C4C4C4]">Professional Bio</p>
             <p className="text-black dark:text-white break-words">
               {profile.biography || "Not provided"}
             </p>

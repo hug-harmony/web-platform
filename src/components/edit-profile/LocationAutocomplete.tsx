@@ -33,13 +33,14 @@ export function LocationAutocomplete({
       <Popover
         open={!!searchTerm.trim()}
         onOpenChange={(open) => !open && setSearchTerm("")}
+        modal={false}
       >
         <PopoverTrigger asChild>
           <div className="relative">
             <Input
               type="search"
               placeholder="Search city, address, or place..."
-              value={disabled ? value : searchTerm}
+              value={disabled ? value : searchTerm || value}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
               }}
@@ -64,7 +65,11 @@ export function LocationAutocomplete({
           </div>
         </PopoverTrigger>
 
-        <PopoverContent className="w-full p-0" align="start">
+        <PopoverContent
+          className="w-full p-0"
+          align="start"
+          onOpenAutoFocus={(e) => e.preventDefault()}
+        >
           {loading ? (
             <div className="flex items-center gap-2 p-3 text-sm">
               <Search className="h-4 w-4 animate-spin" /> Searching...
