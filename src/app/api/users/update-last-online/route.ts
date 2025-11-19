@@ -1,4 +1,4 @@
-// src/app/api/user/update-last-online/route.ts
+// src/app/api/users/update-last-online/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";

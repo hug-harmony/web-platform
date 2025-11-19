@@ -141,7 +141,7 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
           notFound();
         }
 
-        const profileRes = await fetch(`/api/professionals?id=${id}`, {
+        const profileRes = await fetch(`/api/professionals/${id}`, {
           cache: "no-store",
           credentials: "include",
         });
@@ -155,6 +155,7 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
             biography: data.biography || "",
             image: data.image || "",
             location: data.location || "",
+            lastOnline: data.lastOnline || "",
             rating: data.rating || 0,
             reviewCount: data.reviewCount || 0,
             rate: data.rate || 0,
@@ -168,7 +169,6 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
             favoriteMedia: data.favoriteMedia || "",
             petOwnership: data.petOwnership || "",
             venue: data.venue || "",
-            lastOnline: data.lastOnline || "",
           });
         } else {
           if (profileRes.status === 401) router.push("/login");
@@ -297,7 +297,10 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
         const errorData = await res.json();
         throw new Error(errorData.error || "Failed to submit review");
       }
-      const profileRes = await fetch(`/api/professionals?id=${id}`);
+      const profileRes = await fetch(`/api/professionals/${id}`, {
+        cache: "no-store",
+        credentials: "include",
+      });
       if (profileRes.ok) setProfile(await profileRes.json());
       const reviewsRes = await fetch(`/api/reviews?professionalId=${id}`);
       if (reviewsRes.ok) setReviews(await reviewsRes.json());
@@ -425,9 +428,6 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
     );
 
   const validImageSrc = profile.image || "/register.jpg";
-  const tagsArray = profile.tags
-    ? profile.tags.split(",").map((tag) => tag.trim())
-    : [];
 
   const { text: lastOnlineText, isOnline } = formatLastOnline(
     profile.lastOnline
@@ -479,9 +479,6 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
               <h2 className="text-2xl sm:text-3xl font-bold text-black dark:text-white">
                 {profile.name}
               </h2>
-              {profile.role && (
-                <p className="text-sm text-[#C4C4C4] mt-1">{profile.role}</p>
-              )}
             </div>
             <div className="flex flex-col sm:flex-row items-center justify-center gap-2 text-[#C4C4C4]">
               {profile.location && (
@@ -519,23 +516,7 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
                 </div>
               )}
             </div>
-            {tagsArray.length > 0 && (
-              <div className="flex flex-wrap justify-center gap-2">
-                {tagsArray.slice(0, 4).map((tag, idx) => (
-                  <span
-                    key={idx}
-                    className="bg-[#F3CFC6] text-black dark:text-white text-xs px-3 py-1 rounded-full"
-                  >
-                    {tag}
-                  </span>
-                ))}
-                {tagsArray.length > 4 && (
-                  <span className="bg-[#F3CFC6] text-black dark:text-white text-xs px-3 py-1 rounded-full">
-                    +{tagsArray.length - 4} more
-                  </span>
-                )}
-              </div>
-            )}
+
             {profile.rate !== undefined && (
               <div className="space-y-4">
                 <p className="text-lg font-semibold text-black dark:text-white">

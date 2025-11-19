@@ -100,6 +100,7 @@
     "@types/react-dom": "^19",
     "@types/simple-peer": "^9.11.8",
     "@types/uuid": "^10.0.0",
+    "baseline-browser-mapping": "^2.8.29",
     "eslint": "^9",
     "eslint-config-next": "15.4.5",
     "prisma": "^6.18.0",

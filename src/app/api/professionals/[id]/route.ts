@@ -1,10 +1,11 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-import { Prisma } from "@prisma/client";
+// import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
+/*
 type ProfessionalWithRelations = Prisma.ProfessionalGetPayload<{
   select: {
     id: true;
@@ -12,9 +13,12 @@ type ProfessionalWithRelations = Prisma.ProfessionalGetPayload<{
     biography: true;
     rate: true;
     createdAt: true;
+    venue: true;
     application: {
       select: {
-        user: { select: { location: true } };
+        user: {
+          select: { location: true; profileImage: true; lastOnline: true };
+        };
       };
     };
     discounts: {
@@ -30,10 +34,13 @@ type ProfessionalWithRelations = Prisma.ProfessionalGetPayload<{
     };
   };
 }>;
+*/
 
 /* --------------------------------------------------------------
    GET – fetch a professional + metrics
    -------------------------------------------------------------- */
+
+/*
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> } // <-- Promise!
@@ -65,10 +72,19 @@ export async function GET(
           biography: true,
           rate: true,
           createdAt: true,
+          venue: true,
+          _count: { select: { reviews: true } },
+          reviews: { select: { rating: true } },
           application: {
             select: {
               userId: true,
-              user: { select: { location: true } },
+              user: {
+                select: {
+                  location: true,
+                  profileImage: true,
+                  lastOnline: true,
+                },
+              },
             },
           },
           discounts: {
@@ -120,7 +136,12 @@ export async function GET(
       biography: professional.biography ?? "",
       location: professional.application?.user?.location ?? "",
       rate: professional.rate ?? null,
+      profileImage: professional.application?.user?.profileImage ?? null,
+      lastOnline: professional.application?.user?.lastOnline ?? null,
       createdAt: professional.createdAt,
+      venue: professional.venue,
+      _count: { select: { reviews: true } },
+      reviews: { select: { rating: true } },
       discounts: professional.discounts.map((d) => ({
         id: d.id,
         name: d.name,
@@ -142,6 +163,102 @@ export async function GET(
       { error: "Internal server error" },
       { status: 500 }
     );
+  }
+}
+*/
+
+export async function GET(
+  request: Request,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  const { id } = await params;
+
+  if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
+    return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
+  }
+
+  try {
+    const professional = await prisma.professional.findUnique({
+      where: { id },
+      include: {
+        application: {
+          select: {
+            user: {
+              select: {
+                lastOnline: true,
+              },
+            },
+          },
+        },
+        reviews: {
+          select: {
+            id: true,
+            rating: true,
+            reviewer: {
+              select: {
+                name: true,
+                firstName: true,
+                lastName: true,
+              },
+            },
+            createdAt: true,
+            feedback: true,
+          },
+        },
+        discounts: {
+          select: {
+            id: true,
+            name: true,
+            rate: true,
+            discount: true,
+            createdAt: true,
+            updatedAt: true,
+          },
+          orderBy: { createdAt: "desc" },
+        },
+      },
+    });
+
+    if (!professional) {
+      return NextResponse.json(
+        { error: "Professional not found" },
+        { status: 404 }
+      );
+    }
+
+    const lastOnline = professional.application?.user?.lastOnline || null;
+
+    return NextResponse.json({
+      id: professional.id,
+      name: professional.name,
+      image: professional.image || "", // From Professional
+      location: professional.location || "", // From Professional
+      biography: professional.biography || "",
+      rate: professional.rate,
+      venue: professional.venue || "both",
+      rating: professional.rating || 0,
+      reviewCount: professional.reviewCount || 0,
+      lastOnline,
+      discounts: professional.discounts,
+      reviews: professional.reviews.map((r) => ({
+        id: r.id,
+        rating: r.rating,
+        feedback: r.feedback,
+        reviewerName:
+          r.reviewer.name ||
+          `${r.reviewer.firstName || ""} ${r.reviewer.lastName || ""}`.trim() ||
+          "Anonymous",
+        createdAt: r.createdAt.toISOString(),
+      })),
+    });
+  } catch (error) {
+    console.error("Error fetching professional:", error);
+    return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 

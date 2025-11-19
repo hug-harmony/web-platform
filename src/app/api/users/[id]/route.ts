@@ -105,6 +105,7 @@ export async function GET(req: Request) {
       email: user.email,
       phoneNumber: user.phoneNumber || "",
       profileImage: user.profileImage || "",
+      lastOnline: user.lastOnline || "",
       location: user.location || "",
       biography: user.biography || "",
       relationshipStatus: user.relationshipStatus || "",

@@ -27,6 +27,7 @@ export async function GET(request: NextRequest) {
             firstName: true,
             lastName: true,
             profileImage: true,
+            lastOnline: true,
           },
         },
         user2: {
@@ -35,6 +36,7 @@ export async function GET(request: NextRequest) {
             firstName: true,
             lastName: true,
             profileImage: true,
+            lastOnline: true,
           },
         },
       },

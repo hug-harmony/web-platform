@@ -2,7 +2,7 @@
 /* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
-import React, { useEffect, useState, useRef } from "react";
+import React, { useEffect, useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -15,7 +15,15 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
-import { Gem, Upload } from "lucide-react";
+import {
+  AlertCircle,
+  Gem,
+  MapPin,
+  Search,
+  Trash,
+  Upload,
+  X,
+} from "lucide-react";
 import { notFound } from "next/navigation";
 import { useRouter } from "next/navigation";
 import { useSession } from "next-auth/react";
@@ -24,6 +32,13 @@ import { Card, CardHeader, CardContent, CardTitle } from "@/components/ui/card";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { Skeleton } from "@/components/ui/skeleton";
 import debounce from "lodash.debounce";
+import { useDebounce } from "use-debounce";
+import {
+  Popover,
+  PopoverContent,
+  PopoverTrigger,
+} from "@/components/ui/popover";
+import Image from "next/image";
 
 type OnboardingStep =
   | "FORM"
@@ -103,84 +118,77 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
   const [isProfessional, setIsProfessional] = useState(false);
   const [professionalId, setProfessionalId] = useState<string | null>(null);
   const [formErrors, setFormErrors] = useState<Record<string, string>>({});
-  const [locationSuggestions, setLocationSuggestions] = useState<
-    LocationSuggestion[]
-  >([]);
-  const [isLocationLoading, setIsLocationLoading] = useState(false);
-  const [isLocationDropdownOpen, setIsLocationDropdownOpen] = useState(false);
 
   const router = useRouter();
   const { data: session, status, update } = useSession();
   const fileInputRef = useRef<HTMLInputElement>(null);
-  const locationInputRef = useRef<HTMLInputElement>(null);
-  const dropdownRef = useRef<HTMLDivElement>(null);
 
   // ──────────────────────────────────────────────────────────────
   //  Location autocomplete (Nominatim) - Updated to use Nominatim v1 + modern headers
   // ──────────────────────────────────────────────────────────────
-  const fetchLocationSuggestions = debounce(async (query: string) => {
-    if (query.length < 3) {
-      setLocationSuggestions([]);
-      setIsLocationDropdownOpen(false);
+  const [searchTerm, setSearchTerm] = useState("");
+  const [debouncedTerm] = useDebounce(searchTerm, 300);
+  const [suggestions, setSuggestions] = useState<LocationResult[]>([]);
+  const [isLocationLoading, setIsLocationLoading] = useState(false);
+  const [error, setError] = useState<string | null>(null);
+  const [popoverOpen, setPopoverOpen] = useState(false);
+  const inputRef = useRef<HTMLInputElement>(null);
+
+  interface LocationResult {
+    lat: string;
+    lon: string;
+    display_name: string;
+  }
+
+  const fetchSuggestions = useCallback(async (query: string) => {
+    if (!query.trim()) {
+      setSuggestions([]);
+      setError(null);
       return;
     }
     setIsLocationLoading(true);
+    setError(null);
     try {
       const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=5&addressdetails=1&q=${encodeURIComponent(
+        `https://photon.komoot.io/api/?q=${encodeURIComponent(
           query
-        )}`,
-        {
-          headers: {
-            "User-Agent": "YourAppName/1.0 (your.email@example.com)",
-            Accept: "application/json",
-          },
-        }
+        )}&limit=7&lang=en`
       );
-      if (res.ok) {
-        const data: LocationSuggestion[] = await res.json();
-        setLocationSuggestions(data);
-        setIsLocationDropdownOpen(true);
-      }
+      if (!res.ok) throw new Error("Search unavailable");
+      const data = await res.json();
+
+      const results: LocationResult[] = (data.features || [])
+        .map((f: any) => {
+          const p = f.properties || {};
+          const c = f.geometry?.coordinates || [];
+          const name = p.name || p.street || p.city || "Location";
+          return {
+            lat: c[1]?.toString() || "0",
+            lon: c[0]?.toString() || "0",
+            display_name: p.country ? `${name}, ${p.country}` : name,
+          };
+        })
+        .filter((r: LocationResult) => r.lat && r.lon);
+
+      setSuggestions(results.slice(0, 7));
     } catch (err) {
-      console.error("Nominatim error:", err);
-      toast.error("Failed to fetch location suggestions");
+      console.error(err);
+      setError("Search failed");
+      setSuggestions([]);
     } finally {
       setIsLocationLoading(false);
     }
-  }, 300);
-
-  useEffect(() => {
-    const handler = (e: MouseEvent) => {
-      if (
-        dropdownRef.current &&
-        !dropdownRef.current.contains(e.target as Node)
-      ) {
-        setIsLocationDropdownOpen(false);
-      }
-    };
-    document.addEventListener("mousedown", handler);
-    return () => document.removeEventListener("mousedown", handler);
   }, []);
 
-  const validateLocation = async (loc: string) => {
-    if (!loc) return true;
-    try {
-      const res = await fetch(
-        `https://nominatim.openstreetmap.org/search?format=json&limit=1&q=${encodeURIComponent(
-          loc
-        )}`,
-        {
-          headers: {
-            "User-Agent": "YourAppName/1.0 (your.email@example.com)",
-          },
-        }
-      );
-      const data = await res.json();
-      return Array.isArray(data) && data.length > 0;
-    } catch {
-      return false;
-    }
+  useEffect(() => {
+    fetchSuggestions(debouncedTerm);
+  }, [debouncedTerm, fetchSuggestions]);
+
+  const selectSuggestion = (item: LocationResult) => {
+    setProfile({ ...profile!, location: item.display_name });
+    setSearchTerm("");
+    setPopoverOpen(false);
+    setError(null);
   };
 
   // ──────────────────────────────────────────────────────────────
@@ -375,8 +383,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
       errors.phoneNumber = "Invalid phone format";
     if (location && location.length > 100)
       errors.location = "Max 100 characters";
-    else if (location && !(await validateLocation(location)))
-      errors.location = "Select a valid location";
+
     if (biography && biography.length > 500)
       errors.biography = "Max 500 characters";
     if (relationshipStatus && relationshipStatus.length > 50)
@@ -476,7 +483,7 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
         favoriteColor: form.get("favoriteColor")?.toString(),
         favoriteMedia: form.get("favoriteMedia")?.toString(),
         petOwnership: form.get("petOwnership")?.toString(),
-        profileImage: imageUrl,
+        ...(imageUrl !== null && { profileImage: imageUrl }),
       };
 
       const res = await fetch(`/api/users/${profile?.id}`, {
@@ -631,14 +638,46 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
               {isEditing ? (
                 <form onSubmit={handleUpdateProfile} className="space-y-4">
                   {/* Profile Image */}
-                  <div className="space-y-2 max-w-2xl">
+                  <div className="space-y-4">
                     <Label
                       htmlFor="profileImage"
                       className="text-black dark:text-white"
                     >
                       Profile Picture
                     </Label>
-                    <div className="flex items-center space-x-2">
+
+                    {/* Current / Selected Preview */}
+                    {(selectedFile || profile.profileImage) && (
+                      <div className="flex justify-center">
+                        <div className="relative group">
+                          <img
+                            src={
+                              selectedFile
+                                ? URL.createObjectURL(selectedFile)
+                                : profile.profileImage!
+                            }
+                            alt="Profile preview"
+                            className="h-32 w-32 rounded-full object-cover border-4 border-[#F3CFC6] shadow-lg"
+                          />
+                          {selectedFile && (
+                            <button
+                              type="button"
+                              onClick={() => {
+                                setSelectedFile(null);
+                                if (fileInputRef.current)
+                                  fileInputRef.current.value = "";
+                              }}
+                              className="absolute top-1 right-1 bg-red-500 text-white rounded-full p-1.5 opacity-0 group-hover:opacity-100 transition-opacity"
+                            >
+                              <X className="h-4 w-4" />
+                            </button>
+                          )}
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Upload Button */}
+                    <div className="flex justify-center">
                       <Input
                         id="profileImage"
                         type="file"
@@ -650,24 +689,33 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
                           setSelectedFile(e.target.files?.[0] || null)
                         }
                       />
+
                       <Button
                         type="button"
                         variant="outline"
                         disabled={!isEditing || updating}
                         onClick={() => fileInputRef.current?.click()}
-                        className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+                        className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full px-8"
                       >
-                        <Upload className="w-4 h-4 mr-2 text-[#F3CFC6]" />{" "}
-                        {selectedFile ? "Replace" : "Upload Image"}
+                        <Upload className="w-4 h-4 mr-2 text-[#F3CFC6]" />
+                        {selectedFile
+                          ? "Change Photo"
+                          : profile.profileImage
+                            ? "Change Photo"
+                            : "Upload Photo"}
                       </Button>
-                      {selectedFile && (
-                        <span className="text-sm text-[#C4C4C4] truncate max-w-xs">
-                          {selectedFile.name}
-                        </span>
-                      )}
                     </div>
+
+                    {/* File name (optional, subtle) */}
+                    {/* {selectedFile && (
+                      <p className="text-center text-sm text-[#C4C4C4] truncate max-w-md">
+                        {selectedFile.name}
+                      </p>
+                    )} */}
+
+                    {/* Error */}
                     {formErrors.profileImage && (
-                      <p className="text-red-500 text-sm">
+                      <p className="text-red-500 text-sm text-center">
                         {formErrors.profileImage}
                       </p>
                     )}
@@ -755,58 +803,105 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
                   </div>
 
                   {/* Location */}
-                  <div className="space-y-2 relative" ref={dropdownRef}>
+                  <div className="space-y-2">
                     <Label
                       htmlFor="location"
                       className="text-black dark:text-white"
                     >
                       Location
                     </Label>
-                    <Input
-                      id="location"
-                      name="location"
-                      ref={locationInputRef}
-                      value={profile.location || ""}
-                      onChange={(e) => {
-                        const val = e.target.value;
-                        setProfile({ ...profile, location: val });
-                        if (isEditing) fetchLocationSuggestions(val);
-                      }}
-                      onFocus={() =>
-                        isEditing && setIsLocationDropdownOpen(true)
-                      }
-                      disabled={!isEditing || updating}
-                      className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-                      maxLength={100}
-                      placeholder="Type city or address"
-                    />
-                    {isLocationDropdownOpen && isEditing && (
-                      <div className="absolute z-10 w-full mt-1 bg-white dark:bg-gray-800 border border-[#F3CFC6] rounded-md shadow-lg max-h-60 overflow-auto">
-                        {isLocationLoading ? (
-                          <p className="p-2 text-gray-500">Loading...</p>
-                        ) : locationSuggestions.length === 0 ? (
-                          <p className="p-2 text-gray-500">No results</p>
-                        ) : (
-                          locationSuggestions.map((s) => (
+
+                    <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
+                      <PopoverTrigger asChild>
+                        <div className="relative">
+                          <Input
+                            ref={inputRef}
+                            placeholder="Search city, address, or place..."
+                            value={
+                              isEditing ? searchTerm : profile.location || ""
+                            }
+                            onChange={(e) => {
+                              const val = e.target.value;
+                              setSearchTerm(val);
+                              if (val.trim()) setPopoverOpen(true);
+                            }}
+                            onFocus={() =>
+                              searchTerm.trim() && setPopoverOpen(true)
+                            }
+                            disabled={!isEditing || updating}
+                            className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white pr-10"
+                            autoComplete="off"
+                          />
+                          {searchTerm && isEditing && (
                             <button
-                              key={s.display_name}
                               type="button"
-                              className="w-full text-left px-4 py-2 text-black dark:text-white hover:bg-[#F3CFC6]/20"
                               onClick={() => {
-                                setProfile({
-                                  ...profile,
-                                  location: s.display_name,
-                                });
-                                setLocationSuggestions([]);
-                                setIsLocationDropdownOpen(false);
+                                setSearchTerm("");
+                                setPopoverOpen(false);
+                                inputRef.current?.focus();
                               }}
+                              className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                             >
-                              {s.display_name}
+                              <X className="h-4 w-4" />
                             </button>
-                          ))
+                          )}
+                        </div>
+                      </PopoverTrigger>
+
+                      <PopoverContent
+                        className="w-[var(--radix-popover-trigger-width)] p-0"
+                        align="start"
+                        onOpenAutoFocus={(e) => e.preventDefault()}
+                      >
+                        {isLocationLoading ? (
+                          <div className="flex items-center gap-2 p-3 text-sm">
+                            <Search className="h-4 w-4 animate-spin" />
+                            <span>Searching...</span>
+                          </div>
+                        ) : error ? (
+                          <div className="p-3 text-sm text-destructive flex items-center gap-2">
+                            <AlertCircle className="h-4 w-4" />
+                            {error}
+                          </div>
+                        ) : suggestions.length === 0 && searchTerm ? (
+                          <div className="p-3 text-sm text-muted-foreground">
+                            No locations found
+                          </div>
+                        ) : (
+                          <div className="max-h-64 overflow-auto">
+                            {suggestions.map((item, i) => (
+                              <button
+                                key={i}
+                                type="button"
+                                className="w-full text-left px-3 py-2.5 text-sm hover:bg-accent hover:text-accent-foreground flex items-center gap-3"
+                                onClick={() => selectSuggestion(item)}
+                              >
+                                <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                                <span className="truncate">
+                                  {item.display_name}
+                                </span>
+                              </button>
+                            ))}
+                          </div>
                         )}
-                      </div>
+                      </PopoverContent>
+                    </Popover>
+
+                    {/* Hidden input so form submits the real location */}
+                    <input
+                      type="hidden"
+                      name="location"
+                      value={profile.location || ""}
+                    />
+
+                    {/* Show selected location when not typing */}
+                    {isEditing && profile.location && (
+                      <p className="text-sm text-muted-foreground mt-1 flex items-center gap-1">
+                        <MapPin className="h-3.5 w-3.5" />
+                        {profile.location}
+                      </p>
                     )}
+
                     {formErrors.location && (
                       <p className="text-red-500 text-sm">
                         {formErrors.location}
@@ -1110,8 +1205,6 @@ const ProfilePage = ({ params }: { params: Promise<{ id: string }> }) => {
                       type="button"
                       onClick={() => {
                         setIsEditing(false);
-                        setLocationSuggestions([]);
-                        setIsLocationDropdownOpen(false);
                       }}
                       disabled={!isEditing || updating}
                       className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
