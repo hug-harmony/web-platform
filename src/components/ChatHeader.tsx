@@ -58,13 +58,12 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ otherUser, onNotesClick }) => {
               isOnline ? "bg-green-500" : "bg-gray-400"
             )}
           />
-          <p className="text-xs">{statusText}</p>
         </div>
         <div>
           <p className="font-semibold text-black dark:text-white">
             {otherUserName}
           </p>
-          <p className="text-xs text-[#C4C4C4]">Online</p>
+          <p className="text-xs text-[#C4C4C4]">{statusText}</p>
         </div>
       </div>
       <Button
