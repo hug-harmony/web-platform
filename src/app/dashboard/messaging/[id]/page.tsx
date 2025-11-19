@@ -533,7 +533,7 @@ const MessageInterface: React.FC = () => {
   if (status === "loading" || loading) {
     return (
       <motion.div
-        className="space-y-6 w-full max-w-7xl mx-auto"
+        className="p-4 space-y-6 max-w-7xl mx-auto"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -562,7 +562,7 @@ const MessageInterface: React.FC = () => {
   if (!session) {
     return (
       <motion.div
-        className="space-y-6 w-full max-w-7xl mx-auto"
+        className="p-4 space-y-6 max-w-7xl mx-auto"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -579,7 +579,7 @@ const MessageInterface: React.FC = () => {
   if (!conversation) {
     return (
       <motion.div
-        className="space-y-6 w-full max-w-7xl mx-auto"
+        className="p-4 space-y-6 max-w-7xl mx-auto"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -600,7 +600,7 @@ const MessageInterface: React.FC = () => {
 
   return (
     <motion.div
-      className="space-y-6 w-full max-w-7xl mx-auto relative" // Added relative for sidebar positioning
+      className="p-4 space-y-6 max-w-7xl mx-auto relative" // Added relative for sidebar positioning
       variants={containerVariants}
       initial="hidden"
       animate="visible"

@@ -59,7 +59,7 @@ export default function CheckoutPage() {
   if (isLoading) {
     return (
       <motion.div
-        className="space-y-6 w-full max-w-2xl mx-auto"
+        className="p-4 space-y-6 max-w-7xl mx-auto"
         variants={container}
         initial="hidden"
         animate="visible"
@@ -86,7 +86,7 @@ export default function CheckoutPage() {
   /* ----------------- MAIN UI ----------------- */
   return (
     <motion.div
-      className="space-y-6 w-full max-w-2xl mx-auto"
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       variants={container}
       initial="hidden"
       animate="visible"

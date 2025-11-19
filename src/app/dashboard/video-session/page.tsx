@@ -106,7 +106,7 @@ export default function VideoSessionsPage() {
   if (status === "loading" || loading) {
     return (
       <motion.div
-        className="space-y-6 w-full max-w-7xl mx-auto"
+        className="p-4 space-y-6 max-w-7xl mx-auto"
         variants={containerVariants}
         initial="hidden"
         animate="visible"
@@ -147,7 +147,7 @@ export default function VideoSessionsPage() {
 
   return (
     <motion.div
-      className="space-y-6 w-full max-w-7xl mx-auto"
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"

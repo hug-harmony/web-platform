@@ -11,7 +11,7 @@ import { useRouter } from "next/navigation";
 
 export default function CooldownPage() {
   const [secondsLeft, setSecondsLeft] = useState(0);
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const router = useRouter();
 
   useEffect(() => {
@@ -61,7 +61,7 @@ export default function CooldownPage() {
 
   return (
     <motion.div
-      className="p-4 max-w-md mx-auto"
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       initial={{ scale: 0.9 }}
       animate={{ scale: 1 }}
     >

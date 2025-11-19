@@ -224,7 +224,7 @@ export default function VideoPage() {
 
   return (
     <motion.div
-      className="p-4 space-y-6 max-w-4xl mx-auto"
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >

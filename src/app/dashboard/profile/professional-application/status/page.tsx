@@ -96,7 +96,7 @@ export default function StatusPage() {
 
   return (
     <motion.div
-      className="p-4 max-w-2xl mx-auto"
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       initial={{ opacity: 0 }}
       animate={{ opacity: 1 }}
     >
@@ -109,7 +109,7 @@ export default function StatusPage() {
             {steps.map((step, i) => {
               const isActive = i === currentIndex;
               const isDone = i < currentIndex;
-              const isPending = i > currentIndex;
+              // const isPending = i > currentIndex;
 
               return (
                 <div key={step.key} className="flex items-center gap-3">

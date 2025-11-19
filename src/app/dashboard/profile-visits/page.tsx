@@ -122,7 +122,7 @@ export default function ProfileVisitsPage() {
 
   if (status === "loading" || isLoading)
     return (
-      <div className="space-y-6 w-full max-w-7xl mx-auto">
+      <div className="p-4 space-y-6 max-w-7xl mx-auto">
         <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
           <CardHeader>
             <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
@@ -161,7 +161,7 @@ export default function ProfileVisitsPage() {
 
   return (
     <motion.div
-      className="space-y-6 w-full max-w-7xl mx-auto"
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"

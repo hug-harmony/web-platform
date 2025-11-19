@@ -25,7 +25,7 @@ export default function CartPage() {
   if (cart.length === 0) {
     return (
       <motion.div
-        className="space-y-6 max-w-2xl mx-auto text-center"
+        className="p-4 space-y-6 max-w-7xl mx-auto"
         initial={{ opacity: 0 }}
         animate={{ opacity: 1 }}
       >
@@ -52,7 +52,7 @@ export default function CartPage() {
   if (isLoading) {
     return (
       <motion.div
-        className="space-y-6 w-full max-w-4xl mx-auto"
+        className="p-4 space-y-6 max-w-7xl mx-auto"
         variants={container}
         initial="hidden"
         animate="visible"
@@ -88,7 +88,7 @@ export default function CartPage() {
   /* ----------------- MAIN UI ----------------- */
   return (
     <motion.div
-      className="space-y-6 w-full max-w-4xl mx-auto"
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       variants={container}
       initial="hidden"
       animate="_hover"

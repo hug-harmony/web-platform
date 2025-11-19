@@ -51,7 +51,7 @@ export default function MerchStore() {
 
   return (
     <motion.div
-      className="space-y-6 w-full max-w-7xl mx-auto"
+      className="p-4 space-y-6 max-w-7xl mx-auto"
       variants={containerVariants}
       initial="hidden"
       animate="visible"
