@@ -42,7 +42,6 @@ export function LocationAutocomplete({
               value={disabled ? value : searchTerm}
               onChange={(e) => {
                 setSearchTerm(e.target.value);
-                if (e.target.value.trim()) open();
               }}
               onKeyDown={(e) => {
                 if (e.key === "Enter") {
