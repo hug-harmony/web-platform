@@ -48,6 +48,7 @@ import {
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { mutate } from "swr";
+import { formatLastOnline } from "@/lib/formatLastOnline";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -83,6 +84,7 @@ interface Profile {
   favoriteMedia?: string;
   petOwnership?: string;
   venue?: string;
+  lastOnline?: Date;
 }
 interface Review {
   id: string;
@@ -166,6 +168,7 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
             favoriteMedia: data.favoriteMedia || "",
             petOwnership: data.petOwnership || "",
             venue: data.venue || "",
+            lastOnline: data.lastOnline || "",
           });
         } else {
           if (profileRes.status === 401) router.push("/login");
@@ -426,6 +429,10 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
     ? profile.tags.split(",").map((tag) => tag.trim())
     : [];
 
+  const { text: lastOnlineText, isOnline } = formatLastOnline(
+    profile.lastOnline
+  );
+
   return (
     <motion.div
       className="p-4 space-y-6 max-w-7xl mx-auto"
@@ -483,6 +490,16 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
                   <span>{profile.location}</span>
                 </div>
               )}
+              <div className="flex items-center gap-2">
+                <div
+                  className={`w-2 h-2 rounded-full ${
+                    isOnline ? "bg-green-500" : "bg-gray-400"
+                  }`}
+                />
+                <span className={isOnline ? "text-green-600" : ""}>
+                  {lastOnlineText}
+                </span>
+              </div>
               {profile.rating !== undefined && (
                 <div className="flex items-center gap-2">
                   <Star className="h-4 w-4 text-[#F3CFC6]" />

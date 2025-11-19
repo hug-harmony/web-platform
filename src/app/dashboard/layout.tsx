@@ -8,6 +8,7 @@ import Image from "next/image";
 
 import hhIcon from "../../../public/hh-icon.png";
 import Link from "next/link";
+import { LastOnlineUpdater } from "@/components/LastOnlineUpdater";
 
 export default function Layout({
   children,
@@ -31,6 +32,7 @@ export default function Layout({
                 />
               </Link>
             </div>
+            <LastOnlineUpdater />
             {children}
           </main>
         </div>

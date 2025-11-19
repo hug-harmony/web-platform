@@ -33,6 +33,7 @@ model User {
   favoriteMedia      String?
   petOwnership       String?
   createdAt          DateTime            @default(now())
+  lastOnline         DateTime?
   PasswordResetToken PasswordResetToken[]
   appointments       Appointment[]       @relation("UserAppointments")
   sentMessages       Message[]           @relation("SentMessagesUser")

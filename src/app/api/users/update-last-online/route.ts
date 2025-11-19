@@ -1,0 +1,25 @@
+// src/app/api/user/update-last-online/route.ts
+import { NextResponse } from "next/server";
+import { getServerSession } from "next-auth";
+import prisma from "@/lib/prisma";
+import { authOptions } from "@/lib/auth";
+
+export async function POST() {
+  const session = await getServerSession(authOptions);
+
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
+  try {
+    await prisma.user.update({
+      where: { id: session.user.id },
+      data: { lastOnline: new Date() },
+    });
+
+    return NextResponse.json({ success: true });
+  } catch (error) {
+    console.error("Error updating last online:", error);
+    return NextResponse.json({ error: "Failed to update" }, { status: 500 });
+  }
+}

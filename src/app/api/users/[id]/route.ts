@@ -71,6 +71,7 @@ export async function GET(req: Request) {
         email: true,
         phoneNumber: true,
         profileImage: true,
+        lastOnline: true,
         location: true,
         biography: true,
         relationshipStatus: true,
@@ -199,6 +200,7 @@ export async function PATCH(req: Request) {
         email: true,
         phoneNumber: true,
         profileImage: true,
+
         location: true,
         biography: true,
         relationshipStatus: true,

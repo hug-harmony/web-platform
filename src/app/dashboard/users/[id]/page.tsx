@@ -34,6 +34,7 @@ import {
   SelectTrigger,
   SelectValue,
 } from "@/components/ui/select";
+import { formatLastOnline } from "@/lib/formatLastOnline";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -62,6 +63,7 @@ interface Profile {
   favoriteColor?: string;
   favoriteMedia?: string;
   petOwnership?: string;
+  lastOnline?: Date;
 }
 
 interface Props {
@@ -118,6 +120,7 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
             favoriteColor: data.favoriteColor || "",
             favoriteMedia: data.favoriteMedia || "",
             petOwnership: data.petOwnership || "",
+            lastOnline: data.lastOnline || "",
           });
         } else {
           console.error("User API response:", res.status, await res.text());
@@ -297,6 +300,10 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
 
   const validImageSrc = profile.image || "/register.jpg";
 
+  const { text: lastOnlineText, isOnline } = formatLastOnline(
+    profile.lastOnline
+  );
+
   return (
     <motion.div
       className="p-4 space-y-6 max-w-7xl mx-auto"
@@ -356,6 +363,16 @@ const ProfilePage: React.FC<Props> = ({ params }) => {
                   <span>{profile.location}</span>
                 </>
               )}
+              <div className="flex items-center gap-2">
+                <div
+                  className={`w-2 h-2 rounded-full ${
+                    isOnline ? "bg-green-500" : "bg-gray-400"
+                  }`}
+                />
+                <span className={isOnline ? "text-green-600" : ""}>
+                  {lastOnlineText}
+                </span>
+              </div>
             </div>
             <div className="max-w-2xl mx-auto text-black dark:text-white">
               <h3 className="text-lg font-semibold mb-2">

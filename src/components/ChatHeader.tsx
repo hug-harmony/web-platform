@@ -3,12 +3,15 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Notebook } from "lucide-react";
+import { formatLastOnline } from "@/lib/formatLastOnline";
+import { cn } from "@/lib/utils";
 
 interface Participant {
   id: string;
   firstName?: string;
   lastName?: string;
   profileImage?: string;
+  lastOnline?: Date | string | null;
 }
 
 interface ChatHeaderProps {
@@ -30,6 +33,11 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ otherUser, onNotesClick }) => {
     .slice(0, 2)
     .toUpperCase();
 
+  const lastOnlineDate = otherUser?.lastOnline
+    ? new Date(otherUser.lastOnline)
+    : null;
+  const { text: statusText, isOnline } = formatLastOnline(lastOnlineDate);
+
   return (
     <CardHeader className="p-4 sm:p-6 border-b bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20 flex items-center justify-between space-x-2">
       <div className="flex items-center space-x-2">
@@ -42,6 +50,16 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({ otherUser, onNotesClick }) => {
             {initials}
           </AvatarFallback>
         </Avatar>
+        {/* Online indicator dot */}
+        <div className="flex gap-2 items-center">
+          <div
+            className={cn(
+              "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white",
+              isOnline ? "bg-green-500" : "bg-gray-400"
+            )}
+          />
+          <p className="text-xs">{statusText}</p>
+        </div>
         <div>
           <p className="font-semibold text-black dark:text-white">
             {otherUserName}
