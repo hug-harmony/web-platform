@@ -5,168 +5,9 @@ import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-/*
-type ProfessionalWithRelations = Prisma.ProfessionalGetPayload<{
-  select: {
-    id: true;
-    name: true;
-    biography: true;
-    rate: true;
-    createdAt: true;
-    venue: true;
-    application: {
-      select: {
-        user: {
-          select: { location: true; profileImage: true; lastOnline: true };
-        };
-      };
-    };
-    discounts: {
-      select: {
-        id: true;
-        name: true;
-        rate: true;
-        discount: true;
-        createdAt: true;
-        updatedAt: true;
-      };
-      orderBy: { createdAt: "desc" };
-    };
-  };
-}>;
-*/
-
 /* --------------------------------------------------------------
    GET – fetch a professional + metrics
    -------------------------------------------------------------- */
-
-/*
-export async function GET(
-  request: Request,
-  { params }: { params: Promise<{ id: string }> } // <-- Promise!
-) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user) {
-      return NextResponse.json(
-        { error: "Unauthorized: No session found" },
-        { status: 401 }
-      );
-    }
-
-    const { id } = await params; // <-- await
-
-    if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
-      return NextResponse.json(
-        { error: "Invalid professional ID" },
-        { status: 400 }
-      );
-    }
-
-    const professional: ProfessionalWithRelations | null =
-      await prisma.professional.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          name: true,
-          biography: true,
-          rate: true,
-          createdAt: true,
-          venue: true,
-          _count: { select: { reviews: true } },
-          reviews: { select: { rating: true } },
-          application: {
-            select: {
-              userId: true,
-              user: {
-                select: {
-                  location: true,
-                  profileImage: true,
-                  lastOnline: true,
-                },
-              },
-            },
-          },
-          discounts: {
-            select: {
-              id: true,
-              name: true,
-              rate: true,
-              discount: true,
-              createdAt: true,
-              updatedAt: true,
-            },
-            orderBy: { createdAt: "desc" },
-          },
-        },
-      });
-
-    if (!professional) {
-      return NextResponse.json(
-        { error: "Professional not found" },
-        { status: 404 }
-      );
-    }
-
-    // ----- metrics -----
-    const completedAppointments = await prisma.appointment.findMany({
-      where: {
-        professionalId: id,
-        payment: { status: "successful" },
-      },
-      select: {
-        payment: { select: { amount: true } },
-      },
-    });
-
-    const completedSessions = completedAppointments.length;
-    const totalEarnings = completedAppointments.reduce(
-      (sum, appt) => sum + (appt.payment?.amount ?? 0),
-      0
-    );
-
-    const setting = await prisma.companySettings.findUnique({
-      where: { key: "companyCutPercentage" },
-    });
-    const companyCutPercentage = setting ? Number(setting.value) : 20;
-
-    return NextResponse.json({
-      id: professional.id,
-      name: professional.name ?? "Unknown Professional",
-      biography: professional.biography ?? "",
-      location: professional.application?.user?.location ?? "",
-      rate: professional.rate ?? null,
-      profileImage: professional.application?.user?.profileImage ?? null,
-      lastOnline: professional.application?.user?.lastOnline ?? null,
-      createdAt: professional.createdAt,
-      venue: professional.venue,
-      _count: { select: { reviews: true } },
-      reviews: { select: { rating: true } },
-      discounts: professional.discounts.map((d) => ({
-        id: d.id,
-        name: d.name,
-        rate: d.rate,
-        discount: d.discount,
-        createdAt: d.createdAt,
-        updatedAt: d.updatedAt,
-      })),
-      metrics: {
-        totalEarnings,
-        companyCutPercentage,
-        completedSessions,
-        hourlyRate: professional.rate ?? 0,
-      },
-    });
-  } catch (error: any) {
-    console.error("Error fetching professional:", error);
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
-*/
-
 export async function GET(
   request: Request,
   { params }: { params: Promise<{ id: string }> }
@@ -191,6 +32,16 @@ export async function GET(
             user: {
               select: {
                 lastOnline: true,
+                profileImage: true,
+                relationshipStatus: true,
+                orientation: true,
+                height: true,
+                ethnicity: true,
+                zodiacSign: true,
+                favoriteColor: true,
+                favoriteMedia: true,
+                petOwnership: true,
+                biography: true,
               },
             },
           },
@@ -231,19 +82,28 @@ export async function GET(
       );
     }
 
-    const lastOnline = professional.application?.user?.lastOnline || null;
+    const user = professional.application?.user;
+    const lastOnline = user?.lastOnline || null;
 
     return NextResponse.json({
       id: professional.id,
       name: professional.name,
-      image: professional.image || "", // From Professional
-      location: professional.location || "", // From Professional
+      image: user?.profileImage || professional.image || "",
+      location: professional.location || "",
       biography: professional.biography || "",
       rate: professional.rate,
       venue: professional.venue || "both",
       rating: professional.rating || 0,
       reviewCount: professional.reviewCount || 0,
       lastOnline,
+      relationshipStatus: user?.relationshipStatus || "",
+      orientation: user?.orientation || "",
+      height: user?.height || "",
+      ethnicity: user?.ethnicity || "",
+      zodiacSign: user?.zodiacSign || "",
+      favoriteColor: user?.favoriteColor || "",
+      favoriteMedia: user?.favoriteMedia || "",
+      petOwnership: user?.petOwnership || "",
       discounts: professional.discounts,
       reviews: professional.reviews.map((r) => ({
         id: r.id,

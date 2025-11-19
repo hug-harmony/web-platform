@@ -662,7 +662,7 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
             {profile.biography && (
               <div className="space-y-2">
                 <h4 className="text-lg font-semibold text-black dark:text-white">
-                  Biography
+                  Bio
                 </h4>
                 <p className="text-sm sm:text-base text-black dark:text-white leading-relaxed">
                   {profile.biography}
