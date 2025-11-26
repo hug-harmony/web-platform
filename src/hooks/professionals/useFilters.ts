@@ -1,4 +1,4 @@
-// hooks/useFilters.ts
+// hooks/professionals/useFilters.ts
 import { useState } from "react";
 
 export interface Filters {
@@ -20,6 +20,9 @@ export interface Filters {
   ethnicity: string;
   bodyType: string;
   personalityType: string;
+  // NEW: Date/Time filters
+  selectedDate: Date | undefined;
+  timeRange: [number, number];
 }
 
 const initialFilters: Filters = {
@@ -41,6 +44,9 @@ const initialFilters: Filters = {
   ethnicity: "",
   bodyType: "",
   personalityType: "",
+  // NEW: Default to no date filter, full day range
+  selectedDate: undefined,
+  timeRange: [0, 1410], // 12:00 AM to 11:30 PM
 };
 
 export function useFilters() {

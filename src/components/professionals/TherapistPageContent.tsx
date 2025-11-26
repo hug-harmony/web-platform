@@ -7,7 +7,6 @@ import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CalendarIcon } from "lucide-react";
 import { useProfessionals } from "@/hooks/professionals/useProfessionals";
 import { useFilters } from "@/hooks/professionals/useFilters";
-import { useAvailabilities } from "@/hooks/professionals/useAvailabilities";
 import { SearchBar } from "@/components/professionals/SearchBar";
 import { FilterAccordion } from "@/components/professionals/FilterAccordion";
 import { ProfessionalsGrid } from "@/components/professionals/ProfessionalsGrid";
@@ -21,6 +20,14 @@ const containerVariants = {
   visible: { opacity: 1, y: 0, transition: { staggerChildren: 0.2 } },
 };
 
+const minutesToTime = (mins: number): string => {
+  const h = Math.floor(mins / 60) % 24;
+  const m = mins % 60;
+  const period = h >= 12 ? "PM" : "AM";
+  const hour = h % 12 || 12;
+  return `${hour}:${String(m).padStart(2, "0")} ${period}`;
+};
+
 export default function TherapistsPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const { filters, setFilters, appliedFilters, setAppliedFilters, reset } =
@@ -32,14 +39,12 @@ export default function TherapistsPageContent() {
   const [tempLat, setTempLat] = useState<number | undefined>();
   const [tempLng, setTempLng] = useState<number | undefined>();
   const [tempLocation, setTempLocation] = useState<string>("");
-  const [selectedDate, setSelectedDate] = useState<Date | undefined>();
-  const [timeRange, setTimeRange] = useState<[number, number]>([540, 1020]); // 9AM–5PM
 
   const { professionals, loading } = useProfessionals(
     searchQuery,
     appliedFilters
   );
-  const availabilities = useAvailabilities(selectedDate);
+
   const locations = Array.from(
     new Set(professionals.map((t) => t.location).filter(Boolean))
   ) as string[];
@@ -68,20 +73,27 @@ export default function TherapistsPageContent() {
     setIsRadiusDialogOpen(false);
   };
 
+  // Just close the dialog - date/time is already stored in filters
   const applyDateTime = () => {
-    setAppliedFilters((prev) => ({
-      ...prev,
-      selectedDate,
-      timeRange,
-    }));
     setIsDateTimeDialogOpen(false);
   };
 
-  const filtered = filterAndSort(
-    professionals,
-    { ...appliedFilters, selectedDate, timeRange }, // ← Fixed: timeRange
-    searchQuery
-  );
+  // Apply ALL filters when Search is clicked
+  const handleSearch = () => {
+    setAppliedFilters(filters);
+  };
+
+  // Clear everything
+  const handleClear = () => {
+    setSearchQuery("");
+    reset();
+  };
+
+  // Filter using appliedFilters
+  const filtered = filterAndSort(professionals, appliedFilters, searchQuery);
+
+  // Get pending date/time for button display
+  const { selectedDate, timeRange } = filters;
 
   return (
     <motion.div
@@ -103,13 +115,8 @@ export default function TherapistsPageContent() {
           <SearchBar
             searchQuery={searchQuery}
             onSearchChange={(e) => setSearchQuery(e.target.value)}
-            onApply={() => setAppliedFilters(filters)}
-            onClear={() => {
-              setSearchQuery("");
-              reset();
-              setSelectedDate(undefined);
-              setTimeRange([540, 1020]); // ← Reset range
-            }}
+            onApply={handleSearch}
+            onClear={handleClear}
           />
           <FilterAccordion
             filters={filters}
@@ -125,7 +132,9 @@ export default function TherapistsPageContent() {
             className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
           >
             <CalendarIcon className="mr-2 h-4 w-4" />
-            Filter by Availability
+            {selectedDate
+              ? `${selectedDate.toLocaleDateString()} • ${minutesToTime(timeRange[0])} - ${minutesToTime(timeRange[1])}`
+              : "Filter by Availability"}
           </Button>
         </CardContent>
       </Card>
@@ -152,11 +161,14 @@ export default function TherapistsPageContent() {
         open={isDateTimeDialogOpen}
         onOpenChange={setIsDateTimeDialogOpen}
         selectedDate={selectedDate}
-        availabilities={availabilities}
-        onDateSelect={setSelectedDate}
+        onDateSelect={(date) =>
+          setFilters((prev) => ({ ...prev, selectedDate: date }))
+        }
         onApply={applyDateTime}
         timeRange={timeRange}
-        setTimeRange={setTimeRange}
+        setTimeRange={(range) =>
+          setFilters((prev) => ({ ...prev, timeRange: range }))
+        }
       />
     </motion.div>
   );

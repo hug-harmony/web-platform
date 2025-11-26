@@ -1,4 +1,4 @@
-// components/DateTimeDialog.tsx
+// components/professionals/DateTimeDialog.tsx
 "use client";
 
 import {
@@ -14,12 +14,6 @@ import { Calendar } from "@/components/ui/calendar";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 
-const timeToMinutes = (time: string): number => {
-  const [t, period] = time.split(" ");
-  const [h, m] = t.split(":").map(Number);
-  return (period === "PM" && h !== 12 ? h + 12 : h) * 60 + m;
-};
-
 const minutesToTime = (mins: number): string => {
   const h = Math.floor(mins / 60) % 24;
   const m = mins % 60;
@@ -32,7 +26,6 @@ interface Props {
   open: boolean;
   onOpenChange: (open: boolean) => void;
   selectedDate: Date | undefined;
-  availabilities: Record<string, string[]>;
   onDateSelect: (date: Date | undefined) => void;
   onApply: () => void;
   timeRange: [number, number];
@@ -43,30 +36,32 @@ export function DateTimeDialog({
   open,
   onOpenChange,
   selectedDate,
-  availabilities,
   onDateSelect,
   onApply,
   timeRange,
   setTimeRange,
 }: Props) {
-  const dateKey = selectedDate?.toISOString().split("T")[0];
-  const availableSlots = dateKey ? availabilities[dateKey] || [] : [];
-  const availableMins = availableSlots.map(timeToMinutes);
-
-  const minAvailable = availableMins.length ? Math.min(...availableMins) : 0;
-  const maxAvailable = availableMins.length ? Math.max(...availableMins) : 1440;
-
   const startTime = minutesToTime(timeRange[0]);
   const endTime = minutesToTime(timeRange[1]);
+
+  const handleClearDate = () => {
+    onDateSelect(undefined);
+    setTimeRange([0, 1410]);
+  };
 
   return (
     <Dialog open={open} onOpenChange={onOpenChange}>
       <DialogContent className="max-w-lg">
         <DialogHeader>
           <DialogTitle>Select Date & Time Range</DialogTitle>
-          <DialogDescription>Filter by availability window</DialogDescription>
+          <DialogDescription>
+            Choose a date and time window to filter professionals by
+            availability
+          </DialogDescription>
         </DialogHeader>
+
         <div className="space-y-6">
+          {/* Calendar - All dates available */}
           <div className="border rounded-lg p-4">
             <Calendar
               mode="single"
@@ -76,44 +71,46 @@ export function DateTimeDialog({
             />
           </div>
 
+          {/* Time Range - Full 24 hours */}
           <div className="space-y-4">
-            <Label>Available Time Range</Label>
-            {selectedDate && availableMins.length === 0 ? (
-              <p className="text-sm text-red-500">
-                No availability on this date
-              </p>
-            ) : (
-              <>
-                <div className="px-2">
-                  <Slider
-                    value={timeRange}
-                    onValueChange={setTimeRange}
-                    min={minAvailable}
-                    max={maxAvailable}
-                    step={30}
-                    className="w-full"
-                  />
-                </div>
-                <div className="flex justify-between text-sm font-medium">
-                  <span>{startTime}</span>
-                  <span>—</span>
-                  <span>{endTime}</span>
-                </div>
-              </>
-            )}
+            <Label>Time Range</Label>
+            <div className="px-2">
+              <Slider
+                value={timeRange}
+                onValueChange={(value) =>
+                  setTimeRange(value as [number, number])
+                }
+                min={0}
+                max={1410}
+                step={30}
+                className="w-full"
+              />
+            </div>
+            <div className="flex justify-between text-sm font-medium text-muted-foreground">
+              <span>{startTime}</span>
+              <span>to</span>
+              <span>{endTime}</span>
+            </div>
+            <p className="text-xs text-muted-foreground text-center">
+              Drag the handles to set your preferred time window
+            </p>
           </div>
         </div>
 
-        <DialogFooter>
-          <Button variant="outline" onClick={() => onOpenChange(false)}>
-            Cancel
-          </Button>
+        <DialogFooter className="flex-col sm:flex-row gap-2">
           <Button
-            onClick={onApply}
-            disabled={!selectedDate || availableMins.length === 0}
+            variant="ghost"
+            onClick={handleClearDate}
+            className="text-destructive hover:text-destructive"
           >
-            Apply
+            Clear Date
           </Button>
+          <div className="flex gap-2 ml-auto">
+            <Button variant="outline" onClick={() => onOpenChange(false)}>
+              Cancel
+            </Button>
+            <Button onClick={onApply}>Apply</Button>
+          </div>
         </DialogFooter>
       </DialogContent>
     </Dialog>
