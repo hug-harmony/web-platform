@@ -1,3 +1,4 @@
+// components/professionals/RadiusDialog.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -191,11 +192,10 @@ export function RadiusDialog({
         </DialogHeader>
 
         <div className="space-y-4">
-          {/* Location Search - FIXED FOCUS ISSUE */}
+          {/* Location Search */}
           <div className="flex gap-2">
             <Popover open={popoverOpen} onOpenChange={setPopoverOpen}>
               <PopoverTrigger asChild>
-                {/* Stable trigger - never re-creates children */}
                 <div className="relative flex-1">
                   <Input
                     ref={inputRef}
@@ -221,7 +221,7 @@ export function RadiusDialog({
                       className="absolute right-2 top-1/2 -translate-y-1/2 text-muted-foreground hover:text-foreground"
                       aria-label="Clear search"
                     >
-                      <X className="h-4 w-4" />
+                      <X className="h-4 w-4" aria-hidden="true" />
                     </button>
                   )}
                 </div>
@@ -235,12 +235,15 @@ export function RadiusDialog({
               >
                 {loading ? (
                   <div className="flex items-center gap-2 p-3 text-sm">
-                    <Search className="h-4 w-4 animate-spin" />
+                    <Search
+                      className="h-4 w-4 animate-spin"
+                      aria-hidden="true"
+                    />
                     <span>Searching...</span>
                   </div>
                 ) : error ? (
                   <div className="p-3 text-sm text-destructive flex items-center gap-2">
-                    <AlertCircle className="h-4 w-4" />
+                    <AlertCircle className="h-4 w-4" aria-hidden="true" />
                     {error}
                   </div>
                 ) : suggestions.length === 0 && searchTerm ? (
@@ -248,17 +251,22 @@ export function RadiusDialog({
                     No locations found
                   </div>
                 ) : (
-                  <div className="max-h-64 overflow-auto">
+                  <div className="max-h-64 overflow-auto" role="listbox">
                     {suggestions.map((item, idx) => (
                       <button
                         key={idx}
                         type="button"
+                        role="option"
+                        aria-selected={false}
                         className={cn(
                           "w-full text-left px-3 py-2.5 text-sm hover:bg-accent hover:text-accent-foreground flex items-center gap-3 transition-colors"
                         )}
                         onClick={() => selectSuggestion(item)}
                       >
-                        <MapPin className="h-4 w-4 text-muted-foreground flex-shrink-0" />
+                        <MapPin
+                          className="h-4 w-4 text-muted-foreground flex-shrink-0"
+                          aria-hidden="true"
+                        />
                         <span className="truncate">{item.display_name}</span>
                       </button>
                     ))}
@@ -278,7 +286,7 @@ export function RadiusDialog({
               {geolocationStatus === "loading" ? (
                 <div className="animate-spin h-4 w-4 border-2 border-current border-t-transparent rounded-full" />
               ) : (
-                <MapPin className="h-4 w-4" />
+                <MapPin className="h-4 w-4" aria-hidden="true" />
               )}
             </Button>
           </div>
@@ -286,7 +294,7 @@ export function RadiusDialog({
           {/* Selected Location Display */}
           {hasLocation && (
             <div className="text-sm text-muted-foreground flex items-center gap-2">
-              <MapPin className="h-3.5 w-3.5" />
+              <MapPin className="h-3.5 w-3.5" aria-hidden="true" />
               <span className="truncate">
                 {tempLocation || "Selected location"}
               </span>
@@ -313,12 +321,12 @@ export function RadiusDialog({
           {/* Radius & Unit */}
           <div className="grid grid-cols-2 gap-4">
             <div className="space-y-1.5">
-              <Label>Radius</Label>
+              <Label htmlFor="radius-select">Radius</Label>
               <Select
                 value={tempRadius.toString()}
                 onValueChange={(v) => onTempRadiusChange(parseInt(v))}
               >
-                <SelectTrigger>
+                <SelectTrigger id="radius-select" aria-label="Select radius">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -332,12 +340,12 @@ export function RadiusDialog({
             </div>
 
             <div className="space-y-1.5">
-              <Label>Unit</Label>
+              <Label htmlFor="unit-select">Unit</Label>
               <Select
                 value={tempUnit}
                 onValueChange={(v) => onTempUnitChange(v as "km" | "miles")}
               >
-                <SelectTrigger>
+                <SelectTrigger id="unit-select" aria-label="Select unit">
                   <SelectValue />
                 </SelectTrigger>
                 <SelectContent>
@@ -351,7 +359,7 @@ export function RadiusDialog({
           <Button
             onClick={handleApply}
             disabled={!hasLocation}
-            className="w-full"
+            className="w-full bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80"
             size="lg"
           >
             {hasLocation ? "Apply Filter" : "Select a Location First"}

@@ -1,19 +1,24 @@
-// components/TherapistsPageContent.tsx
+// components/professionals/TherapistPageContent.tsx
 "use client";
 
-import { useState } from "react";
+import { useState, useRef, useCallback } from "react";
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CalendarIcon } from "lucide-react";
 import { useProfessionals } from "@/hooks/professionals/useProfessionals";
 import { useFilters } from "@/hooks/professionals/useFilters";
+import { useMediaQuery } from "@/hooks/professionals/useMediaQuery";
+import { useKeyboardShortcut } from "@/hooks/professionals/useKeyboardShortcut";
 import { SearchBar } from "@/components/professionals/SearchBar";
 import { FilterAccordion } from "@/components/professionals/FilterAccordion";
 import { ProfessionalsGrid } from "@/components/professionals/ProfessionalsGrid";
 import { RadiusDialog } from "@/components/professionals/RadiusDialog";
 import { DateTimeDialog } from "@/components/professionals/DateTimeDialog";
+import { ActiveFilters } from "@/components/professionals/ActiveFilters";
+import { MobileFilterSheet } from "@/components/professionals/MobileFilterSheet";
 import { filterAndSort } from "@/lib/utils";
-import { Button } from "../ui/button";
+import { Button } from "@/components/ui/button";
+import { cn } from "@/lib/utils";
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -30,8 +35,18 @@ const minutesToTime = (mins: number): string => {
 
 export default function TherapistsPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
-  const { filters, setFilters, appliedFilters, setAppliedFilters, reset } =
-    useFilters();
+  const {
+    filters,
+    setFilters,
+    appliedFilters,
+    setAppliedFilters,
+    reset,
+    removeFilter,
+    activeFilterCount,
+    hasPendingChanges,
+    hasActiveFilters,
+  } = useFilters();
+
   const [isRadiusDialogOpen, setIsRadiusDialogOpen] = useState(false);
   const [isDateTimeDialogOpen, setIsDateTimeDialogOpen] = useState(false);
   const [tempRadius, setTempRadius] = useState(10);
@@ -39,6 +54,9 @@ export default function TherapistsPageContent() {
   const [tempLat, setTempLat] = useState<number | undefined>();
   const [tempLng, setTempLng] = useState<number | undefined>();
   const [tempLocation, setTempLocation] = useState<string>("");
+
+  const searchInputRef = useRef<HTMLInputElement>(null);
+  const isMobile = useMediaQuery("(max-width: 768px)");
 
   const { professionals, loading } = useProfessionals(
     searchQuery,
@@ -48,6 +66,15 @@ export default function TherapistsPageContent() {
   const locations = Array.from(
     new Set(professionals.map((t) => t.location).filter(Boolean))
   ) as string[];
+
+  // Keyboard shortcut to focus search
+  useKeyboardShortcut(
+    "/",
+    useCallback(() => {
+      searchInputRef.current?.focus();
+    }, []),
+    { preventDefault: true }
+  );
 
   const handleCustomLocation = () => {
     setTempRadius(filters.radius || 10);
@@ -73,7 +100,6 @@ export default function TherapistsPageContent() {
     setIsRadiusDialogOpen(false);
   };
 
-  // Just close the dialog - date/time is already stored in filters
   const applyDateTime = () => {
     setIsDateTimeDialogOpen(false);
   };
@@ -89,11 +115,22 @@ export default function TherapistsPageContent() {
     reset();
   };
 
+  // Clear just the search text
+  const handleClearSearch = () => {
+    setSearchQuery("");
+  };
+
   // Filter using appliedFilters
   const filtered = filterAndSort(professionals, appliedFilters, searchQuery);
 
   // Get pending date/time for button display
   const { selectedDate, timeRange } = filters;
+
+  // Check if date filter has pending changes
+  const hasDatePendingChanges =
+    selectedDate !== appliedFilters.selectedDate ||
+    timeRange[0] !== appliedFilters.timeRange[0] ||
+    timeRange[1] !== appliedFilters.timeRange[1];
 
   return (
     <motion.div
@@ -113,33 +150,77 @@ export default function TherapistsPageContent() {
         </CardHeader>
         <CardContent className="space-y-6">
           <SearchBar
+            ref={searchInputRef}
             searchQuery={searchQuery}
             onSearchChange={(e) => setSearchQuery(e.target.value)}
             onApply={handleSearch}
             onClear={handleClear}
+            onClearSearch={handleClearSearch}
+            hasPendingChanges={hasPendingChanges}
+            hasActiveFilters={hasActiveFilters}
           />
-          <FilterAccordion
-            filters={filters}
-            locations={locations}
-            onFilterChange={(k, v) =>
-              setFilters((prev) => ({ ...prev, [k]: v }))
-            }
-            onCustomLocation={handleCustomLocation}
-          />
+
+          {/* Mobile Filter Sheet */}
+          {isMobile ? (
+            <MobileFilterSheet
+              filters={filters}
+              locations={locations}
+              activeFilterCount={activeFilterCount}
+              onFilterChange={(k, v) =>
+                setFilters((prev) => ({ ...prev, [k]: v }))
+              }
+              onCustomLocation={handleCustomLocation}
+              onApplyFilters={handleSearch}
+              onClearFilters={handleClear}
+            />
+          ) : (
+            <FilterAccordion
+              filters={filters}
+              locations={locations}
+              onFilterChange={(k, v) =>
+                setFilters((prev) => ({ ...prev, [k]: v }))
+              }
+              onCustomLocation={handleCustomLocation}
+            />
+          )}
+
+          {/* Date/Time Filter Button */}
           <Button
             variant="outline"
             onClick={() => setIsDateTimeDialogOpen(true)}
-            className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+            className={cn(
+              "border-[#F3CFC6] text-black dark:text-white hover:bg-[#F3CFC6]/20 relative",
+              hasDatePendingChanges && "ring-2 ring-amber-400"
+            )}
+            aria-label="Filter by availability"
           >
-            <CalendarIcon className="mr-2 h-4 w-4" />
-            {selectedDate
-              ? `${selectedDate.toLocaleDateString()} • ${minutesToTime(timeRange[0])} - ${minutesToTime(timeRange[1])}`
-              : "Filter by Availability"}
+            <CalendarIcon className="mr-2 h-4 w-4" aria-hidden="true" />
+            {selectedDate ? (
+              <span className="flex items-center gap-2">
+                {selectedDate.toLocaleDateString()} •{" "}
+                {minutesToTime(timeRange[0])} - {minutesToTime(timeRange[1])}
+                {hasDatePendingChanges && (
+                  <span className="text-[10px] bg-amber-400 text-black px-1.5 py-0.5 rounded font-medium">
+                    pending
+                  </span>
+                )}
+              </span>
+            ) : (
+              "Filter by Availability"
+            )}
           </Button>
+
+          {/* Active Filters Summary */}
+          <ActiveFilters filters={appliedFilters} onRemove={removeFilter} />
         </CardContent>
       </Card>
 
-      <ProfessionalsGrid loading={loading} professionals={filtered} />
+      <ProfessionalsGrid
+        loading={loading}
+        professionals={filtered}
+        hasActiveFilters={hasActiveFilters || !!searchQuery}
+        onClearFilters={handleClear}
+      />
 
       <RadiusDialog
         open={isRadiusDialogOpen}

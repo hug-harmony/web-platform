@@ -1,5 +1,7 @@
+// components/professionals/FilterAccordion.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
-// components/FilterAccordion.tsx
+"use client";
+
 import {
   Accordion,
   AccordionContent,
@@ -22,9 +24,10 @@ import {
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
 import { MapPin } from "lucide-react";
+import { Filters } from "@/hooks/professionals/useFilters";
 
 interface Props {
-  filters: any;
+  filters: Filters;
   locations: string[];
   onFilterChange: (key: string, value: any) => void;
   onCustomLocation: () => void;
@@ -66,12 +69,14 @@ export function FilterAccordion({
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Min Age */}
                 <div className="flex flex-col gap-1.5">
-                  <Label>Min Age</Label>
+                  <Label htmlFor="min-age-filter">Min Age</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
+                        id="min-age-filter"
                         variant="outline"
                         className="w-full border-[#F3CFC6]"
+                        aria-label="Select minimum age"
                       >
                         {filters.minAge || "All"}
                       </Button>
@@ -98,12 +103,14 @@ export function FilterAccordion({
 
                 {/* Max Age */}
                 <div className="flex flex-col gap-1.5">
-                  <Label>Max Age</Label>
+                  <Label htmlFor="max-age-filter">Max Age</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
+                        id="max-age-filter"
                         variant="outline"
                         className="w-full border-[#F3CFC6]"
+                        aria-label="Select maximum age"
                       >
                         {filters.maxAge || "All"}
                       </Button>
@@ -133,14 +140,19 @@ export function FilterAccordion({
 
                 {/* Gender */}
                 <div className="flex flex-col gap-1.5">
-                  <Label>Gender</Label>
+                  <Label htmlFor="gender-filter">Gender</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
+                        id="gender-filter"
                         variant="outline"
                         className="w-full border-[#F3CFC6]"
+                        aria-label="Select gender"
                       >
-                        {filters.gender || "All"}
+                        {filters.gender
+                          ? filters.gender.charAt(0).toUpperCase() +
+                            filters.gender.slice(1)
+                          : "All"}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
@@ -163,15 +175,19 @@ export function FilterAccordion({
 
                 {/* Location */}
                 <div className="flex flex-col gap-1.5">
-                  <Label>Location</Label>
+                  <Label htmlFor="location-filter">Location</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
+                        id="location-filter"
                         variant="outline"
                         className="w-full flex items-center border-[#F3CFC6]"
+                        aria-label="Select location"
                       >
-                        <MapPin className="mr-2 h-4 w-4" />
-                        {filters.location || "All"}
+                        <MapPin className="mr-2 h-4 w-4" aria-hidden="true" />
+                        <span className="truncate">
+                          {filters.location || "All"}
+                        </span>
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
@@ -202,17 +218,23 @@ export function FilterAccordion({
               <h3 className="text-base font-medium text-muted-foreground mb-3">
                 More Filters
               </h3>
-              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
                 {/* Profile Pic */}
                 <div className="flex flex-col gap-1.5">
-                  <Label>Profile Picture</Label>
+                  <Label htmlFor="profile-pic-filter">Profile Picture</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
+                        id="profile-pic-filter"
                         variant="outline"
                         className="w-full border-[#F3CFC6]"
+                        aria-label="Filter by profile picture"
                       >
-                        {filters.hasProfilePic || "All"}
+                        {filters.hasProfilePic === "yes"
+                          ? "With Pic"
+                          : filters.hasProfilePic === "no"
+                            ? "Without Pic"
+                            : "All"}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
@@ -237,14 +259,18 @@ export function FilterAccordion({
 
                 {/* Online Status */}
                 <div className="flex flex-col gap-1.5">
-                  <Label>Online Status</Label>
+                  <Label htmlFor="online-status-filter">Online Status</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
+                        id="online-status-filter"
                         variant="outline"
                         className="w-full border-[#F3CFC6]"
+                        aria-label="Filter by online status"
                       >
-                        {filters.onlineStatus || "All"}
+                        {filters.onlineStatus
+                          ? `Last ${filters.onlineStatus.replace(/(\d+)([a-z]+)/, "$1 $2")}`
+                          : "All"}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
@@ -267,14 +293,18 @@ export function FilterAccordion({
 
                 {/* Venue */}
                 <div className="flex flex-col gap-1.5">
-                  <Label>Venue</Label>
+                  <Label htmlFor="venue-filter">Venue</Label>
                   <Select
                     value={filters.venue || "all"}
                     onValueChange={(v) =>
                       onFilterChange("venue", v === "all" ? "" : v)
                     }
                   >
-                    <SelectTrigger className="w-full border-[#F3CFC6]">
+                    <SelectTrigger
+                      id="venue-filter"
+                      className="w-full border-[#F3CFC6]"
+                      aria-label="Select venue preference"
+                    >
                       <SelectValue placeholder="All" />
                     </SelectTrigger>
                     <SelectContent>
@@ -290,14 +320,19 @@ export function FilterAccordion({
 
                 {/* Type */}
                 <div className="flex flex-col gap-1.5">
-                  <Label>Type</Label>
+                  <Label htmlFor="type-filter">Type</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
+                        id="type-filter"
                         variant="outline"
                         className="w-full border-[#F3CFC6]"
+                        aria-label="Filter by user type"
                       >
-                        {filters.type || "All"}
+                        {filters.type
+                          ? filters.type.charAt(0).toUpperCase() +
+                            filters.type.slice(1)
+                          : "All"}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
@@ -333,7 +368,7 @@ export function FilterAccordion({
         </AccordionTrigger>
         <AccordionContent className="px-6 pb-6 relative">
           {/* Dimmed Filter Content */}
-          <div className="opacity-30 pointer-events-none">
+          <div className="opacity-30 pointer-events-none" aria-hidden="true">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
               {["race", "ethnicity", "bodyType", "personalityType"].map(
                 (key) => {
@@ -347,8 +382,11 @@ export function FilterAccordion({
                           : personalityTypes;
 
                   const label =
-                    key.charAt(0).toUpperCase() +
-                    key.slice(1).replace("Type", "").replace("body", "Body ");
+                    key === "bodyType"
+                      ? "Body Type"
+                      : key === "personalityType"
+                        ? "Personality"
+                        : key.charAt(0).toUpperCase() + key.slice(1);
 
                   return (
                     <div key={key} className="flex flex-col gap-1.5">
@@ -358,8 +396,9 @@ export function FilterAccordion({
                           <Button
                             variant="outline"
                             className="w-full border-[#F3CFC6]"
+                            disabled
                           >
-                            {filters[key] || "All"}
+                            {(filters as any)[key] || "All"}
                           </Button>
                         </DropdownMenuTrigger>
                         <DropdownMenuContent>
@@ -386,7 +425,7 @@ export function FilterAccordion({
           </div>
 
           {/* Coming Soon Overlay */}
-          <div className="absolute inset-0 flex items-center justify-center bg-white/10 dark:bg-black/80  z-10">
+          <div className="absolute inset-0 flex items-center justify-center bg-white/10 dark:bg-black/80 z-10">
             <div className="text-center">
               <p className="text-2xl font-bold text-primary mb-1">
                 Coming Soon
