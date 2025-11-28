@@ -7,17 +7,35 @@ import prisma from "@/lib/prisma";
 import bcrypt from "bcrypt";
 
 // Generate Apple client secret (JWT)
-function generateAppleClientSecret(): string {
-  const privateKey = process.env.APPLE_PRIVATE_KEY!.replace(/\\n/g, "\n");
+function generateAppleClientSecret(): string | null {
+  // If any Apple env var is missing → return null (safe)
+  if (
+    !process.env.APPLE_ID ||
+    !process.env.APPLE_TEAM_ID ||
+    !process.env.APPLE_KEY_ID ||
+    !process.env.APPLE_PRIVATE_KEY
+  ) {
+    return null;
+  }
 
-  return jwt.sign({}, privateKey, {
-    algorithm: "ES256",
-    expiresIn: "180d",
-    audience: "https://appleid.apple.com",
-    issuer: process.env.APPLE_TEAM_ID!,
-    subject: process.env.APPLE_ID!,
-    keyid: process.env.APPLE_KEY_ID!,
-  });
+  try {
+    const privateKey = process.env.APPLE_PRIVATE_KEY.replace(
+      /\\n/g,
+      "\n"
+    ).trim();
+
+    return jwt.sign({}, privateKey, {
+      algorithm: "ES256",
+      issuer: process.env.APPLE_TEAM_ID,
+      subject: process.env.APPLE_ID,
+      keyid: process.env.APPLE_KEY_ID,
+      audience: "https://appleid.apple.com",
+      expiresIn: "180d",
+    });
+  } catch (error) {
+    console.error("Failed to generate Apple client secret:", error);
+    return null;
+  }
 }
 
 // Generate unique username
@@ -104,6 +122,8 @@ interface AppleProfile {
   };
 }
 
+const appleSecret = generateAppleClientSecret();
+
 export const authOptions: NextAuthOptions = {
   providers: [
     // Credentials Provider (Email/Username + Password)
@@ -161,7 +181,7 @@ export const authOptions: NextAuthOptions = {
     // Apple Provider
     AppleProvider({
       clientId: process.env.APPLE_ID!,
-      clientSecret: generateAppleClientSecret(),
+      clientSecret: appleSecret!,
       authorization: {
         params: {
           scope: "name email",
