@@ -2,13 +2,13 @@ import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import AppleProvider from "next-auth/providers/apple";
+import FacebookProvider from "next-auth/providers/facebook";
 import jwt from "jsonwebtoken";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcrypt";
 
 // Generate Apple client secret (JWT)
 function generateAppleClientSecret(): string | null {
-  // If any Apple env var is missing → return null (safe)
   if (
     !process.env.APPLE_ID ||
     !process.env.APPLE_TEAM_ID ||
@@ -53,7 +53,6 @@ async function ensureUniqueUsername(
   if (root.length < 3)
     root = `user_${root}${Math.floor(Math.random() * 900 + 100)}`;
 
-  // Try a few predictable candidates first
   for (const suffix of [
     "",
     `_${Math.floor(Math.random() * 900 + 100)}`,
@@ -72,7 +71,6 @@ async function ensureUniqueUsername(
     }
   }
 
-  // Fallback to random suffix
   while (true) {
     const candidate = `${root}_${Math.floor(Math.random() * 9000 + 1000)}`;
     const lower = candidate.toLowerCase();
@@ -89,10 +87,20 @@ async function ensureUniqueUsername(
 
 // Helper to build user name from profile
 const buildFullName = (
-  profile: { given_name?: string; family_name?: string },
+  profile: {
+    given_name?: string;
+    family_name?: string;
+    first_name?: string;
+    last_name?: string;
+  },
   fallback?: string | null
 ) =>
-  [profile.given_name, profile.family_name].filter(Boolean).join(" ") ||
+  [
+    profile.given_name || profile.first_name,
+    profile.family_name || profile.last_name,
+  ]
+    .filter(Boolean)
+    .join(" ") ||
   fallback ||
   "User";
 
@@ -100,9 +108,11 @@ const buildFullName = (
 const buildUsernameBase = (profile: {
   given_name?: string;
   family_name?: string;
+  first_name?: string;
+  last_name?: string;
   email?: string;
 }) =>
-  `${profile.given_name || ""}${profile.family_name || ""}` ||
+  `${profile.given_name || profile.first_name || ""}${profile.family_name || profile.last_name || ""}` ||
   profile.email?.split("@")[0] ||
   "user";
 
@@ -120,6 +130,17 @@ interface AppleProfile {
     firstName?: string;
     lastName?: string;
   };
+}
+
+interface FacebookProfile {
+  first_name?: string;
+  last_name?: string;
+  picture?: {
+    data?: {
+      url?: string;
+    };
+  };
+  email?: string;
 }
 
 const appleSecret = generateAppleClientSecret();
@@ -178,6 +199,17 @@ export const authOptions: NextAuthOptions = {
       },
     }),
 
+    // Facebook Provider
+    FacebookProvider({
+      clientId: process.env.FACEBOOK_CLIENT_ID!,
+      clientSecret: process.env.FACEBOOK_CLIENT_SECRET!,
+      authorization: {
+        params: {
+          scope: "email public_profile",
+        },
+      },
+    }),
+
     // Apple Provider
     AppleProvider({
       clientId: process.env.APPLE_ID!,
@@ -205,12 +237,10 @@ export const authOptions: NextAuthOptions = {
 
         const googleProfile = profile as GoogleProfile;
 
-        // Check for existing user by Google ID
         let existingUser = await prisma.user.findFirst({
           where: { googleId: account.providerAccountId },
         });
 
-        // Check for existing user by email
         if (!existingUser && user.email) {
           existingUser = await prisma.user.findUnique({
             where: { email: user.email },
@@ -218,7 +248,6 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (existingUser) {
-          // Update existing user if needed
           const updates: Record<string, string> = {};
 
           if (!existingUser.googleId) {
@@ -247,7 +276,6 @@ export const authOptions: NextAuthOptions = {
           return true;
         }
 
-        // Create new user for Google
         const { username, lower } = await ensureUniqueUsername(
           buildUsernameBase(googleProfile)
         );
@@ -271,22 +299,16 @@ export const authOptions: NextAuthOptions = {
         return true;
       }
 
-      // Handle Apple provider
-      if (account?.provider === "apple") {
+      // Handle Facebook provider
+      if (account?.provider === "facebook") {
         if (!account.providerAccountId) return false;
 
-        const appleProfile = profile as AppleProfile;
+        const facebookProfile = profile as FacebookProfile;
 
-        // Apple only sends name on FIRST authorization
-        const firstName = appleProfile?.name?.firstName || "";
-        const lastName = appleProfile?.name?.lastName || "";
-
-        // Check for existing user by Apple ID
         let existingUser = await prisma.user.findFirst({
-          where: { appleId: account.providerAccountId },
+          where: { facebookId: account.providerAccountId },
         });
 
-        // Check for existing user by email
         if (!existingUser && user.email) {
           existingUser = await prisma.user.findUnique({
             where: { email: user.email },
@@ -294,7 +316,80 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (existingUser) {
-          // Update existing user if needed
+          const updates: Record<string, string> = {};
+
+          if (!existingUser.facebookId) {
+            updates.facebookId = account.providerAccountId;
+          }
+          if (!existingUser.username) {
+            const { username, lower } = await ensureUniqueUsername(
+              buildUsernameBase(facebookProfile)
+            );
+            updates.username = username;
+            updates.usernameLower = lower;
+          }
+          if (
+            !existingUser.profileImage &&
+            facebookProfile.picture?.data?.url
+          ) {
+            updates.profileImage = facebookProfile.picture.data.url;
+          }
+
+          if (Object.keys(updates).length > 0) {
+            await prisma.user.update({
+              where: { id: existingUser.id },
+              data: updates,
+            });
+          }
+
+          user.id = existingUser.id;
+          user.isAdmin = existingUser.isAdmin;
+          return true;
+        }
+
+        const { username, lower } = await ensureUniqueUsername(
+          buildUsernameBase(facebookProfile)
+        );
+
+        const newUser = await prisma.user.create({
+          data: {
+            email: user.email!,
+            facebookId: account.providerAccountId,
+            name: buildFullName(facebookProfile, user.email),
+            firstName: facebookProfile.first_name || "",
+            lastName: facebookProfile.last_name || "",
+            profileImage: facebookProfile.picture?.data?.url || "",
+            username,
+            usernameLower: lower,
+            isAdmin: false,
+          },
+        });
+
+        user.id = newUser.id;
+        user.isAdmin = false;
+        return true;
+      }
+
+      // Handle Apple provider
+      if (account?.provider === "apple") {
+        if (!account.providerAccountId) return false;
+
+        const appleProfile = profile as AppleProfile;
+
+        const firstName = appleProfile?.name?.firstName || "";
+        const lastName = appleProfile?.name?.lastName || "";
+
+        let existingUser = await prisma.user.findFirst({
+          where: { appleId: account.providerAccountId },
+        });
+
+        if (!existingUser && user.email) {
+          existingUser = await prisma.user.findUnique({
+            where: { email: user.email },
+          });
+        }
+
+        if (existingUser) {
           const updates: Record<string, string> = {};
 
           if (!existingUser.appleId) {
@@ -307,7 +402,6 @@ export const authOptions: NextAuthOptions = {
             updates.username = username;
             updates.usernameLower = lower;
           }
-          // Update name if we have it and user doesn't have one
           if (!existingUser.firstName && firstName) {
             updates.firstName = firstName;
           }
@@ -330,7 +424,6 @@ export const authOptions: NextAuthOptions = {
           return true;
         }
 
-        // Create new user for Apple
         const base =
           `${firstName}${lastName}` || user.email?.split("@")[0] || "user";
         const { username, lower } = await ensureUniqueUsername(base);
@@ -359,7 +452,6 @@ export const authOptions: NextAuthOptions = {
         return true;
       }
 
-      // Default: allow sign in
       return true;
     },
 

@@ -24,6 +24,7 @@ model User {
   // OAuth Provider IDs
   googleId           String?             @unique
   appleId            String?             @unique
+  facebookId         String?             @unique
   
   profileImage       String?
   location           String?

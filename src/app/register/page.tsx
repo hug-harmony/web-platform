@@ -1,7 +1,6 @@
 "use client";
 
 import { toast } from "sonner";
-import { useRouter } from "next/navigation";
 import { useEffect, useMemo, useState } from "react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -35,6 +34,7 @@ import register from "../../../public/register.webp";
 import logo from "../../../public/hh-logo.png";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { AppleSignInButton } from "@/components/auth/apple-sign-in-button";
+import { FacebookSignInButton } from "@/components/auth/facebook-sign-in-button";
 
 type UsernameStatus = "idle" | "checking" | "available" | "unavailable";
 
@@ -117,7 +117,6 @@ export default function RegisterPage() {
   const [usernameSuggestions, setUsernameSuggestions] = useState<string[]>([]);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
-  const router = useRouter();
 
   const form = useForm<z.infer<typeof formSchema>>({
     resolver: zodResolver(formSchema),
@@ -660,6 +659,7 @@ export default function RegisterPage() {
               <div className="flex flex-col gap-3">
                 <GoogleSignInButton disabled={isLoading} />
                 <AppleSignInButton disabled={isLoading} />
+                <FacebookSignInButton disabled={isLoading} />
               </div>
             </form>
           </Form>

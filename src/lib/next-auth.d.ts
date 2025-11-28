@@ -18,6 +18,7 @@ declare module "next-auth" {
       // OAuth provider IDs (optional, if you need them in session)
       googleId?: string | null;
       appleId?: string | null;
+      facebookId?: string | null;
     } & DefaultSession["user"];
   }
 
@@ -36,6 +37,7 @@ declare module "next-auth" {
     // OAuth provider IDs
     googleId?: string | null;
     appleId?: string | null;
+    facebookId?: string | null;
   }
 }
 
@@ -48,5 +50,6 @@ declare module "next-auth/jwt" {
     // OAuth provider IDs (optional, if you need them in token)
     googleId?: string | null;
     appleId?: string | null;
+    facebookId?: string | null;
   }
 }

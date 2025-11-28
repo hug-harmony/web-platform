@@ -26,6 +26,7 @@ import logo from "../../../public/hh-logo.png";
 import ResetPasswordModal from "@/components/auth/reset-password-modal";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { AppleSignInButton } from "@/components/auth/apple-sign-in-button";
+import { FacebookSignInButton } from "@/components/auth/facebook-sign-in-button";
 
 const formSchema = z.object({
   identifier: z
@@ -102,20 +103,6 @@ export default function LoginPage() {
     } finally {
       setIsLoading(false);
     }
-  };
-
-  const handleGoogleLogin = async () => {
-    setIsLoading(true);
-    const result = await signIn("google", { redirect: false });
-    if (result?.error) {
-      await logSecurityEvent("login_attempt", `Google failed: ${result.error}`);
-      toast.error(result.error);
-    } else {
-      await logSecurityEvent("login_attempt", "Google success");
-      toast.success("Logged in!");
-      router.push("/dashboard");
-    }
-    setIsLoading(false);
   };
 
   const onPasswordKey = (e: React.KeyboardEvent<HTMLInputElement>) => {
@@ -256,6 +243,7 @@ export default function LoginPage() {
           <div className="flex flex-col gap-3">
             <GoogleSignInButton disabled={isLoading} />
             <AppleSignInButton disabled={isLoading} />
+            <FacebookSignInButton disabled={isLoading} />
           </div>
         </div>
 

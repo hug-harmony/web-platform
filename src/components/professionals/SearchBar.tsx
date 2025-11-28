@@ -62,7 +62,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
       <div className="flex gap-4">
         <Button
           onClick={onApply}
-          className="bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80 relative"
+          className="bg-white text-black hover:bg-white/80 relative"
         >
           Apply Filters
           {hasPendingChanges && (
