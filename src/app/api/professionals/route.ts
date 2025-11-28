@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { PrismaClient, Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
@@ -38,7 +37,6 @@ export async function GET(req: Request) {
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
-    const venue = searchParams.get("venue");
 
     if (id) {
       if (!/^[0-9a-fA-F]{24}$/.test(id)) {
@@ -102,13 +100,6 @@ export async function GET(req: Request) {
         where: {
           ...(userApplication?.professionalId
             ? { id: { not: userApplication.professionalId } }
-            : {}),
-          ...(venue
-            ? {
-                venue: {
-                  in: venue.split(",").map((v) => v.trim()) as any,
-                },
-              }
             : {}),
         },
         select: {
