@@ -20,7 +20,11 @@ model User {
   phoneNumber        String?             @unique
   heardFrom          String?
   heardFromOther     String?
-  googleId           String?
+  
+  // OAuth Provider IDs
+  googleId           String?             @unique
+  appleId            String?             @unique
+  
   profileImage       String?
   location           String?
   biography          String?
@@ -34,31 +38,33 @@ model User {
   petOwnership       String?
   createdAt          DateTime            @default(now())
   lastOnline         DateTime?
-  PasswordResetToken PasswordResetToken[]
-  appointments       Appointment[]       @relation("UserAppointments")
-  sentMessages       Message[]           @relation("SentMessagesUser")
-  receivedMessages   Message[]           @relation("ReceivedMessagesUser")
-  conversations1     Conversation[]      @relation("User1Conversations")
-  conversations2     Conversation[]      @relation("User2Conversations")
-  posts              Post[]              @relation("UserPosts")
-  replies            Reply[]             @relation("UserReplies")
-  professionalApplication ProfessionalApplication?
   isAdmin            Boolean             @default(false)
   status             String              @default("active")
-  VideoSession       VideoSession[]
-  ProfileVisit       ProfileVisit[]      @relation("Visitor")
-  Proposal           Proposal[]          @relation
-  reviews            Review[]            @relation("UserReviews")
-  surveyResponses    SurveyResponse[]    @relation("UserSurveys")
-  securityLogs       SecurityLog[]       @relation("UserSecurityLogs")
-  reported           Report[]            @relation("ReportedUser")
-  reports            Report[]            @relation("Reporter")
-  notesAuthored      Note[]              @relation("AuthorNotes")
-  notesReceived      Note[]              @relation("TargetUserNotes")
-  profileVisits      ProfileVisit[]      @relation("VisitedUser")
-  cart               Cart?
-  orders             Order[]
-  trainingVideoWatches TrainingVideoWatch[]
+
+  // Relations
+  PasswordResetToken       PasswordResetToken[]
+  appointments             Appointment[]              @relation("UserAppointments")
+  sentMessages             Message[]                  @relation("SentMessagesUser")
+  receivedMessages         Message[]                  @relation("ReceivedMessagesUser")
+  conversations1           Conversation[]             @relation("User1Conversations")
+  conversations2           Conversation[]             @relation("User2Conversations")
+  posts                    Post[]                     @relation("UserPosts")
+  replies                  Reply[]                    @relation("UserReplies")
+  professionalApplication  ProfessionalApplication?
+  VideoSession             VideoSession[]
+  ProfileVisit             ProfileVisit[]             @relation("Visitor")
+  Proposal                 Proposal[]                 @relation
+  reviews                  Review[]                   @relation("UserReviews")
+  surveyResponses          SurveyResponse[]           @relation("UserSurveys")
+  securityLogs             SecurityLog[]              @relation("UserSecurityLogs")
+  reported                 Report[]                   @relation("ReportedUser")
+  reports                  Report[]                   @relation("Reporter")
+  notesAuthored            Note[]                     @relation("AuthorNotes")
+  notesReceived            Note[]                     @relation("TargetUserNotes")
+  profileVisits            ProfileVisit[]             @relation("VisitedUser")
+  cart                     Cart?
+  orders                   Order[]
+  trainingVideoWatches     TrainingVideoWatch[]
 }
 
 model PasswordResetToken {
