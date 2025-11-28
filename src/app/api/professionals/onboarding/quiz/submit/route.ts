@@ -35,11 +35,13 @@ export async function POST(req: Request) {
     }
 
     const correctMap = new Map([
-      ["q1", "b"], // 18
-      ["q2", "a"], // Recording without consent
-      ["q3", "b"], // Acknowledge it and offer to pause or stop
-      ["q4", "a"], // Keep it confidential and secure
-      ["q5", "a"], // Ensure consent and understanding of session rules
+      ["q1", "b"], // 18 years
+      ["q2", "b"], // Being accepted and valued
+      ["q3", "c"], // Oxytocin
+      ["q4", "c"], // Photos of themselves fully clothed
+      ["q5", "b"], // Creates a sense of closeness by helping people feel safe
+      ["q6", "c"], // Causing insomnia (NOT a benefit of cuddling)
+      ["q7", "a"], // Permanently ban or suspend the account
     ]);
 
     const results = answers.map(({ questionId, answerId }) => ({

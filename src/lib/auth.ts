@@ -1,10 +1,10 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import prisma from "@/lib/prisma";
 import bcrypt from "bcrypt";
 
+// Generate unique username
 async function ensureUniqueUsername(
   base: string
 ): Promise<{ username: string; lower: string }> {
@@ -14,37 +14,63 @@ async function ensureUniqueUsername(
       .replace(/[^a-z0-9_]/g, "_")
       .replace(/_+/g, "_")
       .replace(/^_+|_+$/g, "");
-  let root = sanitize(base || "user");
 
+  let root = sanitize(base || "user");
   if (root.length < 3)
     root = `user_${root}${Math.floor(Math.random() * 900 + 100)}`;
 
-  const candidates = [
-    root,
-    `${root}_${Math.floor(Math.random() * 900 + 100)}`,
-    `${root}${new Date().getFullYear().toString().slice(-2)}`,
-    `${root}_x`,
-  ];
-
-  for (const c of candidates) {
-    const lower = c.toLowerCase();
-    const existing = await prisma.user.findFirst({
-      where: { usernameLower: lower },
-      select: { id: true },
-    });
-    if (!existing) return { username: c, lower };
+  // Try a few predictable candidates first
+  for (const suffix of [
+    "",
+    `_${Math.floor(Math.random() * 900 + 100)}`,
+    `${new Date().getFullYear().toString().slice(-2)}`,
+    "_x",
+  ]) {
+    const candidate = `${root}${suffix}`;
+    const lower = candidate.toLowerCase();
+    if (
+      !(await prisma.user.findFirst({
+        where: { usernameLower: lower },
+        select: { id: true },
+      }))
+    ) {
+      return { username: candidate, lower };
+    }
   }
 
+  // Fallback to random suffix
   while (true) {
-    const c = `${root}_${Math.floor(Math.random() * 9000 + 1000)}`;
-    const lower = c.toLowerCase();
-    const existing = await prisma.user.findFirst({
-      where: { usernameLower: lower },
-      select: { id: true },
-    });
-    if (!existing) return { username: c, lower };
+    const candidate = `${root}_${Math.floor(Math.random() * 9000 + 1000)}`;
+    const lower = candidate.toLowerCase();
+    if (
+      !(await prisma.user.findFirst({
+        where: { usernameLower: lower },
+        select: { id: true },
+      }))
+    ) {
+      return { username: candidate, lower };
+    }
   }
 }
+
+// Helper to build user name from Google profile
+const buildFullName = (
+  profile: { given_name?: string; family_name?: string },
+  fallback?: string | null
+) =>
+  [profile.given_name, profile.family_name].filter(Boolean).join(" ") ||
+  fallback ||
+  "User";
+
+// Helper to build username base from Google profile
+const buildUsernameBase = (profile: {
+  given_name?: string;
+  family_name?: string;
+  email?: string;
+}) =>
+  `${profile.given_name || ""}${profile.family_name || ""}` ||
+  profile.email?.split("@")[0] ||
+  "user";
 
 export const authOptions: NextAuthOptions = {
   providers: [
@@ -58,41 +84,22 @@ export const authOptions: NextAuthOptions = {
         if (!credentials?.identifier || !credentials?.password) {
           throw new Error("Missing credentials");
         }
+
         const id = credentials.identifier.trim();
         const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id);
 
-        const user = isEmail
-          ? await prisma.user.findUnique({
-              where: { email: id },
-              select: {
-                id: true,
-                email: true,
-                name: true,
-                username: true,
-                password: true,
-                isAdmin: true,
-              },
-            })
-          : await prisma.user.findFirst({
+        const user = await (isEmail
+          ? prisma.user.findUnique({ where: { email: id } })
+          : prisma.user.findFirst({
               where: { usernameLower: id.toLowerCase() },
-              select: {
-                id: true,
-                email: true,
-                name: true,
-                username: true,
-                password: true,
-                isAdmin: true,
-              },
-            });
+            }));
 
-        if (!user || !user.password) throw new Error("Invalid credentials");
-
-        // Verify hashed password
-        const isPasswordValid = await bcrypt.compare(
-          credentials.password,
-          user.password
-        );
-        if (!isPasswordValid) throw new Error("Invalid credentials");
+        if (
+          !user?.password ||
+          !(await bcrypt.compare(credentials.password, user.password))
+        ) {
+          throw new Error("Invalid credentials");
+        }
 
         return {
           id: user.id,
@@ -116,118 +123,82 @@ export const authOptions: NextAuthOptions = {
       },
     }),
   ],
+
   callbacks: {
     async signIn({ user, account, profile }) {
-      if (account?.provider === "google") {
-        if (!account.providerAccountId) {
-          console.error("Missing providerAccountId for Google sign-in");
-          return false;
-        }
-        const googleProfile = profile as {
-          given_name?: string;
-          family_name?: string;
-          picture?: string;
-          email?: string;
-        };
+      if (account?.provider !== "google") return true;
+      if (!account.providerAccountId) return false;
 
-        const existingByGoogleId = await prisma.user.findFirst({
-          where: { googleId: account.providerAccountId },
+      const googleProfile = profile as {
+        given_name?: string;
+        family_name?: string;
+        picture?: string;
+        email?: string;
+      };
+
+      // Check for existing user by Google ID
+      let existingUser = await prisma.user.findFirst({
+        where: { googleId: account.providerAccountId },
+      });
+
+      // Check for existing user by email
+      if (!existingUser && user.email) {
+        existingUser = await prisma.user.findUnique({
+          where: { email: user.email },
         });
+      }
 
-        if (existingByGoogleId) {
-          if (!existingByGoogleId.username) {
-            const base =
-              (googleProfile.given_name || "") +
-                (googleProfile.family_name || "") ||
-              (googleProfile.email?.split("@")[0] ?? "user");
-            const { username, lower } = await ensureUniqueUsername(base);
-            await prisma.user.update({
-              where: { id: existingByGoogleId.id },
-              data: { username, usernameLower: lower },
-            });
-          }
-          user.id = existingByGoogleId.id;
-          user.isAdmin = existingByGoogleId.isAdmin;
-          return true;
-        }
+      if (existingUser) {
+        // Update existing user if needed
+        const updates: Record<string, string> = {};
 
-        const existingByEmail = await prisma.user.findUnique({
-          where: { email: user.email! },
-        });
-
-        if (existingByEmail) {
-          if (!existingByEmail.googleId) {
-            const fullName =
-              googleProfile.given_name && googleProfile.family_name
-                ? `${googleProfile.given_name} ${googleProfile.family_name}`
-                : googleProfile.given_name ||
-                  googleProfile.family_name ||
-                  user.email;
-
-            const update: any = {
-              googleId: account.providerAccountId,
-              name: fullName,
-              firstName: googleProfile.given_name || existingByEmail.firstName,
-              lastName: googleProfile.family_name || existingByEmail.lastName,
-              profileImage:
-                googleProfile.picture || existingByEmail.profileImage,
-            };
-
-            if (!existingByEmail.username) {
-              const base =
-                (googleProfile.given_name || "") +
-                  (googleProfile.family_name || "") ||
-                (googleProfile.email?.split("@")[0] ?? "user");
-              const { username, lower } = await ensureUniqueUsername(base);
-              update.username = username;
-              update.usernameLower = lower;
-            }
-
-            await prisma.user.update({
-              where: { id: existingByEmail.id },
-              data: update,
-            });
-          }
-          user.id = existingByEmail.id;
-          user.isAdmin = existingByEmail.isAdmin;
-          return true;
+        if (!existingUser.googleId)
+          updates.googleId = account.providerAccountId;
+        if (!existingUser.username) {
+          const { username, lower } = await ensureUniqueUsername(
+            buildUsernameBase(googleProfile)
+          );
+          updates.username = username;
+          updates.usernameLower = lower;
         }
 
-        const fullName =
-          googleProfile.given_name && googleProfile.family_name
-            ? `${googleProfile.given_name} ${googleProfile.family_name}`
-            : googleProfile.given_name ||
-              googleProfile.family_name ||
-              user.email;
+        if (Object.keys(updates).length > 0) {
+          await prisma.user.update({
+            where: { id: existingUser.id },
+            data: updates,
+          });
+        }
 
-        const base =
-          (googleProfile.given_name || "") +
-            (googleProfile.family_name || "") ||
-          (user.email?.split("@")[0] ?? "user");
-        const { username, lower } = await ensureUniqueUsername(base);
-
-        const newUser = await prisma.user.create({
-          data: {
-            email: user.email!,
-            googleId: account.providerAccountId,
-            name: fullName,
-            firstName: googleProfile.given_name || "",
-            lastName: googleProfile.family_name || "",
-            profileImage: googleProfile.picture || "",
-            isAdmin: false,
-            username,
-            usernameLower: lower,
-          },
-        });
-
-        user.id = newUser.id;
-        user.isAdmin = newUser.isAdmin;
+        user.id = existingUser.id;
+        user.isAdmin = existingUser.isAdmin;
         return true;
       }
+
+      // Create new user
+      const { username, lower } = await ensureUniqueUsername(
+        buildUsernameBase(googleProfile)
+      );
+      const newUser = await prisma.user.create({
+        data: {
+          email: user.email!,
+          googleId: account.providerAccountId,
+          name: buildFullName(googleProfile, user.email),
+          firstName: googleProfile.given_name || "",
+          lastName: googleProfile.family_name || "",
+          profileImage: googleProfile.picture || "",
+          username,
+          usernameLower: lower,
+          isAdmin: false,
+        },
+      });
+
+      user.id = newUser.id;
+      user.isAdmin = false;
       return true;
     },
+
     async jwt({ token, user }) {
-      if (user && user.id) {
+      if (user?.id) {
         const dbUser = await prisma.user.findUnique({
           where: { id: user.id },
           select: { id: true, isAdmin: true, username: true },
@@ -238,22 +209,18 @@ export const authOptions: NextAuthOptions = {
       }
       return token;
     },
+
     async session({ session, token }) {
       if (session.user && token.id) {
         session.user.id = token.id as string;
         session.user.isAdmin = (token.isAdmin as boolean) ?? false;
-        session.user.username = (token.username as string | null) ?? null;
+        session.user.username = (token.username as string) ?? null;
       }
       return session;
     },
   },
-  pages: {
-    signIn: "/login",
-    error: "/login",
-  },
-  session: {
-    strategy: "jwt",
-    maxAge: 30 * 24 * 60 * 60,
-  },
+
+  pages: { signIn: "/login", error: "/login" },
+  session: { strategy: "jwt", maxAge: 30 * 24 * 60 * 60 },
   secret: process.env.NEXTAUTH_SECRET,
 };
