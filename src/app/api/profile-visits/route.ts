@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { supabase } from "@/lib/supabase";
 
 export async function POST(req: NextRequest) {
   try {
@@ -27,6 +28,17 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // Don't record or notify if user is viewing their own profile
+    if (
+      session.user.id === visitedUserId ||
+      session.user.id === professionalId
+    ) {
+      return NextResponse.json(
+        { message: "Self-visit not recorded" },
+        { status: 200 }
+      );
+    }
+
     const profileVisit = await prisma.profileVisit.create({
       data: {
         userId: session.user.id,
@@ -35,10 +47,52 @@ export async function POST(req: NextRequest) {
       },
       include: {
         user: {
-          select: { name: true, profileImage: true },
+          select: { id: true, name: true, profileImage: true },
         },
       },
     });
+
+    // Get the ID of the user whose profile was visited (for notification)
+    const notifyUserId = visitedUserId || professionalId;
+    const visitorName = profileVisit.user.name || "Someone";
+
+    // Create notification in Supabase
+    if (supabase && notifyUserId) {
+      try {
+        // Rate limit: Check if a notification was already sent in the last hour for this visitor
+        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+
+        const { data: existingNotif } = await supabase
+          .from("notifications")
+          .select("id")
+          .eq("userid", notifyUserId) // lowercase
+          .eq("type", "profile_visit")
+          .eq("relatedid", session.user.id) // lowercase
+          .gte("timestamp", oneHourAgo)
+          .limit(1);
+
+        // Only create notification if none exists in the last hour
+        if (!existingNotif || existingNotif.length === 0) {
+          const { error: notificationError } = await supabase
+            .from("notifications")
+            .insert({
+              userid: notifyUserId, // lowercase
+              type: "profile_visit",
+              content: `${visitorName} viewed your profile`,
+              unread: true,
+              relatedid: session.user.id, // lowercase
+            });
+
+          if (notificationError) {
+            console.error("Failed to create notification:", notificationError);
+          } else {
+            console.log("Profile visit notification created successfully");
+          }
+        }
+      } catch (notifError) {
+        console.error("Notification creation error:", notifError);
+      }
+    }
 
     return NextResponse.json(
       {

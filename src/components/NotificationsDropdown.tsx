@@ -9,13 +9,14 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { Button } from "@/components/ui/button";
-import { Bell, MessageSquare, Calendar, DollarSign } from "lucide-react";
+import { Bell, MessageSquare, Calendar, DollarSign, Eye } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 
 interface Notification {
   id: string;
-  type: "message" | "appointment" | "payment";
+  userid: string;
+  type: "message" | "appointment" | "payment" | "profile_visit";
   content: string;
   timestamp: string;
   unread: boolean;
@@ -52,8 +53,8 @@ export default function NotificationsDropdown({
         toast.error("Failed to load notifications", { duration: 5000 });
         return;
       }
-      setNotifications(data);
-      setUnreadCount(data.filter((n: Notification) => n.unread).length);
+      setNotifications(data || []);
+      setUnreadCount((data || []).filter((n: Notification) => n.unread).length);
       setError(null);
     };
 
@@ -99,6 +100,38 @@ export default function NotificationsDropdown({
     setUnreadCount((prev) => Math.max(0, prev - 1));
   };
 
+  const getNotificationIcon = (type: Notification["type"]) => {
+    switch (type) {
+      case "message":
+        return <MessageSquare className="h-4 w-4 text-[#F3CFC6] mt-1" />;
+      case "appointment":
+        return <Calendar className="h-4 w-4 text-[#F3CFC6] mt-1" />;
+      case "payment":
+        return <DollarSign className="h-4 w-4 text-[#F3CFC6] mt-1" />;
+      case "profile_visit":
+        return <Eye className="h-4 w-4 text-[#F3CFC6] mt-1" />;
+      default:
+        return <Bell className="h-4 w-4 text-[#F3CFC6] mt-1" />;
+    }
+  };
+
+  const getNotificationLink = (notif: Notification) => {
+    if (!notif.relatedid) return null;
+
+    switch (notif.type) {
+      case "message":
+        return `/dashboard/messaging/${notif.relatedid}`;
+      case "appointment":
+        return `/dashboard/appointments/${notif.relatedid}`;
+      case "payment":
+        return `/dashboard/payment/${notif.relatedid}`;
+      case "profile_visit":
+        return `/dashboard/profile/${notif.relatedid}`;
+      default:
+        return null;
+    }
+  };
+
   return (
     <DropdownMenu>
       <DropdownMenuTrigger asChild>
@@ -118,51 +151,53 @@ export default function NotificationsDropdown({
               {error}
             </DropdownMenuItem>
           ) : notifications.length ? (
-            notifications.map((notif) => (
-              <DropdownMenuItem
-                key={notif.id}
-                className="flex items-start space-x-3 p-3 mb-2 rounded-md hover:bg-gray-100"
-                onClick={() => notif.unread && markAsRead(notif.id)}
-              >
-                {notif.type === "message" && (
-                  <MessageSquare className="h-4 w-4 text-[#F3CFC6] mt-1" />
-                )}
-                {notif.type === "appointment" && (
-                  <Calendar className="h-4 w-4 text-[#F3CFC6] mt-1" />
-                )}
-                {notif.type === "payment" && (
-                  <DollarSign className="h-4 w-4 text-[#F3CFC6] mt-1" />
-                )}
-                <div className="flex-1">
-                  <p className="text-sm text-gray-800 dark:text-gray-200">
-                    {notif.content}
-                  </p>
-                  <p className="text-xs text-[#C4C4C4] mt-1">
-                    {notif.timestamp}
-                  </p>
-                </div>
-                {notif.relatedid && (
-                  <Link
-                    href={
-                      notif.type === "message"
-                        ? `/messaging/${notif.relatedid}`
-                        : notif.type === "appointment"
-                          ? `/appointments/${notif.relatedid}`
-                          : `/payment/${notif.relatedid}`
-                    }
-                    className="text-[#F3CFC6] hover:text-[#C4C4C4] text-sm"
-                  >
-                    View
-                  </Link>
-                )}
-              </DropdownMenuItem>
-            ))
+            notifications.map((notif) => {
+              const link = getNotificationLink(notif);
+              return (
+                <DropdownMenuItem
+                  key={notif.id}
+                  className={`flex items-start space-x-3 p-3 mb-2 rounded-md hover:bg-gray-100 ${
+                    notif.unread ? "bg-[#F3CFC6]/10" : ""
+                  }`}
+                  onClick={() => notif.unread && markAsRead(notif.id)}
+                >
+                  {getNotificationIcon(notif.type)}
+                  <div className="flex-1">
+                    <p className="text-sm text-gray-800 dark:text-gray-200">
+                      {notif.content}
+                    </p>
+                    <p className="text-xs text-[#C4C4C4] mt-1">
+                      {new Date(notif.timestamp).toLocaleString()}
+                    </p>
+                  </div>
+                  {link && (
+                    <Link
+                      href={link}
+                      className="text-[#F3CFC6] hover:text-[#C4C4C4] text-sm"
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      View
+                    </Link>
+                  )}
+                </DropdownMenuItem>
+              );
+            })
           ) : (
             <DropdownMenuItem className="text-gray-500 text-center p-3">
               No notifications
             </DropdownMenuItem>
           )}
         </div>
+        {notifications.length > 0 && (
+          <div className="pt-2 border-t mt-2">
+            <Link
+              href="/dashboard/notifications"
+              className="text-[#F3CFC6] hover:text-[#C4C4C4] text-sm block text-center"
+            >
+              View all notifications
+            </Link>
+          </div>
+        )}
       </DropdownMenuContent>
     </DropdownMenu>
   );

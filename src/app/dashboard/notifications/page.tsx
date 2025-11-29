@@ -13,6 +13,8 @@ import {
   DollarSign,
   Search,
   Filter,
+  Eye,
+  CheckCheck,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -28,10 +30,12 @@ import {
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
 import { supabase } from "@/lib/supabase";
+import { toast } from "sonner";
 
 interface Notification {
   id: string;
-  type: "message" | "appointment" | "payment";
+  userid: string;
+  type: "message" | "appointment" | "payment" | "profile_visit";
   content: string;
   timestamp: string;
   unread: boolean;
@@ -140,6 +144,85 @@ export default function NotificationsPage() {
       );
     } catch (error) {
       console.error("Mark as read error:", error);
+      toast.error("Failed to mark notification as read");
+    }
+  };
+
+  const markAllAsRead = async () => {
+    if (!supabase) return;
+    try {
+      const unreadIds = notificationsList
+        .filter((n) => n.unread)
+        .map((n) => n.id);
+
+      if (unreadIds.length === 0) {
+        toast.info("No unread notifications");
+        return;
+      }
+
+      const { error } = await supabase
+        .from("notifications")
+        .update({ unread: false })
+        .in("id", unreadIds);
+
+      if (error) {
+        throw new Error("Failed to mark all as read");
+      }
+
+      setNotificationsList((prev) =>
+        prev.map((notif) => ({ ...notif, unread: false }))
+      );
+      toast.success("All notifications marked as read");
+    } catch (error) {
+      console.error("Mark all as read error:", error);
+      toast.error("Failed to mark all as read");
+    }
+  };
+
+  const getNotificationIcon = (type: Notification["type"]) => {
+    switch (type) {
+      case "message":
+        return <MessageSquare className="h-6 w-6 text-[#F3CFC6]" />;
+      case "appointment":
+        return <Calendar className="h-6 w-6 text-[#F3CFC6]" />;
+      case "payment":
+        return <DollarSign className="h-6 w-6 text-[#F3CFC6]" />;
+      case "profile_visit":
+        return <Eye className="h-6 w-6 text-[#F3CFC6]" />;
+      default:
+        return <Bell className="h-6 w-6 text-[#F3CFC6]" />;
+    }
+  };
+
+  const getNotificationLink = (notif: Notification) => {
+    if (!notif.relatedid) return null;
+
+    switch (notif.type) {
+      case "message":
+        return `/dashboard/messaging/${notif.relatedid}`;
+      case "appointment":
+        return `/dashboard/appointments/${notif.relatedid}`;
+      case "payment":
+        return `/dashboard/payment/${notif.relatedid}`;
+      case "profile_visit":
+        return `/dashboard/profile/${notif.relatedid}`;
+      default:
+        return null;
+    }
+  };
+
+  const getTypeLabel = (type: string) => {
+    switch (type) {
+      case "profile_visit":
+        return "Profile Visit";
+      case "message":
+        return "Message";
+      case "appointment":
+        return "Appointment";
+      case "payment":
+        return "Payment";
+      default:
+        return type.charAt(0).toUpperCase() + type.slice(1);
     }
   };
 
@@ -154,6 +237,7 @@ export default function NotificationsPage() {
       .filter((notif) => (showUnreadOnly ? notif.unread : true));
 
   const filteredNotifications = filterNotifications(notificationsList);
+  const unreadCount = notificationsList.filter((n) => n.unread).length;
 
   if (status === "loading" || loading) {
     return (
@@ -211,7 +295,8 @@ export default function NotificationsPage() {
               Your Notifications
             </CardTitle>
             <p className="text-sm opacity-80">
-              Stay updated with your activity
+              Stay updated with your activity •{" "}
+              {unreadCount > 0 ? `${unreadCount} unread` : "All caught up!"}
             </p>
           </motion.div>
         </CardHeader>
@@ -235,7 +320,9 @@ export default function NotificationsPage() {
                     className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                   >
                     <Filter className="h-6 w-6 text-[#F3CFC6]" />
-                    <span>Type</span>
+                    <span>
+                      {typeFilter ? getTypeLabel(typeFilter) : "Type"}
+                    </span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
@@ -249,24 +336,38 @@ export default function NotificationsPage() {
                   >
                     All
                   </DropdownMenuItem>
-                  {["message", "appointment", "payment"].map((type) => (
-                    <DropdownMenuItem
-                      key={type}
-                      onClick={() => handleTypeFilterChange(type)}
-                      className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                    >
-                      {type.charAt(0).toUpperCase() + type.slice(1)}
-                    </DropdownMenuItem>
-                  ))}
+                  {["message", "appointment", "payment", "profile_visit"].map(
+                    (type) => (
+                      <DropdownMenuItem
+                        key={type}
+                        onClick={() => handleTypeFilterChange(type)}
+                        className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                      >
+                        {getTypeLabel(type)}
+                      </DropdownMenuItem>
+                    )
+                  )}
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button
                 variant="outline"
                 onClick={() => setShowUnreadOnly(!showUnreadOnly)}
-                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
+                className={`text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto ${
+                  showUnreadOnly ? "bg-[#F3CFC6]/20" : ""
+                }`}
               >
-                {showUnreadOnly ? "Show All" : "Show Unread Only"}
+                {showUnreadOnly ? "Show All" : "Unread Only"}
               </Button>
+              {unreadCount > 0 && (
+                <Button
+                  variant="outline"
+                  onClick={markAllAsRead}
+                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
+                >
+                  <CheckCheck className="h-4 w-4 mr-2" />
+                  Mark All Read
+                </Button>
+              )}
             </div>
           </div>
         </CardContent>
@@ -277,6 +378,11 @@ export default function NotificationsPage() {
           <CardTitle className="flex items-center text-black dark:text-white">
             <Bell className="mr-2 h-6 w-6 text-[#F3CFC6]" />
             All Notifications
+            {filteredNotifications.length > 0 && (
+              <span className="ml-2 text-sm font-normal text-[#C4C4C4]">
+                ({filteredNotifications.length})
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="pt-6">
@@ -284,77 +390,88 @@ export default function NotificationsPage() {
             <motion.div className="space-y-4" variants={containerVariants}>
               <AnimatePresence>
                 {error ? (
-                  <p className="text-center text-[#C4C4C4]">{error}</p>
+                  <p className="text-center text-red-500">{error}</p>
                 ) : filteredNotifications.length > 0 ? (
-                  filteredNotifications.map((notif) => (
-                    <motion.div
-                      key={notif.id}
-                      variants={cardVariants}
-                      whileHover={{
-                        scale: 1.05,
-                        boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-                      }}
-                      transition={{ duration: 0.2 }}
-                      className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
-                    >
-                      <div className="flex items-center space-x-3">
-                        {notif.type === "message" && (
-                          <MessageSquare className="h-6 w-6 text-[#F3CFC6]" />
-                        )}
-                        {notif.type === "appointment" && (
-                          <Calendar className="h-6 w-6 text-[#F3CFC6]" />
-                        )}
-                        {notif.type === "payment" && (
-                          <DollarSign className="h-6 w-6 text-[#F3CFC6]" />
-                        )}
-                        <div>
-                          <p className="text-sm text-black dark:text-white">
-                            {notif.content}
-                          </p>
-                          <p className="text-xs text-[#C4C4C4]">
-                            {notif.timestamp}
-                          </p>
+                  filteredNotifications.map((notif) => {
+                    const link = getNotificationLink(notif);
+                    return (
+                      <motion.div
+                        key={notif.id}
+                        variants={cardVariants}
+                        whileHover={{
+                          scale: 1.02,
+                          boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
+                        }}
+                        transition={{ duration: 0.2 }}
+                        className={`flex items-center justify-between p-4 rounded-md transition-colors ${
+                          notif.unread
+                            ? "bg-[#F3CFC6]/20 hover:bg-[#F3CFC6]/30"
+                            : "hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10"
+                        }`}
+                      >
+                        <div className="flex items-center space-x-3">
+                          {getNotificationIcon(notif.type)}
+                          <div>
+                            <p className="text-sm text-black dark:text-white">
+                              {notif.content}
+                            </p>
+                            <div className="flex items-center space-x-2 mt-1">
+                              <p className="text-xs text-[#C4C4C4]">
+                                {new Date(notif.timestamp).toLocaleString()}
+                              </p>
+                              <span className="text-xs px-2 py-0.5 rounded-full bg-[#F3CFC6]/30 text-black">
+                                {getTypeLabel(notif.type)}
+                              </span>
+                            </div>
+                          </div>
                         </div>
-                      </div>
-                      <div className="flex items-center space-x-2">
-                        {notif.unread && (
-                          <Button
-                            variant="outline"
-                            size="sm"
-                            onClick={() => markAsRead(notif.id)}
-                            className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                          >
-                            <CheckCircle className="h-4 w-4 mr-1 text-[#F3CFC6]" />
-                            Mark as Read
-                          </Button>
-                        )}
-                        {notif.relatedid && (
-                          <Button
-                            asChild
-                            variant="outline"
-                            size="sm"
-                            className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
-                          >
-                            <Link
-                              href={
-                                notif.type === "message"
-                                  ? `/dashboard/messaging/${notif.relatedid}`
-                                  : notif.type === "appointment"
-                                    ? `/dashboard/appointments/${notif.relatedid}`
-                                    : `/dashboard/payment/${notif.relatedid}`
-                              }
+                        <div className="flex items-center space-x-2">
+                          {notif.unread && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              onClick={() => markAsRead(notif.id)}
+                              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
                             >
-                              View
-                            </Link>
-                          </Button>
-                        )}
-                      </div>
-                    </motion.div>
-                  ))
+                              <CheckCircle className="h-4 w-4 mr-1 text-[#F3CFC6]" />
+                              Mark as Read
+                            </Button>
+                          )}
+                          {link && (
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                            >
+                              <Link href={link}>View</Link>
+                            </Button>
+                          )}
+                        </div>
+                      </motion.div>
+                    );
+                  })
                 ) : (
-                  <p className="text-center text-[#C4C4C4]">
-                    No notifications found.
-                  </p>
+                  <motion.div
+                    variants={cardVariants}
+                    className="text-center py-12"
+                  >
+                    <Bell className="h-12 w-12 text-[#C4C4C4] mx-auto mb-4" />
+                    <p className="text-[#C4C4C4]">No notifications found.</p>
+                    {(searchQuery || typeFilter || showUnreadOnly) && (
+                      <Button
+                        variant="link"
+                        onClick={() => {
+                          setSearchQuery("");
+                          setTypeFilter("");
+                          setShowUnreadOnly(false);
+                        }}
+                        className="text-[#F3CFC6] mt-2"
+                      >
+                        Clear filters
+                      </Button>
+                    )}
+                  </motion.div>
                 )}
               </AnimatePresence>
             </motion.div>

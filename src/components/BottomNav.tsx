@@ -3,18 +3,19 @@
 "use client";
 
 import { useState, useEffect, useMemo } from "react";
-import { usePathname } from "next/navigation";
+import { usePathname, useRouter } from "next/navigation";
 import {
   Home,
   Calendar,
   MessageSquare,
   MoreHorizontal,
   Package,
+  LogOut,
 } from "lucide-react";
 import { Sheet, SheetContent, SheetTrigger } from "@/components/ui/sheet";
 import { Button } from "@/components/ui/button";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { useSession } from "next-auth/react";
+import { useSession, signOut } from "next-auth/react";
 import Link from "next/link";
 import { motion } from "framer-motion";
 import {
@@ -28,6 +29,10 @@ import {
   Users,
   Eye,
 } from "lucide-react";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { Separator } from "@/components/ui/separator";
+import NotificationsDropdown from "@/components/NotificationsDropdown";
+import { Badge } from "@/components/ui/badge";
 
 interface NavItem {
   href: string;
@@ -35,31 +40,93 @@ interface NavItem {
   icon: React.ReactNode;
 }
 
+interface Profile {
+  id: string;
+  name?: string | null;
+  firstName?: string | null;
+  lastName?: string | null;
+  email: string;
+  profileImage?: string | null;
+}
+
 export default function BottomNav() {
   const pathname = usePathname();
+  const router = useRouter();
 
-  const { data: session } = useSession();
+  const { data: session, status } = useSession();
   const [isProfessional, setIsProfessional] = useState(false);
   const [open, setOpen] = useState(false);
+  const [profile, setProfile] = useState<Profile | null>(null);
+  const [unreadNotifications, setUnreadNotifications] = useState(0);
 
+  // Fetch profile data
   useEffect(() => {
-    const fetchProfessionalStatus = async () => {
+    const fetchProfileAndProfessionalStatus = async () => {
       if (!session?.user?.id) return;
+
       try {
-        const res = await fetch("/api/professionals/application/me", {
-          cache: "no-store",
-          credentials: "include",
-        });
-        if (res.ok) {
-          const { status } = await res.json();
+        const [profileRes, professionalRes, notificationsRes] =
+          await Promise.all([
+            fetch(`/api/users/${session.user.id}`, {
+              cache: "no-store",
+              credentials: "include",
+            }),
+            fetch("/api/professionals/application/me", {
+              cache: "no-store",
+              credentials: "include",
+            }),
+            fetch("/api/notifications/unread-count", {
+              cache: "no-store",
+              credentials: "include",
+            }),
+          ]);
+
+        if (profileRes.ok) {
+          const data = await profileRes.json();
+          setProfile({
+            id: data.id,
+            name:
+              data.firstName && data.lastName
+                ? `${data.firstName} ${data.lastName}`
+                : data.name,
+            firstName: data.firstName,
+            lastName: data.lastName,
+            email: data.email,
+            profileImage: data.profileImage,
+          });
+        }
+
+        if (professionalRes.ok) {
+          const { status } = await professionalRes.json();
           setIsProfessional(status === "APPROVED");
         }
+
+        if (notificationsRes.ok) {
+          const { count } = await notificationsRes.json();
+          setUnreadNotifications(count);
+        }
       } catch (error) {
-        console.error("Error fetching professional status:", error);
+        console.error("Fetch Error:", error);
       }
     };
-    fetchProfessionalStatus();
-  }, [session]);
+
+    if (status === "authenticated") {
+      fetchProfileAndProfessionalStatus();
+    }
+  }, [session, status]);
+
+  // Compute user info
+  const user = useMemo(() => {
+    return {
+      id: session?.user?.id || "default-id",
+      name: profile?.name || session?.user?.name || "User",
+      email: profile?.email || session?.user?.email || "user@example.com",
+      avatar:
+        profile?.profileImage ||
+        session?.user?.image ||
+        "/assets/images/avatar-placeholder.png",
+    };
+  }, [profile, session]);
 
   const navItems: NavItem[] = useMemo(
     () => [
@@ -73,11 +140,6 @@ export default function BottomNav() {
         label: "Professionals",
         icon: <User className="h-5 w-5" />,
       },
-      // {
-      //   href: "/dashboard/users",
-      //   label: "Explore",
-      //   icon: <Search className="h-5 w-5" />,
-      // },
       {
         href: "/dashboard/appointments",
         label: "Appointments",
@@ -104,7 +166,7 @@ export default function BottomNav() {
         icon: <Package className="h-6 w-6" />,
       },
       {
-        href: `/dashboard/profile/${session?.user?.id}/orders`,
+        href: `/dashboard/profile/${user.id}/orders`,
         label: "My Orders",
         icon: <Package className="h-5 w-5" />,
       },
@@ -118,11 +180,6 @@ export default function BottomNav() {
         label: "Profile Visits",
         icon: <Eye className="h-5 w-5" />,
       },
-      // {
-      //   href: "/dashboard/training-videos",
-      //   label: "Training",
-      //   icon: <Video className="h-5 w-5" />,
-      // },
       ...(isProfessional
         ? [
             {
@@ -133,7 +190,7 @@ export default function BottomNav() {
           ]
         : []),
     ],
-    [isProfessional]
+    [isProfessional, user.id]
   );
 
   const mainTabs = [
@@ -159,6 +216,14 @@ export default function BottomNav() {
     (pathname.startsWith(href) &&
       href !== "/dashboard" &&
       pathname !== "/dashboard");
+
+  const handleLogout = async () => {
+    try {
+      await signOut({ callbackUrl: "/login" });
+    } catch (error) {
+      console.error("Logout failed:", error);
+    }
+  };
 
   return (
     <nav className="fixed bottom-0 left-0 right-0 z-50 flex h-16 items-center justify-around border-t bg-white shadow-lg md:hidden">
@@ -190,11 +255,45 @@ export default function BottomNav() {
           </Button>
         </SheetTrigger>
 
-        <SheetContent side="bottom" className="h-[80vh] p-4">
-          <ScrollArea className="h-full pr-4">
-            <div className="space-y-1">
+        <SheetContent side="bottom" className="h-[80vh] p-0">
+          {/* User Profile Section */}
+          <div className="p-4 border-b">
+            <div className="flex items-center justify-between mb-4">
+              <h2 className="text-lg font-semibold">Menu</h2>
+              <NotificationsDropdown />
+            </div>
+
+            <div
+              className="flex items-center space-x-3 p-3 rounded-lg hover:bg-gray-50 cursor-pointer transition-colors"
+              onClick={() => {
+                router.push(`/dashboard/profile/${user.id}`);
+                setOpen(false);
+              }}
+              role="button"
+            >
+              <Avatar className="h-12 w-12">
+                <AvatarImage src={user.avatar} alt={user.name} />
+                <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
+              </Avatar>
+              <div className="flex-1">
+                <p className="font-semibold">{user.name}</p>
+                <p className="text-sm text-muted-foreground">{user.email}</p>
+                {isProfessional && (
+                  <span className="mt-1 inline-block bg-black text-[#F3CFC6] text-xs font-medium px-2 py-1 rounded">
+                    Professional
+                  </span>
+                )}
+              </div>
+            </div>
+          </div>
+
+          <ScrollArea className="h-[calc(100%-180px)] px-4">
+            <div className="space-y-1 py-4">
               {navItems.map((item) => {
                 const active = isActive(item.href);
+                const isNotifications =
+                  item.href === "/dashboard/notifications";
+
                 return (
                   <motion.div
                     key={item.href}
@@ -208,7 +307,19 @@ export default function BottomNav() {
                       className="flex items-center gap-3 w-full"
                       onClick={() => setOpen(false)}
                     >
-                      {item.icon}
+                      <div className="relative">
+                        {item.icon}
+                        {isNotifications && unreadNotifications > 0 && (
+                          <Badge
+                            className="absolute -top-2 -right-2 h-5 w-5 flex items-center justify-center p-0 bg-red-500"
+                            variant="destructive"
+                          >
+                            {unreadNotifications > 9
+                              ? "9+"
+                              : unreadNotifications}
+                          </Badge>
+                        )}
+                      </div>
                       <span className="font-medium">{item.label}</span>
                     </Link>
                   </motion.div>
@@ -216,6 +327,19 @@ export default function BottomNav() {
               })}
             </div>
           </ScrollArea>
+
+          {/* Logout Section */}
+          <Separator />
+          <div className="p-4">
+            <Button
+              variant="ghost"
+              className="w-full justify-start gap-3 text-red-600 hover:text-red-700 hover:bg-red-50"
+              onClick={handleLogout}
+            >
+              <LogOut className="h-5 w-5" />
+              <span className="font-medium">Logout</span>
+            </Button>
+          </div>
         </SheetContent>
       </Sheet>
     </nav>
