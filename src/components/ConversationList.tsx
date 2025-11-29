@@ -106,18 +106,19 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
     fetchConversations();
   }, [status, router]);
 
+  // Real-time subscription for new message notifications
   useEffect(() => {
-    if (status !== "authenticated" || !session?.user?.id) return;
+    if (status !== "authenticated" || !session?.user?.id || !supabase) return;
 
     const channel = supabase
-      .channel("notifications")
+      .channel("conversation-notifications")
       .on(
         "postgres_changes",
         {
           event: "INSERT",
           schema: "public",
           table: "notifications",
-          filter: `userId=eq.${session.user.id}`,
+          filter: `userid=eq.${session.user.id}`, // lowercase
         },
         (payload) => {
           const newNotification = payload.new as {
@@ -126,16 +127,18 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
             content: string;
             timestamp: string;
             unread: boolean;
-            relatedid: string;
-            senderId: string;
-            userId: string;
+            relatedid: string; // lowercase
+            senderid: string; // lowercase
+            userid: string; // lowercase
           };
 
+          // Only handle message notifications
           if (
             newNotification.type === "message" &&
-            newNotification.senderId !== session.user.id &&
-            newNotification.userId === session.user.id
+            newNotification.senderid !== session.user.id &&
+            newNotification.userid === session.user.id
           ) {
+            // Update unread count for the conversation
             setConversations((prev) =>
               prev.map((conv) =>
                 conv.id === newNotification.relatedid
@@ -143,15 +146,31 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                   : conv
               )
             );
+
+            // Show toast notification
+            toast.info(newNotification.content, {
+              duration: 5000,
+              action: {
+                label: "View",
+                onClick: () =>
+                  router.push(
+                    `/dashboard/messaging/${newNotification.relatedid}`
+                  ),
+              },
+            });
           }
         }
       )
-      .subscribe();
+      .subscribe((status) => {
+        console.log("Conversation notifications subscription:", status);
+      });
 
     return () => {
-      supabase.removeChannel(channel);
+      if (supabase) {
+        supabase.removeChannel(channel);
+      }
     };
-  }, [status, session?.user?.id]);
+  }, [status, session?.user?.id, router]);
 
   const handleConversationClick = async (convId: string) => {
     if (!/^[0-9a-fA-F]{24}$/.test(convId)) {
@@ -195,13 +214,12 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
   const filterConversations = (data: Conversation[]) =>
     data
       .filter((conv) => {
-        const name =
-          (conv.user1?.id === session?.user.id ? conv.user2 : conv.user1) || {};
-        const fullName =
-          // `${name.firstName || ""} ${name.lastName || ""}`.trim() ||
-          "Unknown User";
-
-        console.log(name, fullName);
+        const otherUser =
+          conv.user1?.id === session?.user.id ? conv.user2 : conv.user1;
+        const fullName = otherUser
+          ? `${otherUser.firstName || ""} ${otherUser.lastName || ""}`.trim() ||
+            "Unknown User"
+          : "Unknown User";
 
         return searchQuery
           ? fullName.toLowerCase().includes(searchQuery.toLowerCase())
@@ -320,7 +338,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                     className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                   >
                     <Filter className="h-6 w-6 text-[#F3CFC6]" />
-                    <span>Filter</span>
+                    <span>{unreadFilter ? "Unread" : "Filter"}</span>
                   </Button>
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
@@ -352,6 +370,11 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
           <CardTitle className="flex items-center text-black dark:text-white">
             <MessageSquare className="mr-2 h-6 w-6 text-[#F3CFC6]" />
             All Conversations
+            {filteredConversations.length > 0 && (
+              <span className="ml-2 text-sm font-normal text-[#C4C4C4]">
+                ({filteredConversations.length})
+              </span>
+            )}
           </CardTitle>
         </CardHeader>
         <CardContent className="flex-1 overflow-y-auto p-2 sm:p-4 pt-0">
@@ -361,11 +384,26 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                 variants={itemVariants}
                 initial="hidden"
                 animate="visible"
-                className="flex h-full items-center justify-center"
+                className="flex h-full items-center justify-center py-12"
               >
-                <p className="text-[#C4C4C4] text-sm">
-                  No conversations found.
-                </p>
+                <div className="text-center">
+                  <MessageSquare className="h-12 w-12 text-[#C4C4C4] mx-auto mb-4" />
+                  <p className="text-[#C4C4C4] text-sm">
+                    No conversations found.
+                  </p>
+                  {(searchQuery || unreadFilter) && (
+                    <Button
+                      variant="link"
+                      onClick={() => {
+                        setSearchQuery("");
+                        setUnreadFilter(false);
+                      }}
+                      className="text-[#F3CFC6] mt-2"
+                    >
+                      Clear filters
+                    </Button>
+                  )}
+                </div>
               </motion.div>
             ) : (
               <motion.div
@@ -428,8 +466,8 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                           </p>
                         </div>
                         {conv.unreadCount > 0 && (
-                          <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1">
-                            {conv.unreadCount}
+                          <span className="bg-red-500 text-white text-xs rounded-full px-2 py-1 min-w-[24px] text-center">
+                            {conv.unreadCount > 99 ? "99+" : conv.unreadCount}
                           </span>
                         )}
                       </Button>

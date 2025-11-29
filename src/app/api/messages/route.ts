@@ -2,12 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-import { createClient } from "@supabase/supabase-js";
-
-const supabaseUrl = process.env.SUPABASE_URL;
-const supabaseKey = process.env.SUPABASE_SERVICE_ROLE_KEY;
-const supabase =
-  supabaseUrl && supabaseKey ? createClient(supabaseUrl, supabaseKey) : null;
+import { supabase } from "@/lib/supabase";
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -79,22 +74,33 @@ export async function POST(request: NextRequest) {
       data: { updatedAt: new Date() },
     });
 
+    // Create notification in Supabase
     if (supabase) {
-      const notification = {
-        id: message.id,
-        type: "message",
-        content: `New message from ${message.senderUser?.firstName || "User"}: ${text || "Image message"}`,
-        timestamp: new Date().toISOString(),
-        unread: true,
-        relatedid: conversationId,
-        senderId: session.user.id,
-        userId: recipientId, // Added to target the recipient
-      };
-      const { error } = await supabase
-        .from("notifications")
-        .insert([notification]);
-      if (error) {
-        console.error("Supabase notification insert error:", error);
+      try {
+        const senderName = message.senderUser?.firstName || "Someone";
+        const messagePreview = text
+          ? text.length > 50
+            ? `${text.substring(0, 50)}...`
+            : text
+          : "Sent an image";
+
+        const { error } = await supabase.from("notifications").insert({
+          userid: recipientId, // lowercase - recipient receives the notification
+          senderid: session.user.id, // lowercase - who sent the message
+          type: "message",
+          content: `${senderName}: ${messagePreview}`,
+          unread: true,
+          relatedid: conversationId, // lowercase - link to conversation
+        });
+
+        if (error) {
+          console.error("Supabase notification insert error:", error);
+        } else {
+          console.log("Message notification created successfully");
+        }
+      } catch (notifError) {
+        console.error("Notification creation error:", notifError);
+        // Don't fail the request if notification fails
       }
     }
 

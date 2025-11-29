@@ -16,6 +16,7 @@ import { toast } from "sonner";
 interface Notification {
   id: string;
   userid: string;
+  senderid?: string;
   type: "message" | "appointment" | "payment" | "profile_visit";
   content: string;
   timestamp: string;
