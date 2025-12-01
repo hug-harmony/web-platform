@@ -1,3 +1,4 @@
+// admin/professionals/page.tsx
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -14,10 +15,12 @@ import Image from "next/image";
 
 interface Professional {
   id: string;
+  professionalId: string;
   name: string;
-  specialty: string;
   status: "active" | "pending";
   avatarUrl?: string | null;
+  rate?: number;
+  venue?: string;
 }
 
 const containerVariants = {
@@ -45,6 +48,7 @@ export default function ProfessionalsPage() {
       try {
         setLoading(true);
         setError(null);
+
         const response = await fetch(
           `/api/professionals/application?status=APPROVED&search=${encodeURIComponent(
             searchTerm
@@ -56,29 +60,38 @@ export default function ProfessionalsPage() {
             credentials: "include",
           }
         );
+
         if (response.status === 401) {
           throw new Error("Unauthorized: Admin access required");
         }
+
         if (response.status === 404) {
           setProfessionals([]);
           return;
         }
+
         if (!response.ok) {
           throw new Error(
             `Failed to fetch professionals: ${response.statusText}`
           );
         }
+
         const data = await response.json();
         const applications = Array.isArray(data) ? data : [];
+
+        // FIXED: Removed reference to app.role which doesn't exist
         const formattedProfessionals: Professional[] = applications.map(
           (app: any) => ({
             id: app.id,
-            name: app.name,
-            specialty: app.role || "Unknown",
+            professionalId: app.professionalId,
+            name: app.name || "Unknown",
             status: app.status === "APPROVED" ? "active" : "pending",
             avatarUrl: app.avatarUrl ?? null,
+            rate: app.rate,
+            venue: app.venue,
           })
         );
+
         setProfessionals(formattedProfessionals);
       } catch (error: any) {
         console.error("Error fetching professionals:", error);
@@ -92,6 +105,7 @@ export default function ProfessionalsPage() {
         setLoading(false);
       }
     };
+
     fetchProfessionals();
   }, [searchTerm]);
 
@@ -118,7 +132,7 @@ export default function ProfessionalsPage() {
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 transform -translate-y-1/2 h-4 w-4 text-[#C4C4C4]" />
           <Input
-            placeholder="Search professionals by name or specialty..."
+            placeholder="Search professionals by name..."
             value={searchTerm}
             onChange={(e) => setSearchTerm(e.target.value)}
             className="pl-10 border-[#C4C4C4] focus:ring-[#F3CFC6] dark:bg-black dark:text-white dark:border-[#C4C4C4]"
@@ -154,18 +168,18 @@ export default function ProfessionalsPage() {
                       className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 transition-colors border border-[#C4C4C4] rounded"
                     >
                       <div className="flex items-center gap-4">
-                        <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center text-black dark:text-white">
+                        <div className="h-10 w-10 bg-[#C4C4C4] rounded-full flex items-center justify-center overflow-hidden text-black dark:text-white">
                           {spec.avatarUrl ? (
                             <Image
                               src={spec.avatarUrl}
                               alt={spec.name}
-                              width={100}
-                              height={100}
+                              width={40}
+                              height={40}
                               className="h-full w-full object-cover"
                             />
                           ) : (
-                            <span className="text-black dark:text-white">
-                              {spec.name[0]}
+                            <span className="text-black dark:text-white font-medium">
+                              {spec.name[0]?.toUpperCase()}
                             </span>
                           )}
                         </div>
@@ -174,7 +188,9 @@ export default function ProfessionalsPage() {
                             {spec.name}
                           </p>
                           <p className="text-sm text-[#C4C4C4]">
-                            {spec.specialty} •{" "}
+                            {spec.rate ? `$${spec.rate}/hr` : "Rate not set"}
+                            {spec.venue && ` • ${spec.venue}`}
+                            {" • "}
                             <span className="text-green-500">
                               {spec.status}
                             </span>
@@ -188,7 +204,7 @@ export default function ProfessionalsPage() {
                         className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
                       >
                         <Link
-                          href={`/admin/dashboard/professionals/${spec.id}`}
+                          href={`/admin/dashboard/professionals/${spec.professionalId}`}
                         >
                           View
                         </Link>

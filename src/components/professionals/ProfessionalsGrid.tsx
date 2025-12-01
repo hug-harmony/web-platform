@@ -7,7 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import ProfessionalCard from "@/components/professionals/ProfessionalCard";
 import { EmptyState } from "@/components/professionals/EmptyState";
 import Link from "next/link";
-import { Therapist } from "@/types/therapist";
+import { Professional } from "@/types/professional";
 
 const cardVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -16,7 +16,7 @@ const cardVariants = {
 
 interface Props {
   loading: boolean;
-  professionals: Therapist[];
+  professionals: Professional[];
   hasActiveFilters: boolean;
   onClearFilters: () => void;
 }
@@ -61,9 +61,9 @@ export function ProfessionalsGrid({
         ) : professionals.length > 0 ? (
           <motion.div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
             <AnimatePresence mode="popLayout">
-              {professionals.map((therapist) => (
+              {professionals.map((professional) => (
                 <motion.div
-                  key={therapist._id}
+                  key={professional._id}
                   variants={cardVariants}
                   initial="hidden"
                   animate="visible"
@@ -73,16 +73,16 @@ export function ProfessionalsGrid({
                   transition={{ duration: 0.2 }}
                 >
                   <Link
-                    href={`/dashboard/professionals/${therapist._id}`}
-                    aria-label={`View profile of ${therapist.name}`}
+                    href={`/dashboard/professionals/${professional._id}`}
+                    aria-label={`View profile of ${professional.name}`}
                   >
                     <ProfessionalCard
-                      name={therapist.name}
-                      imageSrc={therapist.image || ""}
-                      location={therapist.location || ""}
-                      rating={therapist.rating || 0}
-                      reviewCount={therapist.reviewCount || 0}
-                      rate={therapist.rate || 0}
+                      name={professional.name}
+                      imageSrc={professional.image || ""}
+                      location={professional.location || ""}
+                      rating={professional.rating || 0}
+                      reviewCount={professional.reviewCount || 0}
+                      rate={professional.rate || 0}
                       className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors"
                     />
                   </Link>

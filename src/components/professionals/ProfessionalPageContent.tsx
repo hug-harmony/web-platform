@@ -1,12 +1,13 @@
-// components/professionals/TherapistPageContent.tsx
+// components/professionals/ProfessionalPageContent.tsx
 "use client";
 
-import { useState, useRef, useCallback } from "react";
+import { useState, useRef, useCallback, useMemo } from "react";
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CalendarIcon } from "lucide-react";
 import { useProfessionals } from "@/hooks/professionals/useProfessionals";
 import { useFilters } from "@/hooks/professionals/useFilters";
+import { useAvailabilities } from "@/hooks/professionals/useAvailabilities";
 import { useMediaQuery } from "@/hooks/professionals/useMediaQuery";
 import { useKeyboardShortcut } from "@/hooks/professionals/useKeyboardShortcut";
 import { SearchBar } from "@/components/professionals/SearchBar";
@@ -33,7 +34,7 @@ const minutesToTime = (mins: number): string => {
   return `${hour}:${String(m).padStart(2, "0")} ${period}`;
 };
 
-export default function TherapistsPageContent() {
+export default function ProfessionalPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
   const {
     filters,
@@ -58,14 +59,23 @@ export default function TherapistsPageContent() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
+  // Fetch professionals
   const { professionals, loading } = useProfessionals(
     searchQuery,
     appliedFilters
   );
 
-  const locations = Array.from(
-    new Set(professionals.map((t) => t.location).filter(Boolean))
-  ) as string[];
+  // Fetch bulk availabilities when date is selected
+  const { availabilities, loading: availLoading } = useAvailabilities(
+    appliedFilters.selectedDate
+  );
+
+  // Get unique locations for filter dropdown
+  const locations = useMemo(() => {
+    return Array.from(
+      new Set(professionals.map((p) => p.location).filter(Boolean))
+    ) as string[];
+  }, [professionals]);
 
   // Keyboard shortcut to focus search
   useKeyboardShortcut(
@@ -120,8 +130,15 @@ export default function TherapistsPageContent() {
     setSearchQuery("");
   };
 
-  // Filter using appliedFilters
-  const filtered = filterAndSort(professionals, appliedFilters, searchQuery);
+  // Filter and sort using appliedFilters + availabilities
+  const filtered = useMemo(() => {
+    // Add availabilities to filters for the filterAndSort function
+    const filtersWithAvailabilities = {
+      ...appliedFilters,
+      availabilities,
+    };
+    return filterAndSort(professionals, filtersWithAvailabilities, searchQuery);
+  }, [professionals, appliedFilters, availabilities, searchQuery]);
 
   // Get pending date/time for button display
   const { selectedDate, timeRange } = filters;
@@ -208,6 +225,9 @@ export default function TherapistsPageContent() {
             ) : (
               "Filter by Availability"
             )}
+            {availLoading && appliedFilters.selectedDate && (
+              <span className="ml-2 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
+            )}
           </Button>
 
           {/* Active Filters Summary */}
@@ -216,7 +236,7 @@ export default function TherapistsPageContent() {
       </Card>
 
       <ProfessionalsGrid
-        loading={loading}
+        loading={loading || availLoading}
         professionals={filtered}
         hasActiveFilters={hasActiveFilters || !!searchQuery}
         onClearFilters={handleClear}

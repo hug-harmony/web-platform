@@ -1,21 +1,20 @@
+// app/api/professionals/application/route.ts
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
-import {
-  ProOnboardingStatus,
-  AppointmentVenue,
-  VenueType,
-} from "@prisma/client";
+import { ProOnboardingStatus, VenueType } from "@prisma/client";
 
+// UPDATED: Now accepts "both" as a valid venue option
 const submitSchema = z.object({
   rate: z
     .string()
     .transform((v) => parseFloat(v))
     .refine((v) => !isNaN(v) && v > 0, "Rate must be > 0"),
-  venue: z.enum(["host", "visit"] as const, {
+  venue: z.enum(["host", "visit", "both"] as const, {
     required_error: "Venue is required",
   }),
 });
@@ -26,8 +25,9 @@ const submitSchema = z.object({
 export async function POST(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.id)
+    if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { rate, venue } = submitSchema.parse(await req.json());
 
@@ -63,11 +63,12 @@ export async function POST(req: Request) {
         });
       }
 
+      // UPDATED: venue is now VenueType (host | visit | both)
       return await tx.professionalApplication.create({
         data: {
           userId: session.user.id,
           rate,
-          venue,
+          venue: venue as VenueType,
           status: "VIDEO_PENDING",
           submittedAt: new Date(),
         },
@@ -77,8 +78,9 @@ export async function POST(req: Request) {
     return NextResponse.json(application, { status: 201 });
   } catch (error: unknown) {
     console.error("POST error:", error);
-    if (error instanceof z.ZodError)
+    if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
     if (error instanceof Error && error.message.includes("already have")) {
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
@@ -95,8 +97,9 @@ export async function POST(req: Request) {
 export async function GET(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.isAdmin)
+    if (!session?.user?.isAdmin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
@@ -119,8 +122,9 @@ export async function GET(req: Request) {
         },
       });
 
-      if (!app)
+      if (!app) {
         return NextResponse.json({ error: "Not found" }, { status: 404 });
+      }
 
       const watch = await prisma.trainingVideoWatch.findFirst({
         where: { applicationId: app.id },
@@ -155,9 +159,12 @@ export async function GET(req: Request) {
 
     /* ---------- LIST VIEW ---------- */
     const where: any = {};
-    if (statusParam !== "all") where.status = statusParam;
-    if (search)
+    if (statusParam !== "all") {
+      where.status = statusParam;
+    }
+    if (search) {
       where.user = { name: { contains: search, mode: "insensitive" } };
+    }
 
     const apps = await prisma.professionalApplication.findMany({
       where,
@@ -184,6 +191,8 @@ export async function GET(req: Request) {
           id: a.id,
           name: a.user?.name ?? "Unknown",
           avatarUrl: a.user?.profileImage ?? null,
+          rate: a.rate,
+          venue: a.venue,
           status: a.status,
           createdAt: a.createdAt,
           submittedAt: a.submittedAt,
@@ -197,6 +206,7 @@ export async function GET(req: Request) {
               }
             : null,
           latestQuiz: a.quizAttempts[0] ?? null,
+          professionalId: a.professionalId,
         };
       })
     );
@@ -217,8 +227,9 @@ export async function GET(req: Request) {
 export async function PATCH(req: Request) {
   try {
     const session = await getServerSession(authOptions);
-    if (!session?.user?.isAdmin)
+    if (!session?.user?.isAdmin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
 
     const { id, status } = z
       .object({
@@ -233,6 +244,7 @@ export async function PATCH(req: Request) {
           "ADMIN_REVIEW",
           "APPROVED",
           "REJECTED",
+          "SUSPENDED",
         ]),
       })
       .parse(await req.json());
@@ -242,32 +254,42 @@ export async function PATCH(req: Request) {
         where: { id },
         include: { user: true },
       });
-      if (!app) throw new Error("Application not found");
+
+      if (!app) {
+        throw new Error("Application not found");
+      }
 
       /* REJECT – clean up */
       if (status === "REJECTED") {
-        if (app.professionalId)
+        if (app.professionalId) {
           await tx.professional.deleteMany({
             where: { id: app.professionalId },
           });
+        }
         await tx.professionalApplication.deleteMany({ where: { id } });
         return { ...app, status: "REJECTED", professionalId: null };
       }
 
       /* APPROVE – create Professional if needed */
       let professionalId: string | null = app.professionalId;
-      if (status === "APPROVED" && !app.professionalId) {
-        if (!app.user.name) throw new Error("User must have a name");
 
+      if (status === "APPROVED" && !app.professionalId) {
+        if (!app.user.name) {
+          throw new Error("User must have a name");
+        }
+
+        // UPDATED: Directly use app.venue since it's now VenueType
         const professional = await tx.professional.create({
           data: {
             name: app.user.name,
             biography: app.user.biography ?? "",
             rate: app.rate,
-            venue: app.venue === "host" ? VenueType.host : VenueType.visit,
+            venue: app.venue, // Already VenueType (host | visit | both)
             image: app.user.profileImage ?? null,
+            location: app.user.location ?? null,
           },
         });
+
         professionalId = professional.id;
       }
 
@@ -280,12 +302,13 @@ export async function PATCH(req: Request) {
 
     return NextResponse.json({
       ...updated,
-      name: updated.user.name ?? "Unknown",
+      name: updated.user?.name ?? "Unknown",
     });
   } catch (error: unknown) {
     console.error("PATCH error:", error);
-    if (error instanceof z.ZodError)
+    if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
+    }
     if (
       error instanceof Error &&
       ["Application not found", "User must have a name"].includes(error.message)

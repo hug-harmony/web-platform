@@ -1,4 +1,4 @@
-// hooks/useKeyboardShortcut.ts
+// hooks/professionals/useKeyboardShortcut.ts
 "use client";
 
 import { useEffect } from "react";

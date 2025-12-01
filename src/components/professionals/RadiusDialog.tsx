@@ -30,7 +30,18 @@ import {
 import { cn } from "@/lib/utils";
 import dynamic from "next/dynamic";
 
-const DynamicMap = dynamic(() => import("./DynamicMap"), { ssr: false });
+// FIXED: Correct import path for DynamicMap
+const DynamicMap = dynamic(
+  () => import("@/components/professionals/DynamicMap"),
+  {
+    ssr: false,
+    loading: () => (
+      <div className="flex h-full items-center justify-center bg-muted">
+        <p className="text-muted-foreground">Loading map...</p>
+      </div>
+    ),
+  }
+);
 
 interface LocationResult {
   lat: string;

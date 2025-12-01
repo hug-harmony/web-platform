@@ -1,4 +1,4 @@
-// hooks/useMediaQuery.ts
+// hooks/professionals/useMediaQuery.ts
 "use client";
 
 import { useState, useEffect } from "react";

@@ -1,5 +1,5 @@
-// types/therapist.ts
-export interface Therapist {
+// types/professional.ts
+export interface Professional {
   _id: string;
   name: string;
   image?: string;
@@ -21,7 +21,10 @@ export interface Therapist {
   ethnicity?: string;
   bodyType?: string;
   personalityType?: string;
-  lastOnline?: string;
-  venue?: string;
+  lastOnline?: string | Date | null;
+  venue?: "host" | "visit" | "both";
   type?: "user" | "professional";
 }
+
+// Keep backward compatibility alias (can remove later)
+export type Therapist = Professional;

@@ -1,16 +1,21 @@
+// app/dashboard/professionals/page.tsx
 "use client";
 
 import dynamic from "next/dynamic";
 
-// Dynamically import the TherapistsPageContent component with SSR disabled
-const TherapistsPageContent = dynamic(
-  () => import("@/components/professionals/TherapistPageContent"),
+// Dynamically import the ProfessionalPageContent component with SSR disabled
+const ProfessionalPageContent = dynamic(
+  () => import("@/components/professionals/ProfessionalPageContent"),
   {
-    ssr: false, // Disable server-side rendering
-    loading: () => <p>Loading...</p>, // Optional loading component
+    ssr: false,
+    loading: () => (
+      <div className="p-4 flex items-center justify-center min-h-[400px]">
+        <div className="animate-spin h-8 w-8 border-4 border-[#F3CFC6] border-t-transparent rounded-full" />
+      </div>
+    ),
   }
 );
 
-export default function TherapistsPage() {
-  return <TherapistsPageContent />;
+export default function ProfessionalsPage() {
+  return <ProfessionalPageContent />;
 }

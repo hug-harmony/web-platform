@@ -1,3 +1,5 @@
+// schema.prisma
+
 generator client {
   provider = "prisma-client-js"
   output   = "../node_modules/.prisma/client"
@@ -22,9 +24,9 @@ model User {
   heardFromOther     String?
   
   // OAuth Provider IDs
-  googleId           String?             @unique
-  appleId            String?             @unique
-  facebookId         String?             @unique
+  googleId           String?             
+  appleId            String?             
+  facebookId         String?             
   
   profileImage       String?
   location           String?
@@ -78,22 +80,22 @@ model PasswordResetToken {
 }
 
 model Appointment {
-  id                   String         @id @default(auto()) @map("_id") @db.ObjectId
-  userId               String?        @db.ObjectId
-  professionalId         String         @db.ObjectId
+  id                   String           @id @default(auto()) @map("_id") @db.ObjectId
+  userId               String?          @db.ObjectId
+  professionalId       String           @db.ObjectId
   startTime            DateTime
   endTime              DateTime
-  status               String         @default("upcoming")
-  disputeStatus        String         @default("none")
+  status               String           @default("upcoming")
+  disputeStatus        String           @default("none")
   disputeReason        String?
   adminNotes           String?
   rate                 Float?
   adjustedRate         Float?
   modificationHistory  Json?
   venue                AppointmentVenue?
-  createdAt            DateTime       @default(now())
-  user                 User?          @relation("UserAppointments", fields: [userId], references: [id], onDelete: SetNull)
-  professional           Professional     @relation("ProfessionalAppointments", fields: [professionalId], references: [id], onDelete: Cascade)
+  createdAt            DateTime         @default(now())
+  user                 User?            @relation("UserAppointments", fields: [userId], references: [id], onDelete: SetNull)
+  professional         Professional     @relation("ProfessionalAppointments", fields: [professionalId], references: [id], onDelete: Cascade)
   payment              Payment?
 
   @@index([professionalId, startTime, endTime])
@@ -121,7 +123,7 @@ model Professional {
   rate                 Float?
   biography            String?
   companyCutPercentage Float?
-  venue                VenueType?      @default(both)   // host | visit | both
+  venue                VenueType?     @default(both)
   createdAt            DateTime       @default(now())
   location             String?
 
@@ -163,25 +165,26 @@ model Reply {
   updatedAt     DateTime @updatedAt
 }
 
+// FIXED: Changed venue from AppointmentVenue to VenueType to allow "both"
 model ProfessionalApplication {
-  id              String                @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String                @unique @db.ObjectId
-  rate            Float                 // <-- REQUIRED BEFORE APPROVAL
-  venue           AppointmentVenue      // <-- REQUIRED BEFORE APPROVAL ("host" | "visit")
+  id              String              @id @default(auto()) @map("_id") @db.ObjectId
+  userId          String              @unique @db.ObjectId
+  rate            Float
+  venue           VenueType           // CHANGED: Now uses VenueType (host | visit | both)
 
-  status          ProOnboardingStatus   @default(FORM_PENDING)
+  status          ProOnboardingStatus @default(FORM_PENDING)
   submittedAt     DateTime?
   videoWatchedAt  DateTime?
   quizPassedAt    DateTime?
-  createdAt       DateTime              @default(now())
-  updatedAt       DateTime              @updatedAt
+  createdAt       DateTime            @default(now())
+  updatedAt       DateTime            @updatedAt
 
-  user            User                  @relation(fields: [userId], references: [id], onDelete: Cascade)
-  professional      Professional?           @relation(fields: [professionalId], references: [id], onDelete: SetNull)
-  professionalId    String?               @unique @db.ObjectId
+  user            User                @relation(fields: [userId], references: [id], onDelete: Cascade)
+  professional    Professional?       @relation(fields: [professionalId], references: [id], onDelete: SetNull)
+  professionalId  String?             @unique @db.ObjectId
 
-  quizAttempts    ProQuizAttempt[]      @relation("ApplicationQuizAttempts")
-  videoWatch      TrainingVideoWatch?   @relation("ProOnboardingVideo")
+  quizAttempts    ProQuizAttempt[]    @relation("ApplicationQuizAttempts")
+  videoWatch      TrainingVideoWatch? @relation("ProOnboardingVideo")
 
   @@index([status])
 }
@@ -194,60 +197,61 @@ model ProQuizAttempt {
   answers         Json
   attemptedAt     DateTime                @default(now())
   nextEligibleAt  DateTime?
-  application     ProfessionalApplication   @relation("ApplicationQuizAttempts", fields: [applicationId], references: [id], onDelete: Cascade)
+  application     ProfessionalApplication @relation("ApplicationQuizAttempts", fields: [applicationId], references: [id], onDelete: Cascade)
 
   @@index([applicationId])
   @@index([nextEligibleAt])
 }
 
 enum ProOnboardingStatus {
-  FORM_PENDING      // Form not submitted
-  FORM_SUBMITTED    // Awaiting video
-  VIDEO_PENDING     // Must watch video
-  QUIZ_PENDING      // Video done, can take quiz
-  QUIZ_PASSED       // ≥80%, awaiting admin
-  QUIZ_FAILED       // <80%, on cooldown
-  ADMIN_REVIEW      // Quiz passed, admin deciding
-  APPROVED          // Professional!
-  REJECTED          // Denied
+  FORM_PENDING
+  FORM_SUBMITTED
+  VIDEO_PENDING
+  QUIZ_PENDING
+  QUIZ_PASSED
+  QUIZ_FAILED
+  ADMIN_REVIEW
+  APPROVED
+  REJECTED
+  SUSPENDED
 }
 
 model VideoSession {
-  id            String      @id @default(auto()) @map("_id") @db.ObjectId
-  roomId        String      @unique
-  userId        String      @db.ObjectId
-  professionalId  String      @db.ObjectId
-  date          DateTime
-  time          String
-  status        String      @default("upcoming")
-  roomUrl       String?
-  signalingData Json?
-  createdAt     DateTime    @default(now())
-  updatedAt     DateTime    @updatedAt
-  user          User        @relation(fields: [userId], references: [id], onDelete: Cascade)
-  professional    Professional  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  roomId         String       @unique
+  userId         String       @db.ObjectId
+  professionalId String       @db.ObjectId
+  date           DateTime
+  time           String
+  status         String       @default("upcoming")
+  roomUrl        String?
+  signalingData  Json?
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
 }
 
 model Availability {
-  id            String      @id @default(auto()) @map("_id") @db.ObjectId
-  professionalId  String      @db.ObjectId
-  dayOfWeek     Int
-  slots         String[]
-  breakDuration Int?        @default(30)
-  professional    Professional  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  professionalId String       @db.ObjectId
+  dayOfWeek      Int
+  slots          String[]
+  breakDuration  Int?         @default(30)
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
 
   @@unique([professionalId, dayOfWeek], name: "professionalId_dayOfWeek")
 }
 
 model ProfileVisit {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
-  userId         String       @db.ObjectId
-  professionalId   String?      @db.ObjectId
-  visitedUserId  String?      @db.ObjectId
-  createdAt      DateTime     @default(now())
-  user           User         @relation("Visitor", fields: [userId], references: [id], onDelete: Cascade)
-  professional     Professional?  @relation("Visitee", fields: [professionalId], references: [id], onDelete: SetNull)
-  visitedUser    User?        @relation("VisitedUser", fields: [visitedUserId], references: [id], onDelete: SetNull)
+  id             String        @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String        @db.ObjectId
+  professionalId String?       @db.ObjectId
+  visitedUserId  String?       @db.ObjectId
+  createdAt      DateTime      @default(now())
+  user           User          @relation("Visitor", fields: [userId], references: [id], onDelete: Cascade)
+  professional   Professional? @relation("Visitee", fields: [professionalId], references: [id], onDelete: SetNull)
+  visitedUser    User?         @relation("VisitedUser", fields: [visitedUserId], references: [id], onDelete: SetNull)
 }
 
 model Message {
@@ -268,57 +272,57 @@ model Message {
 }
 
 model Proposal {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
-  professionalId   String       @db.ObjectId
-  userId         String       @db.ObjectId
-  conversationId String       @db.ObjectId
+  id             String            @id @default(auto()) @map("_id") @db.ObjectId
+  professionalId String            @db.ObjectId
+  userId         String            @db.ObjectId
+  conversationId String            @db.ObjectId
   startTime      DateTime?
   endTime        DateTime?
   venue          AppointmentVenue?
-  status         String       @default("pending")
-  initiator      String       @default("professional")
-  createdAt      DateTime     @default(now())
-  professional     Professional   @relation(fields: [professionalId], references: [id], onDelete: Cascade)
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  conversation   Conversation @relation(fields: [conversationId], references: [id], onDelete: Cascade)
-  messages       Message[]    @relation
+  status         String            @default("pending")
+  initiator      String            @default("professional")
+  createdAt      DateTime          @default(now())
+  professional   Professional      @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  user           User              @relation(fields: [userId], references: [id], onDelete: Cascade)
+  conversation   Conversation      @relation(fields: [conversationId], references: [id], onDelete: Cascade)
+  messages       Message[]         @relation
 
   @@index([professionalId, startTime, endTime])
 }
 
 model Review {
-  id           String      @id @default(auto()) @map("_id") @db.ObjectId
-  professionalId String      @db.ObjectId
-  reviewerId   String      @db.ObjectId
-  rating       Int
-  feedback     String
-  createdAt    DateTime    @default(now())
-  professional   Professional  @relation("ProfessionalReviews", fields: [professionalId], references: [id], onDelete: Cascade)
-  reviewer     User        @relation("UserReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  professionalId String       @db.ObjectId
+  reviewerId     String       @db.ObjectId
+  rating         Int
+  feedback       String
+  createdAt      DateTime     @default(now())
+  professional   Professional @relation("ProfessionalReviews", fields: [professionalId], references: [id], onDelete: Cascade)
+  reviewer       User         @relation("UserReviews", fields: [reviewerId], references: [id], onDelete: Cascade)
 }
 
 model Discount {
-  id           String      @id @default(auto()) @map("_id") @db.ObjectId
-  professionalId String      @db.ObjectId
-  name         String
-  rate         Float
-  discount     Float
-  createdAt    DateTime    @default(now())
-  updatedAt    DateTime    @updatedAt
-  professional   Professional  @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  id             String       @id @default(auto()) @map("_id") @db.ObjectId
+  professionalId String       @db.ObjectId
+  name           String
+  rate           Float
+  discount       Float
+  createdAt      DateTime     @default(now())
+  updatedAt      DateTime     @updatedAt
+  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
 }
 
 model Payment {
-  id             String      @id @default(auto()) @map("_id") @db.ObjectId
-  appointmentId  String?     @db.ObjectId @unique
-  orderId        String?     @db.ObjectId @unique
-  amount         Float
-  status         String      @default("pending")
-  stripeId       String?
-  createdAt      DateTime    @default(now())
-  notes          String?
-  appointment    Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
-  order          Order?      @relation("OrderPayment", fields: [orderId], references: [id], onDelete: Cascade)
+  id            String       @id @default(auto()) @map("_id") @db.ObjectId
+  appointmentId String?      @db.ObjectId @unique
+  orderId       String?      @db.ObjectId @unique
+  amount        Float
+  status        String       @default("pending")
+  stripeId      String?
+  createdAt     DateTime     @default(now())
+  notes         String?
+  appointment   Appointment? @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  order         Order?       @relation("OrderPayment", fields: [orderId], references: [id], onDelete: Cascade)
 }
 
 model CompanySettings {
@@ -351,37 +355,39 @@ model SecurityLog {
 }
 
 model Report {
-  id                   String      @id @default(auto()) @map("_id") @db.ObjectId
-  reporterId           String      @db.ObjectId
-  reportedUserId       String?     @db.ObjectId
-  reportedProfessionalId String?     @db.ObjectId
-  reason               String
-  details              String?
-  status               String      @default("pending")
-  createdAt            DateTime    @default(now())
-  reporter             User        @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  reportedUser         User?       @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  id                     String        @id @default(auto()) @map("_id") @db.ObjectId
+  reporterId             String        @db.ObjectId
+  reportedUserId         String?       @db.ObjectId
+  reportedProfessionalId String?       @db.ObjectId
+  reason                 String
+  details                String?
+  status                 String        @default("pending")
+  createdAt              DateTime      @default(now())
+  reporter               User          @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser           User?         @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
   reportedProfessional   Professional? @relation("ReportedProfessional", fields: [reportedProfessionalId], references: [id], onDelete: SetNull)
 }
 
 model Note {
-  id                 String      @id @default(auto()) @map("_id") @db.ObjectId
-  authorId           String      @db.ObjectId
-  targetUserId       String?     @db.ObjectId
-  targetProfessionalId String?     @db.ObjectId
-  content            String
-  createdAt          DateTime    @default(now())
-  author             User        @relation("AuthorNotes", fields: [authorId], references: [id], onDelete: Cascade)
-  targetUser         User?       @relation("TargetUserNotes", fields: [targetUserId], references: [id], onDelete: SetNull)
+  id                   String        @id @default(auto()) @map("_id") @db.ObjectId
+  authorId             String        @db.ObjectId
+  targetUserId         String?       @db.ObjectId
+  targetProfessionalId String?       @db.ObjectId
+  content              String
+  createdAt            DateTime      @default(now())
+  author               User          @relation("AuthorNotes", fields: [authorId], references: [id], onDelete: Cascade)
+  targetUser           User?         @relation("TargetUserNotes", fields: [targetUserId], references: [id], onDelete: SetNull)
   targetProfessional   Professional? @relation("TargetProfessionalNotes", fields: [targetProfessionalId], references: [id], onDelete: SetNull)
 }
 
+// VenueType: Used for Professional's capability (can offer host, visit, or both)
 enum VenueType {
   host
   visit
   both
 }
 
+// AppointmentVenue: Used for actual appointments (must be one specific venue)
 enum AppointmentVenue {
   host
   visit
@@ -402,12 +408,12 @@ model Merchandise {
 }
 
 model Cart {
-  id        String      @id @default(auto()) @map("_id") @db.ObjectId
-  userId    String      @unique @db.ObjectId
+  id        String     @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String     @unique @db.ObjectId
   items     CartItem[]
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
-  user      User        @relation(fields: [userId], references: [id], onDelete: Cascade)
+  createdAt DateTime   @default(now())
+  updatedAt DateTime   @updatedAt
+  user      User       @relation(fields: [userId], references: [id], onDelete: Cascade)
 }
 
 model CartItem {
@@ -435,40 +441,40 @@ model Order {
 }
 
 model OrderItem {
-  id            String       @id @default(auto()) @map("_id") @db.ObjectId
-  orderId       String       @db.ObjectId
-  merchandiseId String       @db.ObjectId
+  id            String      @id @default(auto()) @map("_id") @db.ObjectId
+  orderId       String      @db.ObjectId
+  merchandiseId String      @db.ObjectId
   quantity      Int
   price         Float
-  order         Order        @relation(fields: [orderId], references: [id], onDelete: Cascade)
-  merchandise   Merchandise  @relation(fields: [merchandiseId], references: [id], onDelete: Cascade)
+  order         Order       @relation(fields: [orderId], references: [id], onDelete: Cascade)
+  merchandise   Merchandise @relation(fields: [merchandiseId], references: [id], onDelete: Cascade)
 }
 
 model TrainingVideo {
-  id                String                @id @default(auto()) @map("_id") @db.ObjectId
-  name              String
-  url               String
-  durationSec       Int?
-  isActive          Boolean               @default(true)
-  isProOnboarding   Boolean               @default(false)  // Flag for onboarding videos
-  createdAt         DateTime              @default(now())
-  updatedAt         DateTime              @updatedAt
-  watches           TrainingVideoWatch[]
+  id              String               @id @default(auto()) @map("_id") @db.ObjectId
+  name            String
+  url             String
+  durationSec     Int?
+  isActive        Boolean              @default(true)
+  isProOnboarding Boolean              @default(false)
+  createdAt       DateTime             @default(now())
+  updatedAt       DateTime             @updatedAt
+  watches         TrainingVideoWatch[]
 
   @@index([isActive])
 }
 
 model TrainingVideoWatch {
-  id              String                  @id @default(auto()) @map("_id") @db.ObjectId
-  userId          String                  @db.ObjectId
-  videoId         String                  @db.ObjectId
-  watchedSec      Int                     @default(0)
-  isCompleted     Boolean                 @default(false)
-  lastWatchedAt   DateTime                @updatedAt
-  applicationId   String?                 @unique @db.ObjectId  // Scalar for 1-1 relation
-  user            User                    @relation(fields: [userId], references: [id], onDelete: Cascade)
-  video           TrainingVideo           @relation(fields: [videoId], references: [id], onDelete: Cascade)
-  proApplication  ProfessionalApplication?  @relation("ProOnboardingVideo", fields: [applicationId], references: [id], onDelete: SetNull)
+  id             String                   @id @default(auto()) @map("_id") @db.ObjectId
+  userId         String                   @db.ObjectId
+  videoId        String                   @db.ObjectId
+  watchedSec     Int                      @default(0)
+  isCompleted    Boolean                  @default(false)
+  lastWatchedAt  DateTime                 @updatedAt
+  applicationId  String?                  @unique @db.ObjectId
+  user           User                     @relation(fields: [userId], references: [id], onDelete: Cascade)
+  video          TrainingVideo            @relation(fields: [videoId], references: [id], onDelete: Cascade)
+  proApplication ProfessionalApplication? @relation("ProOnboardingVideo", fields: [applicationId], references: [id], onDelete: SetNull)
 
   @@unique([userId, videoId])
   @@index([userId])

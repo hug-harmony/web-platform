@@ -1,32 +1,13 @@
+// app/api/professionals/route.ts
+
 import { NextResponse } from "next/server";
-import { PrismaClient, Prisma } from "@prisma/client";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-
-const prisma = new PrismaClient();
-
-type ProfessionalWithRelations = Prisma.ProfessionalGetPayload<{
-  select: {
-    id: true;
-    name: true;
-    image: true;
-    rating: true;
-    reviewCount: true;
-    rate: true;
-    biography: true;
-    createdAt: true;
-    venue: true;
-    application: {
-      select: {
-        userId: true;
-        user: { select: { location: true } };
-      };
-    };
-  };
-}>;
+import prisma from "@/lib/prisma";
 
 /* ------------------------------------------------------------------
-   GET – single or list (unchanged)
+   GET – single or list with filtering
    ------------------------------------------------------------------ */
 export async function GET(req: Request) {
   try {
@@ -38,6 +19,7 @@ export async function GET(req: Request) {
     const { searchParams } = new URL(req.url);
     const id = searchParams.get("id");
 
+    // Single professional fetch
     if (id) {
       if (!/^[0-9a-fA-F]{24}$/.test(id)) {
         return NextResponse.json(
@@ -45,63 +27,9 @@ export async function GET(req: Request) {
           { status: 400 }
         );
       }
-      const professional: ProfessionalWithRelations | null =
-        await prisma.professional.findUnique({
-          where: { id },
-          select: {
-            id: true,
-            name: true,
-            image: true,
-            rating: true,
-            reviewCount: true,
-            rate: true,
-            biography: true,
-            createdAt: true,
-            venue: true,
-            application: {
-              select: {
-                userId: true,
-                user: { select: { location: true } },
-              },
-            },
-          },
-        });
-      if (!professional) {
-        return NextResponse.json(
-          { error: "Professional not found" },
-          { status: 404 }
-        );
-      }
-      return NextResponse.json({
-        id: professional.id,
-        name: professional.name,
-        image: professional.image,
-        location: professional.application?.user?.location || null,
-        userId: professional.application?.userId || null,
-        rating: professional.rating,
-        reviewCount: professional.reviewCount,
-        rate: professional.rate,
-        biography: professional.biography,
-        createdAt: professional.createdAt,
-        venue: professional.venue,
-      });
-    }
 
-    const userApplication = await prisma.professionalApplication.findFirst({
-      where: {
-        userId: session.user.id,
-        status: "APPROVED",
-      },
-      select: { professionalId: true },
-    });
-
-    const professionals: ProfessionalWithRelations[] =
-      await prisma.professional.findMany({
-        where: {
-          ...(userApplication?.professionalId
-            ? { id: { not: userApplication.professionalId } }
-            : {}),
-        },
+      const professional = await prisma.professional.findUnique({
+        where: { id },
         select: {
           id: true,
           name: true,
@@ -112,21 +40,153 @@ export async function GET(req: Request) {
           biography: true,
           createdAt: true,
           venue: true,
+          location: true,
           application: {
             select: {
+              id: true,
+              status: true,
               userId: true,
-              user: { select: { location: true } },
+              user: {
+                select: {
+                  location: true,
+                  lastOnline: true,
+                  ethnicity: true,
+                  profileImage: true,
+                },
+              },
             },
           },
         },
       });
 
+      if (!professional) {
+        return NextResponse.json(
+          { error: "Professional not found" },
+          { status: 404 }
+        );
+      }
+
+      return NextResponse.json({
+        id: professional.id,
+        name: professional.name,
+        image:
+          professional.application?.user?.profileImage || professional.image,
+        location:
+          professional.location ||
+          professional.application?.user?.location ||
+          null,
+        userId: professional.application?.userId || null,
+        rating: professional.rating,
+        reviewCount: professional.reviewCount,
+        rate: professional.rate,
+        biography: professional.biography,
+        createdAt: professional.createdAt,
+        venue: professional.venue,
+        lastOnline: professional.application?.user?.lastOnline || null,
+        ethnicity: professional.application?.user?.ethnicity || null,
+
+        status: professional.application?.status || null,
+        applicationId: professional.application?.id,
+      });
+    }
+
+    // List fetch with filters
+    const search = searchParams.get("search");
+    const venue = searchParams.get("venue");
+    const minRating = searchParams.get("minRating");
+    const location = searchParams.get("location");
+
+    // Build where clause
+    const where: Prisma.ProfessionalWhereInput = {};
+
+    // Exclude self if user is an approved professional
+    const userApplication = await prisma.professionalApplication.findFirst({
+      where: {
+        userId: session.user.id,
+        status: "APPROVED",
+      },
+      select: { professionalId: true },
+    });
+
+    if (userApplication?.professionalId) {
+      where.id = { not: userApplication.professionalId };
+    }
+
+    // Search filter (name or biography)
+    if (search) {
+      where.OR = [
+        { name: { contains: search, mode: "insensitive" } },
+        { biography: { contains: search, mode: "insensitive" } },
+      ];
+    }
+
+    // Venue filter
+    if (venue && ["host", "visit", "both"].includes(venue)) {
+      if (venue === "both") {
+        // Show all venues
+      } else {
+        // Show professionals who can do this venue type OR both
+        where.venue = { in: [venue as "host" | "visit", "both"] };
+      }
+    }
+
+    // Rating filter
+    if (minRating) {
+      const rating = parseFloat(minRating);
+      if (!isNaN(rating) && rating > 0) {
+        where.rating = { gte: rating };
+      }
+    }
+
+    const professionals = await prisma.professional.findMany({
+      where,
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        rating: true,
+        reviewCount: true,
+        rate: true,
+        biography: true,
+        createdAt: true,
+        venue: true,
+        location: true,
+        application: {
+          select: {
+            userId: true,
+            user: {
+              select: {
+                location: true,
+                lastOnline: true,
+                ethnicity: true,
+                profileImage: true,
+              },
+            },
+          },
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    // Post-query location filter (since it can be on Professional or User)
+    let filtered = professionals;
+    if (
+      location &&
+      location !== "Custom Location" &&
+      location !== "Current Location"
+    ) {
+      filtered = professionals.filter((p) => {
+        const profLocation = p.location || p.application?.user?.location;
+        return profLocation === location;
+      });
+    }
+
     return NextResponse.json({
-      professionals: professionals.map((s) => ({
+      professionals: filtered.map((s) => ({
         id: s.id,
         name: s.name,
-        image: s.image,
-        location: s.application?.user?.location || null,
+        image: s.application?.user?.profileImage || s.image,
+        location: s.location || s.application?.user?.location || null,
         userId: s.application?.userId || null,
         rating: s.rating,
         reviewCount: s.reviewCount,
@@ -134,13 +194,13 @@ export async function GET(req: Request) {
         biography: s.biography,
         createdAt: s.createdAt,
         venue: s.venue,
+        lastOnline: s.application?.user?.lastOnline || null,
+        ethnicity: s.application?.user?.ethnicity || null,
       })),
     });
   } catch (error) {
     console.error("GET Error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
@@ -158,7 +218,7 @@ export async function POST() {
 }
 
 /* ------------------------------------------------------------------
-   PATCH – edit approved professional (unchanged)
+   PATCH – edit approved professional
    ------------------------------------------------------------------ */
 export async function PATCH(req: Request) {
   try {
@@ -204,6 +264,7 @@ export async function PATCH(req: Request) {
         status: "APPROVED",
       },
     });
+
     if (!application) {
       return NextResponse.json(
         {
@@ -214,37 +275,43 @@ export async function PATCH(req: Request) {
       );
     }
 
-    const professional: ProfessionalWithRelations =
-      await prisma.professional.update({
-        where: { id },
-        data: {
-          name,
-          image,
-          rating,
-          reviewCount,
-          rate,
-          biography,
-          venue,
-        },
-        select: {
-          id: true,
-          name: true,
-          image: true,
-          rating: true,
-          reviewCount: true,
-          rate: true,
-          biography: true,
-          createdAt: true,
-          venue: true,
-          application: {
-            select: {
-              userId: true,
-              user: { select: { location: true } },
+    const professional = await prisma.professional.update({
+      where: { id },
+      data: {
+        name,
+        image,
+        rating,
+        reviewCount,
+        rate,
+        biography,
+        venue,
+      },
+      select: {
+        id: true,
+        name: true,
+        image: true,
+        rating: true,
+        reviewCount: true,
+        rate: true,
+        biography: true,
+        createdAt: true,
+        venue: true,
+        location: true,
+        application: {
+          select: {
+            userId: true,
+            user: {
+              select: {
+                location: true,
+                lastOnline: true,
+              },
             },
           },
         },
-      });
+      },
+    });
 
+    // Update user location if provided
     if (location) {
       await prisma.user.update({
         where: { id: application.userId },
@@ -256,7 +323,7 @@ export async function PATCH(req: Request) {
       id: professional.id,
       name: professional.name,
       image: professional.image,
-      location: professional.application?.user?.location || null,
+      location: location || professional.application?.user?.location || null,
       userId: professional.application?.userId || null,
       rating: professional.rating,
       reviewCount: professional.reviewCount,
@@ -264,21 +331,31 @@ export async function PATCH(req: Request) {
       biography: professional.biography,
       createdAt: professional.createdAt,
       venue: professional.venue,
+      lastOnline: professional.application?.user?.lastOnline || null,
     });
   } catch (error) {
     console.error("PATCH Error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
 /* ------------------------------------------------------------------
-   DELETE – remove professional (unchanged)
+   DELETE – remove professional (admin only)
    ------------------------------------------------------------------ */
 export async function DELETE(req: Request) {
   try {
+    const session = await getServerSession(authOptions);
+
+    // Security: Require admin authentication
+    if (!session?.user?.isAdmin) {
+      return NextResponse.json(
+        { error: "Forbidden: Admin access required" },
+        { status: 403 }
+      );
+    }
+
     const { id } = await req.json();
+
     if (!id) {
       return NextResponse.json({ error: "ID is required" }, { status: 400 });
     }
@@ -293,11 +370,26 @@ export async function DELETE(req: Request) {
     });
 
     console.log("Professional deleted:", professional);
-    return NextResponse.json({ message: "Professional deleted" });
-  } catch (error) {
+    return NextResponse.json({
+      message: "Professional deleted",
+      id: professional.id,
+    });
+  } catch (error: unknown) {
     console.error("DELETE Error:", error);
+
+    // Handle "record not found" error
+    if (
+      typeof error === "object" &&
+      error !== null &&
+      "code" in error &&
+      (error as { code: string }).code === "P2025"
+    ) {
+      return NextResponse.json(
+        { error: "Professional not found" },
+        { status: 404 }
+      );
+    }
+
     return NextResponse.json({ error: "Server error" }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }
