@@ -1,3 +1,5 @@
+// File: app/api/appointment/requests/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma"; // Adjust path if needed

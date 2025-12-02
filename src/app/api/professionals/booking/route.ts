@@ -1,12 +1,13 @@
-// File: app/api/professionals/booking/route.ts
-
+// src/app/api/professionals/booking/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
+const BUFFER_MINUTES = 30;
+
 /**
- * Creates a new appointment + 30-min buffer (as 'break' appointment)
+ * Creates a new appointment (buffer is handled dynamically, not stored)
  */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
@@ -63,6 +64,7 @@ export async function POST(request: Request) {
       );
     }
 
+    // Venue validation
     let finalVenue: "host" | "visit";
     if (professional.venue === "host" || professional.venue === "visit") {
       finalVenue = professional.venue;
@@ -78,11 +80,14 @@ export async function POST(request: Request) {
       );
     }
 
-    // --- Check for overlap with any appointment or buffer ---
+    /* ---- OVERLAP CHECK (includes buffer consideration) ---- */
+    const bufferMs = BUFFER_MINUTES * 60 * 1000;
+
+    // Check 1: Does new booking overlap with any existing appointment?
     const overlappingAppointment = await prisma.appointment.findFirst({
       where: {
         professionalId,
-        status: { in: ["upcoming", "pending", "break"] },
+        status: { in: ["upcoming", "pending"] },
         startTime: { lt: end },
         endTime: { gt: start },
       },
@@ -92,13 +97,62 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: "SLOT_ALREADY_BOOKED",
-          message: "This time slot is no longer available.",
+          message: "This time slot overlaps with an existing appointment.",
         },
         { status: 409 }
       );
     }
 
-    // --- Create main appointment ---
+    // Check 2: Does new booking start during an existing appointment's buffer?
+    // (i.e., new booking starts within 30 min after an existing appointment ends)
+    const appointmentWithBufferConflict = await prisma.appointment.findFirst({
+      where: {
+        professionalId,
+        status: { in: ["upcoming", "pending"] },
+        endTime: {
+          gt: new Date(start.getTime() - bufferMs), // Appointment ended within 30 min before new start
+          lte: start, // Appointment ended before or exactly at new start
+        },
+      },
+    });
+
+    if (appointmentWithBufferConflict) {
+      return NextResponse.json(
+        {
+          error: "BUFFER_CONFLICT",
+          message:
+            "This time slot falls within a 30-minute buffer after another appointment.",
+        },
+        { status: 409 }
+      );
+    }
+
+    // Check 3: Does new booking's buffer overlap with next appointment?
+    // (i.e., there's an appointment starting within 30 min after new booking ends)
+    const newBookingBufferEnd = new Date(end.getTime() + bufferMs);
+    const nextAppointmentConflict = await prisma.appointment.findFirst({
+      where: {
+        professionalId,
+        status: { in: ["upcoming", "pending"] },
+        startTime: {
+          gte: end, // Starts after new booking ends
+          lt: newBookingBufferEnd, // But within new booking's buffer
+        },
+      },
+    });
+
+    if (nextAppointmentConflict) {
+      return NextResponse.json(
+        {
+          error: "BUFFER_CONFLICT",
+          message:
+            "This booking's buffer would overlap with the next appointment. Please choose an earlier time or shorter duration.",
+        },
+        { status: 409 }
+      );
+    }
+
+    /* ---- CREATE APPOINTMENT (no buffer record) ---- */
     const newAppointment = await prisma.appointment.create({
       data: {
         userId,
@@ -111,24 +165,7 @@ export async function POST(request: Request) {
       },
     });
 
-    // --- Create 30-min buffer as 'break' appointment ---
-    const bufferStart = new Date(end);
-    const bufferEnd = new Date(bufferStart.getTime() + 30 * 60 * 1000);
-
-    await prisma.appointment.create({
-      data: {
-        professionalId,
-        userId: null, // No user
-        startTime: bufferStart,
-        endTime: bufferEnd,
-        status: "break",
-      },
-    });
-
-    return NextResponse.json(
-      { appointment: newAppointment, bufferCreated: true },
-      { status: 201 }
-    );
+    return NextResponse.json({ appointment: newAppointment }, { status: 201 });
   } catch (error) {
     console.error("Booking POST error:", error);
     return NextResponse.json(

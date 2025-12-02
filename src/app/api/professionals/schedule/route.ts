@@ -22,6 +22,8 @@ interface WorkingHour {
 }
 
 /* ---------- helpers ---------- */
+const BUFFER_MINUTES = 30;
+
 const timeToMinutes = (time: string): number => {
   const trimmed = time.trim();
   const [timePart, period] = trimmed.split(" ");
@@ -59,9 +61,8 @@ const mergeContiguousSlots = (slots: string[]): WorkingHour[] => {
   }
   blocks.push({ start: curStart, end: curEnd });
 
-  // Return full WorkingHour objects
   return blocks.map((b) => ({
-    dayOfWeek: 0, // Will be set later
+    dayOfWeek: 0,
     startTime: minutesToTime(b.start),
     endTime: minutesToTime(b.end),
   }));
@@ -85,52 +86,77 @@ export async function GET(request: Request) {
   const end = new Date(endDate);
 
   try {
-    /* ---- 1. BOOKED APPOINTMENTS + 30-MIN BUFFERS ---- */
+    /* ---- 1. FETCH ONLY REAL APPOINTMENTS (no "break" status) ---- */
     const appointments: Appointment[] = await prisma.appointment.findMany({
       where: {
         professionalId,
-        OR: [{ startTime: { lt: end }, endTime: { gt: start } }],
-        status: { in: ["upcoming", "pending", "break"] },
+        startTime: { lt: end },
+        endTime: { gt: start },
+        status: { in: ["upcoming", "pending"] }, // ← Removed "break"
       },
       select: { id: true, startTime: true, endTime: true },
     });
 
+    /* ---- 2. BUILD EVENTS WITH DYNAMIC BUFFERS ---- */
     const events: Event[] = [];
-    const byDay = new Map<string, Appointment[]>();
 
-    appointments.forEach((a) => {
-      const key = a.startTime.toISOString().split("T")[0];
-      if (!byDay.has(key)) byDay.set(key, []);
-      byDay.get(key)!.push(a);
-    });
+    // Sort all appointments by start time
+    const sortedAppointments = [...appointments].sort(
+      (a, b) => a.startTime.getTime() - b.startTime.getTime()
+    );
 
-    for (const [, dayAppts] of byDay) {
-      // Fixed: Removed extra arrow function
-      dayAppts.sort((a, b) => a.startTime.getTime() - b.startTime.getTime());
-
-      dayAppts.forEach((a) => {
-        events.push({
-          id: a.id,
-          title: "Booked",
-          start: a.startTime,
-          end: a.endTime,
-        });
+    sortedAppointments.forEach((appointment, index) => {
+      // Add the booked appointment event
+      events.push({
+        id: appointment.id,
+        title: "Booked",
+        start: appointment.startTime,
+        end: appointment.endTime,
       });
 
-      for (let i = 0; i < dayAppts.length - 1; i++) {
-        const cur = dayAppts[i];
-        const bufStart = new Date(cur.endTime);
-        const bufEnd = new Date(bufStart.getTime() + 30 * 60 * 1000);
+      // Calculate buffer
+      const bufferStart = new Date(appointment.endTime);
+      const bufferEnd = new Date(
+        bufferStart.getTime() + BUFFER_MINUTES * 60 * 1000
+      );
+
+      // Check if buffer overlaps with next appointment
+      const nextAppointment = sortedAppointments[index + 1];
+
+      if (nextAppointment) {
+        // If next appointment starts before buffer ends, truncate buffer
+        if (nextAppointment.startTime < bufferEnd) {
+          // Only add buffer if there's actually a gap
+          if (nextAppointment.startTime > bufferStart) {
+            events.push({
+              id: `buf-${appointment.id}`,
+              title: "Blocked (Buffer)",
+              start: bufferStart,
+              end: nextAppointment.startTime, // Truncated buffer
+            });
+          }
+          // If next appointment starts exactly at buffer start, no buffer shown
+        } else {
+          // Full buffer - no overlap with next appointment
+          events.push({
+            id: `buf-${appointment.id}`,
+            title: "Blocked (Buffer)",
+            start: bufferStart,
+            end: bufferEnd,
+          });
+        }
+      } else {
+        // Last appointment of the day - always show full buffer
         events.push({
-          id: `buf-${cur.id}-${i}`,
+          id: `buf-${appointment.id}`,
           title: "Blocked (Buffer)",
-          start: bufStart,
-          end: bufEnd,
+          start: bufferStart,
+          end: bufferEnd,
         });
       }
-    }
+    });
 
-    /* ---- 2. WORKING HOURS (per contiguous block) ---- */
+    /* ---- 3. WORKING HOURS (unchanged) ---- */
     const weekly = await prisma.availability.findMany({
       where: { professionalId },
       select: { dayOfWeek: true, slots: true },
@@ -147,7 +173,7 @@ export async function GET(request: Request) {
         blocks.forEach((b) => {
           workingHours.push({
             ...b,
-            dayOfWeek: dow, // Now correctly set
+            dayOfWeek: dow,
           });
         });
       }

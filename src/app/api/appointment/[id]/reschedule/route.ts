@@ -1,3 +1,5 @@
+// File: src/app/api/appointment/[id]/reschedule/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";

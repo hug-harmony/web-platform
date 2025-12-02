@@ -223,7 +223,7 @@ const BookingPage: React.FC = () => {
     setBookingInProgress(true);
     try {
       if (isRequestMode) {
-        // NEW: Send appointment request via new API
+        // Send appointment request via API
         const res = await fetch("/api/appointment/requests", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
@@ -238,9 +238,31 @@ const BookingPage: React.FC = () => {
         const data = await res.json();
         if (!res.ok) throw new Error(data.error || "Failed to send request.");
 
+        let conversationId = data.conversationId;
+
+        // Try fetching conversation to ensure it exists
+        const convoRes = await fetch(`/api/conversations/${conversationId}`);
+        if (convoRes.status === 404) {
+          // If it doesn't exist, create it
+          const createConvoRes = await fetch("/api/conversations", {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              participants: [session.user.id, therapistId],
+              type: "appointment_request",
+            }),
+          });
+
+          const convoData = await createConvoRes.json();
+          if (!createConvoRes.ok)
+            throw new Error(
+              convoData.error || "Failed to create conversation."
+            );
+          conversationId = convoData.id; // use the newly created conversation
+        }
+
         toast.success("Appointment request sent to professional for approval.");
-        // NEW: Redirect to chat using returned conversationId
-        router.push(`/messages/${data.conversationId}`); // Adjust path to your chat route
+        router.push(`/dashboard/messaging/${conversationId}`);
       } else {
         // Existing: Direct booking
         const res = await fetch("/api/professionals/booking", {
@@ -259,14 +281,6 @@ const BookingPage: React.FC = () => {
         if (!res.ok) throw new Error(data.message || "Booking failed.");
 
         toast.success("Booked!");
-
-        // const newBooking: BookedEvent = {
-        //   id: `temp-${Date.now()}`,
-        //   title: "Booked",
-        //   start: newBookingSlot.start,
-        //   end: newBookingSlot.end,
-        // };
-        // setBookedEvents((prev) => [...prev, newBooking]);
 
         await fetchSchedule(currentDate);
       }
@@ -340,7 +354,8 @@ const BookingPage: React.FC = () => {
         className: "border",
         style: {
           backgroundColor: "#E0D5D5",
-          color: "#333333",
+          color: "transparent", // hides text including times
+          textShadow: "0 0 0 #333", // makes text color visible
           borderColor: "#D4A5A5",
           opacity: 0.7,
         },
