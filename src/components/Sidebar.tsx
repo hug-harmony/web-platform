@@ -24,6 +24,7 @@ import {
   Users,
   Eye,
   Package,
+  Sparkles,
 } from "lucide-react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import {
@@ -57,6 +58,9 @@ interface Profile {
 export default function Sidebar() {
   const [profile, setProfile] = useState<Profile | null>(null);
   const [isProfessional, setIsProfessional] = useState(false);
+  const [applicationStatus, setApplicationStatus] = useState<
+    "none" | "pending" | "rejected" | "APPROVED"
+  >("none");
 
   const router = useRouter();
   const pathname = usePathname();
@@ -98,6 +102,9 @@ export default function Sidebar() {
         if (professionalRes.ok) {
           const { status } = await professionalRes.json();
           setIsProfessional(status === "APPROVED");
+          setApplicationStatus(status || "none");
+        } else {
+          setApplicationStatus("none");
         }
       } catch (error) {
         console.error("Fetch Error:", error);
@@ -122,9 +129,26 @@ export default function Sidebar() {
     };
   }, [profile, session]);
 
+  const proApplicationItem = useMemo(() => {
+    if (isProfessional) return null;
+    if (applicationStatus === "none") {
+      return {
+        href: "/dashboard/profile/professional-application/status",
+        label: "Become a Professional",
+        icon: <Sparkles className="h-5 w-5" />,
+      };
+    }
+    return {
+      href: "/dashboard/professional/status",
+      label: "Application Status",
+      icon: <Clock className="h-5 w-5" />,
+    };
+  }, [isProfessional, applicationStatus]);
+
   // === Nav items ===
   const navItems: NavItem[] = useMemo(() => {
     const base = [
+      ...(proApplicationItem ? [proApplicationItem] : []),
       {
         href: "/dashboard",
         label: "Dashboard",
@@ -196,7 +220,7 @@ export default function Sidebar() {
           },
         ]
       : base;
-  }, [user.id, isProfessional]);
+  }, [user.id, isProfessional, proApplicationItem]);
 
   const isActive = (href: string) =>
     pathname === href ||

@@ -1,3 +1,5 @@
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// src/hooks/edit-profile/useProfile.ts
 import { useEffect, useState } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -20,15 +22,18 @@ export function useProfile(id: string) {
 
     (async () => {
       try {
+        // Fetch user + photos
         const userRes = await fetch(`/api/users/${id}`, {
           cache: "no-store",
           credentials: "include",
         });
+
         if (!userRes.ok) {
           if (userRes.status === 401) router.push("/login");
           if (userRes.status === 404) notFound();
           throw new Error("User not found");
         }
+
         const user = await userRes.json();
 
         const baseProfile: Profile = {
@@ -51,10 +56,17 @@ export function useProfile(id: string) {
           favoriteMedia: user.favoriteMedia,
           petOwnership: user.petOwnership,
           venue: null,
+          // Add photos
+          photos:
+            user.photos?.map((p: any) => ({
+              id: p.id,
+              url: p.url,
+            })) || [],
         };
 
         setProfile(baseProfile);
 
+        // Only fetch professional status if it's your own profile
         if (session?.user?.id === id) {
           const statusRes = await fetch(
             "/api/professionals/onboarding/status",
@@ -62,6 +74,7 @@ export function useProfile(id: string) {
               credentials: "include",
             }
           );
+
           if (statusRes.ok) {
             const data = await statusRes.json();
             setOnboarding(data);
@@ -69,9 +82,7 @@ export function useProfile(id: string) {
             if (data.step === "APPROVED" && data.application?.professionalId) {
               const specRes = await fetch(
                 `/api/professionals/${data.application.professionalId}`,
-                {
-                  credentials: "include",
-                }
+                { credentials: "include" }
               );
               if (specRes.ok) {
                 const spec = await specRes.json();

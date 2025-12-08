@@ -283,9 +283,9 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
           <CardHeader>
             <motion.div variants={itemVariants}>
               <CardTitle className="text-2xl text-black dark:text-white">
-                Your Conversations
+                Your Messages
               </CardTitle>
-              <p className="text-sm opacity-80">Manage your conversations</p>
+              <p className="text-sm opacity-80">Manage your messages</p>
             </motion.div>
           </CardHeader>
           <CardContent className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
@@ -313,9 +313,9 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
         <CardHeader>
           <motion.div variants={itemVariants}>
             <CardTitle className="text-2xl font-bold text-black dark:text-white">
-              Your Conversations
+              Your Messages
             </CardTitle>
-            <p className="text-sm opacity-80">Manage your conversations</p>
+            <p className="text-sm opacity-80">Manage your messages</p>
           </motion.div>
         </CardHeader>
         <CardContent>
@@ -343,7 +343,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                 </DropdownMenuTrigger>
                 <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
                   <DropdownMenuLabel className="text-black dark:text-white">
-                    Filter Conversations
+                    Filter Messages
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
@@ -369,7 +369,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
         <CardHeader>
           <CardTitle className="flex items-center text-black dark:text-white">
             <MessageSquare className="mr-2 h-6 w-6 text-[#F3CFC6]" />
-            All Conversations
+            All Messages
             {filteredConversations.length > 0 && (
               <span className="ml-2 text-sm font-normal text-[#C4C4C4]">
                 ({filteredConversations.length})
@@ -388,9 +388,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
               >
                 <div className="text-center">
                   <MessageSquare className="h-12 w-12 text-[#C4C4C4] mx-auto mb-4" />
-                  <p className="text-[#C4C4C4] text-sm">
-                    No conversations found.
-                  </p>
+                  <p className="text-[#C4C4C4] text-sm">No messages found.</p>
                   {(searchQuery || unreadFilter) && (
                     <Button
                       variant="link"

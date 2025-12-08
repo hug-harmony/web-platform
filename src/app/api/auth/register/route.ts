@@ -1,10 +1,10 @@
-// /api/auth/register
+// app/api/auth/register/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import nodemailer from "nodemailer";
 import { z } from "zod";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
 import bcrypt from "bcrypt";
+import { isValidPhoneNumber } from "libphonenumber-js";
 
 const transporter = nodemailer.createTransport({
   host: process.env.SMTP_HOST,
@@ -44,16 +44,28 @@ const hearOptions = [
   "Email Newsletter",
   "Event or Workshop",
   "Professional Network (e.g., LinkedIn)",
+  "TV commercial",
   "Other",
 ] as const;
 
+// UPDATED: Phone number schema that works with react-phone-number-input
+const phoneSchema = z
+  .string()
+  .min(1, "Phone number is required")
+  .refine((val) => /^\+[1-9]\d{6,14}$/.test(val.trim()), {
+    message: "Phone number must be in international format (e.g. +1234567890)",
+  })
+  .refine((val) => isValidPhoneNumber(val.trim()), {
+    message: "Invalid phone number",
+  });
+
 const reqSchema = z.object({
   username: usernameSchema,
-  email: z.string().email(),
+  email: z.string().email("Invalid email address"),
   password: passwordSchema,
-  firstName: z.string().min(1),
-  lastName: z.string().min(1),
-  phoneNumber: z.string().min(1),
+  firstName: z.string().min(1, "First name is required"),
+  lastName: z.string().min(1, "Last name is required"),
+  phoneNumber: phoneSchema,
   ageVerification: z.boolean(),
   heardFrom: z.enum(hearOptions),
   heardFromOther: z.string().optional(),
@@ -105,8 +117,12 @@ export async function POST(request: NextRequest) {
   try {
     const json = await request.json();
     const parsed = reqSchema.safeParse(json);
+
     if (!parsed.success) {
-      return NextResponse.json({ error: "Invalid input" }, { status: 400 });
+      return NextResponse.json(
+        { error: "Invalid input", details: parsed.error.format() },
+        { status: 400 }
+      );
     }
 
     const {
@@ -115,7 +131,7 @@ export async function POST(request: NextRequest) {
       password,
       firstName,
       lastName,
-      phoneNumber,
+      phoneNumber: rawPhoneNumber,
       ageVerification,
       heardFrom,
       heardFromOther,
@@ -146,16 +162,10 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const p = parsePhoneNumberFromString(phoneNumber);
-    if (!p?.isValid()) {
-      return NextResponse.json(
-        { error: "Invalid phone number" },
-        { status: 400 }
-      );
-    }
-    const phoneE164 = p.number;
+    // FIXED: No more parsePhoneNumberFromString() — already validated by Zod
+    const phoneE164 = rawPhoneNumber.trim();
 
-    // Check for existing email, username, and phone number in one go
+    // Check for existing email, username, and phone number
     const [existingEmail, existingUsername, existingPhone] = await Promise.all([
       prisma.user.findUnique({ where: { email } }),
       prisma.user.findFirst({
@@ -174,6 +184,7 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
     if (existingUsername) {
       const suggestions = await filterFreeUsernames(
         candidateSuggestions(username)
@@ -183,6 +194,7 @@ export async function POST(request: NextRequest) {
         { status: 409 }
       );
     }
+
     if (existingPhone) {
       return NextResponse.json(
         { error: "Phone number already registered" },

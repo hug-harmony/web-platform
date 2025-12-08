@@ -51,6 +51,7 @@ import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import { mutate } from "swr";
 import { formatLastOnline } from "@/lib/formatLastOnline";
+import { ProfessionalGallery } from "@/components/professionals/ProfessionalGallery";
 
 const containerVariants = {
   hidden: { opacity: 0 },
@@ -87,6 +88,7 @@ interface Profile {
   petOwnership?: string;
   venue?: string;
   lastOnline?: Date;
+  photos?: { id: string; url: string }[];
 }
 interface Review {
   id: string;
@@ -171,6 +173,7 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
             favoriteMedia: data.favoriteMedia || "",
             petOwnership: data.petOwnership || "",
             venue: data.venue || "",
+            photos: data.photos || [],
           });
         } else {
           if (profileRes.status === 401) router.push("/login");
@@ -685,6 +688,12 @@ const ProfessionalProfilePage: React.FC<Props> = ({ params }) => {
           </CardContent>
         </Card>
       </motion.div>
+
+      {profile.photos && profile.photos.length > 0 && (
+        <motion.div variants={itemVariants}>
+          <ProfessionalGallery photos={profile.photos} name={profile.name} />
+        </motion.div>
+      )}
 
       <motion.div variants={itemVariants}>
         <Card className="shadow-lg">

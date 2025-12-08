@@ -44,6 +44,13 @@ export async function GET(
                 favoriteMedia: true,
                 petOwnership: true,
                 biography: true,
+                photos: {
+                  select: {
+                    id: true,
+                    url: true,
+                  },
+                  orderBy: { createdAt: "desc" },
+                },
               },
             },
           },
@@ -106,6 +113,7 @@ export async function GET(
       favoriteColor: user?.favoriteColor || "",
       favoriteMedia: user?.favoriteMedia || "",
       petOwnership: user?.petOwnership || "",
+      photos: user?.photos || [],
       discounts: professional.discounts,
       reviews: professional.reviews.map((r) => ({
         id: r.id,

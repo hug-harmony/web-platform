@@ -47,6 +47,10 @@ export interface Profile {
   favoriteColor?: string | null;
   favoriteMedia?: string | null;
   petOwnership?: string | null;
+  photos?: {
+    id: string;
+    url: string;
+  }[];
 }
 
 export interface LocationResult {

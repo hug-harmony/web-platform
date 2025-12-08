@@ -9,6 +9,7 @@ import { toast } from "sonner";
 import { ProfileHeader } from "@/components/edit-profile/ProfileHeader";
 import { PersonalInfoSection } from "@/components/edit-profile/PersonalInfoSection";
 import { ProfessionalInfoSection } from "@/components/edit-profile/ProfessionalInfoSection";
+import { PhotoGallerySection } from "@/components/edit-profile/PhotoGallerySection";
 import { useProfile } from "@/hooks/edit-profile/useProfile";
 import { useLocationSearch } from "@/hooks/edit-profile/useLocationSearch";
 import { validateUserProfileForm } from "@/lib/validate-edit-profile";
@@ -144,6 +145,13 @@ export default function ProfilePage({ params }: { params: { id: string } }) {
         onboardingStep={onboarding?.step}
         professionalId={professionalId}
       />
+
+      {ownProfile && profile && (
+        <PhotoGallerySection
+          userId={profile.id}
+          initialPhotos={profile.photos || []}
+        />
+      )}
 
       <div className="flex gap-6 flex-col lg:flex-row">
         <Card className="flex-1">

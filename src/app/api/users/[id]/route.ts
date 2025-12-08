@@ -5,55 +5,6 @@ import { z } from "zod";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
-// Validation schema for PATCH request
-/*
-const updateUserSchema = z.object({
-  name: z.string().min(1, "Name is required").optional(),
-  firstName: z.string().min(1, "First name is required").optional(),
-  lastName: z.string().min(1, "Last name is required").optional(),
-  phoneNumber: z.string().min(1, "Phone number is required").optional(),
-  profileImage: z.string().url().nullable().optional(),
-  location: z
-    .string()
-    .max(100, "Location must be 100 characters or less")
-    .optional(),
-  biography: z
-    .string()
-    .max(500, "Biography must be 500 characters or less")
-    .optional(),
-  relationshipStatus: z
-    .string()
-    .max(50, "Relationship status must be 50 characters or less")
-    .optional(),
-  orientation: z
-    .string()
-    .max(50, "Orientation must be 50 characters or less")
-    .optional(),
-  height: z.string().max(20, "Height must be 20 characters or less").optional(),
-  ethnicity: z
-    .string()
-    .max(50, "Ethnicity must be 50 characters or less")
-    .optional(),
-  zodiacSign: z
-    .string()
-    .max(20, "Zodiac sign must be 20 characters or less")
-    .optional(),
-  favoriteColor: z
-    .string()
-    .max(30, "Favorite color must be 30 characters or less")
-    .optional(),
-  favoriteMedia: z
-    .string()
-    .max(100, "Favorite movie/TV show must be 100 characters or less")
-    .optional(),
-  petOwnership: z
-    .string()
-    .max(50, "Pet ownership must be 50 characters or less")
-    .optional(),
-  status: z.enum(["active", "suspended"]).optional(),
-});
-*/
-
 const updateUserSchema = z.object({
   name: z.string().min(1, "Name is required").optional(),
   firstName: z.string().min(1, "First name is required").optional(),

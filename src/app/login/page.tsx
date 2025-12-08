@@ -27,6 +27,7 @@ import ResetPasswordModal from "@/components/auth/reset-password-modal";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { AppleSignInButton } from "@/components/auth/apple-sign-in-button";
 import { FacebookSignInButton } from "@/components/auth/facebook-sign-in-button";
+import { Eye, EyeOff } from "lucide-react";
 
 const formSchema = z.object({
   identifier: z
@@ -179,11 +180,15 @@ export default function LoginPage() {
                       <Button
                         type="button"
                         variant="ghost"
-                        size="sm"
-                        className="absolute right-2 top-1/2 -translate-y-1/2 text-xs"
+                        size="icon"
+                        className="absolute right-2 top-1/2 -translate-y-1/2 h-8 w-8"
                         onClick={() => setShowPassword((s) => !s)}
                       >
-                        {showPassword ? "Hide" : "Show"}
+                        {showPassword ? (
+                          <EyeOff className="h-4 w-4" />
+                        ) : (
+                          <Eye className="h-4 w-4" />
+                        )}
                       </Button>
                     </div>
                     {capsLockOn && (

@@ -20,7 +20,7 @@ export default function Layout({
         <div className="flex min-h-screen w-full">
           <Sidebar />
           <main className="flex-1 transition-all duration-200 ease-in-out max-w-7xl mx-auto md:pb-0 pb-16">
-            <div className="bg-white p-2 w-15 h-15 absolute top-6 right-6 hidden md:flex items-center justify-center rounded-md border border-gray-200 shadow-sm z-50">
+            <div className="bg-white p-2 w-10 h-10 absolute top-6 right-6 hidden md:flex items-center justify-center rounded-md border border-gray-200 shadow-sm z-50">
               <Link href="/dashboard">
                 <Image
                   src={hhIcon}

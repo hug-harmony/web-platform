@@ -28,13 +28,15 @@ import {
 } from "@/components/ui/select";
 import Image from "next/image";
 import Link from "next/link";
-import { parsePhoneNumberFromString } from "libphonenumber-js";
+import { isValidPhoneNumber } from "libphonenumber-js";
 import { Eye, EyeOff } from "lucide-react";
 import register from "../../../public/register.webp";
 import logo from "../../../public/hh-logo.png";
 import { GoogleSignInButton } from "@/components/auth/google-sign-in-button";
 import { AppleSignInButton } from "@/components/auth/apple-sign-in-button";
 import { FacebookSignInButton } from "@/components/auth/facebook-sign-in-button";
+import PhoneInput from "react-phone-number-input/react-hook-form";
+import "react-phone-number-input/style.css";
 
 type UsernameStatus = "idle" | "checking" | "available" | "unavailable";
 
@@ -60,10 +62,12 @@ const passwordSchema = z
 const phoneSchema = z
   .string()
   .min(1, "Phone number is required")
-  .refine((val) => {
-    const p = parsePhoneNumberFromString(val || "");
-    return !!p?.isValid();
-  }, "Enter a valid phone number in international format (e.g., +14155552671)");
+  .refine((val) => /^\+[1-9]\d{6,14}$/.test(val.trim()), {
+    message: "Phone number must be in international format (e.g., +1234567890)",
+  })
+  .refine((val) => isValidPhoneNumber(val.trim()), {
+    message: "Invalid phone number",
+  });
 
 const hearOptions = [
   "Social Media (e.g., Facebook, Instagram, X)",
@@ -74,6 +78,7 @@ const hearOptions = [
   "Email Newsletter",
   "Event or Workshop",
   "Professional Network (e.g., LinkedIn)",
+  "TV commercial",
   "Other",
 ] as const;
 
@@ -204,30 +209,10 @@ export default function RegisterPage() {
     };
   }, [usernameValue, form]);
 
-  const normalizePhoneE164 = (raw: string): string | null => {
-    const p = parsePhoneNumberFromString(raw || "");
-    return p?.isValid() ? p.number : null;
-  };
-
-  const formatPhoneInternational = (raw: string): string => {
-    const p = parsePhoneNumberFromString(raw || "");
-    return p?.isValid() ? p.formatInternational() : raw;
-  };
-
   const handleSubmit = async (values: z.infer<typeof formSchema>) => {
     try {
       setIsLoading(true);
       setError(null);
-
-      const phoneE164 = normalizePhoneE164(values.phoneNumber);
-      if (!phoneE164) {
-        form.setError("phoneNumber", {
-          type: "manual",
-          message: "Invalid phone number",
-        });
-        setIsLoading(false);
-        return;
-      }
 
       if (usernameStatus === "unavailable") {
         form.setError("username", {
@@ -246,7 +231,7 @@ export default function RegisterPage() {
           firstName: values.firstName.trim(),
           lastName: values.lastName.trim(),
           email: values.email.trim(),
-          phoneNumber: phoneE164,
+          phoneNumber: values.phoneNumber,
           password: values.password,
           ageVerification: values.ageVerification,
           heardFrom: values.heardFrom,
@@ -444,7 +429,7 @@ export default function RegisterPage() {
                         Phone Number
                       </FormLabel>
                       <FormControl>
-                        <Input
+                        {/* <Input
                           className="text-sm border-gray-300"
                           placeholder="+1 415 555 2671"
                           inputMode="tel"
@@ -459,6 +444,14 @@ export default function RegisterPage() {
                               shouldDirty: true,
                             });
                           }}
+                        /> */}
+                        <PhoneInput
+                          international
+                          countryCallingCodeEditable={false}
+                          defaultCountry="US"
+                          placeholder="Enter phone number"
+                          className="flex h-10 w-full rounded-md border border-gray-300 bg-white px-3 py-2 text-sm focus:outline-none focus:ring-2 focus:ring-[#E7C4BB] disabled:opacity-50"
+                          {...field}
                         />
                       </FormControl>
 
