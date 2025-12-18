@@ -40,7 +40,7 @@ function validateConfig() {
 }
 
 // Initialize S3 Client - credentials will be auto-resolved from:
-// 1. Environment variables (AWS_ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
+// 1. Environment variables (ACCESS_KEY_ID, AWS_SECRET_ACCESS_KEY)
 // 2. Shared credentials file (~/.aws/credentials)
 // 3. ECS container credentials
 // 4. EC2/ECS instance metadata (IAM role)
@@ -52,7 +52,7 @@ function getS3Client(): S3Client {
 
     // Check if explicit credentials are provided, otherwise let SDK auto-resolve
     const hasExplicitCredentials =
-      process.env.AWS_ACCESS_KEY_ID && process.env.AWS_SECRET_ACCESS_KEY;
+      process.env.ACCESS_KEY_ID && process.env.SECRET_ACCESS_KEY;
 
     const clientConfig: ConstructorParameters<typeof S3Client>[0] = {
       region: AWS_REGION,
