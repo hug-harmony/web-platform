@@ -1,3 +1,4 @@
+// app/layout.tsx
 import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
