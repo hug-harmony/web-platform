@@ -11,6 +11,8 @@ const envVars = [
   // AWS S3
   "REGION",
   "S3_BUCKET_NAME",
+  "ACCESS_KEY_ID",
+  "SECRET_ACCESS_KEY",
 
   // Google OAuth
   "GOOGLE_CLIENT_ID",
