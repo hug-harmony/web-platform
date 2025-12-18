@@ -4,8 +4,8 @@ frontend:
     preBuild:
       commands:
         - npm ci --cache .npm --prefer-offline
-        - node scripts/generate-env.mjs
-        - npx prisma generate
+        - node scripts/generate-env.mjs # Generate .env FIRST
+        - npx prisma generate # Then generate Prisma client
     build:
       commands:
         - npm run build

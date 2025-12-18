@@ -9,6 +9,7 @@ const nextConfig: NextConfig = {
       { hostname: "lh3.googleusercontent.com" },
       { hostname: "localhost" },
       { hostname: "vercel.app" },
+      { hostname: "hugharmony-files-prod.s3.us-east-2.amazonaws.com" },
     ],
   },
 };
