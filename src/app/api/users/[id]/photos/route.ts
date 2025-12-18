@@ -1,9 +1,7 @@
-// app/api/users/[id]/photos/route.ts
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { put } from "@vercel/blob";
+import { uploadToS3 } from "@/lib/s3";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
@@ -122,19 +120,15 @@ export async function POST(req: Request) {
     // Upload files and create records
     const uploaded = await Promise.all(
       files.map(async (file) => {
-        const { url: blobUrl } = await put(
-          `users/${id}/${crypto.randomUUID()}`,
-          file,
-          {
-            access: "public",
-            token: process.env.BLOB_READ_WRITE_TOKEN,
-          }
-        );
+        const extension = file.name.split(".").pop() || "jpg";
+        const key = `users/${id}/${crypto.randomUUID()}.${extension}`;
+
+        const { url: s3Url } = await uploadToS3(file, key, file.type);
 
         const photo = await prisma.userPhoto.create({
           data: {
             userId: id,
-            url: blobUrl,
+            url: s3Url,
           },
           select: {
             id: true,

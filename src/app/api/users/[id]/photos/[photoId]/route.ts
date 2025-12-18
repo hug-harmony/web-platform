@@ -1,9 +1,7 @@
-// app/api/users/[id]/photos/[photoId]/route.ts
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
-import { del } from "@vercel/blob";
+import { deleteFromS3ByUrl } from "@/lib/s3";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
@@ -50,15 +48,15 @@ export async function DELETE(req: Request) {
       );
     }
 
-    // Delete from blob storage and database
+    // Delete from S3 storage
     try {
-      await del(photo.url, {
-        token: process.env.BLOB_READ_WRITE_TOKEN,
-      });
-    } catch (blobError) {
-      console.error("Failed to delete from blob storage:", blobError);
+      await deleteFromS3ByUrl(photo.url);
+    } catch (s3Error) {
+      console.error("Failed to delete from S3:", s3Error);
+      // Continue with database deletion even if S3 deletion fails
     }
 
+    // Delete from database
     await prisma.userPhoto.delete({
       where: { id: photoId },
     });

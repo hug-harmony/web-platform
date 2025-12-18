@@ -1,5 +1,5 @@
-import { put } from "@vercel/blob";
 import { NextResponse } from "next/server";
+import { uploadToS3WithRandomSuffix } from "@/lib/s3";
 
 export async function POST(req: Request) {
   try {
@@ -25,13 +25,9 @@ export async function POST(req: Request) {
       );
     }
 
-    const blob = await put(file.name, file, {
-      access: "public",
-      token: process.env.BLOB_READ_WRITE_TOKEN,
-      addRandomSuffix: true,
-    });
+    const result = await uploadToS3WithRandomSuffix(file, "merchandise");
 
-    return NextResponse.json({ url: blob.url });
+    return NextResponse.json({ url: result.url });
   } catch (error) {
     console.error("Upload error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });

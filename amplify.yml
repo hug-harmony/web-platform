@@ -4,7 +4,6 @@ frontend:
     preBuild:
       commands:
         - npm ci --cache .npm --prefer-offline
-        # Generate Prisma Client for MongoDB
         - npx prisma generate
     build:
       commands:
