@@ -1,6 +1,11 @@
+// components/Sidebar.tsx
 "use client";
 
-import { useEffect, useState, useMemo } from "react";
+import { useMemo } from "react";
+import Link from "next/link";
+import { useRouter, usePathname } from "next/navigation";
+import { signOut } from "next-auth/react";
+import { motion, AnimatePresence } from "framer-motion";
 import {
   Sidebar as ShadcnSidebar,
   SidebarContent,
@@ -11,12 +16,19 @@ import {
   SidebarMenuItem,
   SidebarGroup,
   SidebarGroupLabel,
-  SidebarTrigger,
+  useSidebar,
 } from "@/components/ui/sidebar";
+import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import {
+  Tooltip,
+  TooltipContent,
+  TooltipProvider,
+  TooltipTrigger,
+} from "@/components/ui/tooltip";
+import { useUserProfile } from "@/hooks/useUserProfile";
 import {
   MessageSquare,
   Clock,
-  User,
   LogOut,
   Video,
   CreditCard,
@@ -25,283 +37,170 @@ import {
   Eye,
   Package,
   Sparkles,
+  LayoutDashboard,
+  UserSearch,
 } from "lucide-react";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
-import Link from "next/link";
-import { useRouter, usePathname } from "next/navigation";
-import { useSession, signOut } from "next-auth/react";
-import NotificationsDropdown from "@/components/NotificationsDropdown";
-import { motion, AnimatePresence } from "framer-motion";
-import { useSidebar } from "@/components/ui/sidebar";
 
 interface NavItem {
   href: string;
   label: string;
   icon: React.ReactNode;
+  badge?: number;
 }
 
-interface Profile {
-  id: string;
-  name?: string | null;
-  firstName?: string | null;
-  lastName?: string | null;
-  email: string;
-  profileImage?: string | null;
-}
+const iconClass = "h-5 w-5 shrink-0";
 
 export default function Sidebar() {
-  const [profile, setProfile] = useState<Profile | null>(null);
-  const [isProfessional, setIsProfessional] = useState(false);
-  const [applicationStatus, setApplicationStatus] = useState<
-    "none" | "pending" | "rejected" | "APPROVED"
-  >("none");
-
   const router = useRouter();
   const pathname = usePathname();
-  const { data: session, status } = useSession();
   const { open } = useSidebar();
+  const { user, isProfessional, applicationStatus, unreadNotifications } =
+    useUserProfile();
 
-  // === Fetch profile (non-blocking) ===
-  useEffect(() => {
-    const fetchProfileAndProfessionalStatus = async () => {
-      if (!session?.user?.id) return;
+  // Build navigation items
+  const navItems = useMemo<NavItem[]>(() => {
+    const items: NavItem[] = [];
 
-      try {
-        const [profileRes, professionalRes] = await Promise.all([
-          fetch(`/api/users/${session.user.id}`, {
-            cache: "no-store",
-            credentials: "include",
-          }),
-          fetch("/api/professionals/application/me", {
-            cache: "no-store",
-            credentials: "include",
-          }),
-        ]);
-
-        if (profileRes.ok) {
-          const data = await profileRes.json();
-          setProfile({
-            id: data.id,
-            name:
-              data.firstName && data.lastName
-                ? `${data.firstName} ${data.lastName}`
-                : data.name,
-            firstName: data.firstName,
-            lastName: data.lastName,
-            email: data.email,
-            profileImage: data.profileImage,
-          });
-        }
-
-        if (professionalRes.ok) {
-          const { status } = await professionalRes.json();
-          setIsProfessional(status === "APPROVED");
-          setApplicationStatus(status || "none");
-        } else {
-          setApplicationStatus("none");
-        }
-      } catch (error) {
-        console.error("Fetch Error:", error);
-      }
-    };
-
-    if (status === "authenticated") {
-      fetchProfileAndProfessionalStatus();
+    // Professional application item
+    if (!isProfessional) {
+      items.push({
+        href:
+          applicationStatus === "none"
+            ? "/dashboard/profile/professional-application/status"
+            : "/dashboard/professional/status",
+        label:
+          applicationStatus === "none" ? "Become a Pro" : "Application Status",
+        icon:
+          applicationStatus === "none" ? (
+            <Sparkles className={iconClass} />
+          ) : (
+            <Clock className={iconClass} />
+          ),
+      });
     }
-  }, [session, status]);
 
-  // === Compute user info (from session + profile override) ===
-  const user = useMemo(() => {
-    return {
-      id: session?.user?.id || "default-id",
-      name: profile?.name || session?.user?.name || "User",
-      email: profile?.email || session?.user?.email || "user@example.com",
-      avatar:
-        profile?.profileImage ||
-        session?.user?.image ||
-        "/assets/images/avatar-placeholder.png",
-    };
-  }, [profile, session]);
-
-  const proApplicationItem = useMemo(() => {
-    if (isProfessional) return null;
-    if (applicationStatus === "none") {
-      return {
-        href: "/dashboard/profile/professional-application/status",
-        label: "Become a Professional",
-        icon: <Sparkles className="h-5 w-5" />,
-      };
-    }
-    return {
-      href: "/dashboard/professional/status",
-      label: "Application Status",
-      icon: <Clock className="h-5 w-5" />,
-    };
-  }, [isProfessional, applicationStatus]);
-
-  // === Nav items ===
-  const navItems: NavItem[] = useMemo(() => {
-    const base = [
-      ...(proApplicationItem ? [proApplicationItem] : []),
+    // Core navigation
+    items.push(
       {
         href: "/dashboard",
         label: "Dashboard",
-        icon: <User className="h-5 w-5" />,
+        icon: <LayoutDashboard className={iconClass} />,
       },
       {
         href: "/dashboard/professionals",
         label: "Professionals",
-        icon: <User className="h-5 w-5" />,
+        icon: <UserSearch className={iconClass} />,
       },
-      // {
-      //   href: "/dashboard/users",
-      //   label: "Explore",
-      //   icon: <Search className="h-5 w-5" />,
-      // },
       {
         href: "/dashboard/appointments",
         label: "Appointments",
-        icon: <Clock className="h-5 w-5" />,
+        icon: <Clock className={iconClass} />,
       },
       {
         href: "/dashboard/video-session",
         label: "Video Sessions",
-        icon: <Video className="h-5 w-5" />,
+        icon: <Video className={iconClass} />,
       },
       {
         href: "/dashboard/notifications",
         label: "Notifications",
-        icon: <Bell className="h-5 w-5" />,
+        icon: <Bell className={iconClass} />,
+        badge: unreadNotifications,
       },
       {
         href: "/dashboard/messaging",
         label: "Messages",
-        icon: <MessageSquare className="h-5 w-5" />,
+        icon: <MessageSquare className={iconClass} />,
       },
       {
         href: "/dashboard/forum",
         label: "Forum",
-        icon: <Users className="h-5 w-5" />,
+        icon: <Users className={iconClass} />,
       },
       {
         href: "/dashboard/merchandise",
         label: "Merch",
-        icon: <Package className="h-5 w-5" />,
+        icon: <Package className={iconClass} />,
       },
       {
         href: `/dashboard/profile/${user.id}/orders`,
         label: "My Orders",
-        icon: <Package className="h-5 w-5" />,
+        icon: <Package className={iconClass} />,
       },
       {
         href: "/dashboard/profile-visits",
         label: "Profile Visits",
-        icon: <Eye className="h-5 w-5" />,
-      },
-      // {
-      //   href: "/dashboard/training-videos",
-      //   label: "Training",
-      //   icon: <Video className="h-5 w-5" />,
-      // },
-    ];
-    return isProfessional
-      ? [
-          ...base,
-          {
-            href: "/dashboard/payment",
-            label: "Payments",
-            icon: <CreditCard className="h-5 w-5" />,
-          },
-        ]
-      : base;
-  }, [user.id, isProfessional, proApplicationItem]);
+        icon: <Eye className={iconClass} />,
+      }
+    );
 
-  const isActive = (href: string) =>
-    pathname === href ||
-    (pathname.startsWith(href) &&
-      href !== "/dashboard" &&
-      pathname !== "/dashboard");
-
-  const handleLogout = async () => {
-    try {
-      await signOut({ callbackUrl: "/login" });
-    } catch (error) {
-      console.error("Logout failed:", error);
+    // Professional-only items
+    if (isProfessional) {
+      items.push({
+        href: "/dashboard/payment",
+        label: "Payments",
+        icon: <CreditCard className={iconClass} />,
+      });
     }
+
+    return items;
+  }, [user.id, isProfessional, applicationStatus, unreadNotifications]);
+
+  const isActive = (href: string) => {
+    if (href === "/dashboard") return pathname === "/dashboard";
+    return pathname.startsWith(href);
   };
 
-  // === Render UI ===
+  const handleLogout = async () => {
+    await signOut({ callbackUrl: "/login" });
+  };
+
   return (
-    <ShadcnSidebar
-      collapsible="offcanvas"
-      className="fixed inset-y-0 z-10 bg-white border-r transition-[width] duration-200 ease-linear group-data-[collapsible=icon]:w-[80px]"
-    >
+    <ShadcnSidebar collapsible="icon" className="border-r bg-white">
       <SidebarHeader className="p-4">
-        <div className="flex flex-col gap-4">
-          <div className="flex items-center justify-between">
-            <SidebarTrigger className="h-8 w-8" />
-            <AnimatePresence>
-              {open && (
-                <motion.div
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{ opacity: 1, width: "auto" }}
-                  exit={{ opacity: 0, width: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <NotificationsDropdown />
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
+        {/* User Profile Card */}
+        <button
+          onClick={() => router.push(`/dashboard/profile/${user.id}`)}
+          className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors w-full text-left"
+          aria-label="View profile"
+        >
+          <Avatar className="h-10 w-10 shrink-0">
+            <AvatarImage src={user.avatar} alt={user.name} />
+            <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
+          </Avatar>
 
-          {/* User section */}
-          <div
-            className="flex items-center space-x-3 cursor-pointer"
-            onClick={() => router.push(`/dashboard/profile/${user.id}`)}
-            role="button"
-          >
-            <Avatar className="h-10 w-10">
-              <AvatarImage src={user.avatar} alt={user.name} />
-              <AvatarFallback>{user.name?.charAt(0)}</AvatarFallback>
-            </Avatar>
-
-            <AnimatePresence>
-              {open && (
-                <motion.div
-                  initial={{ opacity: 0, width: 0 }}
-                  animate={{ opacity: 1, width: "auto" }}
-                  exit={{ opacity: 0, width: 0 }}
-                  transition={{ duration: 0.2 }}
-                >
-                  <p className="font-semibold">{user.name}</p>
-                  <p className="text-xs text-muted-foreground">{user.email}</p>
-                  {isProfessional && (
-                    <span className="mt-1 inline-block bg-black text-[#F3CFC6] text-xs font-medium px-2 py-1 rounded">
-                      Professional
-                    </span>
-                  )}
-                </motion.div>
-              )}
-            </AnimatePresence>
-          </div>
-        </div>
+          <AnimatePresence mode="wait">
+            {open && (
+              <motion.div
+                initial={{ opacity: 0, x: -10 }}
+                animate={{ opacity: 1, x: 0 }}
+                exit={{ opacity: 0, x: -10 }}
+                transition={{ duration: 0.15 }}
+                className="flex-1 min-w-0"
+              >
+                <p className="font-semibold truncate">{user.name}</p>
+                <p className="text-xs text-muted-foreground truncate">
+                  {user.email}
+                </p>
+                {isProfessional && (
+                  <span className="mt-1 inline-block bg-black text-[#F3CFC6] text-[10px] font-medium px-2 py-0.5 rounded">
+                    Professional
+                  </span>
+                )}
+              </motion.div>
+            )}
+          </AnimatePresence>
+        </button>
       </SidebarHeader>
 
-      <SidebarContent>
+      <SidebarContent className="px-2">
         <SidebarGroup>
           <AnimatePresence>
             {open && (
               <motion.div
-                initial={{ opacity: 0, height: 0 }}
-                animate={{ opacity: 1, height: "auto" }}
-                exit={{ opacity: 0, height: 0 }}
-                transition={{ duration: 0.2 }}
+                initial={{ opacity: 0 }}
+                animate={{ opacity: 1 }}
+                exit={{ opacity: 0 }}
               >
                 <SidebarGroupLabel>Navigation</SidebarGroupLabel>
               </motion.div>
@@ -309,7 +208,7 @@ export default function Sidebar() {
           </AnimatePresence>
 
           <SidebarMenu>
-            <TooltipProvider>
+            <TooltipProvider delayDuration={0}>
               {navItems.map((item) => (
                 <SidebarMenuItem key={item.href}>
                   <Tooltip>
@@ -318,35 +217,33 @@ export default function Sidebar() {
                         asChild
                         isActive={isActive(item.href)}
                         className={
-                          isActive(item.href)
-                            ? "bg-[#F5E6E8] text-black text-center"
-                            : "hover:bg-gray-100"
+                          isActive(item.href) ? "bg-[#F5E6E8] text-black" : ""
                         }
                       >
-                        <Link href={item.href}>
+                        <Link href={item.href} className="relative">
                           {item.icon}
-                          <AnimatePresence>
-                            {open && (
-                              <motion.span
-                                initial={{ opacity: 0, width: 0 }}
-                                animate={{ opacity: 1, width: "auto" }}
-                                exit={{ opacity: 0, width: 0 }}
-                                transition={{ duration: 0.2 }}
-                                className="truncate"
-                              >
-                                {item.label}
-                              </motion.span>
-                            )}
-                          </AnimatePresence>
+                          {/* Badge for collapsed state */}
+                          {item.badge && item.badge > 0 && !open && (
+                            <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
+                              {item.badge > 9 ? "9+" : item.badge}
+                            </span>
+                          )}
+                          <span className="truncate">{item.label}</span>
+                          {/* Badge for expanded state */}
+                          {item.badge && item.badge > 0 && open && (
+                            <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
+                              {item.badge > 99 ? "99+" : item.badge}
+                            </span>
+                          )}
                         </Link>
                       </SidebarMenuButton>
                     </TooltipTrigger>
-                    <TooltipContent
-                      side="right"
-                      className="hidden group-data-[collapsible=icon]:block"
-                    >
-                      {item.label}
-                    </TooltipContent>
+                    {!open && (
+                      <TooltipContent side="right">
+                        {item.label}
+                        {item.badge && item.badge > 0 && ` (${item.badge})`}
+                      </TooltipContent>
+                    )}
                   </Tooltip>
                 </SidebarMenuItem>
               ))}
@@ -355,40 +252,23 @@ export default function Sidebar() {
         </SidebarGroup>
       </SidebarContent>
 
-      <SidebarFooter>
+      <SidebarFooter className="p-2">
         <SidebarMenu>
           <SidebarMenuItem>
-            <Tooltip>
-              <TooltipTrigger asChild>
-                <SidebarMenuButton asChild>
-                  <button
-                    className="flex items-center gap-2 w-full text-left h-8 hover:bg-gray-100"
+            <TooltipProvider delayDuration={0}>
+              <Tooltip>
+                <TooltipTrigger asChild>
+                  <SidebarMenuButton
                     onClick={handleLogout}
-                    aria-label="Logout"
+                    className="text-red-600 hover:bg-red-50 hover:text-red-700"
                   >
-                    <LogOut className="h-5 w-5" />
-                    <AnimatePresence>
-                      {open && (
-                        <motion.span
-                          initial={{ opacity: 0, width: 0 }}
-                          animate={{ opacity: 1, width: "auto" }}
-                          exit={{ opacity: 0, width: 0 }}
-                          transition={{ duration: 0.2 }}
-                        >
-                          Logout
-                        </motion.span>
-                      )}
-                    </AnimatePresence>
-                  </button>
-                </SidebarMenuButton>
-              </TooltipTrigger>
-              <TooltipContent
-                side="right"
-                className="hidden group-data-[collapsible=icon]:block"
-              >
-                Logout
-              </TooltipContent>
-            </Tooltip>
+                    <LogOut className={iconClass} />
+                    <span>Logout</span>
+                  </SidebarMenuButton>
+                </TooltipTrigger>
+                {!open && <TooltipContent side="right">Logout</TooltipContent>}
+              </Tooltip>
+            </TooltipProvider>
           </SidebarMenuItem>
         </SidebarMenu>
       </SidebarFooter>

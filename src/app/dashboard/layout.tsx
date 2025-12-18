@@ -1,42 +1,44 @@
+// app/dashboard/layout.tsx
 "use client";
-import React from "react";
+
+import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
+import { UserProvider } from "@/hooks/useUserProfile";
 import ClientSessionProvider from "@/components/ClientSessionProvider";
 import Sidebar from "@/components/Sidebar";
 import BottomNav from "@/components/BottomNav";
-import { SidebarProvider } from "@/components/ui/sidebar";
-import Image from "next/image";
-import hhIcon from "../../../public/hh-icon.png";
-import Link from "next/link";
 import { LastOnlineUpdater } from "@/components/LastOnlineUpdater";
+import DashboardHeader from "@/components/DashboardHeader";
 
-export default function Layout({
+export default function DashboardLayout({
   children,
-}: Readonly<{
+}: {
   children: React.ReactNode;
-}>) {
+}) {
   return (
     <ClientSessionProvider>
-      <SidebarProvider defaultOpen={true}>
-        <div className="flex min-h-screen w-full">
-          <Sidebar />
-          <main className="flex-1 transition-all duration-200 ease-in-out max-w-7xl mx-auto md:pb-0 pb-16">
-            <div className="bg-white p-2 w-10 h-10 absolute top-6 right-6 hidden md:flex items-center justify-center rounded-md border border-gray-200 shadow-sm z-50">
-              <Link href="/dashboard">
-                <Image
-                  src={hhIcon}
-                  alt="Logo"
-                  width={300}
-                  height={300}
-                  className="h-8 w-8 object-contain"
-                />
-              </Link>
-            </div>
-            <LastOnlineUpdater />
-            {children}
-          </main>
-        </div>
-        <BottomNav />
-      </SidebarProvider>
+      <UserProvider>
+        <SidebarProvider defaultOpen={true}>
+          <div className="flex min-h-screen w-full bg-gray-50/50">
+            {/* Desktop Sidebar */}
+            <Sidebar />
+
+            {/* Main Content Area */}
+            <SidebarInset className="flex flex-col flex-1">
+              {/* Header - Desktop Only */}
+              <DashboardHeader />
+
+              {/* Page Content */}
+              <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6 max-w-7xl mx-auto w-full">
+                <LastOnlineUpdater />
+                {children}
+              </main>
+            </SidebarInset>
+          </div>
+
+          {/* Mobile Bottom Navigation */}
+          <BottomNav />
+        </SidebarProvider>
+      </UserProvider>
     </ClientSessionProvider>
   );
 }
