@@ -2,10 +2,11 @@
 
 "use client";
 
+import { Suspense } from "react";
 import { useSearchParams } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Card } from "@/components/ui/card";
-import { AlertCircle } from "lucide-react";
+import { AlertCircle, Loader2 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
 import logo from "../../../../public/hh-logo.png";
@@ -29,54 +30,80 @@ const errorMessages: Record<string, string> = {
   Default: "An error occurred during authentication. Please try again.",
 };
 
-export default function AuthErrorPage() {
+function AuthErrorContent() {
   const searchParams = useSearchParams();
   const error = searchParams.get("error") || "Default";
 
   const errorMessage = errorMessages[error] || errorMessages.Default;
 
   return (
+    <Card className="w-full max-w-md p-8 text-center">
+      <div className="flex justify-center mb-6">
+        <Image
+          src={logo}
+          alt="Hug Harmony Logo"
+          width={120}
+          height={40}
+          className="h-16 w-auto"
+        />
+      </div>
+
+      <div className="mb-6">
+        <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
+        <h1 className="text-xl font-semibold text-gray-800 mb-2">
+          Authentication Error
+        </h1>
+        <p className="text-gray-600 text-sm">{errorMessage}</p>
+      </div>
+
+      <div className="space-y-3">
+        <Link href="/login" className="block">
+          <Button className="w-full bg-[#E7C4BB] text-black hover:bg-[#d4a8a0]">
+            Back to Login
+          </Button>
+        </Link>
+
+        <Link href="/" className="block">
+          <Button variant="outline" className="w-full">
+            Go to Homepage
+          </Button>
+        </Link>
+      </div>
+
+      {error === "OAuthAccountNotLinked" && (
+        <p className="mt-4 text-xs text-gray-500">
+          If you previously signed up with a different method (email, Google,
+          Apple, or Facebook), please use that method to sign in.
+        </p>
+      )}
+    </Card>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <Card className="w-full max-w-md p-8 text-center">
+      <div className="flex justify-center mb-6">
+        <Image
+          src={logo}
+          alt="Hug Harmony Logo"
+          width={120}
+          height={40}
+          className="h-16 w-auto"
+        />
+      </div>
+      <Loader2 className="h-8 w-8 animate-spin mx-auto text-[#E7C4BB]" />
+      <p className="mt-4 text-gray-600">Loading...</p>
+    </Card>
+  );
+}
+
+export default function AuthErrorPage() {
+  return (
     <div className="flex items-center justify-center min-h-screen p-4 bg-gray-50">
-      <Card className="w-full max-w-md p-8 text-center">
-        <div className="flex justify-center mb-6">
-          <Image
-            src={logo}
-            alt="Hug Harmony Logo"
-            width={120}
-            height={40}
-            className="h-16 w-auto"
-          />
-        </div>
-
-        <div className="mb-6">
-          <AlertCircle className="h-16 w-16 text-red-500 mx-auto mb-4" />
-          <h1 className="text-xl font-semibold text-gray-800 mb-2">
-            Authentication Error
-          </h1>
-          <p className="text-gray-600 text-sm">{errorMessage}</p>
-        </div>
-
-        <div className="space-y-3">
-          <Link href="/login">
-            <Button className="w-full bg-[#E7C4BB] text-black hover:bg-[#d4a8a0]">
-              Back to Login
-            </Button>
-          </Link>
-
-          <Link href="/">
-            <Button variant="outline" className="w-full">
-              Go to Homepage
-            </Button>
-          </Link>
-        </div>
-
-        {error === "OAuthAccountNotLinked" && (
-          <p className="mt-4 text-xs text-gray-500">
-            If you previously signed up with a different method (email, Google,
-            Apple, or Facebook), please use that method to sign in.
-          </p>
-        )}
-      </Card>
+      <Suspense fallback={<LoadingFallback />}>
+        <AuthErrorContent />
+      </Suspense>
     </div>
   );
 }
