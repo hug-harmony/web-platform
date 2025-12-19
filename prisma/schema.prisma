@@ -19,7 +19,7 @@ model User {
   firstName      String?
   lastName       String?
   password       String?
-  phoneNumber    String? @unique
+  phoneNumber    String?
   heardFrom      String?
   heardFromOther String?
 
