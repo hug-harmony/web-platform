@@ -73,7 +73,7 @@ export function ProfessionalsGrid({
                   transition={{ duration: 0.2 }}
                 >
                   <Link
-                    href={`/dashboard/professionals/${professional._id}`}
+                    href={`/dashboard/profile/${professional._id}`}
                     aria-label={`View profile of ${professional.name}`}
                   >
                     <ProfessionalCard
