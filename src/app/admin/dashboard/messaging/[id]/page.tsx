@@ -10,7 +10,7 @@ import { MessageCircle, ArrowLeft } from "lucide-react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
-import MessageBubble from "@/components/MessageBubble";
+import MessageBubble from "@/components/chat/MessageBubble";
 
 interface Conversation {
   id: string;

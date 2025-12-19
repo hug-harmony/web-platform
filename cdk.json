@@ -1,0 +1,22 @@
+{
+  "app": "npx ts-node --project tsconfig.cdk.json src/infrastructure/app.ts",
+  "watch": {
+    "include": ["src/infrastructure/**"],
+    "exclude": [
+      "README.md",
+      "cdk*.json",
+      "**/*.d.ts",
+      "**/*.js",
+      "tsconfig.json",
+      "package*.json",
+      "node_modules",
+      "test"
+    ]
+  },
+  "context": {
+    "@aws-cdk/aws-lambda:recognizeLayerVersion": true,
+    "@aws-cdk/core:stackRelativeExports": true,
+    "@aws-cdk/aws-apigateway:usagePlanKeyOrderInsensitiveId": true,
+    "@aws-cdk/core:enablePartitionLiterals": true
+  }
+}

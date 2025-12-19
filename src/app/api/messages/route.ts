@@ -1,8 +1,9 @@
+// app/api/messages/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { broadcastToConversation } from "@/lib/websocket/server";
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -13,8 +14,7 @@ export async function POST(request: NextRequest) {
   let body;
   try {
     body = await request.json();
-  } catch (error) {
-    console.error("Request body parse error:", error);
+  } catch {
     return NextResponse.json(
       { error: "Invalid request body" },
       { status: 400 }
@@ -22,6 +22,8 @@ export async function POST(request: NextRequest) {
   }
 
   const { conversationId, text, recipientId, imageUrl } = body;
+
+  // Validation
   if (!conversationId || (!text && !imageUrl) || !recipientId) {
     return NextResponse.json(
       { error: "Missing required fields" },
@@ -37,8 +39,10 @@ export async function POST(request: NextRequest) {
   }
 
   try {
+    // Verify conversation access
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
+      select: { userId1: true, userId2: true },
     });
 
     if (!conversation) {
@@ -48,13 +52,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    const isUserParticipant =
-      conversation.userId1 === session.user.id ||
-      conversation.userId2 === session.user.id;
-    if (!isUserParticipant) {
+    const isParticipant = [conversation.userId1, conversation.userId2].includes(
+      session.user.id
+    );
+    if (!isParticipant) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
+    // Create message with sender info
     const message = await prisma.message.create({
       data: {
         text: text || "",
@@ -65,53 +70,65 @@ export async function POST(request: NextRequest) {
         isAudio: false,
       },
       include: {
-        senderUser: { select: { firstName: true, lastName: true } },
+        senderUser: {
+          select: {
+            firstName: true,
+            lastName: true,
+            profileImage: true,
+            professionalApplication: {
+              select: { professionalId: true },
+            },
+          },
+        },
       },
     });
 
+    // Update conversation timestamp
     await prisma.conversation.update({
       where: { id: conversationId },
       data: { updatedAt: new Date() },
     });
 
-    // Create notification in Supabase
-    if (supabase) {
-      try {
-        const senderName = message.senderUser?.firstName || "Someone";
-        const messagePreview = text
-          ? text.length > 50
-            ? `${text.substring(0, 50)}...`
-            : text
-          : "Sent an image";
-
-        const { error } = await supabase.from("notifications").insert({
-          userid: recipientId, // lowercase - recipient receives the notification
-          senderid: session.user.id, // lowercase - who sent the message
-          type: "message",
-          content: `${senderName}: ${messagePreview}`,
-          unread: true,
-          relatedid: conversationId, // lowercase - link to conversation
-        });
-
-        if (error) {
-          console.error("Supabase notification insert error:", error);
-        } else {
-          console.log("Message notification created successfully");
-        }
-      } catch (notifError) {
-        console.error("Notification creation error:", notifError);
-        // Don't fail the request if notification fails
-      }
-    }
-
-    return NextResponse.json({
-      ...message,
+    // Format message for response and broadcast
+    const formattedMessage = {
+      id: message.id,
+      text: message.text,
+      imageUrl: message.imageUrl,
+      createdAt: message.createdAt.toISOString(),
+      senderId: message.senderId,
+      userId: message.recipientId,
+      isAudio: message.isAudio,
+      isSystem: false,
+      proposalId: null,
+      proposalStatus: null,
+      initiator: null,
       sender: {
         name:
-          `${message.senderUser?.firstName || ""} ${message.senderUser?.lastName || ""}`.trim() ||
+          `${message.senderUser?.firstName ?? ""} ${message.senderUser?.lastName ?? ""}`.trim() ||
           "Unknown User",
+        profileImage: message.senderUser?.profileImage ?? null,
+        isProfessional:
+          !!message.senderUser?.professionalApplication?.[0]?.professionalId,
+        odI:
+          message.senderUser?.professionalApplication?.[0]?.professionalId ??
+          null,
       },
+    };
+
+    // Broadcast via WebSocket (non-blocking)
+    broadcastToConversation(
+      conversationId,
+      {
+        type: "newMessage",
+        conversationId,
+        message: formattedMessage,
+      },
+      session.user.id // Exclude sender
+    ).catch((err) => {
+      console.error("WebSocket broadcast error:", err);
     });
+
+    return NextResponse.json(formattedMessage, { status: 201 });
   } catch (error) {
     console.error("Send message error:", error);
     return NextResponse.json(

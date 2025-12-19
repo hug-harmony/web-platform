@@ -1,3 +1,4 @@
+// C:\DEVELOPER\projects\hug-harmony\src\app\api\conversations\[id]\mark-read\route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";

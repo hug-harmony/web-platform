@@ -1,0 +1,9 @@
+{
+  "ChatWebSocketStack-prod": {
+    "WebSocketURL": "wss://b716muykf3.execute-api.us-east-2.amazonaws.com/prod",
+    "ConnectionsTableName": "ChatConnections-prod",
+    "WebSocketApiEndpoint": "https://b716muykf3.execute-api.us-east-2.amazonaws.com/prod",
+    "ConnectHandlerArn": "arn:aws:lambda:us-east-2:232247293056:function:ChatWebSocketStack-prod-ConnectHandler2FFD52D8-g486BBlbIXBo",
+    "MessageHandlerArn": "arn:aws:lambda:us-east-2:232247293056:function:ChatWebSocketStack-prod-MessageHandlerDFBBCD6B-x4NCQSURZijL"
+  }
+}

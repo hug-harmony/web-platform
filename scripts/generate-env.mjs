@@ -1,3 +1,4 @@
+// scripts/generate-env.mjs
 import fs from "fs";
 
 const envVars = [
@@ -8,7 +9,8 @@ const envVars = [
   // Database
   "DATABASE_URL",
 
-  // AWS S3
+  // AWS General
+  "AWS_REGION",
   "REGION",
   "S3_BUCKET_NAME",
   "ACCESS_KEY_ID",
@@ -23,15 +25,18 @@ const envVars = [
   "GMAIL_USER",
   "ADMIN_EMAIL",
 
-  // Supabase
+  // Supabase (can remove after full migration)
   "NEXT_PUBLIC_SUPABASE_URL",
   "NEXT_PUBLIC_SUPABASE_ANON_KEY",
   "SUPABASE_SERVICE_ROLE_KEY",
 
   // Public URLs
   "NEXT_PUBLIC_APP_URL",
+
+  // WebSocket Configuration (NEW)
   "NEXT_PUBLIC_WEBSOCKET_URL",
-  "WEBSOCKET_URL",
+  "WEBSOCKET_API_ENDPOINT",
+  "CONNECTIONS_TABLE",
 ];
 
 const envContent = envVars
@@ -44,3 +49,14 @@ fs.writeFileSync(".env", envContent);
 console.log(
   `✅ Generated .env with ${envVars.filter((k) => process.env[k]).length} variables`
 );
+
+// Log WebSocket config status
+const wsVars = [
+  "NEXT_PUBLIC_WEBSOCKET_URL",
+  "WEBSOCKET_API_ENDPOINT",
+  "CONNECTIONS_TABLE",
+];
+console.log("\n📡 WebSocket Configuration:");
+wsVars.forEach((v) => {
+  console.log(`   ${v}: ${process.env[v] ? "✓ Set" : "✗ Missing"}`);
+});

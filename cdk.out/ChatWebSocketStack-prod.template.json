@@ -1,0 +1,738 @@
+{
+ "Resources": {
+  "ChatConnectionsFC8BD7F3": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "connectionId",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "visibleConversationId",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "odI",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "GlobalSecondaryIndexes": [
+     {
+      "IndexName": "ConversationIndex",
+      "KeySchema": [
+       {
+        "AttributeName": "visibleConversationId",
+        "KeyType": "HASH"
+       }
+      ],
+      "Projection": {
+       "ProjectionType": "ALL"
+      }
+     },
+     {
+      "IndexName": "UserIndex",
+      "KeySchema": [
+       {
+        "AttributeName": "odI",
+        "KeyType": "HASH"
+       }
+      ],
+      "Projection": {
+       "ProjectionType": "ALL"
+      }
+     }
+    ],
+    "KeySchema": [
+     {
+      "AttributeName": "connectionId",
+      "KeyType": "HASH"
+     }
+    ],
+    "TableName": "ChatConnections-prod",
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/ChatConnections/Resource"
+   }
+  },
+  "WebSocketLambdaRole0DF09B59": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/WebSocketLambdaRole/Resource"
+   }
+  },
+  "WebSocketLambdaRoleDefaultPolicyF19D90C5": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "ChatConnectionsFC8BD7F3",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "ChatConnectionsFC8BD7F3",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": [
+        {
+         "Fn::GetAtt": [
+          "ChatConnectionsFC8BD7F3",
+          "Arn"
+         ]
+        },
+        {
+         "Fn::Join": [
+          "",
+          [
+           {
+            "Fn::GetAtt": [
+             "ChatConnectionsFC8BD7F3",
+             "Arn"
+            ]
+           },
+           "/index/*"
+          ]
+         ]
+        }
+       ]
+      },
+      {
+       "Action": "execute-api:ManageConnections",
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:aws:execute-api:us-east-2:232247293056:",
+          {
+           "Ref": "ChatWebSocketApi"
+          },
+          "/*"
+         ]
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "WebSocketLambdaRoleDefaultPolicyF19D90C5",
+    "Roles": [
+     {
+      "Ref": "WebSocketLambdaRole0DF09B59"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/WebSocketLambdaRole/DefaultPolicy/Resource"
+   }
+  },
+  "ConnectHandler2FFD52D8": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
+     "S3Key": "26d78db58285dd5f04e7f081c9a2d8845c2a82ce7c88bae315f8bba495bb4c6f.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CONNECTIONS_TABLE": {
+       "Ref": "ChatConnectionsFC8BD7F3"
+      },
+      "NEXTAUTH_SECRET": "",
+      "NODE_OPTIONS": "--enable-source-maps"
+     }
+    },
+    "Handler": "ws-connect.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "WebSocketLambdaRole0DF09B59",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 10
+   },
+   "DependsOn": [
+    "WebSocketLambdaRoleDefaultPolicyF19D90C5",
+    "WebSocketLambdaRole0DF09B59"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/ConnectHandler/Resource",
+    "aws:asset:path": "asset.26d78db58285dd5f04e7f081c9a2d8845c2a82ce7c88bae315f8bba495bb4c6f",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "ConnectHandlerInvokeFcyXBRX02EWa52GlFECQiCzDt0fdRUDi4mo4foC5aU31162D40": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "ConnectHandler2FFD52D8",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/ConnectHandler/InvokeFcyXBRX02EWa52GlF+ECQiCzDt0fdRUDi4mo4foC5aU="
+   }
+  },
+  "DisconnectHandlerCB7ED6F7": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
+     "S3Key": "26d78db58285dd5f04e7f081c9a2d8845c2a82ce7c88bae315f8bba495bb4c6f.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CONNECTIONS_TABLE": {
+       "Ref": "ChatConnectionsFC8BD7F3"
+      },
+      "NEXTAUTH_SECRET": "",
+      "NODE_OPTIONS": "--enable-source-maps"
+     }
+    },
+    "Handler": "ws-disconnect.handler",
+    "MemorySize": 256,
+    "Role": {
+     "Fn::GetAtt": [
+      "WebSocketLambdaRole0DF09B59",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 10
+   },
+   "DependsOn": [
+    "WebSocketLambdaRoleDefaultPolicyF19D90C5",
+    "WebSocketLambdaRole0DF09B59"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/DisconnectHandler/Resource",
+    "aws:asset:path": "asset.26d78db58285dd5f04e7f081c9a2d8845c2a82ce7c88bae315f8bba495bb4c6f",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "DisconnectHandlerInvokeFcyXBRX02EWa52GlFECQiCzDt0fdRUDi4mo4foC5aUB4AEAE4D": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "DisconnectHandlerCB7ED6F7",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/DisconnectHandler/InvokeFcyXBRX02EWa52GlF+ECQiCzDt0fdRUDi4mo4foC5aU="
+   }
+  },
+  "MessageHandlerDFBBCD6B": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
+     "S3Key": "26d78db58285dd5f04e7f081c9a2d8845c2a82ce7c88bae315f8bba495bb4c6f.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "CONNECTIONS_TABLE": {
+       "Ref": "ChatConnectionsFC8BD7F3"
+      },
+      "NEXTAUTH_SECRET": "",
+      "NODE_OPTIONS": "--enable-source-maps"
+     }
+    },
+    "Handler": "ws-message.handler",
+    "MemorySize": 512,
+    "Role": {
+     "Fn::GetAtt": [
+      "WebSocketLambdaRole0DF09B59",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "WebSocketLambdaRoleDefaultPolicyF19D90C5",
+    "WebSocketLambdaRole0DF09B59"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/MessageHandler/Resource",
+    "aws:asset:path": "asset.26d78db58285dd5f04e7f081c9a2d8845c2a82ce7c88bae315f8bba495bb4c6f",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "MessageHandlerInvokeFcyXBRX02EWa52GlFECQiCzDt0fdRUDi4mo4foC5aU0065BFA0": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "MessageHandlerDFBBCD6B",
+      "Arn"
+     ]
+    },
+    "Principal": "apigateway.amazonaws.com"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/MessageHandler/InvokeFcyXBRX02EWa52GlF+ECQiCzDt0fdRUDi4mo4foC5aU="
+   }
+  },
+  "ChatWebSocketApi": {
+   "Type": "AWS::ApiGatewayV2::Api",
+   "Properties": {
+    "Name": "ChatWebSocket-prod",
+    "ProtocolType": "WEBSOCKET",
+    "RouteSelectionExpression": "$request.body.action"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/ChatWebSocketApi"
+   }
+  },
+  "ConnectIntegration": {
+   "Type": "AWS::ApiGatewayV2::Integration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ChatWebSocketApi"
+    },
+    "IntegrationType": "AWS_PROXY",
+    "IntegrationUri": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:apigateway:us-east-2:lambda:path/2015-03-31/functions/",
+       {
+        "Fn::GetAtt": [
+         "ConnectHandler2FFD52D8",
+         "Arn"
+        ]
+       },
+       "/invocations"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/ConnectIntegration"
+   }
+  },
+  "DisconnectIntegration": {
+   "Type": "AWS::ApiGatewayV2::Integration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ChatWebSocketApi"
+    },
+    "IntegrationType": "AWS_PROXY",
+    "IntegrationUri": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:apigateway:us-east-2:lambda:path/2015-03-31/functions/",
+       {
+        "Fn::GetAtt": [
+         "DisconnectHandlerCB7ED6F7",
+         "Arn"
+        ]
+       },
+       "/invocations"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/DisconnectIntegration"
+   }
+  },
+  "MessageIntegration": {
+   "Type": "AWS::ApiGatewayV2::Integration",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ChatWebSocketApi"
+    },
+    "IntegrationType": "AWS_PROXY",
+    "IntegrationUri": {
+     "Fn::Join": [
+      "",
+      [
+       "arn:aws:apigateway:us-east-2:lambda:path/2015-03-31/functions/",
+       {
+        "Fn::GetAtt": [
+         "MessageHandlerDFBBCD6B",
+         "Arn"
+        ]
+       },
+       "/invocations"
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/MessageIntegration"
+   }
+  },
+  "ConnectRoute": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ChatWebSocketApi"
+    },
+    "AuthorizationType": "NONE",
+    "RouteKey": "$connect",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "ConnectIntegration"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/ConnectRoute"
+   }
+  },
+  "DisconnectRoute": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ChatWebSocketApi"
+    },
+    "RouteKey": "$disconnect",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "DisconnectIntegration"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/DisconnectRoute"
+   }
+  },
+  "DefaultRoute": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ChatWebSocketApi"
+    },
+    "RouteKey": "$default",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "MessageIntegration"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/DefaultRoute"
+   }
+  },
+  "joinRoute": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ChatWebSocketApi"
+    },
+    "RouteKey": "join",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "MessageIntegration"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/joinRoute"
+   }
+  },
+  "typingRoute": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ChatWebSocketApi"
+    },
+    "RouteKey": "typing",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "MessageIntegration"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/typingRoute"
+   }
+  },
+  "sendMessageRoute": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ChatWebSocketApi"
+    },
+    "RouteKey": "sendMessage",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "MessageIntegration"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/sendMessageRoute"
+   }
+  },
+  "pingRoute": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ChatWebSocketApi"
+    },
+    "RouteKey": "ping",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "MessageIntegration"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/pingRoute"
+   }
+  },
+  "WebSocketStage": {
+   "Type": "AWS::ApiGatewayV2::Stage",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ChatWebSocketApi"
+    },
+    "AutoDeploy": true,
+    "StageName": "prod"
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/WebSocketStage"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/02OwWrDMAyGn6V3R+uSw85tYbDTSrp7URw1qEnsEMkNwfjdhxMGO/2ffokPlVBWFRwPuEhh274YuIF4U7S9wUXusV0djr5tIP5gM5C5PNwGyTCOEGu/d1te/cB2zeNOyQw4Ni1C/AzOKnuXd//5SvPIIuxdMlLdUYRU4JTDSAXnYHvSMwoZnLhDpQXXVwnx8nCnibPhyyl1M/4Jax90e+im2FFKpibxYbZkNmlu2XX54DvoFDQZ51uCp7y9yhLeP+B4eApzMQenPBLUe/4C+5vgxyYBAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "WebSocketURL": {
+   "Description": "WebSocket URL for client connections",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      "wss://",
+      {
+       "Ref": "ChatWebSocketApi"
+      },
+      ".execute-api.us-east-2.amazonaws.com/prod"
+     ]
+    ]
+   },
+   "Export": {
+    "Name": "ChatWebSocketURL-prod"
+   }
+  },
+  "WebSocketApiEndpoint": {
+   "Description": "WebSocket API Endpoint for server-side broadcasts",
+   "Value": {
+    "Fn::Join": [
+     "",
+     [
+      "https://",
+      {
+       "Ref": "ChatWebSocketApi"
+      },
+      ".execute-api.us-east-2.amazonaws.com/prod"
+     ]
+    ]
+   },
+   "Export": {
+    "Name": "ChatWebSocketApiEndpoint-prod"
+   }
+  },
+  "ConnectionsTableName": {
+   "Description": "DynamoDB Connections Table Name",
+   "Value": {
+    "Ref": "ChatConnectionsFC8BD7F3"
+   },
+   "Export": {
+    "Name": "ChatConnectionsTableName-prod"
+   }
+  },
+  "ConnectHandlerArn": {
+   "Description": "Connect Lambda ARN",
+   "Value": {
+    "Fn::GetAtt": [
+     "ConnectHandler2FFD52D8",
+     "Arn"
+    ]
+   }
+  },
+  "MessageHandlerArn": {
+   "Description": "Message Lambda ARN",
+   "Value": {
+    "Fn::GetAtt": [
+     "MessageHandlerDFBBCD6B",
+     "Arn"
+    ]
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

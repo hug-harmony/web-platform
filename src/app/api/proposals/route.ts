@@ -1,110 +1,32 @@
+// app/api/proposals/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, Proposal } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
+import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-import { format } from "date-fns"; // NEW: Import to fix TS2552 errors
+import { broadcastToConversation } from "@/lib/websocket/server";
+import { format } from "date-fns";
 
-const prisma = new PrismaClient();
-
-// Extend Proposal type to include relations (now used in GET)
-type ProposalWithRelations = Proposal & {
-  user: { name: string | null };
-  professional: { name: string; rate: number | null };
-};
-
-/*
-export async function GET(req: NextRequest) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const role = searchParams.get("role") || "user";
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
-    const userId = session.user.id;
-
-    const dateFilter: { gte?: Date; lte?: Date } = {};
-    if (startDate) dateFilter.gte = new Date(startDate);
-    if (endDate) dateFilter.lte = new Date(endDate);
-
-    const professionalApp = await prisma.professionalApplication.findUnique({
-      where: { userId },
-      select: { status: true, professionalId: true },
-    });
-    const isProfessional =
-      professionalApp?.status === "approved" && professionalApp?.professionalId;
-
-    if (role === "professional" && !isProfessional) {
-      return NextResponse.json(
-        { error: "Forbidden: Not a professional" },
-        { status: 403 }
-      );
-    }
-
-    const whereClause =
-      role === "professional"
-        ? { professionalId: professionalApp!.professionalId!, startTime: dateFilter } // UPDATED: Use startTime for filtering
-        : { userId, startTime: dateFilter }; // UPDATED
-
-    const proposals = await prisma.proposal.findMany({
-      where: whereClause,
-      include: {
-        user: { select: { name: true } },
-        professional: { select: { name: true, rate: true } },
-      },
-      orderBy: { createdAt: "desc" },
-    });
-
-    return NextResponse.json({
-      proposals: proposals.map((p: ProposalWithRelations) => ({
-        // UPDATED: Use ProposalWithRelations to fix no-explicit-any
-        id: p.id,
-        userId: p.userId,
-        professionalId: p.professionalId,
-        conversationId: p.conversationId,
-        startTime: p.startTime,
-        endTime: p.endTime,
-        venue: p.venue,
-        status: p.status,
-        initiator: p.initiator,
-        user: { name: p.user.name || "User" },
-        professional: { name: p.professional.name, rate: p.professional.rate || 0 },
-      })),
-      isProfessional,
-    });
-  } catch (error) {
-    console.error("Error fetching proposals:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
+// GET - Fetch proposals for current user
+export async function GET(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
-}
-  */
 
-export async function GET(req: NextRequest) {
+  const { searchParams } = new URL(request.url);
+  const role = searchParams.get("role") || "user";
+  const startDate = searchParams.get("startDate");
+  const endDate = searchParams.get("endDate");
+  const status = searchParams.get("status");
+  const userId = session.user.id;
+
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const { searchParams } = new URL(req.url);
-    const role = searchParams.get("role") || "user";
-    const startDate = searchParams.get("startDate");
-    const endDate = searchParams.get("endDate");
-    const userId = session.user.id;
-
-    const dateFilter: { gte?: Date; lte?: Date } = {};
-    if (startDate) dateFilter.gte = new Date(startDate);
-    if (endDate) dateFilter.lte = new Date(endDate);
-
+    // Check if user is a professional
     const professionalApp = await prisma.professionalApplication.findUnique({
-      where: { userId },
+      where: { odI },
       select: { status: true, professionalId: true },
     });
+
     const isProfessional =
       professionalApp?.status === "APPROVED" && professionalApp?.professionalId;
 
@@ -115,38 +37,63 @@ export async function GET(req: NextRequest) {
       );
     }
 
-    const whereClause =
+    // Build date filter
+    const dateFilter: { gte?: Date; lte?: Date } = {};
+    if (startDate) dateFilter.gte = new Date(startDate);
+    if (endDate) dateFilter.lte = new Date(endDate);
+
+    // Build where clause
+    const whereClause: Record<string, unknown> =
       role === "professional"
-        ? {
-            professionalId: professionalApp!.professionalId!,
-            startTime: { ...dateFilter, not: null },
-          } // UPDATED: Add not: null to filter out nulls
-        : { userId, startTime: { ...dateFilter, not: null } }; // UPDATED
+        ? { professionalId: professionalApp!.professionalId! }
+        : { odI };
+
+    if (Object.keys(dateFilter).length > 0) {
+      whereClause.startTime = { ...dateFilter, not: null };
+    }
+
+    if (status) {
+      whereClause.status = status;
+    }
 
     const proposals = await prisma.proposal.findMany({
       where: whereClause,
       include: {
-        user: { select: { name: true } },
-        professional: { select: { name: true, rate: true } },
+        user: {
+          select: { firstName: true, lastName: true, profileImage: true },
+        },
+        professional: {
+          select: { name: true, rate: true, image: true },
+        },
+        conversation: {
+          select: { id: true },
+        },
       },
       orderBy: { createdAt: "desc" },
     });
 
     return NextResponse.json({
-      proposals: proposals.map((p: ProposalWithRelations) => ({
+      proposals: proposals.map((p) => ({
         id: p.id,
-        userId: p.userId,
+        odI: p.userId,
         professionalId: p.professionalId,
         conversationId: p.conversationId,
-        startTime: p.startTime, // Now can be null, but we filtered
+        startTime: p.startTime,
         endTime: p.endTime,
         venue: p.venue,
         status: p.status,
         initiator: p.initiator,
-        user: { name: p.user.name || "User" },
+        createdAt: p.createdAt,
+        user: {
+          name:
+            `${p.user.firstName || ""} ${p.user.lastName || ""}`.trim() ||
+            "User",
+          profileImage: p.user.profileImage,
+        },
         professional: {
           name: p.professional.name,
           rate: p.professional.rate || 0,
+          image: p.professional.image,
         },
       })),
       isProfessional,
@@ -154,110 +101,127 @@ export async function GET(req: NextRequest) {
   } catch (error) {
     console.error("Error fetching proposals:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }
 
-export async function POST(req: NextRequest) {
+// POST - Create a new proposal
+export async function POST(request: NextRequest) {
+  const session = await getServerSession(authOptions);
+  if (!session?.user?.id) {
+    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+  }
+
   try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.id) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
+    const body = await request.json();
+    const {
+      conversationId,
+      startTime: startTimeStr,
+      endTime: endTimeStr,
+      venue,
+    } = body;
 
-    const body = await req.json();
-    let conversationId: string;
-    let recipientId: string;
-    let professionalId: string;
-    let userId: string;
-    const startTime = new Date(body.startTime); // UPDATED: Use startTime/endTime
-    const endTime = new Date(body.endTime);
-    const venue = body.venue; // NEW: Venue from body
+    // Parse and validate times
+    const startTime = new Date(startTimeStr);
+    const endTime = new Date(endTimeStr);
 
-    if (
-      !startTime ||
-      !endTime ||
-      startTime >= endTime ||
-      startTime < new Date()
-    ) {
+    if (isNaN(startTime.getTime()) || isNaN(endTime.getTime())) {
       return NextResponse.json(
-        { error: "Invalid time range" },
+        { error: "Invalid date format" },
         { status: 400 }
       );
     }
 
-    const isProfessional = await prisma.professionalApplication.findFirst({
+    if (startTime >= endTime) {
+      return NextResponse.json(
+        { error: "End time must be after start time" },
+        { status: 400 }
+      );
+    }
+
+    if (startTime < new Date()) {
+      return NextResponse.json(
+        { error: "Cannot create proposal in the past" },
+        { status: 400 }
+      );
+    }
+
+    // Check if user is a professional
+    const professionalApp = await prisma.professionalApplication.findFirst({
       where: { userId: session.user.id, status: "APPROVED" },
       select: { professionalId: true },
     });
 
-    if (isProfessional && isProfessional.professionalId) {
+    const isProfessional = !!professionalApp?.professionalId;
+
+    let professionalId: string;
+    let targetUserId: string;
+    let recipientId: string;
+
+    if (isProfessional) {
       // Professional-initiated proposal
-      conversationId = body.conversationId;
-      userId = body.userId; // Recipient user
-      professionalId = isProfessional.professionalId;
-
-      if (!conversationId || !userId) {
+      if (!conversationId || !body.userId) {
         return NextResponse.json(
-          {
-            error: "Missing conversationId or userId for professional proposal",
-          },
+          { error: "Missing conversationId or userId" },
           { status: 400 }
         );
       }
-
-      recipientId = userId;
+      professionalId = professionalApp!.professionalId!;
+      targetUserId = body.userId;
+      recipientId = body.userId;
     } else {
-      // User-initiated appointment request
-      conversationId = body.conversationId;
-      professionalId = body.professionalId; // Recipient professional
-      userId = session.user.id;
-
-      if (!conversationId || !professionalId) {
+      // User-initiated request
+      if (!conversationId || !body.professionalId) {
         return NextResponse.json(
-          {
-            error: "Missing conversationId or professionalId for user request",
-          },
+          { error: "Missing conversationId or professionalId" },
           { status: 400 }
         );
       }
+      professionalId = body.professionalId;
+      targetUserId = session.user.id;
 
-      const professionalUser = await prisma.professionalApplication.findFirst({
+      // Get professional's user ID
+      const profApp = await prisma.professionalApplication.findFirst({
         where: { professionalId, status: "APPROVED" },
+        select: { odI: true },
       });
 
-      if (!professionalUser?.userId) {
+      if (!profApp?.userId) {
         return NextResponse.json(
           { error: "Professional not found" },
           { status: 404 }
         );
       }
-
-      recipientId = professionalUser.userId;
+      recipientId = profApp.userId;
     }
 
-    // Verify conversation
+    // Verify conversation exists and user has access
     const conversation = await prisma.conversation.findUnique({
       where: { id: conversationId },
       select: { userId1: true, userId2: true },
     });
-    if (
-      !conversation ||
-      ![conversation.userId1, conversation.userId2].includes(recipientId) ||
-      ![conversation.userId1, conversation.userId2].includes(session.user.id)
-    ) {
+
+    if (!conversation) {
       return NextResponse.json(
-        { error: "Invalid conversation" },
-        { status: 400 }
+        { error: "Conversation not found" },
+        { status: 404 }
       );
     }
 
-    // NEW: Fetch professional details for venue and rate
+    const isConversationParticipant = [
+      conversation.userId1,
+      conversation.userId2,
+    ].includes(session.user.id);
+
+    if (!isConversationParticipant) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
+    }
+
+    // Get professional details for venue validation
     const professional = await prisma.professional.findUnique({
       where: { id: professionalId },
-      select: { venue: true, rate: true },
+      select: { venue: true, rate: true, name: true },
     });
+
     if (!professional) {
       return NextResponse.json(
         { error: "Professional not found" },
@@ -265,17 +229,21 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // NEW: Determine final venue
+    // Determine venue
     let finalVenue: "host" | "visit" | undefined;
     if (professional.venue === "both") {
-      if (!venue)
-        return NextResponse.json({ error: "Venue required" }, { status: 400 });
+      if (!venue) {
+        return NextResponse.json(
+          { error: "Venue selection required" },
+          { status: 400 }
+        );
+      }
       finalVenue = venue;
     } else {
-      finalVenue = professional.venue as "host" | "visit"; // UPDATED: Type assertion to fix TS2367 (exclude "both" from type)
+      finalVenue = professional.venue as "host" | "visit";
     }
 
-    // NEW: Overlap check
+    // Check for overlapping appointments
     const overlapping = await prisma.appointment.findFirst({
       where: {
         professionalId,
@@ -284,66 +252,34 @@ export async function POST(req: NextRequest) {
         endTime: { gt: startTime },
       },
     });
+
     if (overlapping) {
       return NextResponse.json(
-        { error: "SLOT_ALREADY_BOOKED" },
+        { error: "Time slot already booked" },
         { status: 409 }
       );
     }
 
-    // NEW: Buffer check (reuse logic from schedule/booking)
-    const dayStart = new Date(startTime);
-    dayStart.setHours(0, 0, 0, 0);
-    const dayEnd = new Date(startTime);
-    dayEnd.setHours(23, 59, 59, 999);
-
-    const dayAppointments = await prisma.appointment.findMany({
-      where: {
-        professionalId,
-        status: { in: ["upcoming", "pending", "break"] },
-        startTime: { gte: dayStart, lte: dayEnd },
-      },
-      orderBy: { startTime: "asc" },
-    });
-
-    let hasBufferViolation = false;
-    for (let i = 0; i < dayAppointments.length - 1; i++) {
-      const curr = dayAppointments[i];
-      const bufferStart = new Date(curr.endTime);
-      const bufferEnd = new Date(bufferStart.getTime() + 30 * 60 * 1000);
-      if (startTime < bufferEnd && endTime > bufferStart) {
-        hasBufferViolation = true;
-        break;
-      }
-    }
-    if (hasBufferViolation) {
-      return NextResponse.json(
-        { error: "INVALID_TIME_BUFFER" },
-        { status: 409 }
-      );
-    }
-
-    // REMOVED: Working hours check (as per user request; professionals can propose any time)
-
+    // Create proposal
     const proposal = await prisma.proposal.create({
       data: {
         professionalId,
-        userId,
+        userId: targetUserId,
         conversationId,
-        startTime, // UPDATED
-        endTime, // UPDATED
-        venue: finalVenue, // NEW
+        startTime,
+        endTime,
+        venue: finalVenue,
         status: "pending",
         initiator: isProfessional ? "professional" : "user",
       },
     });
 
-    // UPDATED: Tailored message with range
+    // Create message
     const messageText = isProfessional
-      ? `Session proposal: ${format(startTime, "MMMM d, yyyy h:mm a")} to ${format(endTime, "h:mm a")}. Venue: ${finalVenue || "TBD"}. Please accept or reject.`
-      : `Appointment request: ${format(startTime, "MMMM d, yyyy h:mm a")} to ${format(endTime, "h:mm a")}. Venue: ${finalVenue || "TBD"}. Please accept or decline.`;
+      ? `📅 Session proposal: ${format(startTime, "MMMM d, yyyy")} from ${format(startTime, "h:mm a")} to ${format(endTime, "h:mm a")}. Venue: ${finalVenue}. Please accept or reject.`
+      : `📅 Appointment request: ${format(startTime, "MMMM d, yyyy")} from ${format(startTime, "h:mm a")} to ${format(endTime, "h:mm a")}. Venue: ${finalVenue}. Please accept or decline.`;
 
-    await prisma.message.create({
+    const message = await prisma.message.create({
       data: {
         conversationId,
         senderId: session.user.id,
@@ -352,13 +288,57 @@ export async function POST(req: NextRequest) {
         isAudio: false,
         proposalId: proposal.id,
       },
+      include: {
+        senderUser: {
+          select: {
+            firstName: true,
+            lastName: true,
+            profileImage: true,
+            professionalApplication: {
+              select: { professionalId: true },
+            },
+          },
+        },
+      },
     });
+
+    // Format message for broadcast
+    const formattedMessage = {
+      id: message.id,
+      text: message.text,
+      imageUrl: null,
+      createdAt: message.createdAt.toISOString(),
+      senderId: message.senderId,
+      userId: message.recipientId,
+      isAudio: false,
+      isSystem: false,
+      proposalId: proposal.id,
+      proposalStatus: "pending",
+      initiator: isProfessional ? "professional" : "user",
+      sender: {
+        name:
+          `${message.senderUser?.firstName ?? ""} ${message.senderUser?.lastName ?? ""}`.trim() ||
+          "Unknown User",
+        profileImage: message.senderUser?.profileImage ?? null,
+        isProfessional,
+        odI: professionalApp?.professionalId ?? null,
+      },
+    };
+
+    // Broadcast via WebSocket
+    broadcastToConversation(
+      conversationId,
+      {
+        type: "newMessage",
+        conversationId,
+        message: formattedMessage,
+      },
+      session.user.id
+    ).catch((err) => console.error("WebSocket broadcast error:", err));
 
     return NextResponse.json(proposal, { status: 201 });
   } catch (error) {
     console.error("Error creating proposal:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
-  } finally {
-    await prisma.$disconnect();
   }
 }
