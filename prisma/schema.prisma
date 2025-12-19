@@ -23,10 +23,20 @@ model User {
   heardFrom      String?
   heardFromOther String?
 
+  emailVerified   Boolean   @default(false)
+  emailVerifiedAt DateTime?
+
+  failedLoginAttempts Int       @default(0)
+  lockedUntil         DateTime?
+  lastLoginAt         DateTime?
+  lastLoginIp         String?
+
   // OAuth Provider IDs
   googleId   String?
   appleId    String?
   facebookId String?
+
+  primaryAuthMethod String? // "credentials" | "google" | "apple" | "facebook"
 
   profileImage       String?
   location           String?
@@ -69,6 +79,7 @@ model User {
   orders                  Order[]
   trainingVideoWatches    TrainingVideoWatch[]
   photos                  UserPhoto[]
+  EmailVerificationToken  EmailVerificationToken[]
 }
 
 model PasswordResetToken {
@@ -492,4 +503,28 @@ model UserPhoto {
 
   @@index([userId])
   @@index([createdAt])
+}
+
+model EmailVerificationToken {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  userId    String   @db.ObjectId
+  token     String   @unique
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+  user      User     @relation(fields: [userId], references: [id], onDelete: Cascade)
+
+  @@index([userId])
+  @@index([expiresAt])
+}
+
+model RateLimitRecord {
+  id          String   @id @default(auto()) @map("_id") @db.ObjectId
+  key         String
+  action      String
+  count       Int      @default(1)
+  windowStart DateTime @default(now())
+  expiresAt   DateTime
+
+  @@unique([key, action])
+  @@index([expiresAt])
 }

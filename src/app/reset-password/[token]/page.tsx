@@ -1,4 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// app/reset-password/[token]/page.tsx
+
 "use client";
 
 import { useState, useEffect } from "react";
@@ -13,22 +14,16 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
+import { z } from "zod";
 import { toast } from "sonner";
-import { Eye, EyeOff } from "lucide-react";
-
-// Same password schema as in RegisterPage
-const passwordSchema = z
-  .string()
-  .min(8, "Password must be at least 8 characters")
-  .regex(/[A-Z]/, "Must contain at least one uppercase letter")
-  .regex(/\d/, "Must contain at least one number")
-  .regex(
-    /[!@#$%^&*(),.?":{}|<>_\-\[\];'`~+/=\\]/,
-    "Must contain at least one special character"
-  );
+import { Eye, EyeOff, CheckCircle2 } from "lucide-react";
+import Link from "next/link";
+import Image from "next/image";
+import { Card } from "@/components/ui/card";
+import { passwordSchema } from "@/lib/validations/auth";
+import logo from "../../../../public/hh-logo.png";
 
 const formSchema = z
   .object({
@@ -40,9 +35,11 @@ const formSchema = z
     path: ["confirmPassword"],
   });
 
+type FormData = z.infer<typeof formSchema>;
+
 export default function ResetPasswordPage() {
   const [error, setError] = useState<string | null>(null);
-  const [message, setMessage] = useState<string | null>(null);
+  const [isSuccess, setIsSuccess] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
@@ -50,7 +47,7 @@ export default function ResetPasswordPage() {
   const router = useRouter();
   const { token } = useParams();
 
-  const form = useForm<z.infer<typeof formSchema>>({
+  const form = useForm<FormData>({
     resolver: zodResolver(formSchema),
     defaultValues: {
       password: "",
@@ -65,7 +62,7 @@ export default function ResetPasswordPage() {
     }
   }, [token]);
 
-  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+  const handleSubmit = async (values: FormData) => {
     if (!token) {
       setError("Invalid or missing reset token");
       toast.error("Invalid or missing reset token");
@@ -88,11 +85,11 @@ export default function ResetPasswordPage() {
         throw new Error(data.error || "Failed to reset password");
       }
 
-      setMessage("Password reset successfully. Redirecting to login...");
+      setIsSuccess(true);
       toast.success("Password reset successfully!");
-      setTimeout(() => router.push("/login"), 3000);
-    } catch (err: any) {
-      const msg = err.message || "Failed to reset password";
+    } catch (err) {
+      const msg =
+        err instanceof Error ? err.message : "Failed to reset password";
       setError(msg);
       toast.error(msg);
     } finally {
@@ -100,25 +97,71 @@ export default function ResetPasswordPage() {
     }
   };
 
+  if (isSuccess) {
+    return (
+      <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
+        <Card className="w-full max-w-md p-8 text-center">
+          <div className="flex justify-center mb-6">
+            <Image
+              src={logo}
+              alt="Hug Harmony Logo"
+              width={120}
+              height={40}
+              className="h-16 w-auto"
+            />
+          </div>
+
+          <CheckCircle2 className="h-16 w-16 text-green-500 mx-auto mb-4" />
+          <h1 className="text-xl font-semibold text-gray-800 mb-2">
+            Password Reset Successful
+          </h1>
+          <p className="text-gray-600 mb-6">
+            Your password has been updated. You can now log in with your new
+            password.
+          </p>
+
+          <Button
+            className="w-full bg-[#E7C4BB] text-black hover:bg-[#d4a8a0]"
+            onClick={() => router.push("/login")}
+          >
+            Continue to Login
+          </Button>
+        </Card>
+      </div>
+    );
+  }
+
   return (
     <div className="flex items-center justify-center min-h-screen bg-gray-100 p-4">
-      <div className="w-full max-w-md p-8 bg-white rounded-xl shadow-lg">
-        <h1 className="text-2xl font-bold text-gray-800 mb-2">
+      <Card className="w-full max-w-md p-8">
+        <div className="flex justify-center mb-6">
+          <Image
+            src={logo}
+            alt="Hug Harmony Logo"
+            width={120}
+            height={40}
+            className="h-16 w-auto"
+          />
+        </div>
+
+        <h1 className="text-2xl font-bold text-gray-800 mb-2 text-center">
           Set New Password
         </h1>
-        <p className="text-gray-600 text-sm mb-6">
+        <p className="text-gray-600 text-sm mb-6 text-center">
           Enter a strong new password for your account.
         </p>
 
-        {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
-        {message && <p className="text-green-600 text-sm mb-4">{message}</p>}
+        {error && (
+          <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm mb-4">
+            {error}
+          </div>
+        )}
 
         <Form {...form}>
           <form
             onSubmit={form.handleSubmit(handleSubmit)}
             className="space-y-4"
           >
-            {/* New Password */}
             <FormField
               control={form.control}
               name="password"
@@ -162,7 +205,6 @@ export default function ResetPasswordPage() {
               )}
             />
 
-            {/* Confirm Password */}
             <FormField
               control={form.control}
               name="confirmPassword"
@@ -216,7 +258,16 @@ export default function ResetPasswordPage() {
             </Button>
           </form>
         </Form>
-      </div>
+
+        <div className="mt-6 text-center">
+          <Link
+            href="/login"
+            className="text-sm text-gray-600 hover:text-gray-800 hover:underline"
+          >
+            Back to Login
+          </Link>
+        </div>
+      </Card>
     </div>
   );
 }

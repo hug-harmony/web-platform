@@ -5,17 +5,18 @@ declare module "next-auth" {
   interface Session {
     user: {
       id: string;
+      email: string;
       username: string | null;
       isAdmin: boolean;
+      emailVerified: boolean;
 
       // Profile fields
       name?: string | null;
-      email?: string | null;
       profileImage?: string | null;
       firstName?: string | null;
       lastName?: string | null;
 
-      // OAuth provider IDs (optional, if you need them in session)
+      // OAuth provider IDs (optional)
       googleId?: string | null;
       appleId?: string | null;
       facebookId?: string | null;
@@ -24,12 +25,13 @@ declare module "next-auth" {
 
   interface User extends DefaultUser {
     id: string;
+    email: string;
     username: string | null;
     isAdmin: boolean;
+    emailVerified: boolean;
 
     // Profile fields
     name?: string | null;
-    email?: string | null;
     profileImage?: string | null;
     firstName?: string | null;
     lastName?: string | null;
@@ -44,10 +46,12 @@ declare module "next-auth" {
 declare module "next-auth/jwt" {
   interface JWT extends DefaultJWT {
     id?: string;
+    email?: string;
     username?: string | null;
     isAdmin?: boolean;
+    emailVerified?: boolean;
 
-    // OAuth provider IDs (optional, if you need them in token)
+    // OAuth provider IDs (optional)
     googleId?: string | null;
     appleId?: string | null;
     facebookId?: string | null;

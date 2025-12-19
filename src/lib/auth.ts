@@ -1,3 +1,5 @@
+// lib/auth.ts
+
 import { NextAuthOptions } from "next-auth";
 import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
@@ -5,7 +7,12 @@ import AppleProvider from "next-auth/providers/apple";
 import FacebookProvider from "next-auth/providers/facebook";
 import jwt from "jsonwebtoken";
 import prisma from "@/lib/prisma";
-import bcrypt from "bcrypt";
+import { generateUniqueUsername } from "@/lib/services/username";
+import {
+  checkRateLimit,
+  resetRateLimit,
+  getClientIp,
+} from "@/lib/services/rate-limit";
 
 // Generate Apple client secret (JWT)
 function generateAppleClientSecret(): string | null {
@@ -38,55 +45,8 @@ function generateAppleClientSecret(): string | null {
   }
 }
 
-// Generate unique username
-async function ensureUniqueUsername(
-  base: string
-): Promise<{ username: string; lower: string }> {
-  const sanitize = (u: string) =>
-    u
-      .toLowerCase()
-      .replace(/[^a-z0-9_]/g, "_")
-      .replace(/_+/g, "_")
-      .replace(/^_+|_+$/g, "");
-
-  let root = sanitize(base || "user");
-  if (root.length < 3)
-    root = `user_${root}${Math.floor(Math.random() * 900 + 100)}`;
-
-  for (const suffix of [
-    "",
-    `_${Math.floor(Math.random() * 900 + 100)}`,
-    `${new Date().getFullYear().toString().slice(-2)}`,
-    "_x",
-  ]) {
-    const candidate = `${root}${suffix}`;
-    const lower = candidate.toLowerCase();
-    if (
-      !(await prisma.user.findFirst({
-        where: { usernameLower: lower },
-        select: { id: true },
-      }))
-    ) {
-      return { username: candidate, lower };
-    }
-  }
-
-  while (true) {
-    const candidate = `${root}_${Math.floor(Math.random() * 9000 + 1000)}`;
-    const lower = candidate.toLowerCase();
-    if (
-      !(await prisma.user.findFirst({
-        where: { usernameLower: lower },
-        select: { id: true },
-      }))
-    ) {
-      return { username: candidate, lower };
-    }
-  }
-}
-
 // Helper to build user name from profile
-const buildFullName = (
+function buildFullName(
   profile: {
     given_name?: string;
     family_name?: string;
@@ -94,27 +54,33 @@ const buildFullName = (
     last_name?: string;
   },
   fallback?: string | null
-) =>
-  [
-    profile.given_name || profile.first_name,
-    profile.family_name || profile.last_name,
-  ]
-    .filter(Boolean)
-    .join(" ") ||
-  fallback ||
-  "User";
+): string {
+  return (
+    [
+      profile.given_name || profile.first_name,
+      profile.family_name || profile.last_name,
+    ]
+      .filter(Boolean)
+      .join(" ") ||
+    fallback ||
+    "User"
+  );
+}
 
 // Helper to build username base from profile
-const buildUsernameBase = (profile: {
+function buildUsernameBase(profile: {
   given_name?: string;
   family_name?: string;
   first_name?: string;
   last_name?: string;
   email?: string;
-}) =>
-  `${profile.given_name || profile.first_name || ""}${profile.family_name || profile.last_name || ""}` ||
-  profile.email?.split("@")[0] ||
-  "user";
+}): string {
+  return (
+    `${profile.given_name || profile.first_name || ""}${profile.family_name || profile.last_name || ""}` ||
+    profile.email?.split("@")[0] ||
+    "user"
+  );
+}
 
 // Type definitions for OAuth profiles
 interface GoogleProfile {
@@ -147,19 +113,36 @@ const appleSecret = generateAppleClientSecret();
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    // Credentials Provider (Email/Username + Password)
+    // Credentials Provider
     CredentialsProvider({
       name: "Credentials",
       credentials: {
         identifier: { label: "Email or Username", type: "text" },
         password: { label: "Password", type: "password" },
       },
-      async authorize(credentials) {
+      async authorize(credentials, req) {
         if (!credentials?.identifier || !credentials?.password) {
-          throw new Error("Missing credentials");
+          throw new Error("Email/username and password are required");
         }
 
         const id = credentials.identifier.trim();
+
+        // Get IP for rate limiting
+        const headers = req?.headers as Record<string, string> | undefined;
+        const ip = headers ? getClientIp(new Headers(headers)) : "unknown";
+        const rateLimitKey = `${ip}:${id.toLowerCase()}`;
+
+        // Check rate limit
+        const rateLimit = await checkRateLimit(rateLimitKey, "login");
+        if (!rateLimit.allowed) {
+          const resetMinutes = Math.ceil(
+            (rateLimit.resetAt.getTime() - Date.now()) / 60000
+          );
+          throw new Error(
+            `Too many login attempts. Please try again in ${resetMinutes} minutes.`
+          );
+        }
+
         const isEmail = /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(id);
 
         const user = await (isEmail
@@ -168,12 +151,65 @@ export const authOptions: NextAuthOptions = {
               where: { usernameLower: id.toLowerCase() },
             }));
 
-        if (
-          !user?.password ||
-          !(await bcrypt.compare(credentials.password, user.password))
-        ) {
+        if (!user) {
           throw new Error("Invalid credentials");
         }
+
+        // Check if account is locked
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+          const remainingMinutes = Math.ceil(
+            (user.lockedUntil.getTime() - Date.now()) / 60000
+          );
+          throw new Error(
+            `Account is temporarily locked. Try again in ${remainingMinutes} minutes.`
+          );
+        }
+
+        // Check if user has password (not OAuth-only)
+        if (!user.password) {
+          throw new Error(
+            "This account uses social login. Please sign in with Google, Apple, or Facebook."
+          );
+        }
+
+        // Verify password (plain text comparison as requested - no hashing)
+        if (credentials.password !== user.password) {
+          // Increment failed attempts
+          const newFailedAttempts = user.failedLoginAttempts + 1;
+          const lockAccount = newFailedAttempts >= 5;
+
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLoginAttempts: newFailedAttempts,
+              lockedUntil: lockAccount
+                ? new Date(Date.now() + 30 * 60 * 1000) // 30 minute lockout
+                : null,
+            },
+          });
+
+          if (lockAccount) {
+            throw new Error(
+              "Too many failed attempts. Account locked for 30 minutes."
+            );
+          }
+
+          throw new Error("Invalid credentials");
+        }
+
+        // Successful login - reset failed attempts and rate limit
+        await Promise.all([
+          prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLoginAttempts: 0,
+              lockedUntil: null,
+              lastLoginAt: new Date(),
+              lastLoginIp: ip,
+            },
+          }),
+          resetRateLimit(rateLimitKey, "login"),
+        ]);
 
         return {
           id: user.id,
@@ -181,6 +217,7 @@ export const authOptions: NextAuthOptions = {
           name: user.name,
           username: user.username ?? null,
           isAdmin: user.isAdmin,
+          emailVerified: user.emailVerified,
         };
       },
     }),
@@ -210,18 +247,22 @@ export const authOptions: NextAuthOptions = {
       },
     }),
 
-    // Apple Provider
-    AppleProvider({
-      clientId: process.env.APPLE_ID!,
-      clientSecret: appleSecret!,
-      authorization: {
-        params: {
-          scope: "name email",
-          response_mode: "form_post",
-          response_type: "code",
-        },
-      },
-    }),
+    // Apple Provider (conditional)
+    ...(appleSecret
+      ? [
+          AppleProvider({
+            clientId: process.env.APPLE_ID!,
+            clientSecret: appleSecret,
+            authorization: {
+              params: {
+                scope: "name email",
+                response_mode: "form_post",
+                response_type: "code",
+              },
+            },
+          }),
+        ]
+      : []),
   ],
 
   callbacks: {
@@ -248,13 +289,13 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (existingUser) {
-          const updates: Record<string, string> = {};
+          const updates: Record<string, unknown> = {};
 
           if (!existingUser.googleId) {
             updates.googleId = account.providerAccountId;
           }
           if (!existingUser.username) {
-            const { username, lower } = await ensureUniqueUsername(
+            const { username, lower } = await generateUniqueUsername(
               buildUsernameBase(googleProfile)
             );
             updates.username = username;
@@ -263,6 +304,12 @@ export const authOptions: NextAuthOptions = {
           if (!existingUser.profileImage && googleProfile.picture) {
             updates.profileImage = googleProfile.picture;
           }
+          // Mark email as verified for OAuth users
+          if (!existingUser.emailVerified) {
+            updates.emailVerified = true;
+            updates.emailVerifiedAt = new Date();
+          }
+          updates.lastLoginAt = new Date();
 
           if (Object.keys(updates).length > 0) {
             await prisma.user.update({
@@ -273,10 +320,12 @@ export const authOptions: NextAuthOptions = {
 
           user.id = existingUser.id;
           user.isAdmin = existingUser.isAdmin;
+          user.emailVerified = true;
           return true;
         }
 
-        const { username, lower } = await ensureUniqueUsername(
+        // Create new user
+        const { username, lower } = await generateUniqueUsername(
           buildUsernameBase(googleProfile)
         );
 
@@ -291,11 +340,16 @@ export const authOptions: NextAuthOptions = {
             username,
             usernameLower: lower,
             isAdmin: false,
+            emailVerified: true,
+            emailVerifiedAt: new Date(),
+            primaryAuthMethod: "google",
+            lastLoginAt: new Date(),
           },
         });
 
         user.id = newUser.id;
         user.isAdmin = false;
+        user.emailVerified = true;
         return true;
       }
 
@@ -316,13 +370,13 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (existingUser) {
-          const updates: Record<string, string> = {};
+          const updates: Record<string, unknown> = {};
 
           if (!existingUser.facebookId) {
             updates.facebookId = account.providerAccountId;
           }
           if (!existingUser.username) {
-            const { username, lower } = await ensureUniqueUsername(
+            const { username, lower } = await generateUniqueUsername(
               buildUsernameBase(facebookProfile)
             );
             updates.username = username;
@@ -334,6 +388,11 @@ export const authOptions: NextAuthOptions = {
           ) {
             updates.profileImage = facebookProfile.picture.data.url;
           }
+          if (!existingUser.emailVerified) {
+            updates.emailVerified = true;
+            updates.emailVerifiedAt = new Date();
+          }
+          updates.lastLoginAt = new Date();
 
           if (Object.keys(updates).length > 0) {
             await prisma.user.update({
@@ -344,10 +403,11 @@ export const authOptions: NextAuthOptions = {
 
           user.id = existingUser.id;
           user.isAdmin = existingUser.isAdmin;
+          user.emailVerified = true;
           return true;
         }
 
-        const { username, lower } = await ensureUniqueUsername(
+        const { username, lower } = await generateUniqueUsername(
           buildUsernameBase(facebookProfile)
         );
 
@@ -362,11 +422,16 @@ export const authOptions: NextAuthOptions = {
             username,
             usernameLower: lower,
             isAdmin: false,
+            emailVerified: true,
+            emailVerifiedAt: new Date(),
+            primaryAuthMethod: "facebook",
+            lastLoginAt: new Date(),
           },
         });
 
         user.id = newUser.id;
         user.isAdmin = false;
+        user.emailVerified = true;
         return true;
       }
 
@@ -390,7 +455,7 @@ export const authOptions: NextAuthOptions = {
         }
 
         if (existingUser) {
-          const updates: Record<string, string> = {};
+          const updates: Record<string, unknown> = {};
 
           if (!existingUser.appleId) {
             updates.appleId = account.providerAccountId;
@@ -398,7 +463,7 @@ export const authOptions: NextAuthOptions = {
           if (!existingUser.username) {
             const base =
               `${firstName}${lastName}` || user.email?.split("@")[0] || "user";
-            const { username, lower } = await ensureUniqueUsername(base);
+            const { username, lower } = await generateUniqueUsername(base);
             updates.username = username;
             updates.usernameLower = lower;
           }
@@ -411,6 +476,11 @@ export const authOptions: NextAuthOptions = {
           if (!existingUser.name && (firstName || lastName)) {
             updates.name = [firstName, lastName].filter(Boolean).join(" ");
           }
+          if (!existingUser.emailVerified) {
+            updates.emailVerified = true;
+            updates.emailVerifiedAt = new Date();
+          }
+          updates.lastLoginAt = new Date();
 
           if (Object.keys(updates).length > 0) {
             await prisma.user.update({
@@ -421,12 +491,13 @@ export const authOptions: NextAuthOptions = {
 
           user.id = existingUser.id;
           user.isAdmin = existingUser.isAdmin;
+          user.emailVerified = true;
           return true;
         }
 
         const base =
           `${firstName}${lastName}` || user.email?.split("@")[0] || "user";
-        const { username, lower } = await ensureUniqueUsername(base);
+        const { username, lower } = await generateUniqueUsername(base);
 
         const fullName =
           [firstName, lastName].filter(Boolean).join(" ") ||
@@ -444,27 +515,49 @@ export const authOptions: NextAuthOptions = {
             username,
             usernameLower: lower,
             isAdmin: false,
+            emailVerified: true,
+            emailVerifiedAt: new Date(),
+            primaryAuthMethod: "apple",
+            lastLoginAt: new Date(),
           },
         });
 
         user.id = newUser.id;
         user.isAdmin = false;
+        user.emailVerified = true;
         return true;
       }
 
       return true;
     },
 
-    async jwt({ token, user }) {
+    async jwt({ token, user, trigger }) {
+      // Initial sign in
       if (user?.id) {
-        const dbUser = await prisma.user.findUnique({
-          where: { id: user.id },
-          select: { id: true, isAdmin: true, username: true },
-        });
-        token.id = dbUser?.id;
-        token.isAdmin = dbUser?.isAdmin ?? false;
-        token.username = dbUser?.username ?? null;
+        token.id = user.id;
+        token.isAdmin = user.isAdmin;
+        token.username = user.username;
+        token.emailVerified = !!user.emailVerified;
       }
+
+      // Handle session update (e.g., after email verification)
+      if (trigger === "update" && token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id },
+          select: {
+            id: true,
+            isAdmin: true,
+            username: true,
+            emailVerified: true,
+          },
+        });
+        if (dbUser) {
+          token.isAdmin = dbUser.isAdmin;
+          token.username = dbUser.username;
+          token.emailVerified = dbUser.emailVerified;
+        }
+      }
+
       return token;
     },
 
@@ -473,6 +566,7 @@ export const authOptions: NextAuthOptions = {
         session.user.id = token.id as string;
         session.user.isAdmin = (token.isAdmin as boolean) ?? false;
         session.user.username = (token.username as string) ?? null;
+        session.user.emailVerified = (token.emailVerified as boolean) ?? false;
       }
       return session;
     },
@@ -480,7 +574,7 @@ export const authOptions: NextAuthOptions = {
 
   pages: {
     signIn: "/login",
-    error: "/login",
+    error: "/auth/error",
   },
 
   session: {

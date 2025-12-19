@@ -1,126 +1,45 @@
 // app/api/auth/register/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
-import nodemailer from "nodemailer";
-import { z } from "zod";
-import bcrypt from "bcrypt";
-import { isValidPhoneNumber } from "libphonenumber-js";
-
-const transporter = nodemailer.createTransport({
-  host: process.env.SMTP_HOST,
-  port: parseInt(process.env.SMTP_PORT || "587"),
-  secure: false,
-  auth: {
-    user: process.env.SMTP_USER,
-    pass: process.env.SMTP_PASS,
-  },
-});
-
-const usernameSchema = z
-  .string()
-  .min(3, "Username must be at least 3 characters")
-  .max(20, "Username must be at most 20 characters")
-  .regex(
-    /^[a-zA-Z0-9_]+$/,
-    "Only letters, numbers, and underscores are allowed"
-  );
-
-const passwordSchema = z
-  .string()
-  .min(8, "Password must be at least 8 characters")
-  .regex(/[A-Z]/, "Must contain an uppercase letter")
-  .regex(/\d/, "Must contain a number")
-  .regex(
-    /[!@#$%^&*(),.?":{}|<>_\-\[\];'`~+/=\\]/,
-    "Must contain a special character"
-  );
-
-const hearOptions = [
-  "Social Media (e.g., Facebook, Instagram, X)",
-  "Search Engine (e.g., Google)",
-  "Friend or Family Referral",
-  "Online Advertisement",
-  "Podcast or Radio",
-  "Email Newsletter",
-  "Event or Workshop",
-  "Professional Network (e.g., LinkedIn)",
-  "TV commercial",
-  "Other",
-] as const;
-
-// UPDATED: Phone number schema that works with react-phone-number-input
-const phoneSchema = z
-  .string()
-  .min(1, "Phone number is required")
-  .refine((val) => /^\+[1-9]\d{6,14}$/.test(val.trim()), {
-    message: "Phone number must be in international format (e.g. +1234567890)",
-  })
-  .refine((val) => isValidPhoneNumber(val.trim()), {
-    message: "Invalid phone number",
-  });
-
-const reqSchema = z.object({
-  username: usernameSchema,
-  email: z.string().email("Invalid email address"),
-  password: passwordSchema,
-  firstName: z.string().min(1, "First name is required"),
-  lastName: z.string().min(1, "Last name is required"),
-  phoneNumber: phoneSchema,
-  ageVerification: z.boolean(),
-  heardFrom: z.enum(hearOptions),
-  heardFromOther: z.string().optional(),
-});
-
-const RESERVED = new Set([
-  "admin",
-  "support",
-  "root",
-  "hugharmony",
-  "hug",
-  "me",
-  "null",
-  "undefined",
-]);
-
-function sanitizeBase(u: string) {
-  return u
-    .toLowerCase()
-    .replace(/[^a-z0-9_]/g, "_")
-    .replace(/_+/g, "_")
-    .replace(/^_+|_+$/g, "");
-}
-
-function candidateSuggestions(base: string) {
-  const b = sanitizeBase(base);
-  const list = [
-    `${b}`,
-    `${b}_${Math.floor(Math.random() * 900 + 100)}`,
-    `${b}${new Date().getFullYear().toString().slice(-2)}`,
-    `${b}x`,
-    `${b}_official`,
-  ];
-  return Array.from(new Set(list))
-    .filter((s) => s.length >= 3)
-    .slice(0, 5);
-}
-
-async function filterFreeUsernames(candidates: string[]) {
-  const existings = await prisma.user.findMany({
-    where: { usernameLower: { in: candidates.map((s) => s.toLowerCase()) } },
-    select: { usernameLower: true },
-  });
-  const takenSet = new Set(existings.map((e) => e.usernameLower));
-  return candidates.filter((s) => !takenSet.has(s.toLowerCase()));
-}
+import { registerApiSchema, RESERVED_USERNAMES } from "@/lib/validations/auth";
+import { sendVerificationEmail } from "@/lib/services/email";
+import { createVerificationToken } from "@/lib/services/verification-token";
+import {
+  generateUsernameCandidates,
+  filterAvailableUsernames,
+} from "@/lib/services/username";
+import { checkRateLimit, getClientIp } from "@/lib/services/rate-limit";
 
 export async function POST(request: NextRequest) {
   try {
+    // Rate limiting
+    const ip = getClientIp(request.headers);
+    const rateLimit = await checkRateLimit(ip, "register");
+
+    if (!rateLimit.allowed) {
+      const resetMinutes = Math.ceil(
+        (rateLimit.resetAt.getTime() - Date.now()) / 60000
+      );
+      return NextResponse.json(
+        {
+          error: `Too many registration attempts. Please try again in ${resetMinutes} minutes.`,
+          code: "RATE_LIMITED",
+        },
+        { status: 429 }
+      );
+    }
+
     const json = await request.json();
-    const parsed = reqSchema.safeParse(json);
+    const parsed = registerApiSchema.safeParse(json);
 
     if (!parsed.success) {
       return NextResponse.json(
-        { error: "Invalid input", details: parsed.error.format() },
+        {
+          error: "Invalid input",
+          code: "VALIDATION_ERROR",
+          details: parsed.error.format(),
+        },
         { status: 400 }
       );
     }
@@ -137,35 +56,48 @@ export async function POST(request: NextRequest) {
       heardFromOther,
     } = parsed.data;
 
+    // Age verification check
     if (!ageVerification) {
       return NextResponse.json(
-        { error: "You must confirm you are over 18 and agree to the terms" },
+        {
+          error: "You must confirm you are over 18 and agree to the terms",
+          code: "AGE_VERIFICATION_REQUIRED",
+        },
         { status: 400 }
       );
     }
 
+    // Validate heardFromOther if "Other" selected
     if (heardFrom === "Other" && !heardFromOther?.trim()) {
       return NextResponse.json(
-        { error: "Please specify how you heard about us" },
+        {
+          error: "Please specify how you heard about us",
+          code: "HEARD_FROM_REQUIRED",
+        },
         { status: 400 }
       );
     }
 
     const lower = username.toLowerCase();
-    if (RESERVED.has(lower)) {
-      const suggestions = await filterFreeUsernames(
-        candidateSuggestions(username)
+
+    // Check reserved usernames
+    if (RESERVED_USERNAMES.has(lower)) {
+      const suggestions = await filterAvailableUsernames(
+        generateUsernameCandidates(username)
       );
       return NextResponse.json(
-        { error: "Username unavailable", suggestions },
+        {
+          error: "This username is not available",
+          code: "USERNAME_RESERVED",
+          suggestions,
+        },
         { status: 409 }
       );
     }
 
-    // FIXED: No more parsePhoneNumberFromString() — already validated by Zod
     const phoneE164 = rawPhoneNumber.trim();
 
-    // Check for existing email, username, and phone number
+    // Check for existing email, username, and phone number in parallel
     const [existingEmail, existingUsername, existingPhone] = await Promise.all([
       prisma.user.findUnique({ where: { email } }),
       prisma.user.findFirst({
@@ -180,81 +112,81 @@ export async function POST(request: NextRequest) {
 
     if (existingEmail) {
       return NextResponse.json(
-        { error: "Email already exists" },
-        { status: 400 }
+        {
+          error: "An account with this email already exists",
+          code: "EMAIL_EXISTS",
+        },
+        { status: 409 }
       );
     }
 
     if (existingUsername) {
-      const suggestions = await filterFreeUsernames(
-        candidateSuggestions(username)
+      const suggestions = await filterAvailableUsernames(
+        generateUsernameCandidates(username)
       );
       return NextResponse.json(
-        { error: "Username already exists", suggestions },
+        {
+          error: "This username is already taken",
+          code: "USERNAME_EXISTS",
+          suggestions,
+        },
         { status: 409 }
       );
     }
 
     if (existingPhone) {
       return NextResponse.json(
-        { error: "Phone number already registered" },
+        {
+          error: "This phone number is already registered",
+          code: "PHONE_EXISTS",
+        },
         { status: 409 }
       );
     }
 
-    const hashedPassword = await bcrypt.hash(password, 10);
-
-    await prisma.user.create({
+    // Create user (no password hashing as requested)
+    const user = await prisma.user.create({
       data: {
         email,
-        password: hashedPassword,
+        password, // Plain text as requested
         username,
         usernameLower: lower,
         name: `${firstName} ${lastName}`,
         firstName,
         lastName,
         phoneNumber: phoneE164,
-        googleId: null,
         heardFrom,
         heardFromOther: heardFrom === "Other" ? heardFromOther?.trim() : null,
+        emailVerified: false,
+        primaryAuthMethod: "credentials",
       },
     });
 
-    await transporter.sendMail({
-      from: `"Hug Harmony Support" <${process.env.SMTP_USER}>`,
-      to: email,
-      subject: `Welcome to Hug Harmony, ${firstName}!`,
-      text: `Hello ${firstName},
+    // Create verification token and send email
+    try {
+      const { token } = await createVerificationToken(user.id);
+      await sendVerificationEmail(email, token, firstName);
+    } catch (emailError) {
+      console.error("Failed to send verification email:", emailError);
+      // Don't fail registration if email fails - user can resend
+    }
 
-Welcome to Hug Harmony! We're so happy you've joined our community.
-
-You can get started by visiting your dashboard here:
-${process.env.NEXT_PUBLIC_APP_URL}/dashboard
-
-Warm hugs,
-The Hug Harmony Team`,
-      html: `
-        <div style="font-family: Arial, sans-serif; color: #333;">
-          <h2 style="color: #E7C4BB;">Welcome, ${firstName}!</h2>
-          <p>We're thrilled to have you join the <strong>Hug Harmony</strong> family.</p>
-          <p>Your journey starts here:</p>
-          <p style="margin: 20px 0;">
-            <a href="${process.env.NEXT_PUBLIC_APP_URL}/dashboard" 
-               style="background-color: #E7C4BB; color: #000; padding: 10px 20px; border-radius: 8px; text-decoration: none;">
-              Explore Your Dashboard
-            </a>
-          </p>
-          <p>We can't wait to see the harmony you'll create!</p>
-          <p>Warm hugs,<br>The Hug Harmony Team</p>
-        </div>
-      `,
-    });
-
-    return NextResponse.json({ message: "User registered" }, { status: 201 });
+    return NextResponse.json(
+      {
+        message:
+          "Registration successful. Please check your email to verify your account.",
+        userId: user.id,
+        requiresVerification: true,
+      },
+      { status: 201 }
+    );
   } catch (error: unknown) {
     console.error("Registration error:", error);
     return NextResponse.json(
-      { error: error instanceof Error ? error.message : "Server error" },
+      {
+        error: error instanceof Error ? error.message : "Server error",
+        code: "SERVER_ERROR",
+      },
       { status: 500 }
     );
   }

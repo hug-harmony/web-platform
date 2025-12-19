@@ -8,6 +8,7 @@ import Sidebar from "@/components/Sidebar";
 import BottomNav from "@/components/BottomNav";
 import { LastOnlineUpdater } from "@/components/LastOnlineUpdater";
 import DashboardHeader from "@/components/DashboardHeader";
+import { EmailVerificationBanner } from "@/components/auth/email-verification-banner";
 
 export default function DashboardLayout({
   children,
@@ -18,6 +19,7 @@ export default function DashboardLayout({
     <ClientSessionProvider>
       <UserProvider>
         <SidebarProvider defaultOpen={true}>
+          <EmailVerificationBanner />
           <div className="flex min-h-screen w-full bg-gray-50/50">
             {/* Desktop Sidebar */}
             <Sidebar />

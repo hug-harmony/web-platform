@@ -1,7 +1,10 @@
+// app/register/page.tsx
+
 "use client";
 
 import { toast } from "sonner";
 import { useEffect, useMemo, useState } from "react";
+import { useRouter } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import {
@@ -12,10 +15,8 @@ import {
   FormLabel,
   FormMessage,
 } from "@/components/ui/form";
-import * as z from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
-import { signIn } from "next-auth/react";
 import { Card } from "@/components/ui/card";
 import { Checkbox } from "@/components/ui/checkbox";
 import { Textarea } from "@/components/ui/textarea";
@@ -28,7 +29,6 @@ import {
 } from "@/components/ui/select";
 import Image from "next/image";
 import Link from "next/link";
-import { isValidPhoneNumber } from "libphonenumber-js";
 import { Eye, EyeOff } from "lucide-react";
 import register from "../../../public/register.webp";
 import logo from "../../../public/hh-logo.png";
@@ -37,85 +37,17 @@ import { AppleSignInButton } from "@/components/auth/apple-sign-in-button";
 import { FacebookSignInButton } from "@/components/auth/facebook-sign-in-button";
 import PhoneInput from "react-phone-number-input/react-hook-form";
 import "react-phone-number-input/style.css";
+import {
+  registerSchema,
+  usernameSchema,
+  hearOptions,
+  type RegisterInput,
+} from "@/lib/validations/auth";
 
 type UsernameStatus = "idle" | "checking" | "available" | "unavailable";
 
-const usernameSchema = z
-  .string()
-  .min(3, "Username must be at least 3 characters")
-  .max(20, "Username must be at most 20 characters")
-  .regex(
-    /^[a-zA-Z0-9_]+$/,
-    "Only letters, numbers, and underscores are allowed"
-  );
-
-const passwordSchema = z
-  .string()
-  .min(8, "Password must be at least 8 characters")
-  .regex(/[A-Z]/, "Must contain at least one uppercase letter")
-  .regex(/\d/, "Must contain at least one number")
-  .regex(
-    /[!@#$%^&*(),.?":{}|<>_\-\[\];'`~+/=\\]/,
-    "Must contain at least one special character"
-  );
-
-const phoneSchema = z
-  .string()
-  .min(1, "Phone number is required")
-  .refine((val) => /^\+[1-9]\d{6,14}$/.test(val.trim()), {
-    message: "Phone number must be in international format (e.g., +1234567890)",
-  })
-  .refine((val) => isValidPhoneNumber(val.trim()), {
-    message: "Invalid phone number",
-  });
-
-const hearOptions = [
-  "Social Media (e.g., Facebook, Instagram, X)",
-  "Search Engine (e.g., Google)",
-  "Friend or Family Referral",
-  "Online Advertisement",
-  "Podcast or Radio",
-  "Email Newsletter",
-  "Event or Workshop",
-  "Professional Network (e.g., LinkedIn)",
-  "TV commercial",
-  "Other",
-] as const;
-
-const formSchema = z
-  .object({
-    username: usernameSchema,
-    firstName: z.string().min(1, "First name is required"),
-    lastName: z.string().min(1, "Last name is required"),
-    email: z.string().email("Invalid email address"),
-    phoneNumber: phoneSchema,
-    password: passwordSchema,
-    confirmPassword: z.string().min(1, "Confirm password is required"),
-    ageVerification: z.boolean(),
-    heardFrom: z.enum(hearOptions, {
-      message: "Select how you heard about us",
-    }),
-    heardFromOther: z.string().optional(),
-  })
-  .refine((data) => data.password === data.confirmPassword, {
-    message: "Passwords do not match",
-    path: ["confirmPassword"],
-  })
-  .refine((data) => data.ageVerification === true, {
-    message: "You must confirm you are over 18 and agree to the terms",
-    path: ["ageVerification"],
-  })
-  .refine(
-    (data) =>
-      data.heardFrom !== "Other" ||
-      (data.heardFromOther?.trim().length ?? 0) > 0,
-    {
-      message: "Please specify how you heard about us",
-      path: ["heardFromOther"],
-    }
-  );
-
 export default function RegisterPage() {
+  const router = useRouter();
   const [error, setError] = useState<string | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [usernameStatus, setUsernameStatus] = useState<UsernameStatus>("idle");
@@ -123,8 +55,8 @@ export default function RegisterPage() {
   const [showPassword, setShowPassword] = useState(false);
   const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
-  const form = useForm<z.infer<typeof formSchema>>({
-    resolver: zodResolver(formSchema),
+  const form = useForm<RegisterInput>({
+    resolver: zodResolver(registerSchema),
     defaultValues: {
       username: "",
       firstName: "",
@@ -162,9 +94,11 @@ export default function RegisterPage() {
   };
 
   const usernameValue = form.watch("username");
+
   useEffect(() => {
     let ignore = false;
     const v = (usernameValue || "").trim();
+
     if (!v || !usernameSchema.safeParse(v).success) {
       setUsernameStatus("idle");
       setUsernameSuggestions([]);
@@ -173,7 +107,8 @@ export default function RegisterPage() {
 
     setUsernameStatus("checking");
     const controller = new AbortController();
-    const t = setTimeout(async () => {
+
+    const timeoutId = setTimeout(async () => {
       try {
         const res = await fetch(
           `/api/users/check-username?username=${encodeURIComponent(v)}`,
@@ -181,7 +116,9 @@ export default function RegisterPage() {
         );
         if (!res.ok) throw new Error("Failed to check username");
         const data = await res.json();
+
         if (ignore) return;
+
         if (data.available) {
           setUsernameStatus("available");
           setUsernameSuggestions([]);
@@ -189,8 +126,9 @@ export default function RegisterPage() {
         } else {
           setUsernameStatus("unavailable");
           const suggested =
-            (Array.isArray(data.suggestions) ? data.suggestions : []) ||
-            generateLocalSuggestions(v);
+            Array.isArray(data.suggestions) && data.suggestions.length > 0
+              ? data.suggestions
+              : generateLocalSuggestions(v);
           setUsernameSuggestions(suggested);
           form.setError("username", {
             type: "manual",
@@ -205,11 +143,11 @@ export default function RegisterPage() {
     return () => {
       ignore = true;
       controller.abort();
-      clearTimeout(t);
+      clearTimeout(timeoutId);
     };
   }, [usernameValue, form]);
 
-  const handleSubmit = async (values: z.infer<typeof formSchema>) => {
+  const handleSubmit = async (values: RegisterInput) => {
     try {
       setIsLoading(true);
       setError(null);
@@ -240,6 +178,7 @@ export default function RegisterPage() {
       });
 
       const data = await res.json();
+
       if (!res.ok) {
         if (res.status === 409 && Array.isArray(data?.suggestions)) {
           setUsernameSuggestions(data.suggestions);
@@ -251,15 +190,14 @@ export default function RegisterPage() {
         throw new Error(data.error || "Registration failed");
       }
 
-      const signInResult = await signIn("credentials", {
-        identifier: values.email,
-        password: values.password,
-        redirect: true,
-        callbackUrl: "/dashboard",
-      });
-      if (signInResult?.error) throw new Error(signInResult.error);
+      toast.success(
+        "Account created! Please check your email to verify your account."
+      );
 
-      toast.success("Account created successfully!");
+      // Redirect to a verification pending page instead of auto-login
+      router.push(
+        `/verification-pending?email=${encodeURIComponent(values.email)}`
+      );
     } catch (error: unknown) {
       const msg =
         error instanceof Error ? error.message : "Registration failed";
@@ -275,7 +213,7 @@ export default function RegisterPage() {
       case "checking":
         return "Checking availability…";
       case "available":
-        return "Username is available";
+        return "✓ Username is available";
       case "unavailable":
         return "Username is taken. Try a suggestion below.";
       default:
@@ -302,7 +240,13 @@ export default function RegisterPage() {
           <p className="text-gray-600 text-sm mb-6">
             Get started with your Hug Harmony account.
           </p>
-          {error && <p className="text-red-600 text-sm mb-4">{error}</p>}
+
+          {error && (
+            <div className="bg-red-50 border border-red-200 text-red-700 px-4 py-3 rounded-md text-sm mb-4">
+              {error}
+            </div>
+          )}
+
           <Form {...form}>
             <form
               onSubmit={form.handleSubmit(handleSubmit)}
@@ -325,7 +269,16 @@ export default function RegisterPage() {
                         {...field}
                       />
                     </FormControl>
-                    <p className="text-xs text-gray-500" aria-live="polite">
+                    <p
+                      className={`text-xs ${
+                        usernameStatus === "available"
+                          ? "text-green-600"
+                          : usernameStatus === "unavailable"
+                            ? "text-red-600"
+                            : "text-gray-500"
+                      }`}
+                      aria-live="polite"
+                    >
                       {usernameHelp}
                     </p>
                     {usernameStatus === "unavailable" &&
@@ -429,22 +382,6 @@ export default function RegisterPage() {
                         Phone Number
                       </FormLabel>
                       <FormControl>
-                        {/* <Input
-                          className="text-sm border-gray-300"
-                          placeholder="+1 415 555 2671"
-                          inputMode="tel"
-                          autoComplete="tel"
-                          {...field}
-                          onBlur={(e) => {
-                            field.onBlur();
-                            const formatted = formatPhoneInternational(
-                              e.target.value
-                            );
-                            form.setValue("phoneNumber", formatted, {
-                              shouldDirty: true,
-                            });
-                          }}
-                        /> */}
                         <PhoneInput
                           international
                           countryCallingCodeEditable={false}
@@ -454,7 +391,6 @@ export default function RegisterPage() {
                           {...field}
                         />
                       </FormControl>
-
                       <FormMessage className="text-xs" />
                     </FormItem>
                   )}
@@ -488,6 +424,7 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
+
               {heardFrom === "Other" && (
                 <FormField
                   control={form.control}
@@ -523,7 +460,7 @@ export default function RegisterPage() {
                     <FormControl>
                       <div className="relative">
                         <Input
-                          className="text-sm border-gray-300"
+                          className="text-sm border-gray-300 pr-10"
                           placeholder="Password"
                           type={showPassword ? "text" : "password"}
                           autoComplete="new-password"
@@ -555,6 +492,7 @@ export default function RegisterPage() {
                   </FormItem>
                 )}
               />
+
               <FormField
                 control={form.control}
                 name="confirmPassword"
@@ -566,7 +504,7 @@ export default function RegisterPage() {
                     <FormControl>
                       <div className="relative">
                         <Input
-                          className="text-sm border-gray-300"
+                          className="text-sm border-gray-300 pr-10"
                           placeholder="Confirm Password"
                           type={showConfirmPassword ? "text" : "password"}
                           autoComplete="new-password"
@@ -648,7 +586,6 @@ export default function RegisterPage() {
                 Or sign up with
               </div>
 
-              {/* OAuth Buttons */}
               <div className="flex flex-col gap-3">
                 <GoogleSignInButton disabled={isLoading} />
                 <AppleSignInButton disabled={isLoading} />
@@ -657,6 +594,7 @@ export default function RegisterPage() {
             </form>
           </Form>
         </div>
+
         <div className="hidden md:flex w-1/2 relative">
           <Image
             src={register}
