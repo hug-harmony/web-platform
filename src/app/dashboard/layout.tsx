@@ -18,8 +18,8 @@ export default function DashboardLayout({
   return (
     <ClientSessionProvider>
       <UserProvider>
+        <EmailVerificationBanner />
         <SidebarProvider defaultOpen={true}>
-          <EmailVerificationBanner />
           <div className="flex min-h-screen w-full bg-gray-50/50">
             {/* Desktop Sidebar */}
             <Sidebar />

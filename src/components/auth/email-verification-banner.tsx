@@ -58,7 +58,7 @@ export function EmailVerificationBanner() {
   return (
     <div className="bg-amber-50 border-b border-amber-200">
       <div className="max-w-7xl mx-auto px-4 py-3">
-        <div className="flex items-center justify-between gap-4 flex-wrap">
+        <div className="flex items-center justify-center gap-4 flex-wrap">
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
             <p className="text-sm text-amber-800">

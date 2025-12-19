@@ -1,63 +1,49 @@
 // app/api/professionals/route.ts
 
-import { NextResponse } from "next/server";
-import { Prisma } from "@prisma/client";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import {
+  getProfessionals,
+  getProfessionalById,
+  getUniqueLocations,
+} from "@/lib/services/professionals";
+import {
+  professionalFiltersSchema,
+  professionalIdSchema,
+} from "@/lib/validations/professionals";
 import prisma from "@/lib/prisma";
 
-/* ------------------------------------------------------------------
-   GET – single or list with filtering
-   ------------------------------------------------------------------ */
-export async function GET(req: Request) {
+/**
+ * GET /api/professionals
+ *
+ * Query params:
+ * - id: Get single professional by ID
+ * - All filter params for list view
+ * - includeLocations: Include unique locations list
+ */
+export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
+    const { searchParams } = new URL(request.url);
     const id = searchParams.get("id");
+    const includeLocations = searchParams.get("includeLocations") === "true";
 
     // Single professional fetch
     if (id) {
-      if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+      const validation = professionalIdSchema.safeParse(id);
+      if (!validation.success) {
         return NextResponse.json(
           { error: "Invalid professional ID" },
           { status: 400 }
         );
       }
 
-      const professional = await prisma.professional.findUnique({
-        where: { id },
-        select: {
-          id: true,
-          name: true,
-          image: true,
-          rating: true,
-          reviewCount: true,
-          rate: true,
-          biography: true,
-          createdAt: true,
-          venue: true,
-          location: true,
-          application: {
-            select: {
-              id: true,
-              status: true,
-              userId: true,
-              user: {
-                select: {
-                  location: true,
-                  lastOnline: true,
-                  ethnicity: true,
-                  profileImage: true,
-                },
-              },
-            },
-          },
-        },
-      });
+      const professional = await getProfessionalById(id);
 
       if (!professional) {
         return NextResponse.json(
@@ -66,167 +52,134 @@ export async function GET(req: Request) {
         );
       }
 
-      return NextResponse.json({
-        id: professional.id,
-        name: professional.name,
-        image:
-          professional.application?.user?.profileImage || professional.image,
-        location:
-          professional.location ||
-          professional.application?.user?.location ||
-          null,
-        userId: professional.application?.userId || null,
-        rating: professional.rating,
-        reviewCount: professional.reviewCount,
-        rate: professional.rate,
-        biography: professional.biography,
-        createdAt: professional.createdAt,
-        venue: professional.venue,
-        lastOnline: professional.application?.user?.lastOnline || null,
-        ethnicity: professional.application?.user?.ethnicity || null,
-
-        status: professional.application?.status || null,
-        applicationId: professional.application?.id,
-      });
+      return NextResponse.json(professional);
     }
 
-    // List fetch with filters
-    const search = searchParams.get("search");
-    const venue = searchParams.get("venue");
-    const minRating = searchParams.get("minRating");
-    const location = searchParams.get("location");
+    // Parse and validate filters from query params
+    const filterParams: Record<string, string | undefined> = {};
 
-    // Build where clause
-    const where: Prisma.ProfessionalWhereInput = {};
+    const filterKeys = [
+      "search",
+      "location",
+      "venue",
+      "minRating",
+      "gender",
+      "minAge",
+      "maxAge",
+      "hasProfilePic",
+      "onlineStatus",
+      "currentLat",
+      "currentLng",
+      "radius",
+      "unit",
+      "date",
+      "timeRangeStart",
+      "timeRangeEnd",
+      "sortBy",
+      "page",
+      "limit",
+    ];
 
-    // Exclude self if user is an approved professional
-    const userApplication = await prisma.professionalApplication.findFirst({
-      where: {
-        userId: session.user.id,
-        status: "APPROVED",
-      },
-      select: { professionalId: true },
+    filterKeys.forEach((key) => {
+      const value = searchParams.get(key);
+      if (value) filterParams[key] = value;
     });
 
-    if (userApplication?.professionalId) {
-      where.id = { not: userApplication.professionalId };
-    }
-
-    // Search filter (name or biography)
-    if (search) {
-      where.OR = [
-        { name: { contains: search, mode: "insensitive" } },
-        { biography: { contains: search, mode: "insensitive" } },
-      ];
-    }
-
-    // Venue filter
-    if (venue && ["host", "visit", "both"].includes(venue)) {
-      if (venue === "both") {
-        // Show all venues
-      } else {
-        // Show professionals who can do this venue type OR both
-        where.venue = { in: [venue as "host" | "visit", "both"] };
+    // Handle legacy param names
+    if (searchParams.get("selectedDate")) {
+      const dateStr = searchParams.get("selectedDate")!;
+      const date = new Date(dateStr);
+      if (!isNaN(date.getTime())) {
+        filterParams.date = date.toISOString().split("T")[0];
       }
     }
 
-    // Rating filter
-    if (minRating) {
-      const rating = parseFloat(minRating);
-      if (!isNaN(rating) && rating > 0) {
-        where.rating = { gte: rating };
-      }
-    }
+    const validation = professionalFiltersSchema.safeParse(filterParams);
 
-    const professionals = await prisma.professional.findMany({
-      where,
-      select: {
-        id: true,
-        name: true,
-        image: true,
-        rating: true,
-        reviewCount: true,
-        rate: true,
-        biography: true,
-        createdAt: true,
-        venue: true,
-        location: true,
-        application: {
-          select: {
-            userId: true,
-            user: {
-              select: {
-                location: true,
-                lastOnline: true,
-                ethnicity: true,
-                profileImage: true,
-              },
-            },
-          },
+    if (!validation.success) {
+      return NextResponse.json(
+        {
+          error: "Invalid filter parameters",
+          details: validation.error.format(),
         },
-      },
-      orderBy: { createdAt: "desc" },
+        { status: 400 }
+      );
+    }
+
+    const filters = validation.data;
+
+    // Check if date filter is applied to include availability
+    const includeAvailability = !!filters.date;
+
+    // Fetch professionals
+    const result = await getProfessionals({
+      filters,
+      excludeUserId: session.user.id,
+      includeAvailability,
     });
 
-    // Post-query location filter (since it can be on Professional or User)
-    let filtered = professionals;
-    if (
-      location &&
-      location !== "Custom Location" &&
-      location !== "Current Location"
-    ) {
-      filtered = professionals.filter((p) => {
-        const profLocation = p.location || p.application?.user?.location;
-        return profLocation === location;
-      });
+    // Optionally include unique locations
+    let locations: string[] | undefined;
+    if (includeLocations) {
+      locations = await getUniqueLocations();
     }
 
     return NextResponse.json({
-      professionals: filtered.map((s) => ({
-        id: s.id,
-        name: s.name,
-        image: s.application?.user?.profileImage || s.image,
-        location: s.location || s.application?.user?.location || null,
-        userId: s.application?.userId || null,
-        rating: s.rating,
-        reviewCount: s.reviewCount,
-        rate: s.rate,
-        biography: s.biography,
-        createdAt: s.createdAt,
-        venue: s.venue,
-        lastOnline: s.application?.user?.lastOnline || null,
-        ethnicity: s.application?.user?.ethnicity || null,
+      professionals: result.professionals.map((p) => ({
+        id: p._id,
+        name: p.name,
+        image: p.image,
+        location: p.location,
+        rating: p.rating,
+        reviewCount: p.reviewCount,
+        rate: p.rate,
+        biography: p.biography,
+        createdAt: p.createdAt,
+        venue: p.venue,
+        lastOnline: p.lastOnline,
+        ethnicity: p.ethnicity,
+        userId: p.userId,
+        availableSlots: p.availableSlots,
       })),
+      total: result.total,
+      page: result.page,
+      limit: result.limit,
+      hasMore: result.hasMore,
+      ...(locations && { locations }),
     });
   } catch (error) {
-    console.error("GET Error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error("GET /api/professionals error:", error);
+    return NextResponse.json(
+      { error: "Failed to fetch professionals" },
+      { status: 500 }
+    );
   }
 }
 
-/* ------------------------------------------------------------------
-   POST – **DISABLED** (creation only via application approval)
-   ------------------------------------------------------------------ */
+/**
+ * POST - Disabled (use application flow)
+ */
 export async function POST() {
   return NextResponse.json(
     {
       error:
-        "Direct professional creation is not allowed. Use the professional-application flow.",
+        "Direct professional creation is not allowed. Use the application flow.",
     },
     { status: 405 }
   );
 }
 
-/* ------------------------------------------------------------------
-   PATCH – edit approved professional
-   ------------------------------------------------------------------ */
-export async function PATCH(req: Request) {
+/**
+ * PATCH - Update professional profile
+ */
+export async function PATCH(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const body = await request.json();
     const {
       id,
       name,
@@ -237,7 +190,7 @@ export async function PATCH(req: Request) {
       rate,
       biography,
       venue,
-    } = await req.json();
+    } = body;
 
     if (!id || !name || !biography) {
       return NextResponse.json(
@@ -246,7 +199,8 @@ export async function PATCH(req: Request) {
       );
     }
 
-    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    const idValidation = professionalIdSchema.safeParse(id);
+    if (!idValidation.success) {
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     }
 
@@ -257,6 +211,7 @@ export async function PATCH(req: Request) {
       );
     }
 
+    // Verify ownership
     const application = await prisma.professionalApplication.findFirst({
       where: {
         professionalId: id,
@@ -267,25 +222,15 @@ export async function PATCH(req: Request) {
 
     if (!application) {
       return NextResponse.json(
-        {
-          error:
-            "Unauthorized: You can only update your own approved professional profile",
-        },
+        { error: "You can only update your own approved professional profile" },
         { status: 403 }
       );
     }
 
+    // Update professional
     const professional = await prisma.professional.update({
       where: { id },
-      data: {
-        name,
-        image,
-        rating,
-        reviewCount,
-        rate,
-        biography,
-        venue,
-      },
+      data: { name, image, rating, reviewCount, rate, biography, venue },
       select: {
         id: true,
         name: true,
@@ -297,17 +242,6 @@ export async function PATCH(req: Request) {
         createdAt: true,
         venue: true,
         location: true,
-        application: {
-          select: {
-            userId: true,
-            user: {
-              select: {
-                location: true,
-                lastOnline: true,
-              },
-            },
-          },
-        },
       },
     });
 
@@ -323,44 +257,41 @@ export async function PATCH(req: Request) {
       id: professional.id,
       name: professional.name,
       image: professional.image,
-      location: location || professional.application?.user?.location || null,
-      userId: professional.application?.userId || null,
+      location: location || professional.location,
       rating: professional.rating,
       reviewCount: professional.reviewCount,
       rate: professional.rate,
       biography: professional.biography,
       createdAt: professional.createdAt,
       venue: professional.venue,
-      lastOnline: professional.application?.user?.lastOnline || null,
     });
   } catch (error) {
-    console.error("PATCH Error:", error);
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    console.error("PATCH /api/professionals error:", error);
+    return NextResponse.json(
+      { error: "Failed to update professional" },
+      { status: 500 }
+    );
   }
 }
 
-/* ------------------------------------------------------------------
-   DELETE – remove professional (admin only)
-   ------------------------------------------------------------------ */
-export async function DELETE(req: Request) {
+/**
+ * DELETE - Remove professional (admin only)
+ */
+export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
 
-    // Security: Require admin authentication
     if (!session?.user?.isAdmin) {
       return NextResponse.json(
-        { error: "Forbidden: Admin access required" },
+        { error: "Admin access required" },
         { status: 403 }
       );
     }
 
-    const { id } = await req.json();
+    const { id } = await request.json();
 
-    if (!id) {
-      return NextResponse.json({ error: "ID is required" }, { status: 400 });
-    }
-
-    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+    const idValidation = professionalIdSchema.safeParse(id);
+    if (!idValidation.success) {
       return NextResponse.json({ error: "Invalid ID" }, { status: 400 });
     }
 
@@ -369,15 +300,13 @@ export async function DELETE(req: Request) {
       select: { id: true, name: true },
     });
 
-    console.log("Professional deleted:", professional);
     return NextResponse.json({
       message: "Professional deleted",
       id: professional.id,
     });
   } catch (error: unknown) {
-    console.error("DELETE Error:", error);
+    console.error("DELETE /api/professionals error:", error);
 
-    // Handle "record not found" error
     if (
       typeof error === "object" &&
       error !== null &&
@@ -390,6 +319,9 @@ export async function DELETE(req: Request) {
       );
     }
 
-    return NextResponse.json({ error: "Server error" }, { status: 500 });
+    return NextResponse.json(
+      { error: "Failed to delete professional" },
+      { status: 500 }
+    );
   }
 }

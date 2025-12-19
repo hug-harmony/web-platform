@@ -1,13 +1,13 @@
 // components/professionals/ProfessionalPageContent.tsx
+
 "use client";
 
-import { useState, useRef, useCallback, useMemo } from "react";
+import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
 import { CalendarIcon } from "lucide-react";
 import { useProfessionals } from "@/hooks/professionals/useProfessionals";
 import { useFilters } from "@/hooks/professionals/useFilters";
-import { useAvailabilities } from "@/hooks/professionals/useAvailabilities";
 import { useMediaQuery } from "@/hooks/professionals/useMediaQuery";
 import { useKeyboardShortcut } from "@/hooks/professionals/useKeyboardShortcut";
 import { SearchBar } from "@/components/professionals/SearchBar";
@@ -17,7 +17,6 @@ import { RadiusDialog } from "@/components/professionals/RadiusDialog";
 import { DateTimeDialog } from "@/components/professionals/DateTimeDialog";
 import { ActiveFilters } from "@/components/professionals/ActiveFilters";
 import { MobileFilterSheet } from "@/components/professionals/MobileFilterSheet";
-import { filterAndSort } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
 import { cn } from "@/lib/utils";
 
@@ -36,11 +35,14 @@ const minutesToTime = (mins: number): string => {
 
 export default function ProfessionalPageContent() {
   const [searchQuery, setSearchQuery] = useState("");
+  const [isInitialLoad, setIsInitialLoad] = useState(true);
+
   const {
     filters,
     setFilters,
     appliedFilters,
     setAppliedFilters,
+    apiFilters,
     reset,
     removeFilter,
     activeFilterCount,
@@ -59,23 +61,27 @@ export default function ProfessionalPageContent() {
   const searchInputRef = useRef<HTMLInputElement>(null);
   const isMobile = useMediaQuery("(max-width: 768px)");
 
-  // Fetch professionals
-  const { professionals, loading } = useProfessionals(
-    searchQuery,
-    appliedFilters
+  // Combine search query with API filters
+  const combinedFilters = useMemo(
+    () => ({
+      ...apiFilters,
+      search: searchQuery || undefined,
+    }),
+    [apiFilters, searchQuery]
   );
 
-  // Fetch bulk availabilities when date is selected
-  const { availabilities, loading: availLoading } = useAvailabilities(
-    appliedFilters.selectedDate
+  // Fetch professionals - include locations only on initial load
+  const { professionals, locations, loading, total } = useProfessionals(
+    combinedFilters,
+    { includeLocations: isInitialLoad }
   );
 
-  // Get unique locations for filter dropdown
-  const locations = useMemo(() => {
-    return Array.from(
-      new Set(professionals.map((p) => p.location).filter(Boolean))
-    ) as string[];
-  }, [professionals]);
+  // Mark initial load as complete after first successful fetch
+  useEffect(() => {
+    if (!loading && isInitialLoad) {
+      setIsInitialLoad(false);
+    }
+  }, [loading, isInitialLoad]);
 
   // Keyboard shortcut to focus search
   useKeyboardShortcut(
@@ -130,16 +136,6 @@ export default function ProfessionalPageContent() {
     setSearchQuery("");
   };
 
-  // Filter and sort using appliedFilters + availabilities
-  const filtered = useMemo(() => {
-    // Add availabilities to filters for the filterAndSort function
-    const filtersWithAvailabilities = {
-      ...appliedFilters,
-      availabilities,
-    };
-    return filterAndSort(professionals, filtersWithAvailabilities, searchQuery);
-  }, [professionals, appliedFilters, availabilities, searchQuery]);
-
   // Get pending date/time for button display
   const { selectedDate, timeRange } = filters;
 
@@ -163,6 +159,9 @@ export default function ProfessionalPageContent() {
           </CardTitle>
           <p className="text-sm opacity-80">
             Find and connect with certified professionals
+            {total > 0 && !loading && (
+              <span className="ml-2">• {total} available</span>
+            )}
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
@@ -225,9 +224,6 @@ export default function ProfessionalPageContent() {
             ) : (
               "Filter by Availability"
             )}
-            {availLoading && appliedFilters.selectedDate && (
-              <span className="ml-2 h-3 w-3 animate-spin rounded-full border-2 border-current border-t-transparent" />
-            )}
           </Button>
 
           {/* Active Filters Summary */}
@@ -236,8 +232,8 @@ export default function ProfessionalPageContent() {
       </Card>
 
       <ProfessionalsGrid
-        loading={loading || availLoading}
-        professionals={filtered}
+        loading={loading}
+        professionals={professionals}
         hasActiveFilters={hasActiveFilters || !!searchQuery}
         onClearFilters={handleClear}
       />

@@ -1,4 +1,5 @@
 // components/professionals/ActiveFilters.tsx
+
 "use client";
 
 import { useMemo } from "react";
@@ -88,7 +89,7 @@ export function ActiveFilters({ filters, onRemove }: ActiveFiltersProps) {
       });
     }
 
-    if (filters.minRating > 0) {
+    if (filters.minRating !== undefined && filters.minRating > 0) {
       chips.push({
         key: "minRating",
         label: `Rating: ${filters.minRating}+`,

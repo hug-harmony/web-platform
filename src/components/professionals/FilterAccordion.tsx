@@ -1,4 +1,5 @@
 // components/professionals/FilterAccordion.tsx
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 
@@ -157,7 +158,7 @@ export function FilterAccordion({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                       <DropdownMenuItem
-                        onClick={() => onFilterChange("gender", "")}
+                        onClick={() => onFilterChange("gender", undefined)}
                       >
                         All
                       </DropdownMenuItem>
@@ -192,7 +193,7 @@ export function FilterAccordion({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                       <DropdownMenuItem
-                        onClick={() => onFilterChange("location", "")}
+                        onClick={() => onFilterChange("location", undefined)}
                       >
                         All
                       </DropdownMenuItem>
@@ -239,7 +240,9 @@ export function FilterAccordion({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                       <DropdownMenuItem
-                        onClick={() => onFilterChange("hasProfilePic", "")}
+                        onClick={() =>
+                          onFilterChange("hasProfilePic", undefined)
+                        }
                       >
                         All
                       </DropdownMenuItem>
@@ -275,7 +278,9 @@ export function FilterAccordion({
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
                       <DropdownMenuItem
-                        onClick={() => onFilterChange("onlineStatus", "")}
+                        onClick={() =>
+                          onFilterChange("onlineStatus", undefined)
+                        }
                       >
                         All
                       </DropdownMenuItem>
@@ -297,7 +302,7 @@ export function FilterAccordion({
                   <Select
                     value={filters.venue || "all"}
                     onValueChange={(v) =>
-                      onFilterChange("venue", v === "all" ? "" : v)
+                      onFilterChange("venue", v === "all" ? undefined : v)
                     }
                   >
                     <SelectTrigger
@@ -370,57 +375,50 @@ export function FilterAccordion({
           {/* Dimmed Filter Content */}
           <div className="opacity-30 pointer-events-none" aria-hidden="true">
             <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {["race", "ethnicity", "bodyType", "personalityType"].map(
-                (key) => {
-                  const options =
-                    key === "race"
-                      ? races
-                      : key === "ethnicity"
-                        ? ethnicities
-                        : key === "bodyType"
-                          ? bodyTypes
-                          : personalityTypes;
-
-                  const label =
-                    key === "bodyType"
-                      ? "Body Type"
-                      : key === "personalityType"
-                        ? "Personality"
-                        : key.charAt(0).toUpperCase() + key.slice(1);
-
-                  return (
-                    <div key={key} className="flex flex-col gap-1.5">
-                      <Label>{label}</Label>
-                      <DropdownMenu>
-                        <DropdownMenuTrigger asChild>
-                          <Button
-                            variant="outline"
-                            className="w-full border-[#F3CFC6]"
-                            disabled
-                          >
-                            {(filters as any)[key] || "All"}
-                          </Button>
-                        </DropdownMenuTrigger>
-                        <DropdownMenuContent>
-                          <DropdownMenuItem
-                            onClick={() => onFilterChange(key, "")}
-                          >
-                            All
-                          </DropdownMenuItem>
-                          {options.map((o) => (
-                            <DropdownMenuItem
-                              key={o}
-                              onClick={() => onFilterChange(key, o)}
-                            >
-                              {o}
-                            </DropdownMenuItem>
-                          ))}
-                        </DropdownMenuContent>
-                      </DropdownMenu>
-                    </div>
-                  );
-                }
-              )}
+              {(
+                [
+                  { key: "race", options: races, label: "Race" },
+                  {
+                    key: "ethnicity",
+                    options: ethnicities,
+                    label: "Ethnicity",
+                  },
+                  { key: "bodyType", options: bodyTypes, label: "Body Type" },
+                  {
+                    key: "personalityType",
+                    options: personalityTypes,
+                    label: "Personality",
+                  },
+                ] as const
+              ).map(({ key, options, label }) => (
+                <div key={key} className="flex flex-col gap-1.5">
+                  <Label>{label}</Label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        variant="outline"
+                        className="w-full border-[#F3CFC6]"
+                        disabled
+                      >
+                        {filters[key] || "All"}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem onClick={() => onFilterChange(key, "")}>
+                        All
+                      </DropdownMenuItem>
+                      {options.map((o) => (
+                        <DropdownMenuItem
+                          key={o}
+                          onClick={() => onFilterChange(key, o)}
+                        >
+                          {o}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              ))}
             </div>
           </div>
 

@@ -60,6 +60,7 @@ function timeToMinutes(time: string): number {
 /**
  * Filter and sort professionals based on applied filters and search query
  */
+/*
 export function filterAndSort(
   data: Professional[],
   filters: Filters & { availabilities?: Record<string, string[]> },
@@ -204,3 +205,4 @@ export function filterAndSort(
       })
   );
 }
+*/
