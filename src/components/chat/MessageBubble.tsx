@@ -18,7 +18,7 @@ interface MessageBubbleProps {
     action: "accepted" | "rejected"
   ) => Promise<void>;
   sending: boolean;
-  currentUserId: string;
+  currentUserId?: string;
 }
 
 const bubbleVariants = {
@@ -32,9 +32,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   handleProposalAction,
   sending,
 }) => {
-  // Determine profile link
+  // Determine profile link - FIXED: Changed odI to userId
   const profileHref = message.sender.isProfessional
-    ? `/dashboard/profile/${message.sender.odI || message.senderId}`
+    ? `/dashboard/profile/${message.sender.userId || message.senderId}`
     : `/dashboard/profile/${message.senderId}`;
 
   const isProposal = !!message.proposalId;
@@ -107,7 +107,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         {isProposal && (
           <div className="mt-3 pt-3 border-t border-gray-200/50">
             {isPending && !isSender ? (
-              // Show action buttons for recipient of pending proposal
               <div className="flex gap-2">
                 <Button
                   variant="outline"
@@ -135,7 +134,6 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
                 </Button>
               </div>
             ) : (
-              // Show status for sender or non-pending proposals
               <div className="flex items-center gap-2">
                 {isPending && (
                   <>

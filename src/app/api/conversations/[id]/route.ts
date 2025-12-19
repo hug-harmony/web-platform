@@ -1,4 +1,4 @@
-// app/api/conversations/[id]/route.ts
+// src/app/api/conversations/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -26,44 +26,10 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   const { searchParams } = new URL(request.url);
   const includeMessages = searchParams.get("messages") === "true";
   const limit = parseInt(searchParams.get("limit") || "50", 10);
-  const before = searchParams.get("before"); // For pagination
+  const before = searchParams.get("before");
 
   try {
-    // Build messages query if needed
-    const messagesQuery = includeMessages
-      ? {
-          messages: {
-            where: before ? { createdAt: { lt: new Date(before) } } : undefined,
-            orderBy: { createdAt: "desc" as const },
-            take: limit,
-            select: {
-              id: true,
-              text: true,
-              imageUrl: true,
-              createdAt: true,
-              senderId: true,
-              recipientId: true,
-              isAudio: true,
-              isSystem: true,
-              proposalId: true,
-              proposal: {
-                select: { status: true, initiator: true },
-              },
-              senderUser: {
-                select: {
-                  firstName: true,
-                  lastName: true,
-                  profileImage: true,
-                  professionalApplication: {
-                    select: { professionalId: true },
-                  },
-                },
-              },
-            },
-          },
-        }
-      : {};
-
+    // First, fetch the conversation with user details
     const conversation = await prisma.conversation.findUnique({
       where: { id },
       include: {
@@ -74,10 +40,6 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             lastName: true,
             profileImage: true,
             lastOnline: true,
-            professionalApplication: {
-              where: { status: "APPROVED" },
-              select: { professionalId: true },
-            },
           },
         },
         user2: {
@@ -87,13 +49,8 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
             lastName: true,
             profileImage: true,
             lastOnline: true,
-            professionalApplication: {
-              where: { status: "APPROVED" },
-              select: { professionalId: true },
-            },
           },
         },
-        ...messagesQuery,
       },
     });
 
@@ -118,13 +75,22 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       }
     }
 
-    // Determine professionalId
-    const professionalId =
-      conversation.user1.professionalApplication?.[0]?.professionalId ||
-      conversation.user2.professionalApplication?.[0]?.professionalId ||
-      null;
+    // Check if either user is a professional
+    const [profApp1, profApp2] = await Promise.all([
+      prisma.professionalApplication.findFirst({
+        where: { userId: conversation.userId1, status: "APPROVED" },
+        select: { professionalId: true },
+      }),
+      prisma.professionalApplication.findFirst({
+        where: { userId: conversation.userId2, status: "APPROVED" },
+        select: { professionalId: true },
+      }),
+    ]);
 
-    // Format response
+    const professionalId =
+      profApp1?.professionalId || profApp2?.professionalId || null;
+
+    // Build response
     const response: Record<string, unknown> = {
       id: conversation.id,
       user1: {
@@ -133,7 +99,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         lastName: conversation.user1.lastName,
         profileImage: conversation.user1.profileImage,
         lastOnline: conversation.user1.lastOnline,
-        isProfessional: !!conversation.user1.professionalApplication?.[0],
+        isProfessional: !!profApp1?.professionalId,
       },
       user2: {
         id: conversation.user2.id,
@@ -141,35 +107,47 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         lastName: conversation.user2.lastName,
         profileImage: conversation.user2.profileImage,
         lastOnline: conversation.user2.lastOnline,
-        isProfessional: !!conversation.user2.professionalApplication?.[0],
+        isProfessional: !!profApp2?.professionalId,
       },
       professionalId,
       userId1: conversation.userId1,
       userId2: conversation.userId2,
     };
 
-    // Format messages if included
-    if (includeMessages && "messages" in conversation) {
-      const messages = conversation.messages as Array<{
-        id: string;
-        text: string;
-        imageUrl: string | null;
-        createdAt: Date;
-        senderId: string;
-        recipientId: string;
-        isAudio: boolean;
-        isSystem: boolean;
-        proposalId: string | null;
-        proposal: { status: string; initiator: string } | null;
-        senderUser: {
-          firstName: string | null;
-          lastName: string | null;
-          profileImage: string | null;
-          professionalApplication: Array<{
-            professionalId: string | null;
-          }> | null;
-        } | null;
-      }>;
+    // Fetch messages if requested
+    if (includeMessages) {
+      const messages = await prisma.message.findMany({
+        where: {
+          conversationId: id,
+          ...(before ? { createdAt: { lt: new Date(before) } } : {}),
+        },
+        orderBy: { createdAt: "desc" },
+        take: limit,
+        select: {
+          id: true,
+          text: true,
+          imageUrl: true,
+          createdAt: true,
+          senderId: true,
+          recipientId: true,
+          isAudio: true,
+          isSystem: true,
+          proposalId: true,
+          proposal: {
+            select: { status: true, initiator: true },
+          },
+          senderUser: {
+            select: {
+              firstName: true,
+              lastName: true,
+              profileImage: true,
+              professionalApplication: {
+                select: { professionalId: true },
+              },
+            },
+          },
+        },
+      });
 
       response.messages = messages
         .map((msg) => ({
@@ -190,10 +168,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
               "Unknown User",
             profileImage: msg.senderUser?.profileImage ?? null,
             isProfessional:
-              !!msg.senderUser?.professionalApplication?.[0]?.professionalId,
-            odI:
-              msg.senderUser?.professionalApplication?.[0]?.professionalId ??
-              null,
+              !!msg.senderUser?.professionalApplication?.professionalId,
+            userId:
+              msg.senderUser?.professionalApplication?.professionalId ?? null,
           },
         }))
         .reverse(); // Return in chronological order

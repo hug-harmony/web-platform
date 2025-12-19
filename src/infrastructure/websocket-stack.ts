@@ -207,11 +207,11 @@ export class WebSocketStack extends cdk.Stack {
     // ==========================================
     // Stage
     // ==========================================
-    const apiStage = new apigatewayv2.CfnStage(this, "WebSocketStage", {
-      apiId: webSocketApi.ref,
-      stageName: stage,
-      autoDeploy: true,
-    });
+    // const apiStage = new apigatewayv2.CfnStage(this, "WebSocketStage", {
+    //   apiId: webSocketApi.ref,
+    //   stageName: stage,
+    //   autoDeploy: true,
+    // });
 
     // ==========================================
     // Outputs

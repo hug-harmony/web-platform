@@ -224,6 +224,9 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       data: { updatedAt: new Date() },
     });
 
+    // Get sender's professional application info (single object, not array)
+    const senderProfApp = message.senderUser?.professionalApplication;
+
     // Format message for broadcast
     const formattedMessage = {
       id: message.id,
@@ -242,11 +245,8 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
           `${message.senderUser?.firstName ?? ""} ${message.senderUser?.lastName ?? ""}`.trim() ||
           "Unknown User",
         profileImage: message.senderUser?.profileImage ?? null,
-        isProfessional:
-          !!message.senderUser?.professionalApplication?.[0]?.professionalId,
-        odI:
-          message.senderUser?.professionalApplication?.[0]?.professionalId ??
-          null,
+        isProfessional: !!senderProfApp?.professionalId,
+        userId: senderProfApp?.professionalId ?? null,
       },
     };
 

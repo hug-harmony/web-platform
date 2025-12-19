@@ -2,8 +2,6 @@
 import { APIGatewayProxyHandler, APIGatewayProxyResult } from "aws-lambda";
 import { saveConnection } from "./utils/dynamo";
 
-const JWT_SECRET = process.env.JWT_SECRET || process.env.NEXTAUTH_SECRET || "";
-
 // Simple JWT decode (for demo - use proper library in production)
 function decodeJWT(
   token: string
@@ -48,14 +46,14 @@ export const handler: APIGatewayProxyHandler = async (
       return { statusCode: 401, body: "Unauthorized: Invalid token" };
     }
 
-    const odI = payload.sub;
+    const userId = payload.sub; // FIXED: Changed from odI to userId
     const conversationIds =
       event.queryStringParameters?.conversations?.split(",").filter(Boolean) ||
       [];
 
     console.log(`Saving connection: ${connectionId} for user: ${userId}`);
 
-    await saveConnection(connectionId, odI, conversationIds);
+    await saveConnection(connectionId, userId, conversationIds); // FIXED: Use userId
 
     console.log(`Connection saved successfully`);
 

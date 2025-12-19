@@ -1,4 +1,3 @@
-// components/chat/ConversationsList.tsx
 "use client";
 
 import { useState, useEffect, useCallback } from "react";
@@ -21,7 +20,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import type { Conversation } from "@/types/chat";
+import type { Conversation, ChatMessage } from "@/types/chat";
 
 interface ConversationsListProps {
   activeConversationId?: string;
@@ -59,8 +58,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
   useWebSocket({
     enabled: status === "authenticated",
     onNewMessage: useCallback(
-      (message) => {
-        // Update the conversation's last message and unread count
+      (message: ChatMessage) => {
         setConversations((prev) =>
           prev.map((conv) => {
             if (conv.id === message.conversationId) {

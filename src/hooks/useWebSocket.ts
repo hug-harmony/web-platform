@@ -3,7 +3,8 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useSession } from "next-auth/react";
-import type { WSMessage, ChatMessage } from "@/lib/websocket/types";
+import type { WSMessage } from "@/lib/websocket/types";
+import type { ChatMessage } from "@/types/chat";
 
 interface UseWebSocketOptions {
   conversationId?: string;

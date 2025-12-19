@@ -1,11 +1,11 @@
-// types/chat.ts
+// src/types/chat.ts
 export interface ChatMessage {
   id: string;
   text: string;
   imageUrl?: string | null;
   createdAt: string;
   senderId: string;
-  odI: string;
+  userId: string;
   isAudio: boolean;
   isSystem?: boolean;
   proposalId?: string | null;
@@ -15,8 +15,9 @@ export interface ChatMessage {
     name: string;
     profileImage: string | null;
     isProfessional: boolean;
-    odI: string | null;
+    userId: string | null;
   };
+  conversationId: string;
 }
 
 export interface Participant {
@@ -53,7 +54,7 @@ export interface ConversationWithMessages extends Conversation {
 
 export interface Proposal {
   id: string;
-  odI: string;
+  userId: string;
   professionalId: string;
   conversationId: string;
   startTime: string | null;
@@ -77,7 +78,7 @@ export interface WSMessage {
   type: "newMessage" | "typing" | "proposalUpdate" | "pong" | "error";
   conversationId?: string;
   message?: ChatMessage;
-  odI?: string;
+  userId?: string;
   proposalId?: string;
   error?: string;
 }

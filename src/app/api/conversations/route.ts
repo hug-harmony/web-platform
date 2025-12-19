@@ -5,7 +5,7 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
 // GET - Fetch all conversations for the current user
-export async function GET(request: NextRequest) {
+export async function GET() {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -16,13 +16,13 @@ export async function GET(request: NextRequest) {
   try {
     // Check if admin
     const user = await prisma.user.findUnique({
-      where: { id: odI },
+      where: { id: userId }, // FIX: Changed from odI to userId
       select: { isAdmin: true },
     });
 
     const whereClause = user?.isAdmin
       ? {}
-      : { OR: [{ userId1: odI }, { userId2: odI }] };
+      : { OR: [{ userId1: userId }, { userId2: userId }] }; // FIX: Changed from odI to userId
 
     // Single optimized query with all needed data
     const conversations = await prisma.conversation.findMany({
@@ -63,10 +63,7 @@ export async function GET(request: NextRequest) {
       orderBy: { updatedAt: "desc" },
     });
 
-    // Calculate unread counts
-    const conversationIds = conversations.map((c) => c.id);
-
-    // Batch query for unread messages
+    // Calculate unread counts using transaction for efficiency
     const unreadCounts = await prisma.$transaction(
       conversations.map((conv) => {
         const readBy = (conv.readBy as Record<string, string> | null) || {};
@@ -77,7 +74,7 @@ export async function GET(request: NextRequest) {
         return prisma.message.count({
           where: {
             conversationId: conv.id,
-            senderId: { not: odI },
+            senderId: { not: userId }, // FIX: Changed from odI to userId
             createdAt: { gt: lastRead },
           },
         });

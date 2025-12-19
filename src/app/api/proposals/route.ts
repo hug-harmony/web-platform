@@ -23,7 +23,7 @@ export async function GET(request: NextRequest) {
   try {
     // Check if user is a professional
     const professionalApp = await prisma.professionalApplication.findUnique({
-      where: { odI },
+      where: { userId },
       select: { status: true, professionalId: true },
     });
 
@@ -46,7 +46,7 @@ export async function GET(request: NextRequest) {
     const whereClause: Record<string, unknown> =
       role === "professional"
         ? { professionalId: professionalApp!.professionalId! }
-        : { odI };
+        : { userId };
 
     if (Object.keys(dateFilter).length > 0) {
       whereClause.startTime = { ...dateFilter, not: null };
@@ -75,7 +75,7 @@ export async function GET(request: NextRequest) {
     return NextResponse.json({
       proposals: proposals.map((p) => ({
         id: p.id,
-        odI: p.userId,
+        userId: p.userId,
         professionalId: p.professionalId,
         conversationId: p.conversationId,
         startTime: p.startTime,
@@ -182,7 +182,7 @@ export async function POST(request: NextRequest) {
       // Get professional's user ID
       const profApp = await prisma.professionalApplication.findFirst({
         where: { professionalId, status: "APPROVED" },
-        select: { odI: true },
+        select: { userId: true },
       });
 
       if (!profApp?.userId) {
@@ -321,7 +321,7 @@ export async function POST(request: NextRequest) {
           "Unknown User",
         profileImage: message.senderUser?.profileImage ?? null,
         isProfessional,
-        odI: professionalApp?.professionalId ?? null,
+        userId: professionalApp?.professionalId ?? null,
       },
     };
 

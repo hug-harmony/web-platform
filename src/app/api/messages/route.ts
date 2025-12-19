@@ -89,6 +89,11 @@ export async function POST(request: NextRequest) {
       data: { updatedAt: new Date() },
     });
 
+    // Get professional application info (it's a single object, not array)
+    const profApp = message.senderUser?.professionalApplication;
+    const isProfessional = !!profApp?.professionalId;
+    const professionalId = profApp?.professionalId ?? null;
+
     // Format message for response and broadcast
     const formattedMessage = {
       id: message.id,
@@ -107,11 +112,8 @@ export async function POST(request: NextRequest) {
           `${message.senderUser?.firstName ?? ""} ${message.senderUser?.lastName ?? ""}`.trim() ||
           "Unknown User",
         profileImage: message.senderUser?.profileImage ?? null,
-        isProfessional:
-          !!message.senderUser?.professionalApplication?.[0]?.professionalId,
-        odI:
-          message.senderUser?.professionalApplication?.[0]?.professionalId ??
-          null,
+        isProfessional,
+        userId: professionalId,
       },
     };
 

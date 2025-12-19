@@ -1,4 +1,3 @@
-// components/chat/MessageInterface.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -80,7 +79,6 @@ const MessageInterface: React.FC = () => {
     enabled: status === "authenticated" && !!conversationId,
     onNewMessage: useCallback((message: ChatMessage) => {
       setMessages((prev) => {
-        // Avoid duplicates
         if (prev.some((m) => m.id === message.id)) {
           return prev;
         }
@@ -88,28 +86,26 @@ const MessageInterface: React.FC = () => {
       });
     }, []),
     onTyping: useCallback(
-      (odI: string) => {
-        if (odI === session?.user?.id) return;
+      (typingUserId: string) => {
+        if (typingUserId === session?.user?.id) return;
 
-        setTypingUsers((prev) => new Set(prev).add(userId));
+        setTypingUsers((prev) => new Set(prev).add(typingUserId));
 
-        // Clear existing timeout for this user
-        const existingTimeout = typingTimeoutRef.current.get(userId);
+        const existingTimeout = typingTimeoutRef.current.get(typingUserId);
         if (existingTimeout) {
           clearTimeout(existingTimeout);
         }
 
-        // Set new timeout to remove typing indicator
         const timeout = setTimeout(() => {
           setTypingUsers((prev) => {
             const next = new Set(prev);
-            next.delete(userId);
+            next.delete(typingUserId);
             return next;
           });
-          typingTimeoutRef.current.delete(userId);
+          typingTimeoutRef.current.delete(typingUserId);
         }, 3000);
 
-        typingTimeoutRef.current.set(odI, timeout);
+        typingTimeoutRef.current.set(typingUserId, timeout);
       },
       [session?.user?.id]
     ),
@@ -150,7 +146,6 @@ const MessageInterface: React.FC = () => {
 
     setLoading(true);
     try {
-      // Single API call with messages included
       const res = await fetch(
         `/api/conversations/${conversationId}?messages=true&limit=100`,
         {
@@ -176,7 +171,6 @@ const MessageInterface: React.FC = () => {
       setConversation(data);
       setMessages(data.messages || []);
 
-      // Mark as read
       fetch(`/api/conversations/${conversationId}`, {
         method: "PATCH",
         credentials: "include",
@@ -195,9 +189,10 @@ const MessageInterface: React.FC = () => {
 
   // Cleanup typing timeouts on unmount
   useEffect(() => {
+    const timeoutMap = typingTimeoutRef.current;
     return () => {
-      typingTimeoutRef.current.forEach((timeout) => clearTimeout(timeout));
-      typingTimeoutRef.current.clear();
+      timeoutMap.forEach((timeout) => clearTimeout(timeout));
+      timeoutMap.clear();
     };
   }, []);
 
@@ -261,7 +256,6 @@ const MessageInterface: React.FC = () => {
     try {
       let imageUrl: string | undefined;
 
-      // Upload image if selected
       if (imagePreview) {
         const fileInput =
           document.querySelector<HTMLInputElement>("#file-input");
@@ -287,7 +281,6 @@ const MessageInterface: React.FC = () => {
         }
       }
 
-      // Send message
       const res = await fetch("/api/messages", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
@@ -307,15 +300,18 @@ const MessageInterface: React.FC = () => {
 
       const newMessage: ChatMessage = await res.json();
 
-      // Add to local state immediately (WebSocket will also send it, but we handle duplicates)
       setMessages((prev) => {
         if (prev.some((m) => m.id === newMessage.id)) {
           return prev;
         }
-        return [...prev, newMessage];
+        // Ensure conversationId is present (fallback if API omits it)
+        const messageWithId: ChatMessage = {
+          ...newMessage,
+          conversationId: conversationId as string,
+        };
+        return [...prev, messageWithId];
       });
 
-      // Clear inputs
       setInput("");
       setImagePreview(null);
       const fileInput = document.querySelector<HTMLInputElement>("#file-input");
@@ -407,7 +403,6 @@ const MessageInterface: React.FC = () => {
           action === "accepted" &&
           data.proposal.initiator === "professional"
         ) {
-          // User accepted professional's proposal - show payment dialog
           const professionalRes = await fetch(
             `/api/professionals/${data.proposal.professionalId}`,
             { credentials: "include" }
@@ -439,7 +434,6 @@ const MessageInterface: React.FC = () => {
           );
         }
 
-        // Refresh messages to update proposal status
         fetchConversationAndMessages();
       } catch (error) {
         const message =

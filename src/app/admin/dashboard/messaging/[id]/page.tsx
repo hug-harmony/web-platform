@@ -1,4 +1,3 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
 "use client";
 
 import { useParams } from "next/navigation";
@@ -11,6 +10,7 @@ import Link from "next/link";
 import { useState, useEffect } from "react";
 import { toast } from "sonner";
 import MessageBubble from "@/components/chat/MessageBubble";
+import type { ChatMessage } from "@/types/chat";
 
 interface Conversation {
   id: string;
@@ -28,17 +28,24 @@ interface Conversation {
   };
 }
 
-interface Message {
+interface ApiMessage {
   id: string;
   text: string;
   imageUrl?: string;
-  createdAt: string | Date; // Allow string or Date
+  createdAt: string | Date;
   senderId: string;
   userId: string;
-  sender: { name: string };
+  sender: {
+    name?: string;
+    profileImage?: string | null;
+    isProfessional?: boolean;
+    userId?: string | null;
+  };
   isAudio: boolean;
+  isSystem?: boolean;
   proposalId?: string;
   proposalStatus?: string;
+  initiator?: "user" | "professional";
 }
 
 const containerVariants = {
@@ -55,17 +62,45 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
+function toChatMessage(msg: ApiMessage, conversationId: string): ChatMessage {
+  return {
+    id: msg.id,
+    text: msg.text,
+    imageUrl: msg.imageUrl || null,
+    createdAt:
+      msg.createdAt instanceof Date
+        ? msg.createdAt.toISOString()
+        : msg.createdAt,
+    senderId: msg.senderId,
+    userId: msg.userId,
+    isAudio: msg.isAudio,
+    isSystem: msg.isSystem,
+    proposalId: msg.proposalId || null,
+    proposalStatus: msg.proposalStatus || null,
+    initiator: msg.initiator || null,
+    conversationId,
+    sender: {
+      name: msg.sender?.name || "Unknown",
+      profileImage: msg.sender?.profileImage || null,
+      isProfessional: msg.sender?.isProfessional || false,
+      userId: msg.sender?.userId || null,
+    },
+  };
+}
+
 export default function ConversationDetailPage() {
   const { id } = useParams();
   const [conversation, setConversation] = useState<Conversation | null>(null);
-  const [messages, setMessages] = useState<Message[]>([]);
+  const [messages, setMessages] = useState<ChatMessage[]>([]);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchData = async () => {
+      if (!id) return;
+
       try {
         setLoading(true);
-        // Fetch conversation
+
         const convResponse = await fetch(`/api/conversations/${id}`);
         if (!convResponse.ok) {
           throw new Error("Failed to fetch conversation");
@@ -73,22 +108,13 @@ export default function ConversationDetailPage() {
         const convData = await convResponse.json();
         setConversation(convData);
 
-        // Fetch messages
         const msgResponse = await fetch(`/api/messages/${id}`);
         if (!msgResponse.ok) {
           throw new Error("Failed to fetch messages");
         }
-        const msgData = await msgResponse.json();
-        // Ensure createdAt is a Date object
-        setMessages(
-          msgData.map((msg: Message) => ({
-            ...msg,
-            createdAt:
-              typeof msg.createdAt === "string"
-                ? new Date(msg.createdAt)
-                : msg.createdAt,
-          }))
-        );
+        const msgData: ApiMessage[] = await msgResponse.json();
+
+        setMessages(msgData.map((msg) => toChatMessage(msg, id as string)));
       } catch (error) {
         console.error("Error fetching data:", error);
         toast.error("Failed to load conversation data");
@@ -96,26 +122,32 @@ export default function ConversationDetailPage() {
         setLoading(false);
       }
     };
-    if (id) {
-      fetchData();
-    }
+
+    fetchData();
   }, [id]);
 
-  // Mock handleProposalAction for admin view (no-op since admin is read-only)
   const handleProposalAction = async (
-    proposalId: string,
-    action: "accepted" | "rejected"
+    _proposalId: string,
+    _action: "accepted" | "rejected"
   ) => {
-    // Admin cannot take actions, so this is a no-op
+    console.log("Admin proposal action attempted:", _proposalId, _action);
     toast.info("Proposal actions are not available in admin view");
   };
 
   if (loading) {
-    return <div className="p-4 text-center">Loading...</div>;
+    return (
+      <div className="p-4 text-center">
+        <div className="animate-pulse">Loading...</div>
+      </div>
+    );
   }
 
   if (!conversation) {
-    return <div className="p-4 text-center">Conversation not found</div>;
+    return (
+      <div className="p-4 text-center text-[#C4C4C4]">
+        Conversation not found
+      </div>
+    );
   }
 
   return (
@@ -134,21 +166,23 @@ export default function ConversationDetailPage() {
           Conversations
         </Link>
         <span>/</span>
-        <span>{conversation.id}</span>
+        <span className="truncate max-w-[200px]">{conversation.id}</span>
       </div>
 
       {/* Conversation Summary */}
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] text-black dark:text-white shadow-lg">
         <CardHeader>
           <div className="flex items-center gap-4">
-            <MessageCircle className="h-16 w-16" />
+            <MessageCircle className="h-16 w-16 flex-shrink-0" />
             <div>
-              <CardTitle className="text-2xl font-bold flex items-center">
+              <CardTitle className="text-2xl font-bold">
                 Conversation between {conversation.user1.firstName}{" "}
                 {conversation.user1.lastName} and {conversation.user2.firstName}{" "}
                 {conversation.user2.lastName}
               </CardTitle>
-              <p className="text-sm opacity-80">Message History</p>
+              <p className="text-sm opacity-80">
+                {messages.length} message{messages.length !== 1 ? "s" : ""}
+              </p>
             </div>
           </div>
         </CardHeader>
@@ -158,34 +192,26 @@ export default function ConversationDetailPage() {
       <Card>
         <CardContent className="p-0">
           <ScrollArea className="h-[500px]">
-            <AnimatePresence>
-              {messages.length > 0 ? (
-                messages.map((msg) => (
-                  <motion.div
-                    key={msg.id}
-                    variants={itemVariants}
-                    className="p-4"
-                  >
-                    <MessageBubble
-                      message={{
-                        ...msg,
-                        createdAt:
-                          msg.createdAt instanceof Date
-                            ? msg.createdAt.toISOString()
-                            : msg.createdAt, // Handle both Date and string
-                      }}
-                      isSender={false} // Admin view, no "own" sender
-                      handleProposalAction={handleProposalAction}
-                      sending={false} // No sending state in admin view
-                    />
-                  </motion.div>
-                ))
-              ) : (
-                <div className="p-4 text-center text-[#C4C4C4]">
-                  No messages found
-                </div>
-              )}
-            </AnimatePresence>
+            <div className="p-4 space-y-2">
+              <AnimatePresence>
+                {messages.length > 0 ? (
+                  messages.map((msg) => (
+                    <motion.div key={msg.id} variants={itemVariants}>
+                      <MessageBubble
+                        message={msg}
+                        isSender={false}
+                        handleProposalAction={handleProposalAction}
+                        sending={false}
+                      />
+                    </motion.div>
+                  ))
+                ) : (
+                  <div className="p-4 text-center text-[#C4C4C4]">
+                    No messages found
+                  </div>
+                )}
+              </AnimatePresence>
+            </div>
           </ScrollArea>
         </CardContent>
       </Card>

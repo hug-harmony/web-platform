@@ -1,30 +1,13 @@
-// lib/websocket/types.ts
+// src/lib/websocket/types.ts
+
+import type { ChatMessage } from "@/types/chat";
+
 export interface WSMessage {
   type: string;
   conversationId?: string;
   message?: ChatMessage;
-  odI?: string;
+  userId?: string;
   error?: string;
-}
-
-export interface ChatMessage {
-  id: string;
-  text: string;
-  imageUrl?: string | null;
-  createdAt: string;
-  senderId: string;
-  userId: string;
-  isAudio: boolean;
-  isSystem?: boolean;
-  proposalId?: string | null;
-  proposalStatus?: string | null;
-  initiator?: string | null;
-  sender: {
-    name: string;
-    profileImage: string | null;
-    isProfessional: boolean;
-    userId: string | null;
-  };
 }
 
 export interface WSConfig {
