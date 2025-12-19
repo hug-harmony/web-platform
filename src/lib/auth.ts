@@ -5,7 +5,7 @@ import CredentialsProvider from "next-auth/providers/credentials";
 import GoogleProvider from "next-auth/providers/google";
 import AppleProvider from "next-auth/providers/apple";
 import FacebookProvider from "next-auth/providers/facebook";
-import jwt from "jsonwebtoken";
+import jwt, { sign } from "jsonwebtoken";
 import prisma from "@/lib/prisma";
 import { generateUniqueUsername } from "@/lib/services/username";
 import {
@@ -531,6 +531,7 @@ export const authOptions: NextAuthOptions = {
       return true;
     },
 
+    /*
     async jwt({ token, user, trigger }) {
       // Initial sign in
       if (user?.id) {
@@ -560,6 +561,65 @@ export const authOptions: NextAuthOptions = {
 
       return token;
     },
+    */
+
+    async jwt({ token, user, trigger }) {
+      // Generate accessToken on initial sign-in
+      if (user?.id) {
+        token.id = user.id;
+        token.isAdmin = user.isAdmin;
+        token.username = user.username;
+        token.emailVerified = !!user.emailVerified;
+
+        // Generate short-lived access token for WebSocket authentication
+        const secret = process.env.NEXTAUTH_SECRET;
+        if (secret) {
+          token.accessToken = sign({ sub: user.id }, secret, {
+            expiresIn: "7d", // Adjust as needed (e.g., "1h" for tighter security)
+          });
+        }
+      }
+
+      // Handle session update
+      if (trigger === "update" && token.id) {
+        const dbUser = await prisma.user.findUnique({
+          where: { id: token.id as string },
+          select: {
+            id: true,
+            isAdmin: true,
+            username: true,
+            emailVerified: true,
+          },
+        });
+        if (dbUser) {
+          token.isAdmin = dbUser.isAdmin;
+          token.username = dbUser.username;
+          token.emailVerified = dbUser.emailVerified;
+
+          // Optionally refresh accessToken on update
+          const secret = process.env.NEXTAUTH_SECRET;
+          if (secret) {
+            token.accessToken = sign({ sub: dbUser.id }, secret, {
+              expiresIn: "7d",
+            });
+          }
+        }
+      }
+
+      return token;
+    },
+
+    /*
+    async session({ session, token }) {
+      if (session.user && token.id) {
+        session.user.id = token.id as string;
+        session.user.isAdmin = (token.isAdmin as boolean) ?? false;
+        session.user.username = (token.username as string) ?? null;
+        session.user.emailVerified = (token.emailVerified as boolean) ?? false;
+      }
+      return session;
+    },
+    */
 
     async session({ session, token }) {
       if (session.user && token.id) {
@@ -567,6 +627,11 @@ export const authOptions: NextAuthOptions = {
         session.user.isAdmin = (token.isAdmin as boolean) ?? false;
         session.user.username = (token.username as string) ?? null;
         session.user.emailVerified = (token.emailVerified as boolean) ?? false;
+
+        // Expose accessToken to client
+        if (token.accessToken) {
+          session.accessToken = token.accessToken as string;
+        }
       }
       return session;
     },

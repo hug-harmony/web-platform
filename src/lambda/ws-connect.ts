@@ -1,21 +1,7 @@
 // lambda/ws-connect.ts
 import { APIGatewayProxyHandler, APIGatewayProxyResult } from "aws-lambda";
+import { verify } from "jsonwebtoken"; // Added import for proper verification
 import { saveConnection } from "./utils/dynamo";
-
-// Simple JWT decode (for demo - use proper library in production)
-function decodeJWT(
-  token: string
-): { sub: string; [key: string]: unknown } | null {
-  try {
-    const parts = token.split(".");
-    if (parts.length !== 3) return null;
-
-    const payload = Buffer.from(parts[1], "base64url").toString("utf-8");
-    return JSON.parse(payload);
-  } catch {
-    return null;
-  }
-}
 
 export const handler: APIGatewayProxyHandler = async (
   event
@@ -38,22 +24,36 @@ export const handler: APIGatewayProxyHandler = async (
       return { statusCode: 401, body: "Unauthorized: No token" };
     }
 
-    // Decode and verify token
-    const payload = decodeJWT(token);
+    // Securely verify the JWT using the same secret as NextAuth
+    const secret = process.env.NEXTAUTH_SECRET;
 
-    if (!payload || !payload.sub) {
-      console.error("Invalid token payload");
+    if (!secret) {
+      console.error("NEXTAUTH_SECRET environment variable is missing");
+      return { statusCode: 500, body: "Server configuration error" };
+    }
+
+    let payload: { sub?: string };
+
+    try {
+      payload = verify(token, secret) as { sub?: string };
+    } catch (err) {
+      console.error("Token verification failed:", err);
       return { statusCode: 401, body: "Unauthorized: Invalid token" };
     }
 
-    const userId = payload.sub; // FIXED: Changed from odI to userId
+    if (!payload.sub) {
+      console.error("Invalid token payload - missing sub");
+      return { statusCode: 401, body: "Unauthorized: Missing user ID" };
+    }
+
+    const userId = payload.sub;
     const conversationIds =
       event.queryStringParameters?.conversations?.split(",").filter(Boolean) ||
       [];
 
     console.log(`Saving connection: ${connectionId} for user: ${userId}`);
 
-    await saveConnection(connectionId, userId, conversationIds); // FIXED: Use userId
+    await saveConnection(connectionId, userId, conversationIds);
 
     console.log(`Connection saved successfully`);
 

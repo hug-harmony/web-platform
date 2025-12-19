@@ -202,7 +202,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "26d78db58285dd5f04e7f081c9a2d8845c2a82ce7c88bae315f8bba495bb4c6f.zip"
+     "S3Key": "c562e6fb8dfbd5d08ea1b5757e304841f5829c99302ce69f0ebb408a1dc08f11.zip"
     },
     "Environment": {
      "Variables": {
@@ -230,7 +230,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/ConnectHandler/Resource",
-    "aws:asset:path": "asset.26d78db58285dd5f04e7f081c9a2d8845c2a82ce7c88bae315f8bba495bb4c6f",
+    "aws:asset:path": "asset.c562e6fb8dfbd5d08ea1b5757e304841f5829c99302ce69f0ebb408a1dc08f11",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
@@ -256,7 +256,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "26d78db58285dd5f04e7f081c9a2d8845c2a82ce7c88bae315f8bba495bb4c6f.zip"
+     "S3Key": "c562e6fb8dfbd5d08ea1b5757e304841f5829c99302ce69f0ebb408a1dc08f11.zip"
     },
     "Environment": {
      "Variables": {
@@ -284,7 +284,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/DisconnectHandler/Resource",
-    "aws:asset:path": "asset.26d78db58285dd5f04e7f081c9a2d8845c2a82ce7c88bae315f8bba495bb4c6f",
+    "aws:asset:path": "asset.c562e6fb8dfbd5d08ea1b5757e304841f5829c99302ce69f0ebb408a1dc08f11",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
@@ -310,7 +310,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "26d78db58285dd5f04e7f081c9a2d8845c2a82ce7c88bae315f8bba495bb4c6f.zip"
+     "S3Key": "c562e6fb8dfbd5d08ea1b5757e304841f5829c99302ce69f0ebb408a1dc08f11.zip"
     },
     "Environment": {
      "Variables": {
@@ -338,7 +338,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/MessageHandler/Resource",
-    "aws:asset:path": "asset.26d78db58285dd5f04e7f081c9a2d8845c2a82ce7c88bae315f8bba495bb4c6f",
+    "aws:asset:path": "asset.c562e6fb8dfbd5d08ea1b5757e304841f5829c99302ce69f0ebb408a1dc08f11",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
