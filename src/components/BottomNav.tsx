@@ -91,7 +91,7 @@ export default function BottomNav() {
         icon: <Package className={iconClass} />,
       },
       {
-        href: `/dashboard/profile/${user.id}/orders`,
+        href: `/dashboard/edit-profile/${user.id}/orders`,
         label: "My Orders",
         icon: <Package className={iconClass} />,
       },
@@ -168,7 +168,7 @@ export default function BottomNav() {
             <div className="px-4 pb-4">
               <button
                 onClick={() =>
-                  handleNavigation(`/dashboard/profile/${user.id}`)
+                  handleNavigation(`/dashboard/edit-profile/${user.id}`)
                 }
                 className="flex items-center gap-3 p-3 w-full rounded-xl bg-gray-50 hover:bg-gray-100 transition-colors"
               >

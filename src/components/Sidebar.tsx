@@ -66,7 +66,7 @@ export default function Sidebar() {
       items.push({
         href:
           applicationStatus === "none"
-            ? "/dashboard/profile/professional-application/status"
+            ? "/dashboard/edit-profile/professional-application/status"
             : "/dashboard/professional/status",
         label:
           applicationStatus === "none" ? "Become a Pro" : "Application Status",
@@ -123,7 +123,7 @@ export default function Sidebar() {
         icon: <Package className={iconClass} />,
       },
       {
-        href: `/dashboard/profile/${user.id}/orders`,
+        href: `/dashboard/edit-profile/${user.id}/orders`,
         label: "My Orders",
         icon: <Package className={iconClass} />,
       },
@@ -160,7 +160,7 @@ export default function Sidebar() {
       <SidebarHeader className="p-4">
         {/* User Profile Card */}
         <button
-          onClick={() => router.push(`/dashboard/profile/${user.id}`)}
+          onClick={() => router.push(`/dashboard/edit-profile/${user.id}`)}
           className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors w-full text-left"
           aria-label="View profile"
         >
