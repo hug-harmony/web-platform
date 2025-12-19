@@ -41,33 +41,55 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
+    // Fetch messages with sender info
     const messages = await prisma.message.findMany({
       where: { conversationId: id },
       orderBy: { createdAt: "asc" },
       include: {
         senderUser: { select: { firstName: true, lastName: true } },
-        proposal: { select: { status: true } },
+        proposal: { select: { status: true, initiator: true } },
       },
     });
 
-    return NextResponse.json(
-      messages.map((msg) => ({
-        id: msg.id,
-        text: msg.text,
-        imageUrl: msg.imageUrl,
-        createdAt: msg.createdAt.toISOString(), // Ensure string output
-        senderId: msg.senderId,
-        userId: msg.recipientId,
-        isAudio: msg.isAudio,
-        proposalId: msg.proposalId,
-        proposalStatus: msg.proposal?.status,
-        sender: {
-          name:
-            `${msg.senderUser?.firstName || ""} ${msg.senderUser?.lastName || ""}`.trim() ||
-            "Unknown User",
-        },
-      }))
+    const formattedMessages = await Promise.all(
+      messages.map(async (msg) => {
+        // Fetch sender details
+        const senderUser = await prisma.user.findUnique({
+          where: { id: msg.senderId },
+          select: {
+            firstName: true,
+            lastName: true,
+            profileImage: true,
+            professionalApplication: {
+              select: { professionalId: true },
+            },
+          },
+        });
+
+        return {
+          id: msg.id,
+          text: msg.text,
+          imageUrl: msg.imageUrl,
+          createdAt: msg.createdAt.toISOString(),
+          senderId: msg.senderId,
+          userId: msg.recipientId,
+          isAudio: msg.isAudio,
+          proposalId: msg.proposalId,
+          proposalStatus: msg.proposal?.status || null,
+          initiator: msg.proposal?.initiator || null,
+          sender: {
+            name:
+              `${senderUser?.firstName || ""} ${senderUser?.lastName || ""}`.trim() ||
+              "Unknown User",
+            profileImage: senderUser?.profileImage || null,
+            isProfessional: !!senderUser?.professionalApplication,
+            userId: senderUser?.professionalApplication?.professionalId || null,
+          },
+        };
+      })
     );
+
+    return NextResponse.json(formattedMessages);
   } catch (error) {
     console.error("Fetch messages error:", error);
     return NextResponse.json(

@@ -16,12 +16,13 @@ interface Message {
   sender: {
     name?: string | null;
     profileImage?: string | null;
-    isProfessional?: boolean; // ← Required for correct routing
+    isProfessional?: boolean;
+    userId?: string | null;
   };
   userId: string;
   proposalId?: string;
   proposalStatus?: string;
-  initiator?: string; // "user" = received request, "professional" = sent proposal
+  initiator?: "user" | "professional";
 }
 
 interface MessageBubbleProps {
@@ -32,6 +33,7 @@ interface MessageBubbleProps {
     action: "accepted" | "rejected"
   ) => Promise<void>;
   sending: boolean;
+  currentUserId: string; // needed for chat
 }
 
 const MessageBubble: React.FC<MessageBubbleProps> = ({
@@ -40,20 +42,10 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   handleProposalAction,
   sending,
 }) => {
-  // Debug log (optional, can be removed later)
-  console.log("MessageBubble:", {
-    messageId: message.id,
-    proposalId: message.proposalId,
-    proposalStatus: message.proposalStatus,
-    isSender,
-    senderId: message.senderId,
-    isProfessional: message.sender.isProfessional,
-  });
-
   // Determine profile link
   const profileHref = message.sender.isProfessional
-    ? `/dashboard/professionals/${message.senderId}`
-    : `/dashboard/users/${message.senderId}`;
+    ? `/dashboard/profile/${message.sender.userId || message.senderId}`
+    : `/dashboard/profile/${message.senderId}`;
 
   return (
     <div className={`flex ${isSender ? "justify-end" : "justify-start"} mb-4`}>
@@ -66,7 +58,7 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               : "bg-gradient-to-br from-[#FCF0ED] to-[#F3CFC6]/50 text-black"
         }`}
       >
-        {/* Clickable Avatar + Name (only for received messages) */}
+        {/* Clickable Avatar + Name */}
         {!isSender && (
           <Link
             href={profileHref}
@@ -82,7 +74,8 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
               </AvatarFallback>
             </Avatar>
             <span className="text-xs font-semibold opacity-80 group-hover:underline group-hover:opacity-100 transition-all">
-              {message.sender.name || "Unknown User"}
+              {message.sender.name || "Unknown User"}{" "}
+              {message.sender.isProfessional ? "(Pro)" : ""}
             </span>
           </Link>
         )}
@@ -168,9 +161,11 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </>
         )}
 
-        {/* Timestamp */}
-        <div className="text-xs opacity-70 mt-2 self-end">
-          {format(new Date(message.createdAt), "HH:mm")}
+        {/* Timestamp & Chat Button */}
+        <div className="flex items-center justify-between mt-2">
+          <div className="text-xs opacity-70">
+            {format(new Date(message.createdAt), "HH:mm")}
+          </div>
         </div>
       </div>
     </div>
