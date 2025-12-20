@@ -1,9 +1,9 @@
-// src\app\api\profile-visits\route.ts
+// src/app/api/profile-visits/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-import { supabase } from "@/lib/supabase";
+import { createProfileVisitNotification } from "@/lib/notifications";
 
 export async function POST(req: NextRequest) {
   try {
@@ -57,41 +57,23 @@ export async function POST(req: NextRequest) {
     const notifyUserId = visitedUserId || professionalId;
     const visitorName = profileVisit.user.name || "Someone";
 
-    // Create notification in Supabase
-    if (supabase && notifyUserId) {
+    // Create notification using AWS DynamoDB (with rate limiting built-in)
+    if (notifyUserId) {
       try {
-        // Rate limit: Check if a notification was already sent in the last hour for this visitor
-        const oneHourAgo = new Date(Date.now() - 60 * 60 * 1000).toISOString();
+        const notification = await createProfileVisitNotification(
+          session.user.id,
+          visitorName,
+          notifyUserId
+        );
 
-        const { data: existingNotif } = await supabase
-          .from("notifications")
-          .select("id")
-          .eq("userid", notifyUserId) // lowercase
-          .eq("type", "profile_visit")
-          .eq("relatedid", session.user.id) // lowercase
-          .gte("timestamp", oneHourAgo)
-          .limit(1);
-
-        // Only create notification if none exists in the last hour
-        if (!existingNotif || existingNotif.length === 0) {
-          const { error: notificationError } = await supabase
-            .from("notifications")
-            .insert({
-              userid: notifyUserId, // lowercase
-              type: "profile_visit",
-              content: `${visitorName} viewed your profile`,
-              unread: true,
-              relatedid: session.user.id, // lowercase
-            });
-
-          if (notificationError) {
-            console.error("Failed to create notification:", notificationError);
-          } else {
-            console.log("Profile visit notification created successfully");
-          }
+        if (notification) {
+          console.log("Profile visit notification created successfully");
+        } else {
+          console.log("Profile visit notification skipped (rate limited)");
         }
       } catch (notifError) {
         console.error("Notification creation error:", notifError);
+        // Don't fail the request if notification fails
       }
     }
 

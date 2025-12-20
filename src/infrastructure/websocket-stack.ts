@@ -15,6 +15,7 @@ export class WebSocketStack extends cdk.Stack {
   public readonly webSocketUrl: string;
   public readonly webSocketApiEndpoint: string;
   public readonly connectionsTableName: string;
+  public readonly notificationsTableName: string;
 
   constructor(scope: Construct, id: string, props?: WebSocketStackProps) {
     super(scope, id, props);
@@ -32,7 +33,7 @@ export class WebSocketStack extends cdk.Stack {
       },
       timeToLiveAttribute: "ttl",
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.DESTROY, // Change to RETAIN for production
+      removalPolicy: cdk.RemovalPolicy.DESTROY,
     });
 
     // GSI for querying by conversation
@@ -56,6 +57,48 @@ export class WebSocketStack extends cdk.Stack {
     });
 
     // ==========================================
+    // DynamoDB Table for Notifications (NEW)
+    // ==========================================
+    const notificationsTable = new dynamodb.Table(this, "Notifications", {
+      tableName: `Notifications-${stage}`,
+      partitionKey: {
+        name: "userId",
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: "timestamp",
+        type: dynamodb.AttributeType.STRING,
+      },
+      timeToLiveAttribute: "ttl",
+      billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+      removalPolicy: cdk.RemovalPolicy.RETAIN, // Keep notifications data
+    });
+
+    // GSI for querying by notification ID
+    notificationsTable.addGlobalSecondaryIndex({
+      indexName: "ByIdIndex",
+      partitionKey: {
+        name: "id",
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // GSI for querying unread notifications by user
+    notificationsTable.addGlobalSecondaryIndex({
+      indexName: "UnreadIndex",
+      partitionKey: {
+        name: "userId",
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: "unread",
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // ==========================================
     // Lambda Execution Role
     // ==========================================
     const lambdaRole = new iam.Role(this, "WebSocketLambdaRole", {
@@ -69,12 +112,14 @@ export class WebSocketStack extends cdk.Stack {
 
     // Grant DynamoDB permissions
     connectionsTable.grantReadWriteData(lambdaRole);
+    notificationsTable.grantReadWriteData(lambdaRole);
 
     // ==========================================
     // Lambda Functions
     // ==========================================
     const lambdaEnvironment = {
       CONNECTIONS_TABLE: connectionsTable.tableName,
+      NOTIFICATIONS_TABLE: notificationsTable.tableName,
       NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || "",
       NODE_OPTIONS: "--enable-source-maps",
     };
@@ -173,8 +218,14 @@ export class WebSocketStack extends cdk.Stack {
       target: `integrations/${messageIntegration.ref}`,
     });
 
-    // Custom routes for specific actions
-    const customRoutes = ["join", "typing", "sendMessage", "ping"];
+    // Custom routes for specific actions (added notification route)
+    const customRoutes = [
+      "join",
+      "typing",
+      "sendMessage",
+      "ping",
+      "notification",
+    ];
     customRoutes.forEach((routeKey) => {
       new apigatewayv2.CfnRoute(this, `${routeKey}Route`, {
         apiId: webSocketApi.ref,
@@ -207,7 +258,7 @@ export class WebSocketStack extends cdk.Stack {
     // ==========================================
     // Stage
     // ==========================================
-    const apiStage = new apigatewayv2.CfnStage(this, "WebSocketStage", {
+    new apigatewayv2.CfnStage(this, "WebSocketStage", {
       apiId: webSocketApi.ref,
       stageName: stage,
       autoDeploy: true,
@@ -219,6 +270,7 @@ export class WebSocketStack extends cdk.Stack {
     this.webSocketUrl = `wss://${webSocketApi.ref}.execute-api.${this.region}.amazonaws.com/${stage}`;
     this.webSocketApiEndpoint = `https://${webSocketApi.ref}.execute-api.${this.region}.amazonaws.com/${stage}`;
     this.connectionsTableName = connectionsTable.tableName;
+    this.notificationsTableName = notificationsTable.tableName;
 
     new cdk.CfnOutput(this, "WebSocketURL", {
       value: this.webSocketUrl,
@@ -236,6 +288,12 @@ export class WebSocketStack extends cdk.Stack {
       value: this.connectionsTableName,
       description: "DynamoDB Connections Table Name",
       exportName: `ChatConnectionsTableName-${stage}`,
+    });
+
+    new cdk.CfnOutput(this, "NotificationsTableName", {
+      value: this.notificationsTableName,
+      description: "DynamoDB Notifications Table Name",
+      exportName: `NotificationsTableName-${stage}`,
     });
 
     new cdk.CfnOutput(this, "ConnectHandlerArn", {

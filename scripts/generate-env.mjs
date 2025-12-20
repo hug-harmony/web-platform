@@ -37,6 +37,7 @@ const envVars = [
   "NEXT_PUBLIC_WEBSOCKET_URL",
   "WEBSOCKET_API_ENDPOINT",
   "CONNECTIONS_TABLE",
+  "NOTIFICATIONS_TABLE",
 ];
 
 const envContent = envVars

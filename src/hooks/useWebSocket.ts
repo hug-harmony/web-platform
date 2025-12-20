@@ -6,11 +6,24 @@ import { useSession } from "next-auth/react";
 import type { WSMessage } from "@/lib/websocket/types";
 import type { ChatMessage } from "@/types/chat";
 
+interface Notification {
+  id: string;
+  userId: string;
+  senderId?: string;
+  type: "message" | "appointment" | "payment" | "profile_visit";
+  content: string;
+  timestamp: string;
+  unread: string;
+  unreadBool: boolean;
+  relatedId?: string;
+}
+
 interface UseWebSocketOptions {
   conversationId?: string;
   onMessage?: (data: WSMessage) => void;
   onNewMessage?: (message: ChatMessage) => void;
   onTyping?: (userId: string) => void;
+  onNotification?: (notification: Notification) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (error: Event) => void;
@@ -23,6 +36,12 @@ interface UseWebSocketReturn {
   send: (data: object) => void;
   sendTyping: () => void;
   joinConversation: (conversationId: string) => void;
+  sendNotification: (
+    targetUserId: string,
+    type: Notification["type"],
+    content: string,
+    relatedId?: string
+  ) => void;
   reconnect: () => void;
 }
 
@@ -31,7 +50,9 @@ const RECONNECT_INTERVAL = 3000;
 const PING_INTERVAL = 30000;
 const MAX_RECONNECT_ATTEMPTS = 5;
 
-export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
+export function useWebSocket(
+  options: UseWebSocketOptions = {}
+): UseWebSocketReturn {
   const { data: session, status } = useSession();
   const wsRef = useRef<WebSocket | null>(null);
   const reconnectTimeoutRef = useRef<NodeJS.Timeout | null>(null);
@@ -46,6 +67,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
     onMessage,
     onNewMessage,
     onTyping,
+    onNotification,
     onConnect,
     onDisconnect,
     onError,
@@ -63,7 +85,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
       pingIntervalRef.current = null;
     }
     if (wsRef.current) {
-      wsRef.current.onclose = null; // Prevent reconnect on intentional close
+      wsRef.current.onclose = null;
       wsRef.current.close();
       wsRef.current = null;
     }
@@ -85,7 +107,6 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
       return;
     }
 
-    // Clean up any existing connection
     cleanup();
 
     try {
@@ -108,14 +129,12 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
         reconnectAttemptsRef.current = 0;
         onConnect?.();
 
-        // Start ping interval to keep connection alive
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
             ws.send(JSON.stringify({ action: "ping" }));
           }
         }, PING_INTERVAL);
 
-        // Join conversation if specified
         if (conversationId) {
           ws.send(JSON.stringify({ action: "join", conversationId }));
         }
@@ -126,10 +145,8 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
           const data = JSON.parse(event.data) as WSMessage;
           console.log("WebSocket: Received", data.type);
 
-          // Call generic handler
           onMessage?.(data);
 
-          // Call specific handlers
           switch (data.type) {
             case "newMessage":
               if (data.message) {
@@ -141,8 +158,12 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
                 onTyping?.(data.userId);
               }
               break;
+            case "notification":
+              if (data.notification) {
+                onNotification?.(data.notification as Notification);
+              }
+              break;
             case "pong":
-              // Keep-alive response, ignore
               break;
             case "error":
               console.error("WebSocket: Server error", data.error);
@@ -162,13 +183,11 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
         setIsConnected(false);
         onDisconnect?.();
 
-        // Clear ping interval
         if (pingIntervalRef.current) {
           clearInterval(pingIntervalRef.current);
           pingIntervalRef.current = null;
         }
 
-        // Attempt to reconnect if not intentionally closed
         if (enabled && reconnectAttemptsRef.current < MAX_RECONNECT_ATTEMPTS) {
           reconnectAttemptsRef.current++;
           const delay =
@@ -208,6 +227,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
     onMessage,
     onNewMessage,
     onTyping,
+    onNotification,
   ]);
 
   // Send function
@@ -219,11 +239,11 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
     }
   }, []);
 
-  // Send typing indicator (debounced internally)
+  // Send typing indicator
   const lastTypingSentRef = useRef(0);
   const sendTyping = useCallback(() => {
     const now = Date.now();
-    if (now - lastTypingSentRef.current < 2000) return; // Debounce 2 seconds
+    if (now - lastTypingSentRef.current < 2000) return;
 
     lastTypingSentRef.current = now;
     send({
@@ -233,12 +253,32 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
     });
   }, [send, conversationId, session?.user?.id]);
 
-  // Join a specific conversation
+  // Join a conversation
   const joinConversation = useCallback(
     (convId: string) => {
       send({ action: "join", conversationId: convId });
     },
     [send]
+  );
+
+  // Send notification via WebSocket
+  const sendNotification = useCallback(
+    (
+      targetUserId: string,
+      type: Notification["type"],
+      content: string,
+      relatedId?: string
+    ) => {
+      send({
+        action: "notification",
+        targetUserId,
+        type,
+        content,
+        senderId: session?.user?.id,
+        relatedId,
+      });
+    },
+    [send, session?.user?.id]
   );
 
   // Manual reconnect
@@ -247,7 +287,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
     connect();
   }, [connect]);
 
-  // Connect on mount, cleanup on unmount
+  // Connect on mount
   useEffect(() => {
     if (status === "authenticated" && enabled) {
       connect();
@@ -271,6 +311,7 @@ export function useWebSocket(options: UseWebSocketOptions): UseWebSocketReturn {
     send,
     sendTyping,
     joinConversation,
+    sendNotification,
     reconnect,
   };
 }

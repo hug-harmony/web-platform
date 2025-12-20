@@ -23,7 +23,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-deploy-role-232247293056-us-east-2",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-cfn-exec-role-232247293056-us-east-2",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/23d98354abbb4e907e16a77b632d015063b3d1abcbe422807155bcc961e1691b.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/812503904bb94662936e1c6c509e86a262c01533337e24f05a9793c1fa9b5efa.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -70,6 +70,20 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "ChatConnectionsFC8BD7F3"
+          }
+        ],
+        "/ChatWebSocketStack-prod/Notifications": [
+          {
+            "type": "aws:cdk:hasPhysicalName",
+            "data": {
+              "Ref": "Notifications87298708"
+            }
+          }
+        ],
+        "/ChatWebSocketStack-prod/Notifications/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "Notifications87298708"
           }
         ],
         "/ChatWebSocketStack-prod/WebSocketLambdaRole/Resource": [
@@ -186,6 +200,12 @@
             "data": "pingRoute"
           }
         ],
+        "/ChatWebSocketStack-prod/notificationRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "notificationRoute"
+          }
+        ],
         "/ChatWebSocketStack-prod/WebSocketStage": [
           {
             "type": "aws:cdk:logicalId",
@@ -208,6 +228,12 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "ConnectionsTableName"
+          }
+        ],
+        "/ChatWebSocketStack-prod/NotificationsTableName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationsTableName"
           }
         ],
         "/ChatWebSocketStack-prod/ConnectHandlerArn": [

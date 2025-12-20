@@ -4,6 +4,7 @@ import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { broadcastToConversation } from "@/lib/websocket/server";
+import { createMessageNotification } from "@/lib/notifications";
 
 export async function POST(request: NextRequest) {
   const session = await getServerSession(authOptions);
@@ -94,6 +95,11 @@ export async function POST(request: NextRequest) {
     const isProfessional = !!profApp?.professionalId;
     const professionalId = profApp?.professionalId ?? null;
 
+    // Get sender name for notification
+    const senderName =
+      `${message.senderUser?.firstName ?? ""} ${message.senderUser?.lastName ?? ""}`.trim() ||
+      "Someone";
+
     // Format message for response and broadcast
     const formattedMessage = {
       id: message.id,
@@ -108,9 +114,7 @@ export async function POST(request: NextRequest) {
       proposalStatus: null,
       initiator: null,
       sender: {
-        name:
-          `${message.senderUser?.firstName ?? ""} ${message.senderUser?.lastName ?? ""}`.trim() ||
-          "Unknown User",
+        name: senderName,
         profileImage: message.senderUser?.profileImage ?? null,
         isProfessional,
         userId: professionalId,
@@ -128,6 +132,17 @@ export async function POST(request: NextRequest) {
       session.user.id // Exclude sender
     ).catch((err) => {
       console.error("WebSocket broadcast error:", err);
+    });
+
+    // Send notification to recipient (non-blocking)
+    createMessageNotification(
+      session.user.id,
+      senderName,
+      recipientId,
+      conversationId,
+      text || (imageUrl ? "📷 Image" : undefined)
+    ).catch((err) => {
+      console.error("Notification error:", err);
     });
 
     return NextResponse.json(formattedMessage, { status: 201 });

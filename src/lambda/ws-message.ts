@@ -7,8 +7,11 @@ import {
 } from "@aws-sdk/client-apigatewaymanagementapi";
 import {
   getConnectionsByConversation,
+  getConnectionsByUser,
   updateVisibleConversation,
   removeConnection,
+  createNotification,
+  NotificationRecord,
 } from "./utils/dynamo";
 
 export const handler: APIGatewayProxyHandler = async (
@@ -81,6 +84,32 @@ export const handler: APIGatewayProxyHandler = async (
         break;
       }
 
+      case "notification": {
+        // Handle sending notification to a specific user
+        const { targetUserId, type, content, senderId, relatedId } = body;
+
+        if (targetUserId && type && content) {
+          // Save notification to DynamoDB
+          const notification = await createNotification(
+            targetUserId,
+            type,
+            content,
+            senderId,
+            relatedId
+          );
+
+          // Send real-time notification to user if they're connected
+          await sendNotificationToUser(apiClient, targetUserId, notification);
+
+          // Send confirmation back to sender
+          await sendToConnection(apiClient, connectionId, {
+            type: "notificationSent",
+            notification,
+          });
+        }
+        break;
+      }
+
       case "ping": {
         await sendToConnection(apiClient, connectionId, { type: "pong" });
         break;
@@ -141,6 +170,27 @@ async function broadcastToConversation(
   const sendPromises = connections
     .filter((conn) => conn.connectionId !== excludeConnectionId)
     .map((conn) => sendToConnection(apiClient, conn.connectionId, data));
+
+  await Promise.allSettled(sendPromises);
+}
+
+async function sendNotificationToUser(
+  apiClient: ApiGatewayManagementApiClient,
+  userId: string,
+  notification: NotificationRecord
+): Promise<void> {
+  const connections = await getConnectionsByUser(userId);
+
+  console.log(
+    `Sending notification to ${connections.length} connections for user ${userId}`
+  );
+
+  const sendPromises = connections.map((conn) =>
+    sendToConnection(apiClient, conn.connectionId, {
+      type: "notification",
+      notification,
+    })
+  );
 
   await Promise.allSettled(sendPromises);
 }

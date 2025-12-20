@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -15,6 +15,7 @@ import {
   Filter,
   Eye,
   CheckCheck,
+  RefreshCw,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -29,18 +30,19 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import { supabase } from "@/lib/supabase";
 import { toast } from "sonner";
+import { useWebSocket } from "@/hooks/useWebSocket";
 
 interface Notification {
   id: string;
-  userid: string;
-  senderid?: string;
+  userId: string;
+  senderId?: string;
   type: "message" | "appointment" | "payment" | "profile_visit";
   content: string;
   timestamp: string;
-  unread: boolean;
-  relatedid?: string;
+  unread: string;
+  unreadBool: boolean;
+  relatedId?: string;
 }
 
 const containerVariants = {
@@ -71,111 +73,116 @@ export default function NotificationsPage() {
   const [showUnreadOnly, setShowUnreadOnly] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const { status } = useSession();
+  const [refreshing, setRefreshing] = useState(false);
+
+  const { data: session, status } = useSession();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!supabase) {
-      setError("Notifications unavailable: Supabase configuration missing");
-      setLoading(false);
-      return;
-    }
+  // Fetch notifications from API
+  const fetchNotifications = useCallback(
+    async (showRefreshToast = false) => {
+      if (status !== "authenticated") return;
 
-    const fetchNotifications = async () => {
       try {
-        const { data, error } = await supabase
-          .from("notifications")
-          .select("*")
-          .order("timestamp", { ascending: false })
-          .limit(50);
-        if (error) {
-          throw new Error("Failed to load notifications");
+        if (showRefreshToast) setRefreshing(true);
+
+        const params = new URLSearchParams();
+        if (typeFilter) params.set("type", typeFilter);
+        if (showUnreadOnly) params.set("unreadOnly", "true");
+
+        const response = await fetch(`/api/notifications?${params.toString()}`);
+
+        if (!response.ok) {
+          throw new Error("Failed to fetch notifications");
         }
-        setNotificationsList(Array.isArray(data) ? data : []);
+
+        const data = await response.json();
+        setNotificationsList(data.notifications || []);
         setError(null);
-      } catch (error) {
-        console.error("Fetch notifications error:", error);
+
+        if (showRefreshToast) {
+          toast.success("Notifications refreshed");
+        }
+      } catch (err) {
+        console.error("Fetch notifications error:", err);
         setError("Failed to load notifications");
       } finally {
         setLoading(false);
+        setRefreshing(false);
       }
-    };
+    },
+    [status, typeFilter, showUnreadOnly]
+  );
+
+  // Initial fetch and refetch when filters change
+  useEffect(() => {
+    if (status === "loading") return;
+
+    if (status === "unauthenticated") {
+      router.push("/login");
+      return;
+    }
 
     fetchNotifications();
+  }, [status, router, fetchNotifications]);
 
-    const channel = supabase
-      .channel("notifications-channel")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "notifications" },
-        (payload) => {
-          const newNotif = payload.new as Notification;
-          setNotificationsList((prev) => [newNotif, ...prev].slice(0, 50));
-        }
-      )
-      .subscribe((status) => console.log("subscription:", status));
+  // WebSocket for real-time notifications
+  const { isConnected } = useWebSocket({
+    enabled: status === "authenticated",
+    onNotification: (notification) => {
+      if (notification.userId === session?.user?.id) {
+        setNotificationsList((prev) => [notification, ...prev].slice(0, 50));
+        toast.info("New notification received!");
+      }
+    },
+  });
 
-    return () => {
-      supabase.removeChannel(channel);
-    };
-  }, []);
-
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
-
-  const handleTypeFilterChange = (value: string) => {
-    setTypeFilter(value);
-  };
-
+  // Mark single notification as read
   const markAsRead = async (id: string) => {
-    if (!supabase) return;
     try {
-      const { error } = await supabase
-        .from("notifications")
-        .update({ unread: false })
-        .eq("id", id);
-      if (error) {
+      const response = await fetch(`/api/notifications/${id}`, {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ unread: false }),
+      });
+
+      if (!response.ok) {
         throw new Error("Failed to mark as read");
       }
+
       setNotificationsList((prev) =>
         prev.map((notif) =>
-          notif.id === id ? { ...notif, unread: false } : notif
+          notif.id === id
+            ? { ...notif, unreadBool: false, unread: "false" }
+            : notif
         )
       );
-    } catch (error) {
-      console.error("Mark as read error:", error);
+    } catch (err) {
+      console.error("Mark as read error:", err);
       toast.error("Failed to mark notification as read");
     }
   };
 
+  // Mark all notifications as read
   const markAllAsRead = async () => {
-    if (!supabase) return;
     try {
-      const unreadIds = notificationsList
-        .filter((n) => n.unread)
-        .map((n) => n.id);
+      const response = await fetch("/api/notifications/mark-all-read", {
+        method: "POST",
+      });
 
-      if (unreadIds.length === 0) {
-        toast.info("No unread notifications");
-        return;
-      }
-
-      const { error } = await supabase
-        .from("notifications")
-        .update({ unread: false })
-        .in("id", unreadIds);
-
-      if (error) {
+      if (!response.ok) {
         throw new Error("Failed to mark all as read");
       }
 
+      const data = await response.json();
+
       setNotificationsList((prev) =>
-        prev.map((notif) => ({ ...notif, unread: false }))
+        prev.map((notif) => ({ ...notif, unreadBool: false, unread: "false" }))
       );
-      toast.success("All notifications marked as read");
-    } catch (error) {
-      console.error("Mark all as read error:", error);
+
+      toast.success(data.message || "All notifications marked as read");
+    } catch (err) {
+      console.error("Mark all as read error:", err);
       toast.error("Failed to mark all as read");
     }
   };
@@ -196,17 +203,17 @@ export default function NotificationsPage() {
   };
 
   const getNotificationLink = (notif: Notification) => {
-    if (!notif.relatedid) return null;
+    if (!notif.relatedId) return null;
 
     switch (notif.type) {
       case "message":
-        return `/dashboard/messaging/${notif.relatedid}`;
+        return `/dashboard/messaging/${notif.relatedId}`;
       case "appointment":
-        return `/dashboard/appointments/${notif.relatedid}`;
+        return `/dashboard/appointments/${notif.relatedId}`;
       case "payment":
-        return `/dashboard/payment/${notif.relatedid}`;
+        return `/dashboard/payment/${notif.relatedId}`;
       case "profile_visit":
-        return `/dashboard/profile/${notif.relatedid}`;
+        return `/dashboard/profile/${notif.relatedId}`;
       default:
         return null;
     }
@@ -227,18 +234,16 @@ export default function NotificationsPage() {
     }
   };
 
+  // Client-side search filter
   const filterNotifications = (data: Notification[]) =>
-    data
-      .filter((notif) =>
-        searchQuery
-          ? notif.content.toLowerCase().includes(searchQuery.toLowerCase())
-          : true
-      )
-      .filter((notif) => (typeFilter ? notif.type === typeFilter : true))
-      .filter((notif) => (showUnreadOnly ? notif.unread : true));
+    data.filter((notif) =>
+      searchQuery
+        ? notif.content.toLowerCase().includes(searchQuery.toLowerCase())
+        : true
+    );
 
   const filteredNotifications = filterNotifications(notificationsList);
-  const unreadCount = notificationsList.filter((n) => n.unread).length;
+  const unreadCount = notificationsList.filter((n) => n.unreadBool).length;
 
   if (status === "loading" || loading) {
     return (
@@ -263,14 +268,12 @@ export default function NotificationsPage() {
             <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
           </CardHeader>
           <CardContent className="space-y-4 pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(3)].map((_, idx) => (
-                <Skeleton
-                  key={idx}
-                  className="h-24 w-full bg-[#C4C4C4]/50 rounded-lg"
-                />
-              ))}
-            </div>
+            {[...Array(5)].map((_, idx) => (
+              <Skeleton
+                key={idx}
+                className="h-20 w-full bg-[#C4C4C4]/50 rounded-lg"
+              />
+            ))}
           </CardContent>
         </Card>
       </motion.div>
@@ -278,7 +281,6 @@ export default function NotificationsPage() {
   }
 
   if (status === "unauthenticated") {
-    router.push("/login");
     return null;
   }
 
@@ -291,14 +293,37 @@ export default function NotificationsPage() {
     >
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
-          <motion.div variants={itemVariants}>
-            <CardTitle className="text-2xl font-bold text-black dark:text-white">
-              Your Notifications
-            </CardTitle>
-            <p className="text-sm opacity-80">
-              Stay updated with your activity •{" "}
-              {unreadCount > 0 ? `${unreadCount} unread` : "All caught up!"}
-            </p>
+          <motion.div
+            variants={itemVariants}
+            className="flex justify-between items-start"
+          >
+            <div>
+              <CardTitle className="text-2xl font-bold text-black dark:text-white flex items-center gap-2">
+                Your Notifications
+                {isConnected && (
+                  <span
+                    className="h-2 w-2 bg-green-500 rounded-full"
+                    title="Real-time connected"
+                  />
+                )}
+              </CardTitle>
+              <p className="text-sm opacity-80">
+                Stay updated with your activity •{" "}
+                {unreadCount > 0 ? `${unreadCount} unread` : "All caught up!"}
+              </p>
+            </div>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => fetchNotifications(true)}
+              disabled={refreshing}
+              className="text-[#F3CFC6] border-[#F3CFC6]"
+            >
+              <RefreshCw
+                className={`h-4 w-4 mr-2 ${refreshing ? "animate-spin" : ""}`}
+              />
+              Refresh
+            </Button>
           </motion.div>
         </CardHeader>
         <CardContent>
@@ -309,7 +334,7 @@ export default function NotificationsPage() {
                 type="text"
                 placeholder="Search notifications..."
                 value={searchQuery}
-                onChange={handleSearchChange}
+                onChange={(e) => setSearchQuery(e.target.value)}
                 className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
               />
             </div>
@@ -332,7 +357,7 @@ export default function NotificationsPage() {
                   </DropdownMenuLabel>
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
-                    onClick={() => handleTypeFilterChange("")}
+                    onClick={() => setTypeFilter("")}
                     className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
                   >
                     All
@@ -341,7 +366,7 @@ export default function NotificationsPage() {
                     (type) => (
                       <DropdownMenuItem
                         key={type}
-                        onClick={() => handleTypeFilterChange(type)}
+                        onClick={() => setTypeFilter(type)}
                         className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
                       >
                         {getTypeLabel(type)}
@@ -391,7 +416,15 @@ export default function NotificationsPage() {
             <motion.div className="space-y-4" variants={containerVariants}>
               <AnimatePresence>
                 {error ? (
-                  <p className="text-center text-red-500">{error}</p>
+                  <div className="text-center py-8">
+                    <p className="text-red-500 mb-4">{error}</p>
+                    <Button
+                      onClick={() => fetchNotifications()}
+                      variant="outline"
+                    >
+                      Try Again
+                    </Button>
+                  </div>
                 ) : filteredNotifications.length > 0 ? (
                   filteredNotifications.map((notif) => {
                     const link = getNotificationLink(notif);
@@ -405,7 +438,7 @@ export default function NotificationsPage() {
                         }}
                         transition={{ duration: 0.2 }}
                         className={`flex items-center justify-between p-4 rounded-md transition-colors ${
-                          notif.unread
+                          notif.unreadBool
                             ? "bg-[#F3CFC6]/20 hover:bg-[#F3CFC6]/30"
                             : "hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10"
                         }`}
@@ -427,7 +460,7 @@ export default function NotificationsPage() {
                           </div>
                         </div>
                         <div className="flex items-center space-x-2">
-                          {notif.unread && (
+                          {notif.unreadBool && (
                             <Button
                               variant="outline"
                               size="sm"
