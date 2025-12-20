@@ -27,7 +27,6 @@ export const handler: APIGatewayProxyHandler = async (
     return { statusCode: 400, body: "Missing connectionId" };
   }
 
-  // Create API Gateway Management API client
   const endpoint = `https://${domainName}/${stage}`;
   const apiClient = new ApiGatewayManagementApiClient({ endpoint });
 
@@ -43,7 +42,6 @@ export const handler: APIGatewayProxyHandler = async (
           await updateVisibleConversation(connectionId, conversationId);
           console.log(`User joined conversation: ${conversationId}`);
 
-          // Send confirmation
           await sendToConnection(apiClient, connectionId, {
             type: "joined",
             conversationId,
@@ -85,11 +83,9 @@ export const handler: APIGatewayProxyHandler = async (
       }
 
       case "notification": {
-        // Handle sending notification to a specific user
         const { targetUserId, type, content, senderId, relatedId } = body;
 
         if (targetUserId && type && content) {
-          // Save notification to DynamoDB
           const notification = await createNotification(
             targetUserId,
             type,
@@ -98,10 +94,8 @@ export const handler: APIGatewayProxyHandler = async (
             relatedId
           );
 
-          // Send real-time notification to user if they're connected
           await sendNotificationToUser(apiClient, targetUserId, notification);
 
-          // Send confirmation back to sender
           await sendToConnection(apiClient, connectionId, {
             type: "notificationSent",
             notification,

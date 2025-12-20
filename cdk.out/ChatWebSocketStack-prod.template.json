@@ -77,10 +77,6 @@
      {
       "AttributeName": "id",
       "AttributeType": "S"
-     },
-     {
-      "AttributeName": "unread",
-      "AttributeType": "S"
      }
     ],
     "BillingMode": "PAY_PER_REQUEST",
@@ -91,22 +87,6 @@
        {
         "AttributeName": "id",
         "KeyType": "HASH"
-       }
-      ],
-      "Projection": {
-       "ProjectionType": "ALL"
-      }
-     },
-     {
-      "IndexName": "UnreadIndex",
-      "KeySchema": [
-       {
-        "AttributeName": "userId",
-        "KeyType": "HASH"
-       },
-       {
-        "AttributeName": "unread",
-        "KeyType": "RANGE"
        }
       ],
       "Projection": {
@@ -308,6 +288,14 @@
        ]
       },
       {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets-??????"
+      },
+      {
        "Action": "execute-api:ManageConnections",
        "Effect": "Allow",
        "Resource": {
@@ -342,7 +330,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "f7ba0b53e52adf2d732473aef00742dce67f07b6f07c91c0e23bc3972817b8bd.zip"
+     "S3Key": "9f370fa9c5fb21e1a8a5b74a2edabded887968216c2db504646b9bc29f22a4d5.zip"
     },
     "Environment": {
      "Variables": {
@@ -352,7 +340,8 @@
       "NOTIFICATIONS_TABLE": {
        "Ref": "Notifications87298708"
       },
-      "NEXTAUTH_SECRET": "",
+      "SECRETS_ARN": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",
+      "SECRETS_NAME": "hug-harmony/prod/secrets",
       "NODE_OPTIONS": "--enable-source-maps"
      }
     },
@@ -373,7 +362,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/ConnectHandler/Resource",
-    "aws:asset:path": "asset.f7ba0b53e52adf2d732473aef00742dce67f07b6f07c91c0e23bc3972817b8bd",
+    "aws:asset:path": "asset.9f370fa9c5fb21e1a8a5b74a2edabded887968216c2db504646b9bc29f22a4d5",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
@@ -399,7 +388,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "f7ba0b53e52adf2d732473aef00742dce67f07b6f07c91c0e23bc3972817b8bd.zip"
+     "S3Key": "9f370fa9c5fb21e1a8a5b74a2edabded887968216c2db504646b9bc29f22a4d5.zip"
     },
     "Environment": {
      "Variables": {
@@ -409,7 +398,8 @@
       "NOTIFICATIONS_TABLE": {
        "Ref": "Notifications87298708"
       },
-      "NEXTAUTH_SECRET": "",
+      "SECRETS_ARN": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",
+      "SECRETS_NAME": "hug-harmony/prod/secrets",
       "NODE_OPTIONS": "--enable-source-maps"
      }
     },
@@ -430,7 +420,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/DisconnectHandler/Resource",
-    "aws:asset:path": "asset.f7ba0b53e52adf2d732473aef00742dce67f07b6f07c91c0e23bc3972817b8bd",
+    "aws:asset:path": "asset.9f370fa9c5fb21e1a8a5b74a2edabded887968216c2db504646b9bc29f22a4d5",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
@@ -456,7 +446,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "f7ba0b53e52adf2d732473aef00742dce67f07b6f07c91c0e23bc3972817b8bd.zip"
+     "S3Key": "9f370fa9c5fb21e1a8a5b74a2edabded887968216c2db504646b9bc29f22a4d5.zip"
     },
     "Environment": {
      "Variables": {
@@ -466,7 +456,8 @@
       "NOTIFICATIONS_TABLE": {
        "Ref": "Notifications87298708"
       },
-      "NEXTAUTH_SECRET": "",
+      "SECRETS_ARN": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",
+      "SECRETS_NAME": "hug-harmony/prod/secrets",
       "NODE_OPTIONS": "--enable-source-maps"
      }
     },
@@ -487,7 +478,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/MessageHandler/Resource",
-    "aws:asset:path": "asset.f7ba0b53e52adf2d732473aef00742dce67f07b6f07c91c0e23bc3972817b8bd",
+    "aws:asset:path": "asset.9f370fa9c5fb21e1a8a5b74a2edabded887968216c2db504646b9bc29f22a4d5",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
@@ -801,7 +792,7 @@
   "CDKMetadata": {
    "Type": "AWS::CDK::Metadata",
    "Properties": {
-    "Analytics": "v2:deflate64:H4sIAAAAAAAA/02OwWrDMAyGn6V3R+uSw85tYbDTSrp7URw1qEnsEMkNwfjdhxMGO/2ffokPlVBWFRwPuEhh274YuIF4U7S9wUXusV0djr5tIP5gM5C5PNwGyTCOEGu/d1te/cB2zeNOyQw4Ni1C/AzOKnuXd//5SvPIIuxdMlLdUYRU4JTDSAXnYHvSMwoZnLhDpQXXVwnx8nCnibPhyyl1M/4Jax90e+im2FFKpibxYbZkNmlu2XX54DvoFDQZ51uCp7y9yhLeP+B4eApzMQenPBLUe/4C+5vgxyYBAAA="
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/02OQWvDMAyFf0vvjtYlh53bwmCnlXT3ojhqUJPYIZIbgvF/H04Y7PS99wQfKqGsKjgecJHCtn0xcAPxpmh7U5P4MFsyuMg9tqvD0bcNxB9sBjKXh9tCMowjxNrv28arH9iuue4pmQHHpkWIn8FZZe/y7X++0jyyCHuXjFR3FCEVOGUYqeAcbE96RiGDE3eotOD6KiFeHu40cTZ8OaVuxj9h7YNuD90UO0rJbK5c2HV5/w46BU3G+ZbgKW+vsoT3DzgensJczMEpjwT1zl8vqcltJgEAAA=="
    },
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/CDKMetadata/Default"
@@ -863,23 +854,9 @@
     "Name": "NotificationsTableName-prod"
    }
   },
-  "ConnectHandlerArn": {
-   "Description": "Connect Lambda ARN",
-   "Value": {
-    "Fn::GetAtt": [
-     "ConnectHandler2FFD52D8",
-     "Arn"
-    ]
-   }
-  },
-  "MessageHandlerArn": {
-   "Description": "Message Lambda ARN",
-   "Value": {
-    "Fn::GetAtt": [
-     "MessageHandlerDFBBCD6B",
-     "Arn"
-    ]
-   }
+  "SecretsArn": {
+   "Description": "Secrets Manager ARN",
+   "Value": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets"
   }
  },
  "Parameters": {

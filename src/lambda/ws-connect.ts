@@ -1,7 +1,8 @@
 // lambda/ws-connect.ts
 import { APIGatewayProxyHandler, APIGatewayProxyResult } from "aws-lambda";
-import { verify } from "jsonwebtoken"; // Added import for proper verification
 import { saveConnection } from "./utils/dynamo";
+import { getNextAuthSecret } from "./utils/secrets";
+import * as jwt from "jsonwebtoken";
 
 export const handler: APIGatewayProxyHandler = async (
   event
@@ -11,55 +12,67 @@ export const handler: APIGatewayProxyHandler = async (
   const connectionId = event.requestContext.connectionId;
 
   if (!connectionId) {
-    console.error("Missing connectionId");
+    console.error("No connectionId found");
     return { statusCode: 400, body: "Missing connectionId" };
   }
 
   try {
     // Get token from query string
     const token = event.queryStringParameters?.token;
+    const conversationsParam = event.queryStringParameters?.conversations;
+
+    console.log("Token present:", !!token);
+    console.log("Conversations param:", conversationsParam);
 
     if (!token) {
       console.error("No token provided");
       return { statusCode: 401, body: "Unauthorized: No token" };
     }
 
-    // Securely verify the JWT using the same secret as NextAuth
-    const secret = process.env.NEXTAUTH_SECRET;
+    // Get secret from Secrets Manager
+    const secret = await getNextAuthSecret();
+    console.log("Secret fetched successfully");
 
-    if (!secret) {
-      console.error("NEXTAUTH_SECRET environment variable is missing");
-      return { statusCode: 500, body: "Server configuration error" };
-    }
-
-    let payload: { sub?: string };
-
+    // Verify JWT
+    let userId: string;
     try {
-      payload = verify(token, secret) as { sub?: string };
-    } catch (err) {
-      console.error("Token verification failed:", err);
+      const decoded = jwt.verify(token, secret) as { sub: string };
+      userId = decoded.sub;
+      console.log("JWT verified, userId:", userId);
+    } catch (jwtError) {
+      console.error("JWT verification failed:", jwtError);
       return { statusCode: 401, body: "Unauthorized: Invalid token" };
     }
 
-    if (!payload.sub) {
-      console.error("Invalid token payload - missing sub");
-      return { statusCode: 401, body: "Unauthorized: Missing user ID" };
-    }
+    // Parse conversation IDs
+    const conversationIds = conversationsParam
+      ? conversationsParam.split(",").filter(Boolean)
+      : [];
 
-    const userId = payload.sub;
-    const conversationIds =
-      event.queryStringParameters?.conversations?.split(",").filter(Boolean) ||
-      [];
+    console.log("Saving connection:", {
+      connectionId,
+      userId,
+      conversationIds,
+    });
 
-    console.log(`Saving connection: ${connectionId} for user: ${userId}`);
-
+    // Save connection to DynamoDB
     await saveConnection(connectionId, userId, conversationIds);
 
-    console.log(`Connection saved successfully`);
+    console.log("Connection saved successfully");
 
     return { statusCode: 200, body: "Connected" };
   } catch (error) {
-    console.error("Connect error:", error);
-    return { statusCode: 500, body: "Failed to connect" };
+    console.error("Connect handler error:", error);
+
+    if (error instanceof Error) {
+      console.error("Error name:", error.name);
+      console.error("Error message:", error.message);
+      console.error("Error stack:", error.stack);
+    }
+
+    return {
+      statusCode: 500,
+      body: `Internal error: ${error instanceof Error ? error.message : "Unknown"}`,
+    };
   }
 };

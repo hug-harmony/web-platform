@@ -23,7 +23,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-deploy-role-232247293056-us-east-2",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-cfn-exec-role-232247293056-us-east-2",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/812503904bb94662936e1c6c509e86a262c01533337e24f05a9793c1fa9b5efa.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/d413424a4dc966d5bce9d1bc59873fba0df51338b1ef17199ece919fda333276.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -236,16 +236,10 @@
             "data": "NotificationsTableName"
           }
         ],
-        "/ChatWebSocketStack-prod/ConnectHandlerArn": [
+        "/ChatWebSocketStack-prod/SecretsArn": [
           {
             "type": "aws:cdk:logicalId",
-            "data": "ConnectHandlerArn"
-          }
-        ],
-        "/ChatWebSocketStack-prod/MessageHandlerArn": [
-          {
-            "type": "aws:cdk:logicalId",
-            "data": "MessageHandlerArn"
+            "data": "SecretsArn"
           }
         ],
         "/ChatWebSocketStack-prod/CDKMetadata/Default": [

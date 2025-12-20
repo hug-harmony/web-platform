@@ -4,6 +4,7 @@ import * as apigatewayv2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
 import * as lambda from "aws-cdk-lib/aws-lambda";
 import * as iam from "aws-cdk-lib/aws-iam";
+import * as secretsmanager from "aws-cdk-lib/aws-secretsmanager";
 import { Construct } from "constructs";
 import * as path from "path";
 
@@ -21,6 +22,15 @@ export class WebSocketStack extends cdk.Stack {
     super(scope, id, props);
 
     const stage = props?.stage || "prod";
+
+    // ==========================================
+    // Secrets Manager - Fetch secrets
+    // ==========================================
+    const appSecrets = secretsmanager.Secret.fromSecretNameV2(
+      this,
+      "AppSecrets",
+      `hug-harmony/${stage}/secrets`
+    );
 
     // ==========================================
     // DynamoDB Table for WebSocket Connections
@@ -57,7 +67,7 @@ export class WebSocketStack extends cdk.Stack {
     });
 
     // ==========================================
-    // DynamoDB Table for Notifications (NEW)
+    // DynamoDB Table for Notifications
     // ==========================================
     const notificationsTable = new dynamodb.Table(this, "Notifications", {
       tableName: `Notifications-${stage}`,
@@ -71,7 +81,7 @@ export class WebSocketStack extends cdk.Stack {
       },
       timeToLiveAttribute: "ttl",
       billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
-      removalPolicy: cdk.RemovalPolicy.RETAIN, // Keep notifications data
+      removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
     // GSI for querying by notification ID
@@ -79,20 +89,6 @@ export class WebSocketStack extends cdk.Stack {
       indexName: "ByIdIndex",
       partitionKey: {
         name: "id",
-        type: dynamodb.AttributeType.STRING,
-      },
-      projectionType: dynamodb.ProjectionType.ALL,
-    });
-
-    // GSI for querying unread notifications by user
-    notificationsTable.addGlobalSecondaryIndex({
-      indexName: "UnreadIndex",
-      partitionKey: {
-        name: "userId",
-        type: dynamodb.AttributeType.STRING,
-      },
-      sortKey: {
-        name: "unread",
         type: dynamodb.AttributeType.STRING,
       },
       projectionType: dynamodb.ProjectionType.ALL,
@@ -114,13 +110,17 @@ export class WebSocketStack extends cdk.Stack {
     connectionsTable.grantReadWriteData(lambdaRole);
     notificationsTable.grantReadWriteData(lambdaRole);
 
+    // Grant Secrets Manager permissions
+    appSecrets.grantRead(lambdaRole);
+
     // ==========================================
     // Lambda Functions
     // ==========================================
     const lambdaEnvironment = {
       CONNECTIONS_TABLE: connectionsTable.tableName,
       NOTIFICATIONS_TABLE: notificationsTable.tableName,
-      NEXTAUTH_SECRET: process.env.NEXTAUTH_SECRET || "",
+      SECRETS_ARN: appSecrets.secretArn,
+      SECRETS_NAME: `hug-harmony/${stage}/secrets`,
       NODE_OPTIONS: "--enable-source-maps",
     };
 
@@ -218,7 +218,7 @@ export class WebSocketStack extends cdk.Stack {
       target: `integrations/${messageIntegration.ref}`,
     });
 
-    // Custom routes for specific actions (added notification route)
+    // Custom routes for specific actions
     const customRoutes = [
       "join",
       "typing",
@@ -296,14 +296,9 @@ export class WebSocketStack extends cdk.Stack {
       exportName: `NotificationsTableName-${stage}`,
     });
 
-    new cdk.CfnOutput(this, "ConnectHandlerArn", {
-      value: connectHandler.functionArn,
-      description: "Connect Lambda ARN",
-    });
-
-    new cdk.CfnOutput(this, "MessageHandlerArn", {
-      value: messageHandler.functionArn,
-      description: "Message Lambda ARN",
+    new cdk.CfnOutput(this, "SecretsArn", {
+      value: appSecrets.secretArn,
+      description: "Secrets Manager ARN",
     });
   }
 }

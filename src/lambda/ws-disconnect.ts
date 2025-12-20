@@ -15,8 +15,7 @@ export const handler: APIGatewayProxyHandler = async (
 
   try {
     await removeConnection(connectionId);
-    console.log(`Connection removed: ${connectionId}`);
-
+    console.log("Connection removed:", connectionId);
     return { statusCode: 200, body: "Disconnected" };
   } catch (error) {
     console.error("Disconnect error:", error);
