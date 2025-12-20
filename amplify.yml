@@ -4,10 +4,11 @@ frontend:
     preBuild:
       commands:
         - npm ci --cache .npm --prefer-offline
-        - node scripts/generate-env.mjs # Generate .env FIRST
-        - npx prisma generate # Then generate Prisma client
+        - node scripts/generate-env.mjs
+        - npx prisma generate
     build:
       commands:
+        - env | grep -E 'NEXT_PUBLIC_' >> .env.production
         - npm run build
   artifacts:
     baseDirectory: .next
