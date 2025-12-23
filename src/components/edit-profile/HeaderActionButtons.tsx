@@ -2,6 +2,7 @@ import { Button } from "@/components/ui/button";
 import { Gem } from "lucide-react";
 import { useRouter } from "next/navigation";
 import { motion } from "framer-motion";
+import PushNotificationManager from "../PushNotificationManager";
 
 interface Props {
   ownProfile: boolean;
@@ -25,33 +26,36 @@ export function HeaderActionButtons({
 
   if (onboardingStep === "APPROVED" && professionalId) {
     return (
-      <div className="flex gap-2">
-        <motion.div variants={itemVariants} whileHover={{ scale: 1.05 }}>
-          <Button
-            variant="outline"
-            onClick={() =>
-              router.push(
-                `/dashboard/discounts?professionalId=${professionalId}`
-              )
-            }
-            className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
-          >
-            Manage Discounts
-          </Button>
-        </motion.div>
-        <motion.div variants={itemVariants} whileHover={{ scale: 1.05 }}>
-          <Button
-            variant="outline"
-            onClick={() =>
-              router.push(
-                `/dashboard/availability?professionalId=${professionalId}`
-              )
-            }
-            className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
-          >
-            Manage Availability
-          </Button>
-        </motion.div>
+      <div className="flex items-center justify-between">
+        <div className="flex gap-2">
+          <motion.div variants={itemVariants} whileHover={{ scale: 1.05 }}>
+            <Button
+              variant="outline"
+              onClick={() =>
+                router.push(
+                  `/dashboard/discounts?professionalId=${professionalId}`
+                )
+              }
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+            >
+              Manage Discounts
+            </Button>
+          </motion.div>
+          <motion.div variants={itemVariants} whileHover={{ scale: 1.05 }}>
+            <Button
+              variant="outline"
+              onClick={() =>
+                router.push(
+                  `/dashboard/availability?professionalId=${professionalId}`
+                )
+              }
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full"
+            >
+              Manage Availability
+            </Button>
+          </motion.div>
+        </div>
+        <PushNotificationManager />
       </div>
     );
   }
