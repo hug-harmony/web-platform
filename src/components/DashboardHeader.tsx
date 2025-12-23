@@ -6,6 +6,7 @@ import Link from "next/link";
 import { SidebarTrigger } from "@/components/ui/sidebar";
 import { Separator } from "@/components/ui/separator";
 import NotificationsDropdown from "@/components/NotificationsDropdown";
+import PushNotificationManager from "./PushNotificationManager";
 
 export default function DashboardHeader() {
   return (
@@ -15,6 +16,7 @@ export default function DashboardHeader() {
 
       <div className="flex-1" />
 
+      <PushNotificationManager />
       <NotificationsDropdown />
 
       <Link

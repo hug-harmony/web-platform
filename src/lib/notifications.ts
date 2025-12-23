@@ -6,6 +6,7 @@ import {
   QueryCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
+import { sendPushToUser, isPushConfigured } from "@/lib/push";
 
 const client = new DynamoDBClient({
   region: process.env.REGION || "us-east-2",
@@ -47,6 +48,43 @@ export interface NotificationRecord {
   ttl: number;
 }
 
+function getPushTitle(type: NotificationType): string {
+  switch (type) {
+    case "message":
+      return "New Message";
+    case "appointment":
+      return "Appointment Update";
+    case "payment":
+      return "Payment Update";
+    case "profile_visit":
+      return "Profile Visitor";
+    default:
+      return "Hug Harmony";
+  }
+}
+
+function getNotificationUrl(
+  type: NotificationType,
+  relatedId?: string
+): string {
+  switch (type) {
+    case "message":
+      return relatedId
+        ? `/dashboard/messaging/${relatedId}`
+        : "/dashboard/messaging";
+    case "appointment":
+      return "/dashboard/appointments";
+    case "payment":
+      return "/dashboard/payment";
+    case "profile_visit":
+      return relatedId
+        ? `/dashboard/profile/${relatedId}`
+        : "/dashboard/profile-visits";
+    default:
+      return "/dashboard/notifications";
+  }
+}
+
 /**
  * Create a notification and optionally send it via WebSocket
  */
@@ -82,6 +120,18 @@ export async function createNotification(
 
   // Send real-time notification via WebSocket
   await sendRealtimeNotification(targetUserId, notification);
+
+  if (isPushConfigured()) {
+    sendPushToUser(targetUserId, {
+      title: getPushTitle(type),
+      body: content,
+      tag: type,
+      url: getNotificationUrl(type, relatedId),
+      data: { type, relatedId, senderId },
+    }).catch((err) => {
+      console.error("Push notification error:", err);
+    });
+  }
 
   return notification;
 }

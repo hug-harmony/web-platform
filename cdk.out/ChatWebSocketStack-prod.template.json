@@ -116,6 +116,42 @@
     "aws:cdk:path": "ChatWebSocketStack-prod/Notifications/Resource"
    }
   },
+  "PushSubscriptions65464CC8": {
+   "Type": "AWS::DynamoDB::Table",
+   "Properties": {
+    "AttributeDefinitions": [
+     {
+      "AttributeName": "userId",
+      "AttributeType": "S"
+     },
+     {
+      "AttributeName": "endpoint",
+      "AttributeType": "S"
+     }
+    ],
+    "BillingMode": "PAY_PER_REQUEST",
+    "KeySchema": [
+     {
+      "AttributeName": "userId",
+      "KeyType": "HASH"
+     },
+     {
+      "AttributeName": "endpoint",
+      "KeyType": "RANGE"
+     }
+    ],
+    "TableName": "PushSubscriptions-prod",
+    "TimeToLiveSpecification": {
+     "AttributeName": "ttl",
+     "Enabled": true
+    }
+   },
+   "UpdateReplacePolicy": "Retain",
+   "DeletionPolicy": "Retain",
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/PushSubscriptions/Resource"
+   }
+  },
   "WebSocketLambdaRole0DF09B59": {
    "Type": "AWS::IAM::Role",
    "Properties": {
@@ -289,6 +325,40 @@
       },
       {
        "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "PushSubscriptions65464CC8",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "PushSubscriptions65464CC8",
+         "Arn"
+        ]
+       }
+      },
+      {
+       "Action": [
         "secretsmanager:GetSecretValue",
         "secretsmanager:DescribeSecret"
        ],
@@ -339,6 +409,9 @@
       },
       "NOTIFICATIONS_TABLE": {
        "Ref": "Notifications87298708"
+      },
+      "PUSH_SUBSCRIPTIONS_TABLE": {
+       "Ref": "PushSubscriptions65464CC8"
       },
       "SECRETS_ARN": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",
       "SECRETS_NAME": "hug-harmony/prod/secrets",
@@ -398,6 +471,9 @@
       "NOTIFICATIONS_TABLE": {
        "Ref": "Notifications87298708"
       },
+      "PUSH_SUBSCRIPTIONS_TABLE": {
+       "Ref": "PushSubscriptions65464CC8"
+      },
       "SECRETS_ARN": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",
       "SECRETS_NAME": "hug-harmony/prod/secrets",
       "NODE_OPTIONS": "--enable-source-maps"
@@ -455,6 +531,9 @@
       },
       "NOTIFICATIONS_TABLE": {
        "Ref": "Notifications87298708"
+      },
+      "PUSH_SUBSCRIPTIONS_TABLE": {
+       "Ref": "PushSubscriptions65464CC8"
       },
       "SECRETS_ARN": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",
       "SECRETS_NAME": "hug-harmony/prod/secrets",
@@ -852,6 +931,15 @@
    },
    "Export": {
     "Name": "NotificationsTableName-prod"
+   }
+  },
+  "PushSubscriptionsTableName": {
+   "Description": "DynamoDB Push Subscriptions Table Name",
+   "Value": {
+    "Ref": "PushSubscriptions65464CC8"
+   },
+   "Export": {
+    "Name": "PushSubscriptionsTableName-prod"
    }
   },
   "SecretsArn": {

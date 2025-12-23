@@ -23,7 +23,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-deploy-role-232247293056-us-east-2",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-cfn-exec-role-232247293056-us-east-2",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/acacd3c8fef7a0802eb9df32685dcec886318edbc3578eec2c0325461ee89463.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/3afd458a6ce11c789fb1bd6f27026eb9d6de51c309a45cfc3e21f6dcad6e90a2.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -84,6 +84,20 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "Notifications87298708"
+          }
+        ],
+        "/ChatWebSocketStack-prod/PushSubscriptions": [
+          {
+            "type": "aws:cdk:hasPhysicalName",
+            "data": {
+              "Ref": "PushSubscriptions65464CC8"
+            }
+          }
+        ],
+        "/ChatWebSocketStack-prod/PushSubscriptions/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PushSubscriptions65464CC8"
           }
         ],
         "/ChatWebSocketStack-prod/WebSocketLambdaRole/Resource": [
@@ -234,6 +248,12 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "NotificationsTableName"
+          }
+        ],
+        "/ChatWebSocketStack-prod/PushSubscriptionsTableName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PushSubscriptionsTableName"
           }
         ],
         "/ChatWebSocketStack-prod/SecretsArn": [

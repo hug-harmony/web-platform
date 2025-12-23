@@ -17,6 +17,7 @@ export class WebSocketStack extends cdk.Stack {
   public readonly webSocketApiEndpoint: string;
   public readonly connectionsTableName: string;
   public readonly notificationsTableName: string;
+  public readonly pushSubscriptionsTableName: string;
 
   constructor(scope: Construct, id: string, props?: WebSocketStackProps) {
     super(scope, id, props);
@@ -95,6 +96,28 @@ export class WebSocketStack extends cdk.Stack {
     });
 
     // ==========================================
+    // DynamoDB Table for Push Subscriptions
+    // ==========================================
+    const pushSubscriptionsTable = new dynamodb.Table(
+      this,
+      "PushSubscriptions",
+      {
+        tableName: `PushSubscriptions-${stage}`,
+        partitionKey: {
+          name: "userId",
+          type: dynamodb.AttributeType.STRING,
+        },
+        sortKey: {
+          name: "endpoint",
+          type: dynamodb.AttributeType.STRING,
+        },
+        timeToLiveAttribute: "ttl",
+        billingMode: dynamodb.BillingMode.PAY_PER_REQUEST,
+        removalPolicy: cdk.RemovalPolicy.RETAIN,
+      }
+    );
+
+    // ==========================================
     // Lambda Execution Role
     // ==========================================
     const lambdaRole = new iam.Role(this, "WebSocketLambdaRole", {
@@ -109,6 +132,7 @@ export class WebSocketStack extends cdk.Stack {
     // Grant DynamoDB permissions
     connectionsTable.grantReadWriteData(lambdaRole);
     notificationsTable.grantReadWriteData(lambdaRole);
+    pushSubscriptionsTable.grantReadWriteData(lambdaRole);
 
     // Grant Secrets Manager permissions
     appSecrets.grantRead(lambdaRole);
@@ -119,6 +143,7 @@ export class WebSocketStack extends cdk.Stack {
     const lambdaEnvironment = {
       CONNECTIONS_TABLE: connectionsTable.tableName,
       NOTIFICATIONS_TABLE: notificationsTable.tableName,
+      PUSH_SUBSCRIPTIONS_TABLE: pushSubscriptionsTable.tableName,
       SECRETS_ARN: appSecrets.secretArn,
       SECRETS_NAME: `hug-harmony/${stage}/secrets`,
       NODE_OPTIONS: "--enable-source-maps",
@@ -271,6 +296,7 @@ export class WebSocketStack extends cdk.Stack {
     this.webSocketApiEndpoint = `https://${webSocketApi.ref}.execute-api.${this.region}.amazonaws.com/${stage}`;
     this.connectionsTableName = connectionsTable.tableName;
     this.notificationsTableName = notificationsTable.tableName;
+    this.pushSubscriptionsTableName = pushSubscriptionsTable.tableName;
 
     new cdk.CfnOutput(this, "WebSocketURL", {
       value: this.webSocketUrl,
@@ -294,6 +320,12 @@ export class WebSocketStack extends cdk.Stack {
       value: this.notificationsTableName,
       description: "DynamoDB Notifications Table Name",
       exportName: `NotificationsTableName-${stage}`,
+    });
+
+    new cdk.CfnOutput(this, "PushSubscriptionsTableName", {
+      value: this.pushSubscriptionsTableName,
+      description: "DynamoDB Push Subscriptions Table Name",
+      exportName: `PushSubscriptionsTableName-${stage}`,
     });
 
     new cdk.CfnOutput(this, "SecretsArn", {

@@ -1,6 +1,7 @@
 {
   "ChatWebSocketStack-prod": {
     "SecretsArn": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",
+    "PushSubscriptionsTableName": "PushSubscriptions-prod",
     "WebSocketURL": "wss://fulvf34l4h.execute-api.us-east-2.amazonaws.com/prod",
     "ConnectionsTableName": "ChatConnections-prod",
     "WebSocketApiEndpoint": "https://fulvf34l4h.execute-api.us-east-2.amazonaws.com/prod",
