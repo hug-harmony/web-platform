@@ -62,8 +62,7 @@ export function EmailVerificationBanner() {
           <div className="flex items-center gap-3">
             <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
             <p className="text-sm text-amber-800">
-              <span className="font-medium">Verify your email</span> to access
-              all features like messaging and booking appointments.
+              <span className="font-medium">Verify your email</span>
             </p>
           </div>
 

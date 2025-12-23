@@ -4,12 +4,14 @@ import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
 
 // Routes that require email verification
+/*
 const VERIFICATION_REQUIRED_ROUTES = [
   "/dashboard/messages",
   "/dashboard/appointments",
   "/dashboard/booking",
   "/professional-application",
 ];
+*/
 
 // Routes that are always public (no auth required)
 const PUBLIC_ROUTES = [
@@ -68,6 +70,7 @@ export default withAuth(
       }
 
       // Check email verification for protected routes
+      /*
       if (!token.emailVerified) {
         const requiresVerification = VERIFICATION_REQUIRED_ROUTES.some(
           (route) => pathname.startsWith(route)
@@ -79,6 +82,7 @@ export default withAuth(
           return NextResponse.redirect(url);
         }
       }
+      */
     }
 
     return NextResponse.next();
