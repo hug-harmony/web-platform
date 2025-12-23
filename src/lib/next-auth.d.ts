@@ -1,3 +1,5 @@
+// C:\DEVELOPER\projects\hug-harmony\src\lib\next-auth.d.ts
+
 import { DefaultSession, DefaultUser } from "next-auth";
 import { DefaultJWT } from "next-auth/jwt";
 

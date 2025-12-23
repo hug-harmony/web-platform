@@ -13,7 +13,7 @@
       "AttributeType": "S"
      },
      {
-      "AttributeName": "odI",
+      "AttributeName": "userId",
       "AttributeType": "S"
      }
     ],
@@ -35,7 +35,7 @@
       "IndexName": "UserIndex",
       "KeySchema": [
        {
-        "AttributeName": "odI",
+        "AttributeName": "userId",
         "KeyType": "HASH"
        }
       ],
@@ -330,7 +330,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "9f370fa9c5fb21e1a8a5b74a2edabded887968216c2db504646b9bc29f22a4d5.zip"
+     "S3Key": "ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b.zip"
     },
     "Environment": {
      "Variables": {
@@ -362,7 +362,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/ConnectHandler/Resource",
-    "aws:asset:path": "asset.9f370fa9c5fb21e1a8a5b74a2edabded887968216c2db504646b9bc29f22a4d5",
+    "aws:asset:path": "asset.ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
@@ -388,7 +388,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "9f370fa9c5fb21e1a8a5b74a2edabded887968216c2db504646b9bc29f22a4d5.zip"
+     "S3Key": "ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b.zip"
     },
     "Environment": {
      "Variables": {
@@ -420,7 +420,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/DisconnectHandler/Resource",
-    "aws:asset:path": "asset.9f370fa9c5fb21e1a8a5b74a2edabded887968216c2db504646b9bc29f22a4d5",
+    "aws:asset:path": "asset.ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
@@ -446,7 +446,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "9f370fa9c5fb21e1a8a5b74a2edabded887968216c2db504646b9bc29f22a4d5.zip"
+     "S3Key": "ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b.zip"
     },
     "Environment": {
      "Variables": {
@@ -478,7 +478,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/MessageHandler/Resource",
-    "aws:asset:path": "asset.9f370fa9c5fb21e1a8a5b74a2edabded887968216c2db504646b9bc29f22a4d5",
+    "aws:asset:path": "asset.ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }

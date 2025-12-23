@@ -32,9 +32,13 @@ export const handler: APIGatewayProxyHandler = async (
 
   try {
     const body = JSON.parse(event.body || "{}");
-    const { action, conversationId, message, odI } = body;
+    const { action, conversationId, message, userId } = body;
 
-    console.log(`Processing action: ${action}`);
+    console.log(`Processing action: ${action}`, {
+      conversationId,
+      userId,
+      hasMessage: !!message,
+    });
 
     switch (action) {
       case "join": {
@@ -51,23 +55,32 @@ export const handler: APIGatewayProxyHandler = async (
       }
 
       case "typing": {
-        if (conversationId && odI) {
+        if (conversationId && userId) {
+          console.log(
+            `Broadcasting typing from ${userId} to conversation ${conversationId}`
+          );
           await broadcastToConversation(
             apiClient,
             conversationId,
             {
               type: "typing",
-              odI,
+              userId,
               conversationId,
             },
             connectionId
           );
+        } else {
+          console.warn("Typing action missing conversationId or userId", {
+            conversationId,
+            userId,
+          });
         }
         break;
       }
 
       case "sendMessage": {
         if (conversationId && message) {
+          console.log(`Broadcasting message to conversation ${conversationId}`);
           await broadcastToConversation(
             apiClient,
             conversationId,
@@ -78,6 +91,8 @@ export const handler: APIGatewayProxyHandler = async (
             },
             connectionId
           );
+        } else {
+          console.warn("sendMessage action missing conversationId or message");
         }
         break;
       }
@@ -86,6 +101,7 @@ export const handler: APIGatewayProxyHandler = async (
         const { targetUserId, type, content, senderId, relatedId } = body;
 
         if (targetUserId && type && content) {
+          console.log(`Creating notification for user ${targetUserId}`);
           const notification = await createNotification(
             targetUserId,
             type,
@@ -99,6 +115,12 @@ export const handler: APIGatewayProxyHandler = async (
           await sendToConnection(apiClient, connectionId, {
             type: "notificationSent",
             notification,
+          });
+        } else {
+          console.warn("notification action missing required fields", {
+            targetUserId,
+            type,
+            content,
           });
         }
         break;
@@ -137,6 +159,7 @@ async function sendToConnection(
         Data: Buffer.from(JSON.stringify(data)),
       })
     );
+    console.log(`Successfully sent to connection ${connectionId}`);
     return true;
   } catch (error) {
     if (error instanceof GoneException) {
@@ -158,14 +181,37 @@ async function broadcastToConversation(
   const connections = await getConnectionsByConversation(conversationId);
 
   console.log(
-    `Broadcasting to ${connections.length} connections in ${conversationId}`
+    `Broadcasting to ${connections.length} connections in conversation ${conversationId}`,
+    { excludeConnectionId }
   );
 
-  const sendPromises = connections
-    .filter((conn) => conn.connectionId !== excludeConnectionId)
-    .map((conn) => sendToConnection(apiClient, conn.connectionId, data));
+  if (connections.length === 0) {
+    console.log(`No connections found for conversation ${conversationId}`);
+    return;
+  }
 
-  await Promise.allSettled(sendPromises);
+  const targetConnections = connections.filter(
+    (conn) => conn.connectionId !== excludeConnectionId
+  );
+
+  console.log(
+    `Sending to ${targetConnections.length} connections (after excluding sender)`
+  );
+
+  const results = await Promise.allSettled(
+    targetConnections.map((conn) =>
+      sendToConnection(apiClient, conn.connectionId, data)
+    )
+  );
+
+  const successful = results.filter(
+    (r) => r.status === "fulfilled" && r.value
+  ).length;
+  const failed = results.filter(
+    (r) => r.status === "rejected" || (r.status === "fulfilled" && !r.value)
+  ).length;
+
+  console.log(`Broadcast complete: ${successful} successful, ${failed} failed`);
 }
 
 async function sendNotificationToUser(
@@ -179,12 +225,26 @@ async function sendNotificationToUser(
     `Sending notification to ${connections.length} connections for user ${userId}`
   );
 
-  const sendPromises = connections.map((conn) =>
-    sendToConnection(apiClient, conn.connectionId, {
-      type: "notification",
-      notification,
-    })
+  if (connections.length === 0) {
+    console.log(
+      `No active connections for user ${userId}, notification saved to DB only`
+    );
+    return;
+  }
+
+  const results = await Promise.allSettled(
+    connections.map((conn) =>
+      sendToConnection(apiClient, conn.connectionId, {
+        type: "notification",
+        notification,
+      })
+    )
   );
 
-  await Promise.allSettled(sendPromises);
+  const successful = results.filter(
+    (r) => r.status === "fulfilled" && r.value
+  ).length;
+  console.log(
+    `Notification sent to ${successful}/${connections.length} connections`
+  );
 }

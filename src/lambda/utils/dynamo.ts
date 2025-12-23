@@ -7,22 +7,23 @@ import {
   QueryCommand,
   UpdateCommand,
 } from "@aws-sdk/lib-dynamodb";
-import { randomUUID } from "crypto"; // ✅ Native Node.js - no external package needed
+import { randomUUID } from "crypto";
 
 const client = new DynamoDBClient({});
 export const docClient = DynamoDBDocumentClient.from(client);
 
-export const TABLE_NAME = process.env.CONNECTIONS_TABLE || "ChatConnections";
+export const TABLE_NAME =
+  process.env.CONNECTIONS_TABLE || "ChatConnections-prod";
 export const NOTIFICATIONS_TABLE =
   process.env.NOTIFICATIONS_TABLE || "Notifications-prod";
 
 // ==========================================
-// Connection Types & Functions (Existing)
+// Connection Types & Functions
 // ==========================================
 
 export interface ConnectionRecord {
   connectionId: string;
-  odI: string;
+  userId: string;
   visibleConversationId: string;
   conversationIds: string[];
   connectedAt: number;
@@ -31,18 +32,25 @@ export interface ConnectionRecord {
 
 export async function saveConnection(
   connectionId: string,
-  odI: string,
+  userId: string,
   conversationIds: string[]
 ): Promise<void> {
   const ttl = Math.floor(Date.now() / 1000) + 24 * 60 * 60; // 24 hours
   const visibleConversationId = conversationIds[0] || "none";
+
+  console.log("Saving connection:", {
+    connectionId,
+    userId,
+    visibleConversationId,
+    conversationIds,
+  });
 
   await docClient.send(
     new PutCommand({
       TableName: TABLE_NAME,
       Item: {
         connectionId,
-        odI,
+        userId,
         visibleConversationId,
         conversationIds,
         connectedAt: Date.now(),
@@ -53,6 +61,7 @@ export async function saveConnection(
 }
 
 export async function removeConnection(connectionId: string): Promise<void> {
+  console.log("Removing connection:", connectionId);
   await docClient.send(
     new DeleteCommand({
       TableName: TABLE_NAME,
@@ -65,6 +74,10 @@ export async function updateVisibleConversation(
   connectionId: string,
   conversationId: string
 ): Promise<void> {
+  console.log("Updating visible conversation:", {
+    connectionId,
+    conversationId,
+  });
   await docClient.send(
     new UpdateCommand({
       TableName: TABLE_NAME,
@@ -79,7 +92,9 @@ export async function updateVisibleConversation(
 
 export async function getConnectionsByConversation(
   conversationId: string
-): Promise<Array<{ connectionId: string; odI: string }>> {
+): Promise<Array<{ connectionId: string; userId: string }>> {
+  console.log("Getting connections for conversation:", conversationId);
+
   const result = await docClient.send(
     new QueryCommand({
       TableName: TABLE_NAME,
@@ -91,34 +106,44 @@ export async function getConnectionsByConversation(
     })
   );
 
-  return (result.Items || []).map((item) => ({
+  const connections = (result.Items || []).map((item) => ({
     connectionId: item.connectionId as string,
-    odI: item.odI as string,
+    userId: item.userId as string,
   }));
+
+  console.log(
+    `Found ${connections.length} connections for conversation ${conversationId}`
+  );
+  return connections;
 }
 
 export async function getConnectionsByUser(
-  odI: string
+  userId: string
 ): Promise<Array<{ connectionId: string; visibleConversationId: string }>> {
+  console.log("Getting connections for user:", userId);
+
   const result = await docClient.send(
     new QueryCommand({
       TableName: TABLE_NAME,
       IndexName: "UserIndex",
-      KeyConditionExpression: "odI = :odI",
+      KeyConditionExpression: "userId = :userId",
       ExpressionAttributeValues: {
-        ":odI": odI,
+        ":userId": userId,
       },
     })
   );
 
-  return (result.Items || []).map((item) => ({
+  const connections = (result.Items || []).map((item) => ({
     connectionId: item.connectionId as string,
     visibleConversationId: item.visibleConversationId as string,
   }));
+
+  console.log(`Found ${connections.length} connections for user ${userId}`);
+  return connections;
 }
 
 // ==========================================
-// Notification Types & Functions (NEW)
+// Notification Types & Functions
 // ==========================================
 
 export interface NotificationRecord {
@@ -128,8 +153,8 @@ export interface NotificationRecord {
   type: "message" | "appointment" | "payment" | "profile_visit";
   content: string;
   timestamp: string;
-  unread: string; // "true" or "false" as string for GSI
-  unreadBool: boolean; // Actual boolean for logic
+  unread: string;
+  unreadBool: boolean;
   relatedId?: string;
   ttl: number;
 }
@@ -145,7 +170,7 @@ export async function createNotification(
   const ttl = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60; // 30 days
 
   const notification: NotificationRecord = {
-    id: randomUUID(), // ✅ Using native crypto
+    id: randomUUID(),
     userId,
     senderId,
     type,
@@ -156,6 +181,8 @@ export async function createNotification(
     relatedId,
     ttl,
   };
+
+  console.log("Creating notification:", { userId, type, content });
 
   await docClient.send(
     new PutCommand({
@@ -178,7 +205,7 @@ export async function getNotificationsByUser(
       ExpressionAttributeValues: {
         ":userId": userId,
       },
-      ScanIndexForward: false, // Descending order (newest first)
+      ScanIndexForward: false,
       Limit: limit,
     })
   );
@@ -223,7 +250,6 @@ export async function markNotificationAsRead(
 export async function markAllNotificationsAsRead(
   userId: string
 ): Promise<number> {
-  // First get all unread notifications
   const result = await docClient.send(
     new QueryCommand({
       TableName: NOTIFICATIONS_TABLE,
@@ -242,7 +268,6 @@ export async function markAllNotificationsAsRead(
     return 0;
   }
 
-  // Update each notification
   const updatePromises = unreadNotifications.map((notif) =>
     markNotificationAsRead(notif.userId, notif.timestamp)
   );

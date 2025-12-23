@@ -17,6 +17,8 @@ const client = new DynamoDBClient({
 
 const docClient = DynamoDBDocumentClient.from(client);
 const TABLE_NAME = process.env.NOTIFICATIONS_TABLE || "Notifications-prod";
+const CONNECTIONS_TABLE =
+  process.env.CONNECTIONS_TABLE || "ChatConnections-prod";
 
 export type NotificationType =
   | "message"
@@ -68,6 +70,8 @@ export async function createNotification(
     relatedId,
     ttl,
   };
+
+  console.log("Creating notification:", { targetUserId, type, content });
 
   await docClient.send(
     new PutCommand({
@@ -136,30 +140,15 @@ async function sendRealtimeNotification(
     // Import dynamically to avoid circular dependencies
     const { ApiGatewayManagementApiClient, PostToConnectionCommand } =
       await import("@aws-sdk/client-apigatewaymanagementapi");
-    const { DynamoDBClient } = await import("@aws-sdk/client-dynamodb");
-    const { DynamoDBDocumentClient, QueryCommand } = await import(
-      "@aws-sdk/lib-dynamodb"
-    );
-
-    const dynamoClient = new DynamoDBClient({
-      region: process.env.REGION || "us-east-2",
-      credentials: {
-        accessKeyId: process.env.ACCESS_KEY_ID!,
-        secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-      },
-    });
-    const dynamoDocClient = DynamoDBDocumentClient.from(dynamoClient);
 
     // Get user's active WebSocket connections
-    const connectionsTable =
-      process.env.CONNECTIONS_TABLE || "ChatConnections-prod";
-    const connectionsResult = await dynamoDocClient.send(
+    const connectionsResult = await docClient.send(
       new QueryCommand({
-        TableName: connectionsTable,
+        TableName: CONNECTIONS_TABLE,
         IndexName: "UserIndex",
-        KeyConditionExpression: "odI = :odI",
+        KeyConditionExpression: "userId = :userId",
         ExpressionAttributeValues: {
-          ":odI": userId,
+          ":userId": userId,
         },
       })
     );
@@ -171,38 +160,46 @@ async function sendRealtimeNotification(
       return;
     }
 
+    console.log(`Found ${connections.length} connections for user ${userId}`);
+
     // Send to all active connections
     const apiClient = new ApiGatewayManagementApiClient({
       endpoint: wsEndpoint,
     });
 
-    const sendPromises = connections.map(async (conn) => {
-      try {
-        await apiClient.send(
-          new PostToConnectionCommand({
-            ConnectionId: conn.connectionId,
-            Data: Buffer.from(
-              JSON.stringify({
-                type: "notification",
-                notification,
-              })
-            ),
-          })
-        );
-      } catch (error: unknown) {
-        // Connection might be stale, ignore GoneException
-        if ((error as { name?: string }).name !== "GoneException") {
-          console.error(
-            `Error sending to connection ${conn.connectionId}:`,
-            error
+    const results = await Promise.allSettled(
+      connections.map(async (conn) => {
+        try {
+          await apiClient.send(
+            new PostToConnectionCommand({
+              ConnectionId: conn.connectionId,
+              Data: Buffer.from(
+                JSON.stringify({
+                  type: "notification",
+                  notification,
+                })
+              ),
+            })
           );
+          return true;
+        } catch (error: unknown) {
+          // Connection might be stale, ignore GoneException
+          if ((error as { name?: string }).name !== "GoneException") {
+            console.error(
+              `Error sending to connection ${conn.connectionId}:`,
+              error
+            );
+          }
+          return false;
         }
-      }
-    });
+      })
+    );
 
-    await Promise.allSettled(sendPromises);
+    const successful = results.filter(
+      (r) => r.status === "fulfilled" && r.value
+    ).length;
     console.log(
-      `Sent notification to ${connections.length} connections for user ${userId}`
+      `Sent notification to ${successful}/${connections.length} connections for user ${userId}`
     );
   } catch (error) {
     console.error("Failed to send real-time notification:", error);
@@ -218,6 +215,11 @@ export async function createProfileVisitNotification(
   visitorName: string,
   visitedUserId: string
 ): Promise<NotificationRecord | null> {
+  // Don't notify if user visits their own profile
+  if (visitorId === visitedUserId) {
+    return null;
+  }
+
   // Rate limit: Check if a notification was already sent in the last hour
   const hasRecent = await hasRecentNotification(
     visitedUserId,

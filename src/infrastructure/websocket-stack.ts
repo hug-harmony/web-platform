@@ -60,7 +60,7 @@ export class WebSocketStack extends cdk.Stack {
     connectionsTable.addGlobalSecondaryIndex({
       indexName: "UserIndex",
       partitionKey: {
-        name: "odI",
+        name: "userId",
         type: dynamodb.AttributeType.STRING,
       },
       projectionType: dynamodb.ProjectionType.ALL,

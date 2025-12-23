@@ -1,3 +1,4 @@
+// C:\DEVELOPER\projects\hug-harmony\src\components\chat\MessageInterface.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";

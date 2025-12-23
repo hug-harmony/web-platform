@@ -11,9 +11,13 @@ import {
   DeleteCommand,
 } from "@aws-sdk/lib-dynamodb";
 
-// Initialize clients
+// Initialize clients with credentials
 const dynamoClient = new DynamoDBClient({
-  region: process.env.AWS_REGION || process.env.REGION || "us-east-1",
+  region: process.env.REGION || "us-east-2",
+  credentials: {
+    accessKeyId: process.env.ACCESS_KEY_ID!,
+    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
+  },
 });
 const docClient = DynamoDBDocumentClient.from(dynamoClient);
 
@@ -21,11 +25,18 @@ const TABLE_NAME = process.env.CONNECTIONS_TABLE || "ChatConnections-prod";
 const WS_ENDPOINT = process.env.WEBSOCKET_API_ENDPOINT;
 
 export interface BroadcastMessage {
-  type: "newMessage" | "typing" | "proposalUpdate" | "read" | "online";
-  conversationId: string;
+  type:
+    | "newMessage"
+    | "typing"
+    | "proposalUpdate"
+    | "read"
+    | "online"
+    | "notification";
+  conversationId?: string;
   message?: unknown;
-  odI?: string;
+  userId?: string;
   proposalId?: string;
+  notification?: unknown;
 }
 
 export interface BroadcastResult {
@@ -59,6 +70,10 @@ export async function broadcastToConversation(
   });
 
   try {
+    console.log(`Broadcasting to conversation ${conversationId}`, {
+      excludeUserId,
+    });
+
     // Query all connections for this conversation
     const result = await docClient.send(
       new QueryCommand({
@@ -72,15 +87,21 @@ export async function broadcastToConversation(
     );
 
     const connections = result.Items || [];
+    console.log(
+      `Found ${connections.length} connections for conversation ${conversationId}`
+    );
 
     // Filter out excluded user if specified
     const targetConnections = excludeUserId
-      ? connections.filter((conn) => conn.odI !== excludeUserId)
+      ? connections.filter((conn) => conn.userId !== excludeUserId)
       : connections;
 
     if (targetConnections.length === 0) {
+      console.log("No target connections to broadcast to");
       return { success: true, sentCount: 0, errors: [] };
     }
+
+    console.log(`Sending to ${targetConnections.length} connections`);
 
     const errors: string[] = [];
     let sentCount = 0;
@@ -96,6 +117,9 @@ export async function broadcastToConversation(
             })
           );
           sentCount++;
+          console.log(
+            `Sent to connection ${conn.connectionId} (user: ${conn.userId})`
+          );
         } catch (error) {
           if (error instanceof GoneException) {
             // Connection is stale, remove it
@@ -109,14 +133,16 @@ export async function broadcastToConversation(
               )
               .catch(console.error);
           } else {
-            errors.push(`Failed to send to ${conn.connectionId}: ${error}`);
+            const errorMsg = `Failed to send to ${conn.connectionId}: ${error}`;
+            console.error(errorMsg);
+            errors.push(errorMsg);
           }
         }
       })
     );
 
     console.log(
-      `Broadcast to conversation ${conversationId}: ${sentCount}/${targetConnections.length} successful`
+      `Broadcast complete: ${sentCount}/${targetConnections.length} successful`
     );
 
     return { success: errors.length === 0, sentCount, errors };
@@ -130,10 +156,11 @@ export async function broadcastToConversation(
  * Send a message to a specific user (all their connections)
  */
 export async function sendToUser(
-  odI: string,
+  userId: string,
   data: BroadcastMessage
 ): Promise<BroadcastResult> {
   if (!WS_ENDPOINT) {
+    console.log("WebSocket endpoint not configured, skipping sendToUser");
     return { success: true, sentCount: 0, errors: [] };
   }
 
@@ -142,19 +169,27 @@ export async function sendToUser(
   });
 
   try {
+    console.log(`Sending to user ${userId}`);
+
     // Query all connections for this user
     const result = await docClient.send(
       new QueryCommand({
         TableName: TABLE_NAME,
         IndexName: "UserIndex",
-        KeyConditionExpression: "odI = :odI",
+        KeyConditionExpression: "userId = :userId",
         ExpressionAttributeValues: {
-          ":odI": odI,
+          ":userId": userId,
         },
       })
     );
 
     const connections = result.Items || [];
+    console.log(`Found ${connections.length} connections for user ${userId}`);
+
+    if (connections.length === 0) {
+      return { success: true, sentCount: 0, errors: [] };
+    }
+
     let sentCount = 0;
     const errors: string[] = [];
 
@@ -170,6 +205,7 @@ export async function sendToUser(
           sentCount++;
         } catch (error) {
           if (error instanceof GoneException) {
+            console.log(`Removing stale connection: ${conn.connectionId}`);
             await docClient
               .send(
                 new DeleteCommand({
@@ -183,6 +219,10 @@ export async function sendToUser(
           }
         }
       })
+    );
+
+    console.log(
+      `SendToUser complete: ${sentCount}/${connections.length} successful`
     );
 
     return { success: errors.length === 0, sentCount, errors };
