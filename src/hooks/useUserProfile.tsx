@@ -11,6 +11,7 @@ import {
   useCallback,
 } from "react";
 import { useSession } from "next-auth/react";
+import { type ProOnboardingStatus } from "@/lib/constants/application-status";
 
 interface Profile {
   id: string;
@@ -24,7 +25,7 @@ interface Profile {
 interface UserContextType {
   user: Profile;
   isProfessional: boolean;
-  applicationStatus: "none" | "pending" | "rejected" | "APPROVED";
+  applicationStatus: ProOnboardingStatus | null; // Full status for banner
   unreadNotifications: number;
   isLoading: boolean;
   refetch: () => Promise<void>;
@@ -37,7 +38,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
   const [profile, setProfile] = useState<Partial<Profile> | null>(null);
   const [isProfessional, setIsProfessional] = useState(false);
   const [applicationStatus, setApplicationStatus] =
-    useState<UserContextType["applicationStatus"]>("none");
+    useState<ProOnboardingStatus | null>(null);
   const [unreadNotifications, setUnreadNotifications] = useState(0);
   const [isLoading, setIsLoading] = useState(true);
 
@@ -53,7 +54,6 @@ export function UserProvider({ children }: { children: ReactNode }) {
             cache: "no-store",
             credentials: "include",
           }),
-          // ✅ FIX: Correct endpoint with query parameter
           fetch("/api/professionals/application?me=true", {
             cache: "no-store",
             credentials: "include",
@@ -81,38 +81,23 @@ export function UserProvider({ children }: { children: ReactNode }) {
         });
       }
 
-      // ✅ FIX: Handle professional status response correctly
+      // Handle professional status response
       if (professionalRes.ok) {
         const data = await professionalRes.json();
-        console.log("Professional status response:", data); // Debug log - remove later
-
-        // The API returns { status, professionalId, application }
-        const appStatus = data.status;
+        const appStatus = data.status as ProOnboardingStatus | null;
 
         // Check if user is approved professional
-        const isApproved = appStatus === "APPROVED";
-        setIsProfessional(isApproved);
+        setIsProfessional(appStatus === "APPROVED");
 
-        // Map status for sidebar display
-        if (!appStatus || appStatus === "none") {
-          setApplicationStatus("none");
-        } else if (appStatus === "APPROVED") {
-          setApplicationStatus("APPROVED");
-        } else if (appStatus === "REJECTED") {
-          setApplicationStatus("rejected");
-        } else {
-          // VIDEO_PENDING, QUIZ_PENDING, QUIZ_FAILED, ADMIN_REVIEW, FORM_PENDING, etc.
-          setApplicationStatus("pending");
-        }
+        // Store the full status (null if no application)
+        setApplicationStatus(appStatus || null);
       } else {
-        // Log error for debugging
         console.error(
           "Failed to fetch professional status:",
           professionalRes.status
         );
-        // Reset to safe defaults
         setIsProfessional(false);
-        setApplicationStatus("none");
+        setApplicationStatus(null);
       }
 
       // Handle notifications response
@@ -122,9 +107,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
     } catch (error) {
       console.error("Fetch Error:", error);
-      // Reset to safe defaults on error
       setIsProfessional(false);
-      setApplicationStatus("none");
+      setApplicationStatus(null);
     } finally {
       setIsLoading(false);
     }
@@ -134,10 +118,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
     if (status === "authenticated") {
       fetchUserData();
     } else if (status === "unauthenticated") {
-      // Reset state when logged out
       setProfile(null);
       setIsProfessional(false);
-      setApplicationStatus("none");
+      setApplicationStatus(null);
       setUnreadNotifications(0);
       setIsLoading(false);
     }

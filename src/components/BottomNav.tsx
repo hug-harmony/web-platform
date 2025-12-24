@@ -21,6 +21,7 @@ import {
   UserSearch,
   LayoutDashboard,
   Sparkles,
+  ClipboardList,
 } from "lucide-react";
 import {
   Sheet,
@@ -36,14 +37,27 @@ import { Separator } from "@/components/ui/separator";
 import { Badge } from "@/components/ui/badge";
 import { useUserProfile } from "@/hooks/useUserProfile";
 
+interface NavItem {
+  href: string;
+  label: string;
+  icon: React.ReactNode;
+  badge?: number;
+  highlight?: boolean;
+}
+
 const iconClass = "h-5 w-5";
 
 export default function BottomNav() {
   const pathname = usePathname();
   const router = useRouter();
   const [open, setOpen] = useState(false);
-  const { user, isProfessional, unreadNotifications } = useUserProfile();
+  const { user, isProfessional, applicationStatus, unreadNotifications } =
+    useUserProfile();
 
+  // User has started application if applicationStatus is not null
+  const hasStartedApplication = applicationStatus !== null;
+
+  // Main bottom tabs (always visible)
   const mainTabs = [
     { href: "/dashboard", label: "Home", icon: <Home className="h-5 w-5" /> },
     {
@@ -58,8 +72,30 @@ export default function BottomNav() {
     },
   ];
 
-  const moreMenuItems = useMemo(() => {
-    const items = [
+  // More menu items - aligned with Sidebar
+  const moreMenuItems = useMemo<NavItem[]>(() => {
+    const items: NavItem[] = [];
+
+    // Professional application item - same logic as Sidebar
+    if (!isProfessional) {
+      if (hasStartedApplication) {
+        items.push({
+          href: "/dashboard/edit-profile/professional-application/status",
+          label: "Application Status",
+          icon: <ClipboardList className={iconClass} />,
+        });
+      } else {
+        items.push({
+          href: "/dashboard/edit-profile/professional-application",
+          label: "Become a Pro",
+          icon: <Sparkles className={iconClass} />,
+          highlight: true,
+        });
+      }
+    }
+
+    // Core navigation items
+    items.push(
       {
         href: "/dashboard",
         label: "Dashboard",
@@ -100,9 +136,10 @@ export default function BottomNav() {
         href: "/dashboard/profile-visits",
         label: "Profile Visits",
         icon: <Eye className={iconClass} />,
-      },
-    ];
+      }
+    );
 
+    // Professional-only items
     if (isProfessional) {
       items.push({
         href: "/dashboard/payment",
@@ -111,16 +148,8 @@ export default function BottomNav() {
       });
     }
 
-    if (!isProfessional) {
-      items.push({
-        href: "/dashboard/edit-profile/professional-application",
-        label: "Become a Pro",
-        icon: <Sparkles className={iconClass} />,
-      });
-    }
-
     return items;
-  }, [user.id, isProfessional, unreadNotifications]);
+  }, [user.id, isProfessional, hasStartedApplication, unreadNotifications]);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -130,6 +159,11 @@ export default function BottomNav() {
   const handleNavigation = (href: string) => {
     router.push(href);
     setOpen(false);
+  };
+
+  const handleLogout = async () => {
+    setOpen(false);
+    await signOut({ callbackUrl: "/login" });
   };
 
   return (
@@ -157,8 +191,16 @@ export default function BottomNav() {
             <button className="flex flex-col items-center justify-center flex-1 h-full gap-0.5 text-gray-500 hover:text-gray-700 relative">
               <MoreHorizontal className="h-5 w-5" />
               <span className="text-[10px] font-medium">More</span>
-              {unreadNotifications > 0 && (
-                <span className="absolute top-2 right-1/4 h-2 w-2 bg-red-500 rounded-full" />
+              {/* Badge indicator for notifications or become a pro prompt */}
+              {(unreadNotifications > 0 ||
+                (!isProfessional && !hasStartedApplication)) && (
+                <span
+                  className={`absolute top-2 right-1/4 h-2 w-2 rounded-full ${
+                    unreadNotifications > 0
+                      ? "bg-red-500"
+                      : "bg-[#F3CFC6] animate-pulse"
+                  }`}
+                />
               )}
             </button>
           </SheetTrigger>
@@ -214,18 +256,33 @@ export default function BottomNav() {
                       whileTap={{ scale: 0.98 }}
                       onClick={() => handleNavigation(item.href)}
                       className={`flex items-center gap-3 p-3 rounded-xl w-full text-left transition-colors ${
-                        active ? "bg-[#F5E6E8]" : "hover:bg-gray-50"
+                        active
+                          ? "bg-[#F5E6E8]"
+                          : item.highlight
+                            ? "bg-gradient-to-r from-[#F3CFC6]/30 to-transparent"
+                            : "hover:bg-gray-50"
                       }`}
                     >
                       <div className="relative">
                         {item.icon}
+                        {/* Badge for notifications */}
                         {item.badge && item.badge > 0 && (
                           <Badge className="absolute -top-2 -right-2 h-4 w-4 p-0 flex items-center justify-center text-[10px] bg-red-500">
                             {item.badge > 9 ? "9+" : item.badge}
                           </Badge>
                         )}
+                        {/* Pulse indicator for highlighted items */}
+                        {item.highlight && !active && (
+                          <span className="absolute -top-1 -right-1 h-2 w-2 bg-[#F3CFC6] rounded-full animate-pulse" />
+                        )}
                       </div>
-                      <span className="font-medium">{item.label}</span>
+                      <span className="font-medium flex-1">{item.label}</span>
+                      {/* Arrow for highlighted items */}
+                      {item.highlight && (
+                        <span className="text-xs text-muted-foreground">
+                          Get started →
+                        </span>
+                      )}
                     </motion.button>
                   );
                 })}
@@ -233,11 +290,11 @@ export default function BottomNav() {
             </ScrollArea>
 
             {/* Logout */}
-            <div className="p-4 border-t">
+            <div className="p-4 border-t bg-white">
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-3 text-red-600 hover:text-red-700 hover:bg-red-50 h-12 rounded-xl"
-                onClick={() => signOut({ callbackUrl: "/login" })}
+                onClick={handleLogout}
               >
                 <LogOut className="h-5 w-5" />
                 <span className="font-medium">Logout</span>

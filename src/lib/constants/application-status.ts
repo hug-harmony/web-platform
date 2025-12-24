@@ -7,6 +7,9 @@ import {
   XCircle,
   AlertCircle,
   Ban,
+  PlayCircle,
+  ClipboardCheck,
+  Sparkles,
 } from "lucide-react";
 
 export type ProOnboardingStatus =
@@ -30,6 +33,19 @@ export interface StatusConfig {
   icon: React.ComponentType<{ className?: string }>;
   description: string;
 }
+
+export interface BannerConfig {
+  label: string;
+  shortLabel: string;
+  description: string;
+  icon: React.ComponentType<{ className?: string }>;
+  href: string;
+  buttonText: string;
+  progress: number;
+  variant: "default" | "warning" | "success" | "error";
+}
+
+const BASE_PATH = "/dashboard/edit-profile/professional-application";
 
 export const STATUS_CONFIG: Record<ProOnboardingStatus, StatusConfig> = {
   FORM_PENDING: {
@@ -104,6 +120,153 @@ export const STATUS_CONFIG: Record<ProOnboardingStatus, StatusConfig> = {
   },
 };
 
+// Banner configuration for the application progress banner
+export const BANNER_CONFIG: Record<ProOnboardingStatus, BannerConfig> = {
+  FORM_PENDING: {
+    label: "Complete Your Application",
+    shortLabel: "Step 1 of 4",
+    description: "Fill out the application form to get started",
+    icon: FileText,
+    href: BASE_PATH,
+    buttonText: "Complete Form",
+    progress: 10,
+    variant: "default",
+  },
+  FORM_SUBMITTED: {
+    label: "Watch Training Video",
+    shortLabel: "Step 2 of 4",
+    description: "Learn about our platform guidelines",
+    icon: PlayCircle,
+    href: `${BASE_PATH}/video`,
+    buttonText: "Watch Video",
+    progress: 25,
+    variant: "default",
+  },
+  VIDEO_PENDING: {
+    label: "Watch Training Video",
+    shortLabel: "Step 2 of 4",
+    description: "Learn about our platform guidelines",
+    icon: PlayCircle,
+    href: `${BASE_PATH}/video`,
+    buttonText: "Watch Video",
+    progress: 35,
+    variant: "default",
+  },
+  QUIZ_PENDING: {
+    label: "Take the Quiz",
+    shortLabel: "Step 3 of 4",
+    description: "Pass the quiz to continue (80% required)",
+    icon: ClipboardCheck,
+    href: `${BASE_PATH}/quiz`,
+    buttonText: "Start Quiz",
+    progress: 60,
+    variant: "default",
+  },
+  QUIZ_FAILED: {
+    label: "Quiz Retry Available",
+    shortLabel: "Step 3 of 4",
+    description: "Check your cooldown status and retry",
+    icon: AlertCircle,
+    href: `${BASE_PATH}/quiz/cooldown`,
+    buttonText: "Check Cooldown",
+    progress: 55,
+    variant: "warning",
+  },
+  QUIZ_PASSED: {
+    label: "Under Admin Review",
+    shortLabel: "Step 4 of 4",
+    description: "Your application is being reviewed",
+    icon: Clock,
+    href: `${BASE_PATH}/status`,
+    buttonText: "View Status",
+    progress: 85,
+    variant: "default",
+  },
+  ADMIN_REVIEW: {
+    label: "Under Admin Review",
+    shortLabel: "Step 4 of 4",
+    description: "We'll notify you once approved",
+    icon: Clock,
+    href: `${BASE_PATH}/status`,
+    buttonText: "View Status",
+    progress: 85,
+    variant: "default",
+  },
+  APPROVED: {
+    label: "You're Approved! 🎉",
+    shortLabel: "Complete",
+    description: "Welcome to the professional team!",
+    icon: Sparkles,
+    href: "/dashboard",
+    buttonText: "Go to Dashboard",
+    progress: 100,
+    variant: "success",
+  },
+  REJECTED: {
+    label: "Application Not Approved",
+    shortLabel: "Action Required",
+    description: "You can submit a new application",
+    icon: XCircle,
+    href: BASE_PATH,
+    buttonText: "Reapply",
+    progress: 0,
+    variant: "error",
+  },
+  SUSPENDED: {
+    label: "Application Suspended",
+    shortLabel: "Contact Support",
+    description: "Please reach out to our support team",
+    icon: Ban,
+    href: "/support",
+    buttonText: "Contact Support",
+    progress: 0,
+    variant: "error",
+  },
+};
+
+// Steps for the status page timeline
+export const APPLICATION_STEPS = [
+  {
+    key: "FORM" as const,
+    label: "Submit Application",
+    description: "Complete the application form with your details",
+    icon: FileText,
+    statuses: ["FORM_PENDING", "FORM_SUBMITTED"] as ProOnboardingStatus[],
+  },
+  {
+    key: "VIDEO" as const,
+    label: "Watch Training Video",
+    description: "Learn about our platform and guidelines",
+    icon: Video,
+    statuses: ["VIDEO_PENDING"] as ProOnboardingStatus[],
+  },
+  {
+    key: "QUIZ" as const,
+    label: "Pass the Quiz",
+    description: "Demonstrate your understanding (80% required)",
+    icon: ClipboardCheck,
+    statuses: [
+      "QUIZ_PENDING",
+      "QUIZ_PASSED",
+      "QUIZ_FAILED",
+    ] as ProOnboardingStatus[],
+  },
+  {
+    key: "REVIEW" as const,
+    label: "Admin Review",
+    description: "Our team will review your application",
+    icon: Clock,
+    statuses: ["ADMIN_REVIEW"] as ProOnboardingStatus[],
+  },
+  {
+    key: "APPROVED" as const,
+    label: "Approved!",
+    description: "Welcome to the professional team",
+    icon: CheckCircle,
+    statuses: ["APPROVED"] as ProOnboardingStatus[],
+  },
+];
+
 export const VENUE_LABELS: Record<VenueType, string> = {
   host: "I host at my location",
   visit: "I visit the client",
@@ -115,6 +278,38 @@ export const VENUE_ICONS: Record<VenueType, string> = {
   visit: "🚗",
   both: "✨",
 };
+
+// Helper to check if application is in progress (not none, approved, or terminal)
+export function isApplicationInProgress(
+  status: ProOnboardingStatus | null | undefined
+): boolean {
+  if (!status) return false;
+  return !["APPROVED", "REJECTED", "SUSPENDED"].includes(status);
+}
+
+// Helper to check if user has started application
+export function hasStartedApplication(
+  status: ProOnboardingStatus | null | undefined
+): boolean {
+  return status !== null && status !== undefined;
+}
+
+// Helper to get step index from status
+export function getStepIndexFromStatus(status: ProOnboardingStatus): number {
+  const stepMap: Record<ProOnboardingStatus, number> = {
+    FORM_PENDING: 0,
+    FORM_SUBMITTED: 0,
+    VIDEO_PENDING: 1,
+    QUIZ_PENDING: 2,
+    QUIZ_PASSED: 3,
+    QUIZ_FAILED: 2,
+    ADMIN_REVIEW: 3,
+    APPROVED: 4,
+    REJECTED: -1,
+    SUSPENDED: -1,
+  };
+  return stepMap[status] ?? 0;
+}
 
 // Helper to format cooldown time
 export function formatCooldown(isoDate: string): string {

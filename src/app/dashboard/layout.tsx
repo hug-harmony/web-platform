@@ -10,6 +10,7 @@ import { LastOnlineUpdater } from "@/components/LastOnlineUpdater";
 import DashboardHeader from "@/components/DashboardHeader";
 import { EmailVerificationBanner } from "@/components/auth/email-verification-banner";
 import IncomingCallDialog from "@/components/IncomingCallDialog";
+import ApplicationProgressBanner from "@/components/ApplicationProgressBanner";
 
 export default function DashboardLayout({
   children,
@@ -19,14 +20,19 @@ export default function DashboardLayout({
   return (
     <ClientSessionProvider>
       <UserProvider>
-        <EmailVerificationBanner />
         <SidebarProvider defaultOpen={true}>
           <div className="flex min-h-screen w-full bg-gray-50/50">
             {/* Desktop Sidebar */}
             <Sidebar />
 
             {/* Main Content Area */}
-            <SidebarInset className="flex flex-col flex-1">
+            <SidebarInset className="flex flex-col flex-1 min-h-screen">
+              {/* Sticky Banners Container */}
+              <div className="sticky top-0 z-40">
+                <EmailVerificationBanner />
+                <ApplicationProgressBanner />
+              </div>
+
               {/* Header - Desktop Only */}
               <DashboardHeader />
 

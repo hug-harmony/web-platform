@@ -1,5 +1,4 @@
 // components/auth/email-verification-banner.tsx
-
 "use client";
 
 import { useState } from "react";
@@ -50,49 +49,57 @@ export function EmailVerificationBanner() {
   };
 
   const handleRefresh = async () => {
-    // Trigger session update to check if email is now verified
     await update();
     toast.info("Session refreshed");
   };
 
   return (
     <div className="bg-amber-50 border-b border-amber-200">
-      <div className="max-w-7xl mx-auto px-4 py-3">
-        <div className="flex items-center justify-center gap-4 flex-wrap">
-          <div className="flex items-center gap-3">
-            <AlertTriangle className="h-5 w-5 text-amber-600 flex-shrink-0" />
-            <p className="text-sm text-amber-800">
+      <div className="max-w-7xl mx-auto px-4 py-2 sm:py-3">
+        <div className="flex items-center justify-between gap-3 sm:gap-4">
+          {/* Left: Icon + Message */}
+          <div className="flex items-center gap-2 sm:gap-3 min-w-0">
+            <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 flex-shrink-0" />
+            <p className="text-xs sm:text-sm text-amber-800 truncate">
               <span className="font-medium">Verify your email</span>
+              <span className="hidden sm:inline text-amber-700">
+                {" "}
+                to access all features
+              </span>
             </p>
           </div>
 
-          <div className="flex items-center gap-2">
+          {/* Right: Actions */}
+          <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <Button
               variant="outline"
               size="sm"
-              className="text-xs bg-white border-amber-300 hover:bg-amber-100"
+              className="text-xs h-7 sm:h-8 px-2 sm:px-3 bg-white border-amber-300 hover:bg-amber-100"
               onClick={handleResend}
               disabled={isResending || resendSuccess}
             >
               {isResending ? (
                 <>
-                  <Loader2 className="h-3 w-3 animate-spin mr-1" />
-                  Sending...
+                  <Loader2 className="h-3 w-3 animate-spin sm:mr-1" />
+                  <span className="hidden sm:inline">Sending...</span>
                 </>
               ) : resendSuccess ? (
                 <>
-                  <CheckCircle2 className="h-3 w-3 mr-1 text-green-600" />
-                  Sent!
+                  <CheckCircle2 className="h-3 w-3 text-green-600 sm:mr-1" />
+                  <span className="hidden sm:inline">Sent!</span>
                 </>
               ) : (
-                "Resend Email"
+                <>
+                  <span className="sm:hidden">Resend</span>
+                  <span className="hidden sm:inline">Resend Email</span>
+                </>
               )}
             </Button>
 
             <Button
               variant="ghost"
               size="sm"
-              className="text-xs text-amber-700 hover:text-amber-900 hover:bg-amber-100"
+              className="text-xs h-7 sm:h-8 px-2 text-amber-700 hover:text-amber-900 hover:bg-amber-100 hidden sm:inline-flex"
               onClick={handleRefresh}
             >
               I&apos;ve verified

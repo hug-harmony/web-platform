@@ -39,6 +39,7 @@ import {
   Sparkles,
   LayoutDashboard,
   UserSearch,
+  ClipboardList,
 } from "lucide-react";
 
 interface NavItem {
@@ -46,6 +47,7 @@ interface NavItem {
   label: string;
   icon: React.ReactNode;
   badge?: number;
+  highlight?: boolean;
 }
 
 const iconClass = "h-5 w-5 shrink-0";
@@ -57,23 +59,30 @@ export default function Sidebar() {
   const { user, isProfessional, applicationStatus, unreadNotifications } =
     useUserProfile();
 
-  // Build navigation items
+  // User has started application if applicationStatus is not null
+  const hasStartedApplication = applicationStatus !== null;
+
   const navItems = useMemo<NavItem[]>(() => {
     const items: NavItem[] = [];
 
-    // Professional application item
+    // Professional application item - only show if not already a professional
     if (!isProfessional) {
-      items.push({
-        href: "/dashboard/edit-profile/professional-application",
-        label:
-          applicationStatus === "none" ? "Become a Pro" : "Application Status",
-        icon:
-          applicationStatus === "none" ? (
-            <Sparkles className={iconClass} />
-          ) : (
-            <Clock className={iconClass} />
-          ),
-      });
+      if (hasStartedApplication) {
+        // User has started - show status link
+        items.push({
+          href: "/dashboard/edit-profile/professional-application/status",
+          label: "Application Status",
+          icon: <ClipboardList className={iconClass} />,
+        });
+      } else {
+        // User hasn't started - show become a pro
+        items.push({
+          href: "/dashboard/edit-profile/professional-application",
+          label: "Become a Pro",
+          icon: <Sparkles className={iconClass} />,
+          highlight: true,
+        });
+      }
     }
 
     // Core navigation
@@ -131,7 +140,6 @@ export default function Sidebar() {
       }
     );
 
-    // Professional-only items
     if (isProfessional) {
       items.push({
         href: "/dashboard/payment",
@@ -141,7 +149,7 @@ export default function Sidebar() {
     }
 
     return items;
-  }, [user.id, isProfessional, applicationStatus, unreadNotifications]);
+  }, [user.id, isProfessional, hasStartedApplication, unreadNotifications]);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -155,7 +163,6 @@ export default function Sidebar() {
   return (
     <ShadcnSidebar collapsible="icon" className="border-r bg-white">
       <SidebarHeader className="p-4">
-        {/* User Profile Card */}
         <button
           onClick={() => router.push(`/dashboard/edit-profile/${user.id}`)}
           className="flex items-center gap-3 p-2 rounded-lg hover:bg-gray-100 transition-colors w-full text-left"
@@ -213,20 +220,22 @@ export default function Sidebar() {
                       <SidebarMenuButton
                         asChild
                         isActive={isActive(item.href)}
-                        className={
-                          isActive(item.href) ? "bg-[#F5E6E8] text-black" : ""
-                        }
+                        className={`
+                          ${isActive(item.href) ? "bg-[#F5E6E8] text-black" : ""}
+                          ${item.highlight && !isActive(item.href) ? "bg-gradient-to-r from-[#F3CFC6]/30 to-transparent" : ""}
+                        `}
                       >
                         <Link href={item.href} className="relative">
                           {item.icon}
-                          {/* Badge for collapsed state */}
                           {item.badge && item.badge > 0 && !open && (
                             <span className="absolute -top-1 -right-1 h-4 w-4 bg-red-500 text-white text-[10px] rounded-full flex items-center justify-center">
                               {item.badge > 9 ? "9+" : item.badge}
                             </span>
                           )}
+                          {item.highlight && !open && (
+                            <span className="absolute -top-1 -right-1 h-3 w-3 bg-[#F3CFC6] rounded-full animate-pulse" />
+                          )}
                           <span className="truncate">{item.label}</span>
-                          {/* Badge for expanded state */}
                           {item.badge && item.badge > 0 && open && (
                             <span className="ml-auto bg-red-500 text-white text-xs px-1.5 py-0.5 rounded-full">
                               {item.badge > 99 ? "99+" : item.badge}
