@@ -58,6 +58,9 @@ const steps: { key: Step; label: string; icon: React.ReactNode }[] = [
   },
 ];
 
+// ✅ FIX: Use consistent base path
+const BASE_PATH = "/dashboard/edit-profile/professional-application";
+
 export default function StatusPage() {
   const [status, setStatus] = useState<StatusData | null>(null);
   const { status: authStatus } = useSession();
@@ -74,8 +77,9 @@ export default function StatusPage() {
     });
     const data = await res.json();
     setStatus(data);
-    if (!data.application)
-      router.push("/dashboard/profile/professional-application");
+
+    // ✅ FIX: Correct path
+    if (!data.application) router.push(BASE_PATH);
   };
 
   if (authStatus === "loading" || !status)
@@ -109,7 +113,6 @@ export default function StatusPage() {
             {steps.map((step, i) => {
               const isActive = i === currentIndex;
               const isDone = i < currentIndex;
-              // const isPending = i > currentIndex;
 
               return (
                 <div key={step.key} className="flex items-center gap-3">
@@ -124,18 +127,15 @@ export default function StatusPage() {
                     >
                       {step.label}
                     </p>
+                    {/* ✅ FIX: Correct paths */}
                     {isActive && status.step === "VIDEO_PENDING" && (
                       <Button asChild size="sm" className="mt-1">
-                        <Link href="/dashboard/profile/professional-application/video">
-                          Continue
-                        </Link>
+                        <Link href={`${BASE_PATH}/video`}>Continue</Link>
                       </Button>
                     )}
                     {isActive && status.step === "QUIZ_PENDING" && (
                       <Button asChild size="sm" className="mt-1">
-                        <Link href="/dashboard/profile/professional-application/quiz">
-                          Take Quiz
-                        </Link>
+                        <Link href={`${BASE_PATH}/quiz`}>Take Quiz</Link>
                       </Button>
                     )}
                   </div>

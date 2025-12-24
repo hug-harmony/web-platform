@@ -392,7 +392,9 @@ export async function PATCH(req: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { id, status } = z
+    const body = await req.json();
+
+    const { id, status, rejectionReason } = z
       .object({
         id: z.string(),
         status: z.enum([
@@ -407,41 +409,79 @@ export async function PATCH(req: NextRequest) {
           "REJECTED",
           "SUSPENDED",
         ]),
+        rejectionReason: z.string().optional(),
       })
-      .parse(await req.json());
+      .parse(body);
 
     const updated = await prisma.$transaction(async (tx) => {
       const app = await tx.professionalApplication.findUnique({
         where: { id },
-        include: { user: true },
+        include: {
+          user: {
+            select: {
+              id: true,
+              name: true,
+              firstName: true,
+              email: true,
+              profileImage: true,
+              biography: true,
+              location: true,
+            },
+          },
+        },
       });
 
       if (!app) {
         throw new Error("Application not found");
       }
 
-      /* REJECT – clean up */
+      const userName = app.user.name || app.user.firstName || "User";
+
+      /* REJECT – clean up and notify */
       if (status === "REJECTED") {
         if (app.professionalId) {
           await tx.professional.deleteMany({
             where: { id: app.professionalId },
           });
         }
-        await tx.professionalApplication.deleteMany({ where: { id } });
-        return { ...app, status: "REJECTED", professionalId: null };
+
+        // Update application status instead of deleting (keep for records)
+        const updated = await tx.professionalApplication.update({
+          where: { id },
+          data: {
+            status: "REJECTED",
+            professionalId: null,
+          },
+          include: { user: { select: { name: true, email: true } } },
+        });
+
+        // Send rejection email (non-blocking)
+        if (app.user.email) {
+          import("@/lib/services/email").then(
+            ({ sendApplicationRejectedEmail }) => {
+              sendApplicationRejectedEmail(
+                app.user.email,
+                userName,
+                rejectionReason || null
+              ).catch(console.error);
+            }
+          );
+        }
+
+        return updated;
       }
 
-      /* APPROVE – create Professional if needed */
+      /* APPROVE – create Professional if needed and notify */
       let professionalId: string | null = app.professionalId;
 
       if (status === "APPROVED" && !app.professionalId) {
-        if (!app.user.name) {
+        if (!app.user.name && !app.user.firstName) {
           throw new Error("User must have a name");
         }
 
         const professional = await tx.professional.create({
           data: {
-            name: app.user.name,
+            name: app.user.name || app.user.firstName || "Professional",
             biography: app.user.biography ?? "",
             rate: app.rate,
             venue: app.venue,
@@ -451,18 +491,33 @@ export async function PATCH(req: NextRequest) {
         });
 
         professionalId = professional.id;
+
+        // Send approval email (non-blocking)
+        if (app.user.email) {
+          import("@/lib/services/email").then(
+            ({ sendApplicationApprovedEmail }) => {
+              sendApplicationApprovedEmail(app.user.email, userName).catch(
+                console.error
+              );
+            }
+          );
+        }
       }
 
       return await tx.professionalApplication.update({
         where: { id },
         data: { status, professionalId },
-        include: { user: { select: { name: true } } },
+        include: { user: { select: { name: true, email: true } } },
       });
     });
 
     return NextResponse.json({
-      ...updated,
-      name: updated.user?.name ?? "Unknown",
+      success: true,
+      application: {
+        id: updated.id,
+        status: updated.status,
+        name: updated.user?.name ?? "Unknown",
+      },
     });
   } catch (error: unknown) {
     console.error("PATCH error:", error);

@@ -52,7 +52,8 @@ export function UserProvider({ children }: { children: ReactNode }) {
             cache: "no-store",
             credentials: "include",
           }),
-          fetch("/api/professionals/application/me", {
+          // ✅ FIX: Correct endpoint with query parameter
+          fetch("/api/professionals/application?me=true", {
             cache: "no-store",
             credentials: "include",
           }),
@@ -79,9 +80,23 @@ export function UserProvider({ children }: { children: ReactNode }) {
       }
 
       if (professionalRes.ok) {
-        const { status: appStatus } = await professionalRes.json();
+        const data = await professionalRes.json();
+        // ✅ FIX: Handle the response structure correctly
+        // The API returns { status, professionalId, application }
+        const appStatus = data.status || "none";
         setIsProfessional(appStatus === "APPROVED");
-        setApplicationStatus(appStatus || "none");
+
+        // Map to the expected status types
+        if (
+          appStatus === "none" ||
+          appStatus === "APPROVED" ||
+          appStatus === "REJECTED"
+        ) {
+          setApplicationStatus(appStatus);
+        } else {
+          // All other statuses (VIDEO_PENDING, QUIZ_PENDING, etc.) are "pending"
+          setApplicationStatus("pending");
+        }
       }
 
       if (notificationsRes.ok) {

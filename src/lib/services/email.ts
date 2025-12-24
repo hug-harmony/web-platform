@@ -265,6 +265,151 @@ The Hug Harmony Team`,
   };
 }
 
+// Application Approved Email Template
+function getApplicationApprovedEmailTemplate(
+  firstName: string,
+  dashboardUrl: string
+): EmailTemplate {
+  return {
+    subject: "🎉 Congratulations! Your Professional Application is Approved",
+    text: `Hello ${firstName},
+
+Great news! Your application to become a Hug Harmony professional has been approved!
+
+You can now:
+- Set up your availability
+- Start receiving booking requests
+- Manage your professional profile
+
+Get started here: ${dashboardUrl}
+
+Welcome to the team!
+
+Warm hugs,
+The Hug Harmony Team`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
+  </div>
+  
+  <div style="text-align: center; margin-bottom: 20px;">
+    <span style="font-size: 48px;">🎉</span>
+  </div>
+  
+  <h2 style="color: #333; text-align: center;">Congratulations, ${firstName}!</h2>
+  
+  <p style="text-align: center; font-size: 18px;">Your application to become a Hug Harmony professional has been <strong style="color: #10b981;">approved</strong>!</p>
+  
+  <div style="background-color: #f0fdf4; border: 1px solid #10b981; padding: 20px; border-radius: 8px; margin: 20px 0;">
+    <p style="margin: 0; color: #166534;"><strong>You can now:</strong></p>
+    <ul style="color: #166534; margin: 10px 0;">
+      <li>Set up your availability schedule</li>
+      <li>Start receiving booking requests</li>
+      <li>Manage your professional profile</li>
+      <li>Connect with clients</li>
+    </ul>
+  </div>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${dashboardUrl}" 
+       style="background-color: #10b981; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+      Go to Dashboard
+    </a>
+  </div>
+  
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  
+  <p style="text-align: center; color: #666;">Welcome to the team! We're excited to have you.</p>
+  
+  <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
+</body>
+</html>`,
+  };
+}
+
+// Application Rejected Email Template
+function getApplicationRejectedEmailTemplate(
+  firstName: string,
+  reason: string | null,
+  reapplyUrl: string
+): EmailTemplate {
+  const reasonText = reason
+    ? `Reason: ${reason}`
+    : "Unfortunately, your application did not meet our current requirements.";
+
+  return {
+    subject: "Update on Your Hug Harmony Professional Application",
+    text: `Hello ${firstName},
+
+Thank you for your interest in becoming a Hug Harmony professional.
+
+After careful review, we regret to inform you that your application has not been approved at this time.
+
+${reasonText}
+
+You're welcome to reapply in the future: ${reapplyUrl}
+
+If you have any questions, please don't hesitate to reach out to our support team.
+
+Warm regards,
+The Hug Harmony Team`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
+  </div>
+  
+  <h2 style="color: #333;">Application Update</h2>
+  
+  <p>Hi ${firstName},</p>
+  
+  <p>Thank you for your interest in becoming a Hug Harmony professional.</p>
+  
+  <p>After careful review, we regret to inform you that your application has not been approved at this time.</p>
+  
+  ${
+    reason
+      ? `
+  <div style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin: 20px 0;">
+    <p style="margin: 0; color: #991b1b;"><strong>Feedback:</strong></p>
+    <p style="margin: 10px 0 0 0; color: #991b1b;">${reason}</p>
+  </div>
+  `
+      : ""
+  }
+  
+  <p>This decision doesn't reflect on you personally. Our requirements change over time, and we encourage you to reapply in the future.</p>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${reapplyUrl}" 
+       style="background-color: #E7C4BB; color: #000; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+      Reapply Later
+    </a>
+  </div>
+  
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  
+  <p style="color: #666; font-size: 14px;">If you have any questions, please contact our support team.</p>
+  
+  <p style="margin-top: 30px;">Warm regards,<br>The Hug Harmony Team</p>
+</body>
+</html>`,
+  };
+}
+
 // Email sending functions
 export async function sendVerificationEmail(
   email: string,
@@ -331,6 +476,43 @@ export async function sendSecurityAlertEmail(
 
   await getTransporter().sendMail({
     from: `"Hug Harmony Security" <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: template.subject,
+    text: template.text,
+    html: template.html,
+  });
+}
+
+export async function sendApplicationApprovedEmail(
+  email: string,
+  firstName: string
+): Promise<void> {
+  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`;
+  const template = getApplicationApprovedEmailTemplate(firstName, dashboardUrl);
+
+  await getTransporter().sendMail({
+    from: `"Hug Harmony" <${process.env.GMAIL_USER}>`,
+    to: email,
+    subject: template.subject,
+    text: template.text,
+    html: template.html,
+  });
+}
+
+export async function sendApplicationRejectedEmail(
+  email: string,
+  firstName: string,
+  reason: string | null = null
+): Promise<void> {
+  const reapplyUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/edit-profile/professional-application`;
+  const template = getApplicationRejectedEmailTemplate(
+    firstName,
+    reason,
+    reapplyUrl
+  );
+
+  await getTransporter().sendMail({
+    from: `"Hug Harmony" <${process.env.GMAIL_USER}>`,
     to: email,
     subject: template.subject,
     text: template.text,
