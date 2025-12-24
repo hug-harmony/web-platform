@@ -1,3 +1,5 @@
+// src\app\admin\dashboard\professional-applications\[id]\page.tsx
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 

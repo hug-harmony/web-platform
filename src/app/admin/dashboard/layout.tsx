@@ -1,3 +1,5 @@
+// src\app\admin\dashboard\layout.tsx
+
 "use client";
 import React from "react";
 import AdminSessionProvider from "@/components/AdminSessionProvider";

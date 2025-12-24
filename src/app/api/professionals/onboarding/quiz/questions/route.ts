@@ -1,3 +1,4 @@
+// C:\DEVELOPER\projects\hug-harmony\src\app\api\professionals\onboarding\quiz\questions\route.ts
 import { NextResponse } from "next/server";
 
 interface Option {

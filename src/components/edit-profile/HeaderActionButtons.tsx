@@ -61,17 +61,20 @@ export function HeaderActionButtons({
   }
 
   return (
-    <motion.div variants={itemVariants} whileHover={{ scale: 1.05 }}>
-      <Button
-        variant="outline"
-        onClick={() =>
-          router.push("/dashboard/profile/professional-application/status")
-        }
-        className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full flex items-center gap-2"
-      >
-        <Gem className="w-4 h-4 text-[#F3CFC6]" />
-        My Application Status
-      </Button>
-    </motion.div>
+    <div className="flex items-center justify-between">
+      <motion.div variants={itemVariants} whileHover={{ scale: 1.05 }}>
+        <Button
+          variant="outline"
+          onClick={() =>
+            router.push("/dashboard/edit-profile/professional-application")
+          }
+          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-white dark:hover:bg-white rounded-full flex items-center gap-2"
+        >
+          <Gem className="w-4 h-4 text-[#F3CFC6]" />
+          My Application Status
+        </Button>
+      </motion.div>
+      <PushNotificationManager />
+    </div>
   );
 }

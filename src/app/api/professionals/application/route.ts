@@ -1,114 +1,98 @@
 // app/api/professionals/application/route.ts
-
 /* eslint-disable @typescript-eslint/no-explicit-any */
-import { NextResponse } from "next/server";
+import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ProOnboardingStatus, VenueType } from "@prisma/client";
+import {
+  getProOnboardingVideo,
+  getOrCreateProVideoWatch,
+} from "@/lib/onboarding";
 
-// UPDATED: Now accepts "both" as a valid venue option
 const submitSchema = z.object({
   rate: z
     .string()
     .transform((v) => parseFloat(v))
-    .refine((v) => !isNaN(v) && v > 0, "Rate must be > 0"),
+    .refine((v) => !isNaN(v) && v > 0, "Rate must be greater than 0")
+    .refine((v) => v <= 10000, "Rate cannot exceed $10,000/hour"),
   venue: z.enum(["host", "visit", "both"] as const, {
     required_error: "Venue is required",
   }),
 });
 
 /* ------------------------------------------------------------------
-   POST – submit application (rate + venue)
+   GET – User's own application OR admin list/detail
+   Usage:
+   - /api/professionals/application?me=true (user's own)
+   - /api/professionals/application (admin list)
+   - /api/professionals/application?id=xxx (admin detail)
    ------------------------------------------------------------------ */
-export async function POST(req: Request) {
+export async function GET(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.id) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { rate, venue } = submitSchema.parse(await req.json());
+    const { searchParams } = new URL(req.url);
+    const me = searchParams.get("me");
+    const id = searchParams.get("id");
 
-    const application = await prisma.$transaction(async (tx) => {
-      const existing = await tx.professionalApplication.findFirst({
+    /* ---------- USER'S OWN APPLICATION ---------- */
+    if (me === "true") {
+      const application = await prisma.professionalApplication.findFirst({
         where: { userId: session.user.id },
-        select: { id: true, status: true, professionalId: true },
+        select: {
+          id: true,
+          status: true,
+          professionalId: true,
+          rate: true,
+          venue: true,
+          submittedAt: true,
+          videoWatchedAt: true,
+          quizPassedAt: true,
+          createdAt: true,
+          updatedAt: true,
+        },
       });
 
-      const activeStatuses: ProOnboardingStatus[] = [
-        "FORM_PENDING",
-        "FORM_SUBMITTED",
-        "VIDEO_PENDING",
-        "QUIZ_PENDING",
-        "QUIZ_PASSED",
-        "QUIZ_FAILED",
-        "ADMIN_REVIEW",
-        "APPROVED",
-      ];
-
-      if (existing && activeStatuses.includes(existing.status)) {
-        throw new Error("You already have an active application");
-      }
-
-      if (existing) {
-        if (existing.professionalId) {
-          await tx.professional.deleteMany({
-            where: { id: existing.professionalId },
-          });
-        }
-        await tx.professionalApplication.deleteMany({
-          where: { id: existing.id },
+      if (!application) {
+        return NextResponse.json({
+          status: "none",
+          professionalId: null,
+          application: null,
         });
       }
 
-      // UPDATED: venue is now VenueType (host | visit | both)
-      return await tx.professionalApplication.create({
-        data: {
-          userId: session.user.id,
-          rate,
-          venue: venue as VenueType,
-          status: "VIDEO_PENDING",
-          submittedAt: new Date(),
+      return NextResponse.json({
+        status: application.status,
+        professionalId: application.professionalId,
+        application: {
+          id: application.id,
+          rate: application.rate,
+          venue: application.venue,
+          submittedAt: application.submittedAt,
+          videoWatchedAt: application.videoWatchedAt,
+          quizPassedAt: application.quizPassedAt,
+          createdAt: application.createdAt,
+          updatedAt: application.updatedAt,
         },
       });
-    });
-
-    return NextResponse.json(application, { status: 201 });
-  } catch (error: unknown) {
-    console.error("POST error:", error);
-    if (error instanceof z.ZodError) {
-      return NextResponse.json({ error: error.errors }, { status: 400 });
     }
-    if (error instanceof Error && error.message.includes("already have")) {
-      return NextResponse.json({ error: error.message }, { status: 400 });
-    }
-    return NextResponse.json(
-      { error: "Internal server error" },
-      { status: 500 }
-    );
-  }
-}
 
-/* ------------------------------------------------------------------
-   GET – single (admin) OR list
-   ------------------------------------------------------------------ */
-export async function GET(req: Request) {
-  try {
-    const session = await getServerSession(authOptions);
-    if (!session?.user?.isAdmin) {
+    /* ---------- ADMIN ONLY BELOW ---------- */
+    if (!session.user.isAdmin) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const { searchParams } = new URL(req.url);
-    const id = searchParams.get("id");
     const statusParam = (searchParams.get("status") ?? "all") as
       | ProOnboardingStatus
       | "all";
     const search = searchParams.get("search") ?? "";
 
-    /* ---------- SINGLE APPLICATION DETAIL ---------- */
+    /* ---------- SINGLE APPLICATION DETAIL (ADMIN) ---------- */
     if (id) {
       const app = await prisma.professionalApplication.findUnique({
         where: { id },
@@ -157,7 +141,7 @@ export async function GET(req: Request) {
       });
     }
 
-    /* ---------- LIST VIEW ---------- */
+    /* ---------- LIST VIEW (ADMIN) ---------- */
     const where: any = {};
     if (statusParam !== "all") {
       where.status = statusParam;
@@ -222,9 +206,186 @@ export async function GET(req: Request) {
 }
 
 /* ------------------------------------------------------------------
-   PATCH – approve / reject (creates Professional on APPROVED)
+   POST – Submit application (rate + venue)
    ------------------------------------------------------------------ */
-export async function PATCH(req: Request) {
+export async function POST(req: NextRequest) {
+  try {
+    const session = await getServerSession(authOptions);
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    // Check if user has a name set
+    const user = await prisma.user.findUnique({
+      where: { id: session.user.id },
+      select: { name: true, firstName: true, lastName: true },
+    });
+
+    const hasName = user?.name || user?.firstName || user?.lastName;
+    if (!hasName) {
+      return NextResponse.json(
+        { error: "Please set your name in your profile before applying" },
+        { status: 400 }
+      );
+    }
+
+    // Parse and validate
+    const body = await req.json();
+    const parseResult = submitSchema.safeParse(body);
+
+    if (!parseResult.success) {
+      return NextResponse.json(
+        { error: parseResult.error.errors.map((e) => e.message).join(", ") },
+        { status: 400 }
+      );
+    }
+
+    const { rate, venue } = parseResult.data;
+
+    // Get onboarding video
+    const video = await getProOnboardingVideo();
+    if (!video) {
+      return NextResponse.json(
+        { error: "Onboarding video not configured. Please contact support." },
+        { status: 500 }
+      );
+    }
+
+    const application = await prisma.$transaction(async (tx) => {
+      // Find existing application for this user
+      const existing = await tx.professionalApplication.findUnique({
+        where: { userId: session.user.id },
+        select: { id: true, status: true, professionalId: true },
+      });
+
+      // Check for active/approved applications
+      const blockedStatuses: ProOnboardingStatus[] = [
+        "VIDEO_PENDING",
+        "QUIZ_PENDING",
+        "QUIZ_PASSED",
+        "ADMIN_REVIEW",
+        "APPROVED",
+      ];
+
+      if (existing && blockedStatuses.includes(existing.status)) {
+        throw new Error(
+          existing.status === "APPROVED"
+            ? "You already have an approved application"
+            : "You already have an active application in progress"
+        );
+      }
+
+      // Clean up existing rejected/failed applications
+      if (existing) {
+        // Delete related records first
+        await tx.trainingVideoWatch.deleteMany({
+          where: { applicationId: existing.id },
+        });
+        await tx.proQuizAttempt.deleteMany({
+          where: { applicationId: existing.id },
+        });
+
+        // Delete associated professional if exists
+        if (existing.professionalId) {
+          await tx.professional
+            .delete({
+              where: { id: existing.professionalId },
+            })
+            .catch(() => {
+              // Ignore if professional doesn't exist
+            });
+        }
+
+        // Delete the application
+        await tx.professionalApplication.delete({
+          where: { id: existing.id },
+        });
+      }
+
+      // Also clean up any orphaned applications without professionalId
+      // This prevents the unique constraint issue
+      await tx.professionalApplication.deleteMany({
+        where: {
+          userId: { not: session.user.id },
+          professionalId: null,
+          status: { in: ["REJECTED", "SUSPENDED", "QUIZ_FAILED"] },
+        },
+      });
+
+      // Create new application
+      const app = await tx.professionalApplication.create({
+        data: {
+          userId: session.user.id,
+          rate,
+          venue: venue as VenueType,
+          status: "VIDEO_PENDING",
+          submittedAt: new Date(),
+        },
+      });
+
+      // Create video watch record
+      await getOrCreateProVideoWatch({
+        userId: session.user.id,
+        videoId: video.id,
+        applicationId: app.id,
+      });
+
+      return app;
+    });
+
+    return NextResponse.json(
+      {
+        success: true,
+        application: {
+          id: application.id,
+          status: application.status,
+          rate: application.rate,
+          venue: application.venue,
+        },
+        nextStep: "/dashboard/edit-profile/professional-application/video",
+      },
+      { status: 201 }
+    );
+  } catch (error: unknown) {
+    console.error("POST error:", error);
+
+    if (error instanceof z.ZodError) {
+      return NextResponse.json(
+        { error: error.errors.map((e) => e.message).join(", ") },
+        { status: 400 }
+      );
+    }
+
+    if (error instanceof Error) {
+      if (
+        error.message.includes("already have") ||
+        error.message.includes("in progress")
+      ) {
+        return NextResponse.json({ error: error.message }, { status: 409 });
+      }
+
+      // Handle unique constraint error gracefully
+      if (error.message.includes("Unique constraint")) {
+        return NextResponse.json(
+          {
+            error: "Please try again. If the issue persists, contact support.",
+          },
+          { status: 409 }
+        );
+      }
+    }
+
+    return NextResponse.json(
+      { error: "Failed to submit application" },
+      { status: 500 }
+    );
+  }
+}
+
+/* ------------------------------------------------------------------
+   PATCH – Approve / Reject (Admin only)
+   ------------------------------------------------------------------ */
+export async function PATCH(req: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
     if (!session?.user?.isAdmin) {
@@ -278,13 +439,12 @@ export async function PATCH(req: Request) {
           throw new Error("User must have a name");
         }
 
-        // UPDATED: Directly use app.venue since it's now VenueType
         const professional = await tx.professional.create({
           data: {
             name: app.user.name,
             biography: app.user.biography ?? "",
             rate: app.rate,
-            venue: app.venue, // Already VenueType (host | visit | both)
+            venue: app.venue,
             image: app.user.profileImage ?? null,
             location: app.user.location ?? null,
           },
@@ -306,15 +466,21 @@ export async function PATCH(req: Request) {
     });
   } catch (error: unknown) {
     console.error("PATCH error:", error);
+
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
-    if (
-      error instanceof Error &&
-      ["Application not found", "User must have a name"].includes(error.message)
-    ) {
-      return NextResponse.json({ error: error.message }, { status: 404 });
+
+    if (error instanceof Error) {
+      if (
+        ["Application not found", "User must have a name"].includes(
+          error.message
+        )
+      ) {
+        return NextResponse.json({ error: error.message }, { status: 404 });
+      }
     }
+
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

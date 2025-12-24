@@ -1,3 +1,5 @@
+// C:\DEVELOPER\projects\hug-harmony\src\app\api\professionals\onboarding\status\route.ts
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";

@@ -139,16 +139,16 @@ model Professional {
   createdAt            DateTime   @default(now())
   location             String?
 
-  appointments  Appointment[]            @relation("ProfessionalAppointments")
-  application   ProfessionalApplication? @relation
+  appointments  Appointment[]             @relation("ProfessionalAppointments")
+  applications  ProfessionalApplication[] @relation
   VideoSession  VideoSession[]
-  availability  Availability[]           @relation
-  profileVisits ProfileVisit[]           @relation("Visitee")
-  Proposal      Proposal[]               @relation
-  reviews       Review[]                 @relation("ProfessionalReviews")
-  discounts     Discount[]               @relation
-  reported      Report[]                 @relation("ReportedProfessional")
-  notesReceived Note[]                   @relation("TargetProfessionalNotes")
+  availability  Availability[]            @relation
+  profileVisits ProfileVisit[]            @relation("Visitee")
+  Proposal      Proposal[]                @relation
+  reviews       Review[]                  @relation("ProfessionalReviews")
+  discounts     Discount[]                @relation
+  reported      Report[]                  @relation("ReportedProfessional")
+  notesReceived Note[]                    @relation("TargetProfessionalNotes")
 }
 
 model Post {
@@ -177,12 +177,11 @@ model Reply {
   updatedAt     DateTime @updatedAt
 }
 
-// FIXED: Changed venue from AppointmentVenue to VenueType to allow "both"
 model ProfessionalApplication {
   id     String    @id @default(auto()) @map("_id") @db.ObjectId
   userId String    @unique @db.ObjectId
   rate   Float
-  venue  VenueType // CHANGED: Now uses VenueType (host | visit | both)
+  venue  VenueType
 
   status         ProOnboardingStatus @default(FORM_PENDING)
   submittedAt    DateTime?
@@ -193,12 +192,13 @@ model ProfessionalApplication {
 
   user           User          @relation(fields: [userId], references: [id], onDelete: Cascade)
   professional   Professional? @relation(fields: [professionalId], references: [id], onDelete: SetNull)
-  professionalId String?       @unique @db.ObjectId
+  professionalId String?       @db.ObjectId
 
   quizAttempts ProQuizAttempt[]    @relation("ApplicationQuizAttempts")
   videoWatch   TrainingVideoWatch? @relation("ProOnboardingVideo")
 
   @@index([status])
+  @@index([professionalId])
 }
 
 model ProQuizAttempt {

@@ -20,6 +20,7 @@ import {
   Eye,
   UserSearch,
   LayoutDashboard,
+  Sparkles,
 } from "lucide-react";
 import {
   Sheet,
@@ -107,6 +108,14 @@ export default function BottomNav() {
         href: "/dashboard/payment",
         label: "Payments",
         icon: <CreditCard className={iconClass} />,
+      });
+    }
+
+    if (!isProfessional) {
+      items.push({
+        href: "/dashboard/edit-profile/professional-application",
+        label: "Become a Pro",
+        icon: <Sparkles className={iconClass} />,
       });
     }
 

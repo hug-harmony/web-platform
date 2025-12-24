@@ -64,10 +64,7 @@ export default function Sidebar() {
     // Professional application item
     if (!isProfessional) {
       items.push({
-        href:
-          applicationStatus === "none"
-            ? "/dashboard/edit-profile/professional-application/status"
-            : "/dashboard/professional/status",
+        href: "/dashboard/edit-profile/professional-application",
         label:
           applicationStatus === "none" ? "Become a Pro" : "Application Status",
         icon:
