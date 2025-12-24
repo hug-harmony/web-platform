@@ -11,9 +11,13 @@ import {
   NotFoundException,
 } from "@aws-sdk/client-chime-sdk-meetings";
 
+// Chime SDK Meetings control plane - use us-east-1
+// See: https://docs.aws.amazon.com/chime-sdk/latest/dg/sdk-available-regions.html
+const CHIME_CONTROL_REGION = "us-east-1";
+
 // Initialize client with explicit credentials
 const chimeClient = new ChimeSDKMeetingsClient({
-  region: process.env.AWS_REGION || process.env.REGION || "us-east-2",
+  region: CHIME_CONTROL_REGION,
   credentials: {
     accessKeyId: process.env.ACCESS_KEY_ID!,
     secretAccessKey: process.env.SECRET_ACCESS_KEY!,
@@ -32,7 +36,7 @@ export async function createChimeMeeting(
   externalMeetingId: string,
   hostUserId: string,
   hostDisplayName: string,
-  mediaRegion: string = "us-east-2"
+  mediaRegion: string = "us-east-1"
 ): Promise<CreateMeetingResult> {
   console.log("Creating Chime meeting:", {
     externalMeetingId,
@@ -95,7 +99,7 @@ export async function createChimeMeeting(
 export async function addAttendeeToMeeting(
   meetingId: string,
   userId: string,
-  _displayName: string // Prefixed with underscore to indicate intentionally unused
+  _displayName: string
 ): Promise<NonNullable<CreateAttendeeCommandOutput["Attendee"]>> {
   console.log("Adding attendee to meeting:", { meetingId, userId });
 
@@ -140,7 +144,6 @@ export async function getMeeting(meetingId: string) {
       console.log("Meeting not found:", meetingId);
       return null;
     }
-    // Check for NotFoundException by name as fallback
     if (error instanceof Error && error.name === "NotFoundException") {
       console.log("Meeting not found:", meetingId);
       return null;
@@ -165,7 +168,6 @@ export async function endChimeMeeting(meetingId: string): Promise<void> {
 
     console.log("Meeting ended:", meetingId);
   } catch (error: unknown) {
-    // Meeting might already be deleted
     if (error instanceof NotFoundException) {
       console.log("Meeting already ended:", meetingId);
       return;
@@ -181,16 +183,19 @@ export async function endChimeMeeting(meetingId: string): Promise<void> {
 
 /**
  * Get the best media region based on user's location
+ * Supported Chime SDK Meetings media regions:
+ * https://docs.aws.amazon.com/chime-sdk/latest/dg/chime-sdk-meetings-regions.html
  */
 export function getOptimalMediaRegion(userRegion?: string): string {
   const regionMap: Record<string, string> = {
-    "us-east": "us-east-2",
-    "us-west": "us-west-2",
-    "eu-west": "eu-west-1",
-    "eu-central": "eu-central-1",
-    "ap-southeast": "ap-southeast-1",
-    "ap-northeast": "ap-northeast-1",
+    "us-east": "us-east-1", // Virginia - FIXED (was us-east-2)
+    "us-west": "us-west-2", // Oregon
+    "eu-west": "eu-west-1", // Ireland
+    "eu-central": "eu-central-1", // Frankfurt
+    "ap-southeast": "ap-southeast-1", // Singapore
+    "ap-northeast": "ap-northeast-1", // Tokyo
+    "ap-south": "ap-south-1", // Mumbai
   };
 
-  return regionMap[userRegion || "us-east"] || "us-east-2";
+  return regionMap[userRegion || "us-east"] || "us-east-1";
 }
