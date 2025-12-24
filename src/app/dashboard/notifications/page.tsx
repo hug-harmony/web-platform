@@ -16,6 +16,7 @@ import {
   Eye,
   CheckCheck,
   RefreshCw,
+  Video,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -32,18 +33,7 @@ import {
 } from "@/components/ui/dropdown-menu";
 import { toast } from "sonner";
 import { useWebSocket } from "@/hooks/useWebSocket";
-
-interface Notification {
-  id: string;
-  userId: string;
-  senderId?: string;
-  type: "message" | "appointment" | "payment" | "profile_visit";
-  content: string;
-  timestamp: string;
-  unread: string;
-  unreadBool: boolean;
-  relatedId?: string;
-}
+import { Notification } from "@/lib/websocket/types";
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
@@ -197,6 +187,8 @@ export default function NotificationsPage() {
         return <DollarSign className="h-6 w-6 text-[#F3CFC6]" />;
       case "profile_visit":
         return <Eye className="h-6 w-6 text-[#F3CFC6]" />;
+      case "video_call":
+        return <Video className="h-6 w-6 text-[#F3CFC6]" />;
       default:
         return <Bell className="h-6 w-6 text-[#F3CFC6]" />;
     }
@@ -214,6 +206,8 @@ export default function NotificationsPage() {
         return `/dashboard/payment/${notif.relatedId}`;
       case "profile_visit":
         return `/dashboard/profile/${notif.relatedId}`;
+      case "video_call":
+        return `/dashboard/video-call/${notif.relatedId}`;
       default:
         return null;
     }
@@ -229,6 +223,8 @@ export default function NotificationsPage() {
         return "Appointment";
       case "payment":
         return "Payment";
+      case "video_call":
+        return "Video Call";
       default:
         return type.charAt(0).toUpperCase() + type.slice(1);
     }
@@ -362,17 +358,21 @@ export default function NotificationsPage() {
                   >
                     All
                   </DropdownMenuItem>
-                  {["message", "appointment", "payment", "profile_visit"].map(
-                    (type) => (
-                      <DropdownMenuItem
-                        key={type}
-                        onClick={() => setTypeFilter(type)}
-                        className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
-                      >
-                        {getTypeLabel(type)}
-                      </DropdownMenuItem>
-                    )
-                  )}
+                  {[
+                    "message",
+                    "appointment",
+                    "payment",
+                    "profile_visit",
+                    "video_call",
+                  ].map((type) => (
+                    <DropdownMenuItem
+                      key={type}
+                      onClick={() => setTypeFilter(type)}
+                      className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
+                    >
+                      {getTypeLabel(type)}
+                    </DropdownMenuItem>
+                  ))}
                 </DropdownMenuContent>
               </DropdownMenu>
               <Button
