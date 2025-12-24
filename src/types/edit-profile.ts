@@ -1,16 +1,20 @@
+// src/types/edit-profile.ts
+
 export type OnboardingStep =
-  | "FORM"
+  | "FORM_PENDING"
+  | "FORM_SUBMITTED"
   | "VIDEO_PENDING"
   | "QUIZ_PENDING"
   | "QUIZ_PASSED"
   | "QUIZ_FAILED"
   | "ADMIN_REVIEW"
   | "APPROVED"
-  | "REJECTED";
+  | "REJECTED"
+  | "SUSPENDED";
 
 export interface OnboardingStatus {
   step: OnboardingStep;
-  applications?.[0]?: {
+  application: {
     status: OnboardingStep;
     submittedAt?: string;
     videoWatchedAt?: string;
