@@ -254,7 +254,7 @@ export default function DisputeHandlingPage() {
                         <TableCell>
                           <div>{dispute.professional.name}</div>
                           <div className="text-sm text-[#C4C4C4]">
-                            {dispute.professional.application.user.email}
+                            {dispute.professional.applications.user.email}
                           </div>
                         </TableCell>
                         <TableCell>
@@ -295,7 +295,7 @@ export default function DisputeHandlingPage() {
                                       <strong>Cuddler:</strong>{" "}
                                       {dispute.professional.name} (
                                       {
-                                        dispute.professional.application.user
+                                        dispute.professional.applications.user
                                           .email
                                       }
                                       )
