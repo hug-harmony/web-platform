@@ -132,7 +132,7 @@ export async function GET() {
           professionalName:
             appt.professional?.name ||
             (appt.professional?.applications?.[0]?.user
-              ? buildDisplayName(appt.professional.application.user)
+              ? buildDisplayName(appt.professional.applications[0].user)
               : "Unknown Professional"),
           startTime: appt.startTime.toISOString(), // UPDATED
           endTime: appt.endTime.toISOString(), // UPDATED

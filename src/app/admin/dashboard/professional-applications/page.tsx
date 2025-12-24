@@ -257,7 +257,7 @@ export default function ProfessionalApplicationsPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <AnimatePresence mode="popLayout">
                   {applications.map((app) => (
-                    <ApplicationCard key={app.id} application={app} />
+                    <ApplicationCard key={app.id} applications={app} />
                   ))}
                 </AnimatePresence>
               </div>

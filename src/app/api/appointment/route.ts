@@ -118,7 +118,7 @@ export async function GET(req: Request) {
           professionalName:
             appt.professional?.name ||
             (appt.professional?.applications?.[0]?.user
-              ? buildDisplayName(appt.professional.application.user)
+              ? buildDisplayName(appt.professional.applications[0].user)
               : "Unknown Professional"),
           clientName: appt.user
             ? buildDisplayName(appt.user)

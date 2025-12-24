@@ -288,5 +288,5 @@ export async function getMessagingUserId(
     select: { userId: true },
   });
 
-  return applications?.[0]?.userId || null;
+  return application?.userId || null;
 }

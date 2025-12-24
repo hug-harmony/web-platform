@@ -70,11 +70,13 @@ function DiscountsContent() {
           if (res.status === 401) redirect("/login");
           throw new Error("Failed to fetch user data");
         }
+
         const userData = await res.json();
         const application = userData.professionalApplication;
+
         if (
-          applications?.[0]?.status !== "APPROVED" ||
-          application.professionalId !== professionalId
+          application?.status !== "APPROVED" ||
+          application?.professionalId !== professionalId
         ) {
           toast.error("You are not an approved professional.");
           redirect("/dashboard");
