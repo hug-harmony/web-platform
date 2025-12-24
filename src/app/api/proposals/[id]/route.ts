@@ -1,57 +1,71 @@
-// app/api/proposals/[id]/route.ts
+// src/app/api/proposals/[id]/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { broadcastToConversation } from "@/lib/websocket/server";
 import { format } from "date-fns";
-import { z } from "zod";
+import {
+  sendAppointmentBookedEmails,
+  sendAppointmentRejectedEmail,
+} from "@/lib/services/email";
 
-interface RouteParams {
-  params: Promise<{ id: string }>;
-}
-
-const statusSchema = z.object({
-  status: z.enum(["accepted", "rejected"]),
-  venue: z.enum(["host", "visit"]).optional(),
-});
-
-// PATCH - Update proposal status (accept/reject)
-export async function PATCH(request: NextRequest, { params }: RouteParams) {
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
-  if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
-    return NextResponse.json({ error: "Invalid proposal ID" }, { status: 400 });
+  const body = await request.json();
+  const { status: newStatus } = body as { status: "accepted" | "rejected" };
+
+  if (!["accepted", "rejected"].includes(newStatus)) {
+    return NextResponse.json({ error: "Invalid status" }, { status: 400 });
   }
 
-  let body;
   try {
-    body = statusSchema.parse(await request.json());
-  } catch {
-    return NextResponse.json(
-      { error: "Invalid request body" },
-      { status: 400 }
-    );
-  }
-
-  const { status: action, venue } = body;
-
-  try {
-    // Fetch proposal with all needed relations
+    // Get proposal with all related data
     const proposal = await prisma.proposal.findUnique({
       where: { id },
       include: {
-        conversation: { select: { id: true, userId1: true, userId2: true } },
         user: {
-          select: { firstName: true, lastName: true, profileImage: true },
+          select: {
+            id: true,
+            email: true,
+            firstName: true,
+            lastName: true,
+            name: true,
+          },
         },
         professional: {
-          select: { name: true, rate: true, venue: true, image: true },
+          select: {
+            id: true,
+            name: true,
+            rate: true,
+            venue: true,
+            applications: {
+              where: { status: "APPROVED" },
+              select: {
+                userId: true,
+                user: {
+                  select: {
+                    id: true,
+                    email: true,
+                    firstName: true,
+                    lastName: true,
+                    name: true,
+                  },
+                },
+              },
+              take: 1,
+            },
+          },
         },
+        conversation: true,
       },
     });
 
@@ -64,276 +78,210 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 
     if (proposal.status !== "pending") {
       return NextResponse.json(
-        { error: `Proposal already ${proposal.status}` },
-        { status: 409 }
+        { error: "Proposal already processed" },
+        { status: 400 }
       );
     }
 
-    // Get professional's user ID for authorization check
-    const professionalApp = await prisma.professionalApplication.findFirst({
-      where: { professionalId: proposal.professionalId, status: "APPROVED" },
-      select: { userId: true },
-    });
+    const professionalUser = proposal.professional.applications[0]?.user;
+    const professionalUserId = proposal.professional.applications[0]?.userId;
 
-    if (!professionalApp?.userId) {
+    // Verify user has permission to update
+    const isClient = session.user.id === proposal.userId;
+    const isProfessional = session.user.id === professionalUserId;
+
+    // Determine who can accept/reject based on initiator
+    const canRespond =
+      (proposal.initiator === "user" && isProfessional) ||
+      (proposal.initiator === "professional" && isClient);
+
+    if (!canRespond) {
       return NextResponse.json(
-        { error: "Professional not found" },
-        { status: 404 }
+        { error: "You cannot respond to this proposal" },
+        { status: 403 }
       );
-    }
-
-    // Determine who can respond based on initiator
-    // If professional initiated, user responds. If user initiated, professional responds.
-    const isUserResponder = proposal.initiator === "professional";
-    const canUpdate = isUserResponder
-      ? proposal.userId === session.user.id
-      : professionalApp.userId === session.user.id;
-
-    if (!canUpdate) {
-      return NextResponse.json({ error: "Forbidden" }, { status: 403 });
     }
 
     // Update proposal status
     const updatedProposal = await prisma.proposal.update({
       where: { id },
-      data: { status: action },
+      data: { status: newStatus },
     });
 
-    // Determine recipient for the response message
-    // The recipient is the original sender (initiator)
-    const recipientId = isUserResponder
-      ? professionalApp.userId // Professional initiated, so notify professional
-      : proposal.userId; // User initiated, so notify user
+    // Prepare names for emails and messages
+    const clientName =
+      proposal.user.name ||
+      `${proposal.user.firstName || ""} ${proposal.user.lastName || ""}`.trim() ||
+      "Client";
 
-    let appointmentId: string | undefined;
-    let messageText: string;
+    const professionalName = proposal.professional.name || "Professional";
 
-    if (action === "accepted") {
-      // Validate required time fields
-      if (!proposal.startTime || !proposal.endTime) {
-        return NextResponse.json(
-          { error: "Proposal missing time information" },
-          { status: 400 }
-        );
-      }
+    const startDate = proposal.startTime ? new Date(proposal.startTime) : null;
+    const endDate = proposal.endTime ? new Date(proposal.endTime) : null;
 
-      // Determine venue choice
-      let venueChoice: "host" | "visit" | undefined = proposal.venue || venue;
+    // Determine recipient for system message
+    const systemMessageRecipientId =
+      session.user.id === proposal.userId
+        ? professionalUserId!
+        : proposal.userId;
 
-      if (!venueChoice) {
-        if (proposal.professional.venue === "both") {
-          return NextResponse.json(
-            { error: "Venue selection required" },
-            { status: 400 }
-          );
-        }
-        venueChoice = proposal.professional.venue as "host" | "visit";
-      }
-
-      // Check for overlapping appointments one more time
-      const overlapping = await prisma.appointment.findFirst({
-        where: {
-          professionalId: proposal.professionalId,
-          status: { in: ["upcoming", "pending"] },
-          startTime: { lt: proposal.endTime },
-          endTime: { gt: proposal.startTime },
-        },
-      });
-
-      if (overlapping) {
-        // Revert proposal status
-        await prisma.proposal.update({
-          where: { id },
-          data: { status: "pending" },
-        });
-        return NextResponse.json(
-          { error: "Time slot no longer available" },
-          { status: 409 }
-        );
-      }
-
+    if (newStatus === "accepted" && startDate && endDate) {
       // Create appointment
       const appointment = await prisma.appointment.create({
         data: {
           userId: proposal.userId,
           professionalId: proposal.professionalId,
-          startTime: proposal.startTime,
-          endTime: proposal.endTime,
-          status: "pending", // Pending payment
-          venue: venueChoice,
+          startTime: startDate,
+          endTime: endDate,
+          status: "upcoming",
+          venue: proposal.venue,
           rate: proposal.professional.rate,
         },
       });
-      appointmentId = appointment.id;
 
-      // Format acceptance message based on who initiated
-      const timeStr = `${format(proposal.startTime, "MMMM d, yyyy")} from ${format(proposal.startTime, "h:mm a")} to ${format(proposal.endTime, "h:mm a")}`;
+      // Calculate duration and amount for email
+      const durationMs = endDate.getTime() - startDate.getTime();
+      const durationHours = durationMs / (1000 * 60 * 60);
+      const amount = `$${((proposal.professional.rate || 0) * durationHours).toFixed(2)}`;
+      const duration = `${durationHours.toFixed(1)} hour${durationHours !== 1 ? "s" : ""}`;
+      const venueLabel =
+        proposal.venue === "host"
+          ? "Professional's Location"
+          : "Client's Location";
 
-      if (isUserResponder) {
-        // User accepted professional's proposal
-        messageText = `✅ Proposal accepted for ${timeStr}. Venue: ${venueChoice}. Please proceed to payment to confirm your appointment.`;
-      } else {
-        // Professional accepted user's request
-        messageText = `✅ Appointment request accepted for ${timeStr}. Venue: ${venueChoice}. The session is now confirmed.`;
-      }
-    } else {
-      // Rejection
-      const timeStr = proposal.startTime
-        ? `${format(proposal.startTime, "MMMM d, yyyy")} at ${format(proposal.startTime, "h:mm a")}`
-        : "the requested time";
+      // Create system message
+      const systemMessage = await prisma.message.create({
+        data: {
+          conversationId: proposal.conversationId,
+          senderId: session.user.id,
+          recipientId: systemMessageRecipientId,
+          text: `✅ Proposal accepted! Appointment confirmed for ${format(startDate, "MMMM d, yyyy")} at ${format(startDate, "h:mm a")}.`,
+          isAudio: false,
+          isSystem: true,
+          proposalId: proposal.id,
+        },
+      });
 
-      if (isUserResponder) {
-        // User rejected professional's proposal
-        messageText = `❌ Proposal for ${timeStr} has been declined.`;
-      } else {
-        // Professional rejected user's request
-        messageText = `❌ Appointment request for ${timeStr} has been declined.`;
-      }
-    }
+      // Broadcast proposal status update via WebSocket
+      broadcastToConversation(
+        proposal.conversationId,
+        {
+          type: "proposalUpdate",
+          conversationId: proposal.conversationId,
+          proposalId: proposal.id,
 
-    // Create response message
-    const message = await prisma.message.create({
-      data: {
-        conversationId: proposal.conversationId,
-        senderId: session.user.id,
-        recipientId,
-        text: messageText,
-        isAudio: false,
-        proposalId: proposal.id,
-      },
-      include: {
-        senderUser: {
-          select: {
-            firstName: true,
-            lastName: true,
-            profileImage: true,
-            professionalApplication: {
-              select: { professionalId: true },
-            },
+          message: {
+            id: systemMessage.id,
+            text: systemMessage.text,
+            createdAt: systemMessage.createdAt.toISOString(),
+            senderId: systemMessage.senderId,
+            isSystem: true,
           },
         },
-        proposal: {
-          select: { status: true, initiator: true },
+        session.user.id
+      ).catch((err) => console.error("WebSocket broadcast error:", err));
+
+      // Send confirmation emails to both parties (non-blocking)
+      if (proposal.user.email && professionalUser?.email) {
+        sendAppointmentBookedEmails(
+          proposal.user.email,
+          clientName,
+          professionalUser.email,
+          professionalName,
+          format(startDate, "MMMM d, yyyy"),
+          format(startDate, "h:mm a"),
+          duration,
+          amount,
+          venueLabel,
+          appointment.id
+        ).catch((err) =>
+          console.error("Failed to send confirmation emails:", err)
+        );
+      }
+
+      return NextResponse.json({
+        success: true,
+        proposal: updatedProposal,
+        appointment,
+      });
+    } else if (newStatus === "rejected") {
+      // Create system message
+      const systemMessage = await prisma.message.create({
+        data: {
+          conversationId: proposal.conversationId,
+          senderId: session.user.id,
+          recipientId: systemMessageRecipientId,
+          text: `❌ Proposal declined.`,
+          isAudio: false,
+          isSystem: true,
+          proposalId: proposal.id,
         },
-      },
-    });
+      });
 
-    // Update conversation timestamp
-    await prisma.conversation.update({
-      where: { id: proposal.conversationId },
-      data: { updatedAt: new Date() },
-    });
+      // Broadcast proposal status update via WebSocket
+      broadcastToConversation(
+        proposal.conversationId,
+        {
+          type: "proposalUpdate",
+          conversationId: proposal.conversationId,
+          proposalId: proposal.id,
 
-    // Get sender's professional application info (single object, not array)
-    const senderProfApp = message.senderUser?.professionalApplication;
-
-    // Format message for broadcast
-    const formattedMessage = {
-      id: message.id,
-      text: message.text,
-      imageUrl: null,
-      createdAt: message.createdAt.toISOString(),
-      senderId: message.senderId,
-      userId: message.recipientId,
-      isAudio: false,
-      isSystem: false,
-      proposalId: message.proposalId,
-      proposalStatus: message.proposal?.status ?? null,
-      initiator: message.proposal?.initiator ?? null,
-      sender: {
-        name:
-          `${message.senderUser?.firstName ?? ""} ${message.senderUser?.lastName ?? ""}`.trim() ||
-          "Unknown User",
-        profileImage: message.senderUser?.profileImage ?? null,
-        isProfessional: !!senderProfApp?.professionalId,
-        userId: senderProfApp?.professionalId ?? null,
-      },
-    };
-
-    // Broadcast via WebSocket
-    broadcastToConversation(
-      proposal.conversationId,
-      {
-        type: "newMessage",
-        conversationId: proposal.conversationId,
-        message: formattedMessage,
-      },
-      session.user.id
-    ).catch((err) => {
-      console.error("WebSocket broadcast error:", err);
-    });
-
-    // Also broadcast proposal update event
-    broadcastToConversation(
-      proposal.conversationId,
-      {
-        type: "proposalUpdate",
-        conversationId: proposal.conversationId,
-        proposalId: proposal.id,
-        message: {
-          status: action,
-          appointmentId,
+          message: {
+            id: systemMessage.id,
+            text: systemMessage.text,
+            createdAt: systemMessage.createdAt.toISOString(),
+            senderId: systemMessage.senderId,
+            isSystem: true,
+          },
         },
-      },
-      undefined // Send to all participants including sender
-    ).catch((err) => {
-      console.error("WebSocket proposal update broadcast error:", err);
-    });
+        session.user.id
+      ).catch((err) => console.error("WebSocket broadcast error:", err));
 
-    return NextResponse.json({
-      success: true,
-      proposal: {
-        id: updatedProposal.id,
-        status: updatedProposal.status,
-        startTime: updatedProposal.startTime,
-        endTime: updatedProposal.endTime,
-        initiator: updatedProposal.initiator,
-        professionalId: updatedProposal.professionalId,
-      },
-      appointmentId,
-      message: formattedMessage,
-    });
+      // Send rejection email to the initiator (non-blocking)
+      if (startDate && proposal.initiator === "user" && proposal.user.email) {
+        sendAppointmentRejectedEmail(
+          proposal.user.email,
+          clientName,
+          professionalName,
+          format(startDate, "MMMM d, yyyy"),
+          format(startDate, "h:mm a")
+        ).catch((err) => console.error("Failed to send rejection email:", err));
+      }
+
+      return NextResponse.json({
+        success: true,
+        proposal: updatedProposal,
+      });
+    }
+
+    return NextResponse.json({ success: true, proposal: updatedProposal });
   } catch (error) {
-    console.error("Update proposal status error:", error);
+    console.error("Proposal update error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }
 
-// GET - Fetch a single proposal by ID
-export async function GET(request: NextRequest, { params }: RouteParams) {
+// GET single proposal
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
   const { id } = await params;
-  if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
-    return NextResponse.json({ error: "Invalid proposal ID" }, { status: 400 });
-  }
 
   try {
     const proposal = await prisma.proposal.findUnique({
       where: { id },
       include: {
         user: {
-          select: {
-            id: true,
-            firstName: true,
-            lastName: true,
-            profileImage: true,
-          },
+          select: { firstName: true, lastName: true, profileImage: true },
         },
         professional: {
-          select: {
-            id: true,
-            name: true,
-            rate: true,
-            image: true,
-            venue: true,
-          },
-        },
-        conversation: {
-          select: { id: true, userId1: true, userId2: true },
+          select: { name: true, rate: true, image: true },
         },
       },
     });
@@ -345,52 +293,9 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
       );
     }
 
-    // Check authorization - user must be participant in conversation
-    const isParticipant = [
-      proposal.conversation.userId1,
-      proposal.conversation.userId2,
-    ].includes(session.user.id);
-
-    if (!isParticipant) {
-      // Check if admin
-      const user = await prisma.user.findUnique({
-        where: { id: session.user.id },
-        select: { isAdmin: true },
-      });
-
-      if (!user?.isAdmin) {
-        return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
-      }
-    }
-
-    return NextResponse.json({
-      id: proposal.id,
-      userId: proposal.userId,
-      professionalId: proposal.professionalId,
-      conversationId: proposal.conversationId,
-      startTime: proposal.startTime,
-      endTime: proposal.endTime,
-      venue: proposal.venue,
-      status: proposal.status,
-      initiator: proposal.initiator,
-      createdAt: proposal.createdAt,
-      user: {
-        id: proposal.user.id,
-        name:
-          `${proposal.user.firstName || ""} ${proposal.user.lastName || ""}`.trim() ||
-          "User",
-        profileImage: proposal.user.profileImage,
-      },
-      professional: {
-        id: proposal.professional.id,
-        name: proposal.professional.name,
-        rate: proposal.professional.rate,
-        image: proposal.professional.image,
-        venue: proposal.professional.venue,
-      },
-    });
+    return NextResponse.json(proposal);
   } catch (error) {
-    console.error("Fetch proposal error:", error);
+    console.error("Get proposal error:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
 }

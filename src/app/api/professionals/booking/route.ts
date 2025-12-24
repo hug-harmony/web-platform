@@ -3,12 +3,11 @@ import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
+import { format } from "date-fns";
+import { sendAppointmentBookedEmails } from "@/lib/services/email";
 
 const BUFFER_MINUTES = 30;
 
-/**
- * Creates a new appointment (buffer is handled dynamically, not stored)
- */
 export async function POST(request: Request) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
@@ -26,10 +25,7 @@ export async function POST(request: Request) {
 
   if (!professionalId || !startTime || !endTime || !userId) {
     return NextResponse.json(
-      {
-        error:
-          "Missing required booking details: professionalId, startTime, endTime, or userId",
-      },
+      { error: "Missing required booking details" },
       { status: 400 }
     );
   }
@@ -52,9 +48,28 @@ export async function POST(request: Request) {
   }
 
   try {
+    // Get professional with user info for email
     const professional = await prisma.professional.findUnique({
       where: { id: professionalId },
-      select: { venue: true, rate: true },
+      select: {
+        venue: true,
+        rate: true,
+        name: true,
+        applications: {
+          where: { status: "APPROVED" },
+          select: {
+            user: {
+              select: {
+                email: true,
+                firstName: true,
+                lastName: true,
+                name: true,
+              },
+            },
+          },
+          take: 1,
+        },
+      },
     });
 
     if (!professional) {
@@ -62,6 +77,16 @@ export async function POST(request: Request) {
         { error: "Professional not found" },
         { status: 404 }
       );
+    }
+
+    // Get client info for email
+    const client = await prisma.user.findUnique({
+      where: { id: userId },
+      select: { email: true, firstName: true, lastName: true, name: true },
+    });
+
+    if (!client) {
+      return NextResponse.json({ error: "User not found" }, { status: 404 });
     }
 
     // Venue validation
@@ -80,10 +105,9 @@ export async function POST(request: Request) {
       );
     }
 
-    /* ---- OVERLAP CHECK (includes buffer consideration) ---- */
+    // Overlap checks
     const bufferMs = BUFFER_MINUTES * 60 * 1000;
 
-    // Check 1: Does new booking overlap with any existing appointment?
     const overlappingAppointment = await prisma.appointment.findFirst({
       where: {
         professionalId,
@@ -103,15 +127,13 @@ export async function POST(request: Request) {
       );
     }
 
-    // Check 2: Does new booking start during an existing appointment's buffer?
-    // (i.e., new booking starts within 30 min after an existing appointment ends)
     const appointmentWithBufferConflict = await prisma.appointment.findFirst({
       where: {
         professionalId,
         status: { in: ["upcoming", "pending"] },
         endTime: {
-          gt: new Date(start.getTime() - bufferMs), // Appointment ended within 30 min before new start
-          lte: start, // Appointment ended before or exactly at new start
+          gt: new Date(start.getTime() - bufferMs),
+          lte: start,
         },
       },
     });
@@ -120,24 +142,18 @@ export async function POST(request: Request) {
       return NextResponse.json(
         {
           error: "BUFFER_CONFLICT",
-          message:
-            "This time slot falls within a 30-minute buffer after another appointment.",
+          message: "This time slot falls within a buffer period.",
         },
         { status: 409 }
       );
     }
 
-    // Check 3: Does new booking's buffer overlap with next appointment?
-    // (i.e., there's an appointment starting within 30 min after new booking ends)
     const newBookingBufferEnd = new Date(end.getTime() + bufferMs);
     const nextAppointmentConflict = await prisma.appointment.findFirst({
       where: {
         professionalId,
         status: { in: ["upcoming", "pending"] },
-        startTime: {
-          gte: end, // Starts after new booking ends
-          lt: newBookingBufferEnd, // But within new booking's buffer
-        },
+        startTime: { gte: end, lt: newBookingBufferEnd },
       },
     });
 
@@ -146,13 +162,13 @@ export async function POST(request: Request) {
         {
           error: "BUFFER_CONFLICT",
           message:
-            "This booking's buffer would overlap with the next appointment. Please choose an earlier time or shorter duration.",
+            "This booking's buffer would overlap with the next appointment.",
         },
         { status: 409 }
       );
     }
 
-    /* ---- CREATE APPOINTMENT (no buffer record) ---- */
+    // Create appointment
     const newAppointment = await prisma.appointment.create({
       data: {
         userId,
@@ -164,6 +180,36 @@ export async function POST(request: Request) {
         rate: professional.rate,
       },
     });
+
+    // Send email notifications (non-blocking)
+    const professionalUser = professional.applications[0]?.user;
+    if (client.email && professionalUser?.email) {
+      const durationMs = end.getTime() - start.getTime();
+      const durationHours = durationMs / (1000 * 60 * 60);
+      const amount = `$${((professional.rate || 0) * durationHours).toFixed(2)}`;
+      const duration = `${durationHours.toFixed(1)} hour${durationHours !== 1 ? "s" : ""}`;
+      const venueLabel =
+        finalVenue === "host" ? "Professional's Location" : "Client's Location";
+
+      const clientName =
+        client.name ||
+        `${client.firstName || ""} ${client.lastName || ""}`.trim() ||
+        "Client";
+      const professionalName = professional.name || "Professional";
+
+      sendAppointmentBookedEmails(
+        client.email,
+        clientName,
+        professionalUser.email,
+        professionalName,
+        format(start, "MMMM d, yyyy"),
+        format(start, "h:mm a"),
+        duration,
+        amount,
+        venueLabel,
+        newAppointment.id
+      ).catch((err) => console.error("Failed to send booking emails:", err));
+    }
 
     return NextResponse.json({ appointment: newAppointment }, { status: 201 });
   } catch (error) {

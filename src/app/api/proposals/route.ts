@@ -5,6 +5,7 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 import { broadcastToConversation } from "@/lib/websocket/server";
 import { format } from "date-fns";
+import { sendAppointmentRequestEmail } from "@/lib/services/email";
 
 // GET - Fetch proposals for current user
 export async function GET(request: NextRequest) {
@@ -216,10 +217,28 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 403 });
     }
 
-    // Get professional details for venue validation
+    // Get professional details for venue validation and email
     const professional = await prisma.professional.findUnique({
       where: { id: professionalId },
-      select: { venue: true, rate: true, name: true },
+      select: {
+        venue: true,
+        rate: true,
+        name: true,
+        applications: {
+          where: { status: "APPROVED" },
+          select: {
+            user: {
+              select: {
+                email: true,
+                firstName: true,
+                lastName: true,
+                name: true,
+              },
+            },
+          },
+          take: 1,
+        },
+      },
     });
 
     if (!professional) {
@@ -247,7 +266,7 @@ export async function POST(request: NextRequest) {
     const overlapping = await prisma.appointment.findFirst({
       where: {
         professionalId,
-        status: { in: ["upcoming", "pending", "break"] },
+        status: { in: ["upcoming", "pending"] },
         startTime: { lt: endTime },
         endTime: { gt: startTime },
       },
@@ -302,6 +321,11 @@ export async function POST(request: NextRequest) {
       },
     });
 
+    // Get sender name for email
+    const senderName =
+      `${message.senderUser?.firstName ?? ""} ${message.senderUser?.lastName ?? ""}`.trim() ||
+      "Unknown User";
+
     // Format message for broadcast
     const formattedMessage = {
       id: message.id,
@@ -309,19 +333,17 @@ export async function POST(request: NextRequest) {
       imageUrl: null,
       createdAt: message.createdAt.toISOString(),
       senderId: message.senderId,
-      userId: message.recipientId,
+      recipientId: message.recipientId,
       isAudio: false,
       isSystem: false,
       proposalId: proposal.id,
       proposalStatus: "pending",
       initiator: isProfessional ? "professional" : "user",
       sender: {
-        name:
-          `${message.senderUser?.firstName ?? ""} ${message.senderUser?.lastName ?? ""}`.trim() ||
-          "Unknown User",
+        name: senderName,
         profileImage: message.senderUser?.profileImage ?? null,
         isProfessional,
-        userId: professionalApp?.professionalId ?? null,
+        professionalId: professionalApp?.professionalId ?? null,
       },
     };
 
@@ -335,6 +357,40 @@ export async function POST(request: NextRequest) {
       },
       session.user.id
     ).catch((err) => console.error("WebSocket broadcast error:", err));
+
+    // Send email notification (non-blocking)
+    // Only send if this is a user-initiated request to a professional
+    if (!isProfessional) {
+      const professionalUser = professional.applications[0]?.user;
+      if (professionalUser?.email) {
+        const durationMs = endTime.getTime() - startTime.getTime();
+        const durationHours = durationMs / (1000 * 60 * 60);
+        const amount = `$${((professional.rate || 0) * durationHours).toFixed(2)}`;
+        const duration = `${durationHours.toFixed(1)} hour${durationHours !== 1 ? "s" : ""}`;
+        const venueLabel =
+          finalVenue === "host"
+            ? "Professional's Location"
+            : "Client's Location";
+
+        const professionalName =
+          professionalUser.name ||
+          `${professionalUser.firstName || ""} ${professionalUser.lastName || ""}`.trim() ||
+          professional.name ||
+          "Professional";
+
+        sendAppointmentRequestEmail(
+          professionalUser.email,
+          professionalName,
+          senderName,
+          format(startTime, "MMMM d, yyyy"),
+          `${format(startTime, "h:mm a")} - ${format(endTime, "h:mm a")}`,
+          duration,
+          amount,
+          venueLabel,
+          conversationId
+        ).catch((err) => console.error("Failed to send proposal email:", err));
+      }
+    }
 
     return NextResponse.json(proposal, { status: 201 });
   } catch (error) {

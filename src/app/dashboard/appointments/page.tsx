@@ -1,6 +1,6 @@
 // app/dashboard/appointments/page.tsx
 import { Suspense } from "react";
-import AppointmentsPage from "@/components/AppointmentsPage";
+import AppointmentsPage from "./AppointmentsPage";
 import { Skeleton } from "@/components/ui/skeleton";
 
 export default function Appointments() {
