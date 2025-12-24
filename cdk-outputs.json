@@ -1,4 +1,7 @@
 {
+  "ChimeStack-prod": {
+    "VideoRoomsTableName": "VideoRooms-prod"
+  },
   "ChatWebSocketStack-prod": {
     "SecretsArn": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",
     "PushSubscriptionsTableName": "PushSubscriptions-prod",

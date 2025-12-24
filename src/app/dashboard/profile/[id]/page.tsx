@@ -545,7 +545,9 @@ export default function ProfilePage() {
                     asChild
                     className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full w-full sm:w-auto"
                   >
-                    <Link href={`/dashboard/video-session/${profile.id}`}>
+                    <Link
+                      href={`/dashboard/appointments/book/${profile.id}?type=video`}
+                    >
                       <Video className="mr-2 h-4 w-4" /> Book Virtual
                     </Link>
                   </Button>

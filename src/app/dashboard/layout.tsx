@@ -9,6 +9,7 @@ import BottomNav from "@/components/BottomNav";
 import { LastOnlineUpdater } from "@/components/LastOnlineUpdater";
 import DashboardHeader from "@/components/DashboardHeader";
 import { EmailVerificationBanner } from "@/components/auth/email-verification-banner";
+import IncomingCallDialog from "@/components/IncomingCallDialog";
 
 export default function DashboardLayout({
   children,
@@ -33,6 +34,7 @@ export default function DashboardLayout({
               <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6 max-w-7xl mx-auto w-full">
                 <LastOnlineUpdater />
                 {children}
+                <IncomingCallDialog />
               </main>
             </SidebarInset>
           </div>

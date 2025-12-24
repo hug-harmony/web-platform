@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// src/app/api/videoSessions/route.ts
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { getServerSession } from "next-auth";
@@ -26,7 +26,7 @@ export async function GET(request: Request) {
     });
 
     return NextResponse.json(videoSessions);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error fetching video sessions:", err);
     return NextResponse.json(
       { error: "Failed to fetch video sessions" },
@@ -70,20 +70,23 @@ export async function POST(request: Request) {
       );
     }
 
+    // Generate a unique meeting ID for the new session
+    const meetingId = `meeting_${Date.now()}_${Math.random().toString(36).substring(2, 9)}`;
+
     const videoSession = await prisma.videoSession.create({
       data: {
-        roomId: `room_${Math.random().toString(36).substring(2)}`,
+        meetingId,
+        externalMeetingId: `room_${Math.random().toString(36).substring(2)}`,
         userId,
         professionalId,
-        date: new Date(date || Date.now()),
-        time: time || new Date().toLocaleTimeString(),
-        status: "upcoming",
+        scheduledStart: date ? new Date(date) : new Date(),
+        status: "SCHEDULED",
       },
       include: { professional: { select: { name: true, id: true } } },
     });
 
     return NextResponse.json(videoSession);
-  } catch (err: any) {
+  } catch (err: unknown) {
     console.error("Error creating video session:", err);
     return NextResponse.json(
       { error: "Failed to create video session" },

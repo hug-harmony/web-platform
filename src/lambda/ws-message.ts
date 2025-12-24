@@ -1,4 +1,5 @@
-// lambda/ws-message.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
+// src/lambda/ws-message.ts
 import { APIGatewayProxyHandler, APIGatewayProxyResult } from "aws-lambda";
 import {
   ApiGatewayManagementApiClient,
@@ -132,8 +133,130 @@ export const handler: APIGatewayProxyHandler = async (
         break;
       }
 
+      // ============================================
+      // NEW: Video Call Signaling Actions
+      // ============================================
+      case "videoInvite": {
+        const { targetUserId, sessionId, senderName, appointmentId } = body;
+
+        if (targetUserId && sessionId && userId) {
+          console.log(`Video invite from ${userId} to ${targetUserId}`);
+
+          const signal = {
+            type: "video_invite",
+            sessionId,
+            senderId: userId,
+            senderName: senderName || "Someone",
+            targetUserId,
+            appointmentId,
+            timestamp: new Date().toISOString(),
+          };
+
+          // Send to target user's connections
+          await sendVideoSignalToUser(apiClient, targetUserId, signal);
+
+          // Create notification for the invite
+          await createNotification(
+            targetUserId,
+            "video_call" as any,
+            `${senderName || "Someone"} is inviting you to a video call`,
+            userId,
+            sessionId
+          );
+
+          // Confirm to sender
+          await sendToConnection(apiClient, connectionId, {
+            type: "videoInviteSent",
+            sessionId,
+            targetUserId,
+          });
+        }
+        break;
+      }
+
+      case "videoAccept": {
+        const { targetUserId, sessionId, senderName } = body;
+
+        if (targetUserId && sessionId && userId) {
+          console.log(`Video accept from ${userId} to ${targetUserId}`);
+
+          const signal = {
+            type: "video_accept",
+            sessionId,
+            senderId: userId,
+            senderName: senderName || "Someone",
+            targetUserId,
+            timestamp: new Date().toISOString(),
+          };
+
+          await sendVideoSignalToUser(apiClient, targetUserId, signal);
+        }
+        break;
+      }
+
+      case "videoDecline": {
+        const { targetUserId, sessionId, senderName } = body;
+
+        if (targetUserId && sessionId && userId) {
+          console.log(`Video decline from ${userId} to ${targetUserId}`);
+
+          const signal = {
+            type: "video_decline",
+            sessionId,
+            senderId: userId,
+            senderName: senderName || "Someone",
+            targetUserId,
+            timestamp: new Date().toISOString(),
+          };
+
+          await sendVideoSignalToUser(apiClient, targetUserId, signal);
+        }
+        break;
+      }
+
+      case "videoEnd": {
+        const { targetUserId, sessionId } = body;
+
+        if (targetUserId && sessionId && userId) {
+          console.log(`Video end from ${userId} to ${targetUserId}`);
+
+          const signal = {
+            type: "video_end",
+            sessionId,
+            senderId: userId,
+            senderName: "",
+            targetUserId,
+            timestamp: new Date().toISOString(),
+          };
+
+          await sendVideoSignalToUser(apiClient, targetUserId, signal);
+        }
+        break;
+      }
+
+      case "videoJoin": {
+        const { targetUserId, sessionId, senderName } = body;
+
+        if (targetUserId && sessionId && userId) {
+          console.log(
+            `Video join notification from ${userId} to ${targetUserId}`
+          );
+
+          const signal = {
+            type: "video_join",
+            sessionId,
+            senderId: userId,
+            senderName: senderName || "Someone",
+            targetUserId,
+            timestamp: new Date().toISOString(),
+          };
+
+          await sendVideoSignalToUser(apiClient, targetUserId, signal);
+        }
+        break;
+      }
+
       case "ping": {
-        // Update lastOnline on ping as well
         if (userId) {
           await updateUserLastOnline(userId);
         }
@@ -142,7 +265,6 @@ export const handler: APIGatewayProxyHandler = async (
       }
 
       case "heartbeat": {
-        // Explicit heartbeat to update online status
         if (userId) {
           await updateUserLastOnline(userId);
           await sendToConnection(apiClient, connectionId, {
@@ -268,5 +390,32 @@ async function sendNotificationToUser(
   ).length;
   console.log(
     `Notification sent to ${successful}/${connections.length} connections`
+  );
+}
+
+// NEW: Send video signal to user
+async function sendVideoSignalToUser(
+  apiClient: ApiGatewayManagementApiClient,
+  userId: string,
+  signal: object
+): Promise<void> {
+  const connections = await getConnectionsByUser(userId);
+
+  console.log(
+    `Sending video signal to ${connections.length} connections for user ${userId}`
+  );
+
+  if (connections.length === 0) {
+    console.log(`No active connections for user ${userId}`);
+    return;
+  }
+
+  await Promise.allSettled(
+    connections.map((conn) =>
+      sendToConnection(apiClient, conn.connectionId, {
+        type: "videoCallSignal",
+        videoSignal: signal,
+      })
+    )
   );
 }

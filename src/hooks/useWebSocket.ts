@@ -3,14 +3,14 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useSession } from "next-auth/react";
-import type { WSMessage } from "@/lib/websocket/types";
+import type { WSMessage, VideoCallSignal } from "@/lib/websocket/types";
 import type { ChatMessage } from "@/types/chat";
 
 interface Notification {
   id: string;
   userId: string;
   senderId?: string;
-  type: "message" | "appointment" | "payment" | "profile_visit";
+  type: "message" | "appointment" | "payment" | "profile_visit" | "video_call";
   content: string;
   timestamp: string;
   unread: string;
@@ -24,6 +24,7 @@ interface UseWebSocketOptions {
   onNewMessage?: (message: ChatMessage) => void;
   onTyping?: (userId: string) => void;
   onNotification?: (notification: Notification) => void;
+  onVideoCallSignal?: (signal: VideoCallSignal) => void; // NEW
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (error: Event) => void;
@@ -45,6 +46,29 @@ interface UseWebSocketReturn {
   ) => void;
   sendHeartbeat: () => void;
   reconnect: () => void;
+  // NEW: Video call methods
+  sendVideoInvite: (
+    targetUserId: string,
+    sessionId: string,
+    senderName: string,
+    appointmentId?: string
+  ) => void;
+  sendVideoAccept: (
+    targetUserId: string,
+    sessionId: string,
+    senderName: string
+  ) => void;
+  sendVideoDecline: (
+    targetUserId: string,
+    sessionId: string,
+    senderName: string
+  ) => void;
+  sendVideoEnd: (targetUserId: string, sessionId: string) => void;
+  sendVideoJoin: (
+    targetUserId: string,
+    sessionId: string,
+    senderName: string
+  ) => void;
 }
 
 const WS_URL = process.env.NEXT_PUBLIC_WEBSOCKET_URL;
@@ -70,6 +94,7 @@ export function useWebSocket(
     onNewMessage,
     onTyping,
     onNotification,
+    onVideoCallSignal, // NEW
     onConnect,
     onDisconnect,
     onError,
@@ -147,9 +172,7 @@ export function useWebSocket(
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data) as WSMessage & {
-            isOnline?: boolean;
-          };
+          const data = JSON.parse(event.data) as WSMessage;
           console.log("WebSocket: Received", data.type);
 
           onMessage?.(data);
@@ -175,9 +198,20 @@ export function useWebSocket(
                 onOnlineStatusChange?.(data.userId, data.isOnline);
               }
               break;
+            // NEW: Handle video call signals
+            case "videoCallSignal":
+              if (data.videoSignal) {
+                console.log(
+                  "WebSocket: Video call signal received",
+                  data.videoSignal
+                );
+                onVideoCallSignal?.(data.videoSignal);
+              }
+              break;
             case "pong":
             case "heartbeatAck":
-              // Heartbeat acknowledged
+            case "videoInviteSent":
+              // Acknowledgements
               break;
             case "error":
               console.error("WebSocket: Server error", data.error);
@@ -243,6 +277,7 @@ export function useWebSocket(
     onNewMessage,
     onTyping,
     onNotification,
+    onVideoCallSignal,
     onOnlineStatusChange,
   ]);
 
@@ -311,6 +346,80 @@ export function useWebSocket(
     connect();
   }, [connect]);
 
+  // ============================================
+  // NEW: Video Call Signaling Methods
+  // ============================================
+
+  const sendVideoInvite = useCallback(
+    (
+      targetUserId: string,
+      sessionId: string,
+      senderName: string,
+      appointmentId?: string
+    ) => {
+      send({
+        action: "videoInvite",
+        targetUserId,
+        sessionId,
+        senderName,
+        appointmentId,
+        userId: session?.user?.id,
+      });
+    },
+    [send, session?.user?.id]
+  );
+
+  const sendVideoAccept = useCallback(
+    (targetUserId: string, sessionId: string, senderName: string) => {
+      send({
+        action: "videoAccept",
+        targetUserId,
+        sessionId,
+        senderName,
+        userId: session?.user?.id,
+      });
+    },
+    [send, session?.user?.id]
+  );
+
+  const sendVideoDecline = useCallback(
+    (targetUserId: string, sessionId: string, senderName: string) => {
+      send({
+        action: "videoDecline",
+        targetUserId,
+        sessionId,
+        senderName,
+        userId: session?.user?.id,
+      });
+    },
+    [send, session?.user?.id]
+  );
+
+  const sendVideoEnd = useCallback(
+    (targetUserId: string, sessionId: string) => {
+      send({
+        action: "videoEnd",
+        targetUserId,
+        sessionId,
+        userId: session?.user?.id,
+      });
+    },
+    [send, session?.user?.id]
+  );
+
+  const sendVideoJoin = useCallback(
+    (targetUserId: string, sessionId: string, senderName: string) => {
+      send({
+        action: "videoJoin",
+        targetUserId,
+        sessionId,
+        senderName,
+        userId: session?.user?.id,
+      });
+    },
+    [send, session?.user?.id]
+  );
+
   // Connect on mount
   useEffect(() => {
     if (status === "authenticated" && enabled) {
@@ -338,5 +447,11 @@ export function useWebSocket(
     sendNotification,
     sendHeartbeat,
     reconnect,
+    // Video call methods
+    sendVideoInvite,
+    sendVideoAccept,
+    sendVideoDecline,
+    sendVideoEnd,
+    sendVideoJoin,
   };
 }

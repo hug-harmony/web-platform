@@ -1,0 +1,21 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "456d08387ef6c46cb259c88096912c0a161c4b3fa4e65a5a60c2c37cba744c5c": {
+      "displayName": "ChimeStack-prod Template",
+      "source": {
+        "path": "ChimeStack-prod.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "232247293056-us-east-2-9ad57f52": {
+          "bucketName": "cdk-hnb659fds-assets-232247293056-us-east-2",
+          "objectKey": "456d08387ef6c46cb259c88096912c0a161c4b3fa4e65a5a60c2c37cba744c5c.json",
+          "region": "us-east-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-file-publishing-role-232247293056-us-east-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}

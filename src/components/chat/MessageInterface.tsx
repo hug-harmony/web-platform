@@ -1,4 +1,4 @@
-// C:\DEVELOPER\projects\hug-harmony\src\components\chat\MessageInterface.tsx
+// src/components/chat/MessageInterface.tsx
 "use client";
 
 import React, { useState, useEffect, useCallback, useRef } from "react";
@@ -123,7 +123,7 @@ const MessageInterface: React.FC = () => {
     const checkProfessionalStatus = async () => {
       if (!session?.user?.id) return;
       try {
-        const res = await fetch("/api/professionals/application/me", {
+        const res = await fetch("/api/professionals/application?me=true", {
           cache: "no-store",
           credentials: "include",
         });
@@ -538,9 +538,9 @@ const MessageInterface: React.FC = () => {
       <Card className="h-[calc(100vh-2rem)] flex flex-col shadow-lg">
         <ChatHeader
           otherUser={otherUser}
-          sessionUserId={session.user.id}
           onNotesClick={() => setIsNotesSidebarOpen(true)}
           isConnected={isConnected}
+          professionalId={professionalId}
         />
         <MessageList
           messages={messages}

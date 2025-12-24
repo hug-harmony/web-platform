@@ -1,3 +1,4 @@
+// src\app\dashboard\video-session\page.tsx
 "use client";
 
 import { useState, useEffect } from "react";

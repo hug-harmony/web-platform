@@ -23,7 +23,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-deploy-role-232247293056-us-east-2",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-cfn-exec-role-232247293056-us-east-2",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/ef3d634151a8272c5df68b9c6db0e6945a32d1cb5e53638298567d0658632ea3.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/c5f59a6cad08e3d0c50315bc261b8453a5f83eb8d99b0692a7f50959e411e649.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -226,6 +226,36 @@
             "data": "heartbeatRoute"
           }
         ],
+        "/ChatWebSocketStack-prod/videoInviteRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "videoInviteRoute"
+          }
+        ],
+        "/ChatWebSocketStack-prod/videoAcceptRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "videoAcceptRoute"
+          }
+        ],
+        "/ChatWebSocketStack-prod/videoDeclineRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "videoDeclineRoute"
+          }
+        ],
+        "/ChatWebSocketStack-prod/videoEndRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "videoEndRoute"
+          }
+        ],
+        "/ChatWebSocketStack-prod/videoJoinRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "videoJoinRoute"
+          }
+        ],
         "/ChatWebSocketStack-prod/WebSocketStage": [
           {
             "type": "aws:cdk:logicalId",
@@ -288,6 +318,104 @@
         ]
       },
       "displayName": "ChatWebSocketStack-prod"
+    },
+    "ChimeStack-prod.assets": {
+      "type": "cdk:asset-manifest",
+      "properties": {
+        "file": "ChimeStack-prod.assets.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+      }
+    },
+    "ChimeStack-prod": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://232247293056/us-east-2",
+      "properties": {
+        "templateFile": "ChimeStack-prod.template.json",
+        "terminationProtection": false,
+        "tags": {
+          "Environment": "prod",
+          "ManagedBy": "CDK",
+          "Project": "HugHarmony"
+        },
+        "validateOnSynth": false,
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-deploy-role-232247293056-us-east-2",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-cfn-exec-role-232247293056-us-east-2",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/456d08387ef6c46cb259c88096912c0a161c4b3fa4e65a5a60c2c37cba744c5c.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
+        "additionalDependencies": [
+          "ChimeStack-prod.assets"
+        ],
+        "lookupRole": {
+          "arn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-lookup-role-232247293056-us-east-2",
+          "requiresBootstrapStackVersion": 8,
+          "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+        }
+      },
+      "dependencies": [
+        "ChimeStack-prod.assets"
+      ],
+      "metadata": {
+        "/ChimeStack-prod": [
+          {
+            "type": "aws:cdk:stack-tags",
+            "data": [
+              {
+                "Key": "Environment",
+                "Value": "prod"
+              },
+              {
+                "Key": "ManagedBy",
+                "Value": "CDK"
+              },
+              {
+                "Key": "Project",
+                "Value": "HugHarmony"
+              }
+            ]
+          }
+        ],
+        "/ChimeStack-prod/VideoRooms": [
+          {
+            "type": "aws:cdk:hasPhysicalName",
+            "data": {
+              "Ref": "VideoRooms51975762"
+            }
+          }
+        ],
+        "/ChimeStack-prod/VideoRooms/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "VideoRooms51975762"
+          }
+        ],
+        "/ChimeStack-prod/VideoRoomsTableName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "VideoRoomsTableName"
+          }
+        ],
+        "/ChimeStack-prod/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/ChimeStack-prod/BootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BootstrapVersion"
+          }
+        ],
+        "/ChimeStack-prod/CheckBootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CheckBootstrapVersion"
+          }
+        ]
+      },
+      "displayName": "ChimeStack-prod"
     },
     "Tree": {
       "type": "cdk:tree",

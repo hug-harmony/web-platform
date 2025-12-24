@@ -253,7 +253,12 @@ export class WebSocketStack extends cdk.Stack {
       "sendMessage",
       "ping",
       "notification",
-      "heartbeat", // NEW: Added heartbeat route for online status
+      "heartbeat",
+      "videoInvite",
+      "videoAccept",
+      "videoDecline",
+      "videoEnd",
+      "videoJoin",
     ];
     customRoutes.forEach((routeKey) => {
       new apigatewayv2.CfnRoute(this, `${routeKey}Route`, {

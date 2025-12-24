@@ -109,6 +109,7 @@ model Appointment {
   user                User?             @relation("UserAppointments", fields: [userId], references: [id], onDelete: SetNull)
   professional        Professional      @relation("ProfessionalAppointments", fields: [professionalId], references: [id], onDelete: Cascade)
   payment             Payment?
+  videoSessions       VideoSession[]
 
   @@index([professionalId, startTime, endTime])
 }
@@ -229,19 +230,83 @@ enum ProOnboardingStatus {
 }
 
 model VideoSession {
-  id             String       @id @default(auto()) @map("_id") @db.ObjectId
-  roomId         String       @unique
-  userId         String       @db.ObjectId
-  professionalId String       @db.ObjectId
-  date           DateTime
-  time           String
-  status         String       @default("upcoming")
-  roomUrl        String?
-  signalingData  Json?
-  createdAt      DateTime     @default(now())
-  updatedAt      DateTime     @updatedAt
-  user           User         @relation(fields: [userId], references: [id], onDelete: Cascade)
-  professional   Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  // Chime Meeting Info
+  meetingId         String  @unique
+  externalMeetingId String? @unique
+  mediaRegion       String  @default("us-east-1")
+  mediaPlacement    Json?
+
+  // Participants
+  userId         String @db.ObjectId
+  professionalId String @db.ObjectId
+
+  // Optional: Link to appointment (one-to-many now)
+  appointmentId String? @db.ObjectId
+
+  // Session Info
+  scheduledStart DateTime?
+  actualStart    DateTime?
+  actualEnd      DateTime?
+  duration       Int?
+
+  // Status
+  status    VideoSessionStatus @default(SCHEDULED)
+  endReason String?
+
+  // Metadata
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user         User            @relation(fields: [userId], references: [id], onDelete: Cascade)
+  professional Professional    @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  appointment  Appointment?    @relation(fields: [appointmentId], references: [id], onDelete: SetNull)
+  attendees    VideoAttendee[]
+
+  @@index([status])
+  @@index([scheduledStart])
+  @@index([userId])
+  @@index([professionalId])
+  @@index([appointmentId])
+}
+
+model VideoAttendee {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  videoSessionId String @db.ObjectId
+
+  // Chime Attendee Info
+  attendeeId     String
+  externalUserId String
+  joinToken      String
+
+  // Participant Info
+  role        String @default("participant")
+  displayName String
+
+  // Tracking
+  joinedAt DateTime?
+  leftAt   DateTime?
+
+  createdAt DateTime @default(now())
+
+  // Relations
+  videoSession VideoSession @relation(fields: [videoSessionId], references: [id], onDelete: Cascade)
+
+  @@unique([videoSessionId, externalUserId])
+  @@index([attendeeId])
+}
+
+enum VideoSessionStatus {
+  SCHEDULED
+  WAITING
+  IN_PROGRESS
+  COMPLETED
+  CANCELLED
+  NO_SHOW
+  FAILED
 }
 
 model Availability {
