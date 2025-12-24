@@ -154,7 +154,7 @@ export async function getProfessionals(
       createdAt: true,
       venue: true,
       location: true,
-      application: {
+      applications: {
         select: {
           userId: true,
           user: {
@@ -175,17 +175,18 @@ export async function getProfessionals(
   let results: Professional[] = professionals.map((p) => ({
     _id: p.id,
     name: p.name,
-    image: p.application?.user?.profileImage || p.image || undefined,
-    location: p.location || p.application?.user?.location || undefined,
+    image: p.applications?.[0]?.user?.profileImage || p.image || undefined,
+    location: p.location || p.applications?.[0]?.user?.location || undefined,
     rating: p.rating || undefined,
     reviewCount: p.reviewCount || undefined,
     rate: p.rate || undefined,
     biography: p.biography || undefined,
     createdAt: p.createdAt?.toISOString(),
     venue: p.venue || undefined,
-    lastOnline: p.application?.user?.lastOnline?.toISOString() || undefined,
-    ethnicity: p.application?.user?.ethnicity || undefined,
-    userId: p.application?.userId || undefined,
+    lastOnline:
+      p.applications?.[0]?.user?.lastOnline?.toISOString() || undefined,
+    ethnicity: p.applications?.[0]?.user?.ethnicity || undefined,
+    userId: p.applications?.[0]?.userId || undefined,
   }));
 
   // Apply post-query filters that can't be done in Prisma
@@ -301,7 +302,7 @@ export async function getProfessionalById(
       createdAt: true,
       venue: true,
       location: true,
-      application: {
+      applications: {
         select: {
           id: true,
           status: true,
@@ -345,12 +346,12 @@ export async function getProfessionalById(
     _id: professional.id,
     name: professional.name,
     image:
-      professional.application?.user?.profileImage ||
+      professional.applications?.[0]?.user?.profileImage ||
       professional.image ||
       undefined,
     location:
       professional.location ||
-      professional.application?.user?.location ||
+      professional.applications?.[0]?.user?.location ||
       undefined,
     rating: professional.rating || undefined,
     reviewCount: professional.reviewCount || undefined,
@@ -359,12 +360,13 @@ export async function getProfessionalById(
     createdAt: professional.createdAt?.toISOString(),
     venue: professional.venue || undefined,
     lastOnline:
-      professional.application?.user?.lastOnline?.toISOString() || undefined,
-    ethnicity: professional.application?.user?.ethnicity || undefined,
-    userId: professional.application?.userId || undefined,
-    status: professional.application?.status || undefined,
-    applicationId: professional.application?.id || undefined,
-    photos: professional.application?.user?.photos || [],
+      professional.applications?.[0]?.user?.lastOnline?.toISOString() ||
+      undefined,
+    ethnicity: professional.applications?.[0]?.user?.ethnicity || undefined,
+    userId: professional.applications?.[0]?.userId || undefined,
+    status: professional.applications?.[0]?.status || undefined,
+    applicationId: professional.applications?.[0]?.id || undefined,
+    photos: professional.applications?.[0]?.user?.photos || [],
     reviews: professional.reviews.map((r) => ({
       id: r.id,
       rating: r.rating,

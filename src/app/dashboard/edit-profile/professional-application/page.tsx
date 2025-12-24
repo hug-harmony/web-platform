@@ -171,7 +171,7 @@ export default function ProfessionalApplicationPage() {
   // Check for existing application
   const checkExistingApplication = useCallback(async () => {
     try {
-      const res = await fetch("/api/professionals/application?me=true", {
+      const res = await fetch("/api/professionals/applications?.[0]?me=true", {
         credentials: "include",
       });
 

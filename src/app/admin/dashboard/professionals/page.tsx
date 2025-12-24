@@ -50,7 +50,7 @@ export default function ProfessionalsPage() {
         setError(null);
 
         const response = await fetch(
-          `/api/professionals/application?status=APPROVED&search=${encodeURIComponent(
+          `/api/professionals/applications?.[0]?status=APPROVED&search=${encodeURIComponent(
             searchTerm
           )}`,
           {

@@ -17,7 +17,7 @@ type ReportWithRelations = Prisma.ReportGetPayload<{
       select: {
         id: true;
         name: true;
-        application: {
+        applications: {
           select: {
             user: { select: { location: true } };
           };
@@ -46,7 +46,7 @@ export async function GET() {
           select: {
             id: true,
             name: true,
-            application: {
+            applications: {
               select: {
                 user: { select: { location: true } },
               },
@@ -63,7 +63,7 @@ export async function GET() {
         ? {
             ...report.reportedProfessional,
             location:
-              report.reportedProfessional.application?.user?.location ||
+              report.reportedProfessional.applications?.[0]?.user?.location ||
               "Unknown",
           }
         : null,

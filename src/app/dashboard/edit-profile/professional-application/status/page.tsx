@@ -21,7 +21,7 @@ type Step =
 
 interface StatusData {
   step: Step;
-  application: {
+  applications: {
     status: Step;
     submittedAt?: string;
     videoWatchedAt?: string;

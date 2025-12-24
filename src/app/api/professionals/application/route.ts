@@ -25,9 +25,9 @@ const submitSchema = z.object({
 /* ------------------------------------------------------------------
    GET – User's own application OR admin list/detail
    Usage:
-   - /api/professionals/application?me=true (user's own)
+   - /api/professionals/applications?.[0]?me=true (user's own)
    - /api/professionals/application (admin list)
-   - /api/professionals/application?id=xxx (admin detail)
+   - /api/professionals/applications?.[0]?id=xxx (admin detail)
    ------------------------------------------------------------------ */
 export async function GET(req: NextRequest) {
   try {
@@ -62,14 +62,14 @@ export async function GET(req: NextRequest) {
         return NextResponse.json({
           status: "none",
           professionalId: null,
-          application: null,
+          applications: null,
         });
       }
 
       return NextResponse.json({
         status: application.status,
         professionalId: application.professionalId,
-        application: {
+        applications: {
           id: application.id,
           rate: application.rate,
           venue: application.venue,
@@ -336,7 +336,7 @@ export async function POST(req: NextRequest) {
     return NextResponse.json(
       {
         success: true,
-        application: {
+        applications: {
           id: application.id,
           status: application.status,
           rate: application.rate,
@@ -513,7 +513,7 @@ export async function PATCH(req: NextRequest) {
 
     return NextResponse.json({
       success: true,
-      application: {
+      applications: {
         id: updated.id,
         status: updated.status,
         name: updated.user?.name ?? "Unknown",

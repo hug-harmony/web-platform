@@ -87,9 +87,12 @@ export default function ProfessionalApplicationsPage() {
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (searchTerm) params.set("search", searchTerm);
 
-      const res = await fetch(`/api/professionals/application?${params}`, {
-        credentials: "include",
-      });
+      const res = await fetch(
+        `/api/professionals/applications?.[0]?${params}`,
+        {
+          credentials: "include",
+        }
+      );
 
       if (!res.ok) {
         if (res.status === 401) {
@@ -296,7 +299,7 @@ function StatsCard({
 }
 
 // Application Card Component
-function ApplicationCard({ application: app }: { application: Application }) {
+function ApplicationCard({ applications: app }: { applications: Application }) {
   const statusConfig = STATUS_CONFIG[app.status];
   const StatusIcon = statusConfig.icon;
 

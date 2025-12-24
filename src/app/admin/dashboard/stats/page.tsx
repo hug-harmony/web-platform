@@ -93,7 +93,7 @@ export default function StatsPage() {
 
       // Fetch approved professionals
       const professionalsRes = await fetch(
-        "/api/professionals/application?status=APPROVED"
+        "/api/professionals/applications?.[0]?status=APPROVED"
       );
       if (!professionalsRes.ok)
         throw new Error("Failed to fetch professionals");

@@ -44,7 +44,7 @@ interface DisputeAppointment {
   professional: {
     id: string;
     name: string;
-    application: { user: { name: string; email: string } };
+    applications: { user: { name: string; email: string } };
   };
   payment: {
     id: string;

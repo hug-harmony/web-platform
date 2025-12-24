@@ -10,7 +10,7 @@ export type OnboardingStep =
 
 export interface OnboardingStatus {
   step: OnboardingStep;
-  application?: {
+  applications?.[0]?: {
     status: OnboardingStep;
     submittedAt?: string;
     videoWatchedAt?: string;

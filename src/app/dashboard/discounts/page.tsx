@@ -73,7 +73,7 @@ function DiscountsContent() {
         const userData = await res.json();
         const application = userData.professionalApplication;
         if (
-          application?.status !== "APPROVED" ||
+          applications?.[0]?.status !== "APPROVED" ||
           application.professionalId !== professionalId
         ) {
           toast.error("You are not an approved professional.");

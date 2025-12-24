@@ -53,7 +53,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
             credentials: "include",
           }),
           // ✅ FIX: Correct endpoint with query parameter
-          fetch("/api/professionals/application?me=true", {
+          fetch("/api/professionals/applications?.[0]?me=true", {
             cache: "no-store",
             credentials: "include",
           }),

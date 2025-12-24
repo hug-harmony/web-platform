@@ -29,7 +29,7 @@ export async function GET(
     const professional = await prisma.professional.findUnique({
       where: { id },
       include: {
-        application: {
+        applications: {
           select: {
             user: {
               select: {
@@ -91,7 +91,7 @@ export async function GET(
       );
     }
 
-    const user = professional.application?.user;
+    const user = professional.applications?.[0]?.user;
     const lastOnline = user?.lastOnline || null;
 
     return NextResponse.json({

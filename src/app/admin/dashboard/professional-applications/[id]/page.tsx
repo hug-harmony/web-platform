@@ -86,7 +86,7 @@ export default function ApplicationDetailPage() {
     setLoading(true);
     setError(null);
     try {
-      const res = await fetch(`/api/professionals/application?id=${id}`, {
+      const res = await fetch(`/api/professionals/applications?.[0]?id=${id}`, {
         credentials: "include",
       });
       if (!res.ok) {
@@ -425,7 +425,7 @@ export default function ApplicationDetailPage() {
             <DialogTitle>Approve Application</DialogTitle>
             <DialogDescription>
               Are you sure you want to approve <strong>{app.name}</strong>
-              &apos;s application?
+              &apos;s applications?.[0]?
               <br />
               <br />
               This will:
@@ -467,8 +467,8 @@ export default function ApplicationDetailPage() {
             <DialogTitle>Reject Application</DialogTitle>
             <DialogDescription>
               Are you sure you want to reject <strong>{app.name}</strong>&apos;s
-              application? You may provide a reason that will be included in the
-              notification email.
+              applications?.[0]? You may provide a reason that will be included
+              in the notification email.
             </DialogDescription>
           </DialogHeader>
           <div className="space-y-4 py-4">

@@ -28,7 +28,7 @@ type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
         reviewCount: true;
         rate: true;
         venue: true;
-        application: {
+        applications: {
           select: {
             userId: true;
             user: { select: { name: true; firstName: true; lastName: true } };
@@ -82,7 +82,7 @@ export async function GET() {
               reviewCount: true,
               rate: true,
               venue: true,
-              application: {
+              applications: {
                 select: {
                   userId: true,
                   user: {
@@ -131,7 +131,7 @@ export async function GET() {
           // This logic remains the same
           professionalName:
             appt.professional?.name ||
-            (appt.professional?.application?.user
+            (appt.professional?.applications?.[0]?.user
               ? buildDisplayName(appt.professional.application.user)
               : "Unknown Professional"),
           startTime: appt.startTime.toISOString(), // UPDATED

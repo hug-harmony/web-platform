@@ -31,7 +31,7 @@ export async function GET() {
           select: {
             id: true,
             name: true,
-            application: {
+            applications: {
               select: {
                 user: { select: { name: true, email: true } },
               },

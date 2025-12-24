@@ -67,7 +67,7 @@ export async function GET(req: Request) {
             reviewCount: true,
             rate: true,
             venue: true,
-            application: {
+            applications: {
               select: {
                 userId: true,
                 user: {
@@ -117,7 +117,7 @@ export async function GET(req: Request) {
           endTime: appt.endTime.toISOString(),
           professionalName:
             appt.professional?.name ||
-            (appt.professional?.application?.user
+            (appt.professional?.applications?.[0]?.user
               ? buildDisplayName(appt.professional.application.user)
               : "Unknown Professional"),
           clientName: appt.user
@@ -127,7 +127,8 @@ export async function GET(req: Request) {
           rate: appt.adjustedRate ?? appt.rate ?? appt.professional?.rate ?? 0,
           venue: appt.venue,
           professionalId: appt.professionalId,
-          professionalUserId: appt.professional?.application?.userId || "",
+          professionalUserId:
+            appt.professional?.applications?.[0]?.userId || "",
           clientId: appt.user?.id,
           disputeStatus: appt.disputeStatus || "none",
           rating: appt.professional?.rating ?? 0,

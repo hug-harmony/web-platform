@@ -27,7 +27,7 @@ export async function GET() {
     });
 
     if (!application) {
-      return NextResponse.json({ step: "FORM", application: null });
+      return NextResponse.json({ step: "FORM", applications: null });
     }
 
     // Fetch video watch separately
@@ -50,7 +50,7 @@ export async function GET() {
 
     return NextResponse.json({
       step: application.status,
-      application: {
+      applications: {
         id: application.id,
         status: application.status,
         submittedAt: application.submittedAt,

@@ -31,7 +31,7 @@ export async function GET(
           select: {
             name: true,
             rate: true,
-            application: { select: { user: { select: { location: true } } } },
+            applications: { select: { user: { select: { location: true } } } },
           },
         },
       },
@@ -58,7 +58,8 @@ export async function GET(
           appt.professional?.name || "Professional"
         } for ${appt.user?.name || "Client"}. Rate: $${appt.professional?.rate || 50}`,
         location:
-          appt.professional?.application?.user?.location || "Virtual Session",
+          appt.professional?.applications?.[0]?.user?.location ||
+          "Virtual Session",
       };
 
       const { value, error } = createEvent(event);

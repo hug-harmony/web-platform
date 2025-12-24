@@ -79,7 +79,10 @@ export function useProfile(id: string) {
             const data = await statusRes.json();
             setOnboarding(data);
 
-            if (data.step === "APPROVED" && data.application?.professionalId) {
+            if (
+              data.step === "APPROVED" &&
+              data.applications?.[0]?.professionalId
+            ) {
               const specRes = await fetch(
                 `/api/professionals/${data.application.professionalId}`,
                 { credentials: "include" }

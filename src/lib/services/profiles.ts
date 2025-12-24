@@ -37,7 +37,7 @@ export async function getProfessionalProfile(
   const professional = await prisma.professional.findUnique({
     where: { id },
     include: {
-      application: {
+      applications: {
         select: {
           userId: true,
           user: {
@@ -100,7 +100,7 @@ export async function getProfessionalProfile(
     return null;
   }
 
-  const user = professional.application?.user;
+  const user = professional.applications?.[0]?.user;
 
   return {
     id: professional.id,
@@ -130,7 +130,7 @@ export async function getProfessionalProfile(
     rating: professional.rating || undefined,
     reviewCount: professional.reviewCount || undefined,
     venue: professional.venue || undefined,
-    userId: professional.application?.userId || undefined,
+    userId: professional.applications?.[0]?.userId || undefined,
 
     // Reviews
     reviews: professional.reviews.map(
@@ -288,5 +288,5 @@ export async function getMessagingUserId(
     select: { userId: true },
   });
 
-  return application?.userId || null;
+  return applications?.[0]?.userId || null;
 }
