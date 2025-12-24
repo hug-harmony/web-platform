@@ -100,7 +100,7 @@ export default function UsersPage() {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px] border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20">
+          <SelectTrigger className="w-[180px] border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#fff]/80">
             <SelectValue placeholder="Filter by Status" />
           </SelectTrigger>
           <SelectContent>
@@ -177,7 +177,7 @@ export default function UsersPage() {
                         asChild
                         variant="outline"
                         size="sm"
-                        className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                        className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#fff]/80"
                       >
                         <Link href={`/admin/dashboard/users/${user.id}`}>
                           View

@@ -1,4 +1,4 @@
-// hooks/useWebSocket.ts
+// src/hooks/useWebSocket.ts
 "use client";
 
 import { useEffect, useRef, useCallback, useState } from "react";
@@ -27,6 +27,7 @@ interface UseWebSocketOptions {
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (error: Event) => void;
+  onOnlineStatusChange?: (userId: string, isOnline: boolean) => void;
   enabled?: boolean;
 }
 
@@ -42,6 +43,7 @@ interface UseWebSocketReturn {
     content: string,
     relatedId?: string
   ) => void;
+  sendHeartbeat: () => void;
   reconnect: () => void;
 }
 
@@ -71,6 +73,7 @@ export function useWebSocket(
     onConnect,
     onDisconnect,
     onError,
+    onOnlineStatusChange,
     enabled = true,
   } = options;
 
@@ -131,7 +134,9 @@ export function useWebSocket(
 
         pingIntervalRef.current = setInterval(() => {
           if (ws.readyState === WebSocket.OPEN) {
-            ws.send(JSON.stringify({ action: "ping" }));
+            ws.send(
+              JSON.stringify({ action: "ping", userId: session?.user?.id })
+            );
           }
         }, PING_INTERVAL);
 
@@ -142,7 +147,9 @@ export function useWebSocket(
 
       ws.onmessage = (event) => {
         try {
-          const data = JSON.parse(event.data) as WSMessage;
+          const data = JSON.parse(event.data) as WSMessage & {
+            isOnline?: boolean;
+          };
           console.log("WebSocket: Received", data.type);
 
           onMessage?.(data);
@@ -163,7 +170,14 @@ export function useWebSocket(
                 onNotification?.(data.notification as Notification);
               }
               break;
+            case "onlineStatus":
+              if (data.userId !== undefined && data.isOnline !== undefined) {
+                onOnlineStatusChange?.(data.userId, data.isOnline);
+              }
+              break;
             case "pong":
+            case "heartbeatAck":
+              // Heartbeat acknowledged
               break;
             case "error":
               console.error("WebSocket: Server error", data.error);
@@ -218,6 +232,7 @@ export function useWebSocket(
     }
   }, [
     session?.accessToken,
+    session?.user?.id,
     conversationId,
     enabled,
     cleanup,
@@ -228,6 +243,7 @@ export function useWebSocket(
     onNewMessage,
     onTyping,
     onNotification,
+    onOnlineStatusChange,
   ]);
 
   // Send function
@@ -281,6 +297,14 @@ export function useWebSocket(
     [send, session?.user?.id]
   );
 
+  // Send heartbeat to update online status
+  const sendHeartbeat = useCallback(() => {
+    send({
+      action: "heartbeat",
+      userId: session?.user?.id,
+    });
+  }, [send, session?.user?.id]);
+
   // Manual reconnect
   const reconnect = useCallback(() => {
     reconnectAttemptsRef.current = 0;
@@ -312,6 +336,7 @@ export function useWebSocket(
     sendTyping,
     joinConversation,
     sendNotification,
+    sendHeartbeat,
     reconnect,
   };
 }

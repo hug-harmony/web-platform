@@ -153,7 +153,7 @@ export default function BookingsPaymentsPage() {
           />
         </div>
         <Select value={statusFilter} onValueChange={setStatusFilter}>
-          <SelectTrigger className="w-[180px] border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20">
+          <SelectTrigger className="w-[180px] border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#fff]/80">
             <SelectValue placeholder="Filter by Status" />
           </SelectTrigger>
           <SelectContent>
@@ -226,7 +226,7 @@ export default function BookingsPaymentsPage() {
                         asChild
                         variant="outline"
                         size="sm"
-                        className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                        className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#fff]/80"
                       >
                         <Link
                           href={`/admin/dashboard/bookings-payments/${booking._id}`}
@@ -285,7 +285,7 @@ export default function BookingsPaymentsPage() {
                           <Button
                             variant="outline"
                             size="sm"
-                            className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                            className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#fff]/80"
                           >
                             Resolve
                           </Button>

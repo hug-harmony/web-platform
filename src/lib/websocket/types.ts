@@ -1,5 +1,4 @@
 // src/lib/websocket/types.ts
-
 import type { ChatMessage } from "@/types/chat";
 
 export interface Notification {
@@ -23,11 +22,16 @@ export interface WSMessage {
     | "error"
     | "notification"
     | "notificationSent"
-    | string; // Keep string for backwards compatibility
+    | "onlineStatus"
+    | "heartbeatAck"
+    | string;
   conversationId?: string;
   message?: ChatMessage;
   notification?: Notification;
   userId?: string;
+  isOnline?: boolean;
+  lastOnline?: string;
+  timestamp?: string;
   error?: string;
 }
 
@@ -37,6 +41,7 @@ export interface WSConfig {
   conversationIds?: string[];
   onMessage?: (message: WSMessage) => void;
   onNotification?: (notification: Notification) => void;
+  onOnlineStatusChange?: (userId: string, isOnline: boolean) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (error: Event) => void;

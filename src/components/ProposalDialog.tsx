@@ -310,7 +310,7 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
                 <Button
                   variant="outline"
                   onClick={() => setIsOpen(false)}
-                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                 >
                   Cancel
                 </Button>

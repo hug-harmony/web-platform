@@ -1,4 +1,4 @@
-// infrastructure/websocket-stack.ts
+// src/infrastructure/websocket-stack.ts
 import * as cdk from "aws-cdk-lib";
 import * as apigatewayv2 from "aws-cdk-lib/aws-apigatewayv2";
 import * as dynamodb from "aws-cdk-lib/aws-dynamodb";
@@ -147,6 +147,9 @@ export class WebSocketStack extends cdk.Stack {
       SECRETS_ARN: appSecrets.secretArn,
       SECRETS_NAME: `hug-harmony/${stage}/secrets`,
       NODE_OPTIONS: "--enable-source-maps",
+      // NEW: Environment variables for online status updates
+      APP_URL: process.env.APP_URL || "",
+      INTERNAL_API_KEY: process.env.INTERNAL_API_KEY || "",
     };
 
     const connectHandler = new lambda.Function(this, "ConnectHandler", {
@@ -243,13 +246,14 @@ export class WebSocketStack extends cdk.Stack {
       target: `integrations/${messageIntegration.ref}`,
     });
 
-    // Custom routes for specific actions
+    // Custom routes for specific actions (UPDATED: added heartbeat)
     const customRoutes = [
       "join",
       "typing",
       "sendMessage",
       "ping",
       "notification",
+      "heartbeat", // NEW: Added heartbeat route for online status
     ];
     customRoutes.forEach((routeKey) => {
       new apigatewayv2.CfnRoute(this, `${routeKey}Route`, {

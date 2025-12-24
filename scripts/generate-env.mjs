@@ -33,11 +33,15 @@ const envVars = [
   // Public URLs
   "NEXT_PUBLIC_APP_URL",
 
-  // WebSocket Configuration (NEW)
+  // WebSocket Configuration
   "NEXT_PUBLIC_WEBSOCKET_URL",
   "WEBSOCKET_API_ENDPOINT",
   "CONNECTIONS_TABLE",
   "NOTIFICATIONS_TABLE",
+
+  // Online Status (NEW)
+  "APP_URL",
+  "INTERNAL_API_KEY",
 ];
 
 const envContent = envVars
@@ -59,5 +63,12 @@ const wsVars = [
 ];
 console.log("\n📡 WebSocket Configuration:");
 wsVars.forEach((v) => {
+  console.log(`   ${v}: ${process.env[v] ? "✓ Set" : "✗ Missing"}`);
+});
+
+// Log Online Status config status (NEW)
+const onlineStatusVars = ["APP_URL", "INTERNAL_API_KEY"];
+console.log("\n🟢 Online Status Configuration:");
+onlineStatusVars.forEach((v) => {
   console.log(`   ${v}: ${process.env[v] ? "✓ Set" : "✗ Missing"}`);
 });

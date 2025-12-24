@@ -5,16 +5,19 @@ import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
 export async function POST() {
-  const session = await getServerSession(authOptions);
-
-  if (!session?.user?.id) {
-    return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-  }
-
   try {
+    const session = await getServerSession(authOptions);
+
+    if (!session?.user?.id) {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const now = new Date();
+
+    // Update user's lastOnline timestamp
     await prisma.user.update({
       where: { id: session.user.id },
-      data: { lastOnline: new Date() },
+      data: { lastOnline: now },
     });
 
     return NextResponse.json({ success: true });

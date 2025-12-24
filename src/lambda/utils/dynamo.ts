@@ -1,4 +1,4 @@
-// lambda/utils/dynamo.ts
+// src/lambda/utils/dynamo.ts
 import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
 import {
   DynamoDBDocumentClient,
@@ -6,6 +6,8 @@ import {
   DeleteCommand,
   QueryCommand,
   UpdateCommand,
+  GetCommand,
+  ScanCommand,
 } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
@@ -16,6 +18,10 @@ export const TABLE_NAME =
   process.env.CONNECTIONS_TABLE || "ChatConnections-prod";
 export const NOTIFICATIONS_TABLE =
   process.env.NOTIFICATIONS_TABLE || "Notifications-prod";
+
+// App URL for API calls
+const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
+const INTERNAL_API_KEY = process.env.INTERNAL_API_KEY;
 
 // ==========================================
 // Connection Types & Functions
@@ -68,6 +74,26 @@ export async function removeConnection(connectionId: string): Promise<void> {
       Key: { connectionId },
     })
   );
+}
+
+export async function getConnectionByConnectionId(
+  connectionId: string
+): Promise<ConnectionRecord | null> {
+  console.log("Getting connection by connectionId:", connectionId);
+
+  try {
+    const result = await docClient.send(
+      new GetCommand({
+        TableName: TABLE_NAME,
+        Key: { connectionId },
+      })
+    );
+
+    return (result.Item as ConnectionRecord) || null;
+  } catch (error) {
+    console.error("Error getting connection:", error);
+    return null;
+  }
 }
 
 export async function updateVisibleConversation(
@@ -140,6 +166,75 @@ export async function getConnectionsByUser(
 
   console.log(`Found ${connections.length} connections for user ${userId}`);
   return connections;
+}
+
+// ==========================================
+// Get All Active Connections (for broadcasting)
+// ==========================================
+
+export async function getAllActiveConnections(): Promise<
+  Array<{ connectionId: string; userId: string }>
+> {
+  console.log("Getting all active connections");
+
+  try {
+    const result = await docClient.send(
+      new ScanCommand({
+        TableName: TABLE_NAME,
+        ProjectionExpression: "connectionId, userId",
+      })
+    );
+
+    const connections = (result.Items || []).map((item) => ({
+      connectionId: item.connectionId as string,
+      userId: item.userId as string,
+    }));
+
+    console.log(`Found ${connections.length} total active connections`);
+    return connections;
+  } catch (error) {
+    console.error("Error getting all connections:", error);
+    return [];
+  }
+}
+
+// ==========================================
+// Last Online Status Functions
+// ==========================================
+
+export async function updateUserLastOnline(userId: string): Promise<void> {
+  if (!APP_URL) {
+    console.warn("APP_URL not configured, skipping lastOnline update");
+    return;
+  }
+
+  try {
+    console.log(`Updating lastOnline for user ${userId}`);
+
+    const response = await fetch(`${APP_URL}/api/users/update-online-status`, {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        ...(INTERNAL_API_KEY && { "x-api-key": INTERNAL_API_KEY }),
+      },
+      body: JSON.stringify({
+        userId,
+        lastOnline: new Date().toISOString(),
+      }),
+    });
+
+    if (!response.ok) {
+      const errorText = await response.text();
+      console.error(
+        `Failed to update lastOnline for user ${userId}:`,
+        errorText
+      );
+    } else {
+      console.log(`Successfully updated lastOnline for user ${userId}`);
+    }
+  } catch (error) {
+    console.error(`Error updating lastOnline for user ${userId}:`, error);
+  }
 }
 
 // ==========================================

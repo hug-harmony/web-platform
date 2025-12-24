@@ -1,31 +1,31 @@
 {
   "version": "48.0.0",
   "files": {
-    "ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b": {
+    "9077f405cf4d526599078b901f6280e3de958643309b80cb7ef658c517d32d7d": {
       "displayName": "ConnectHandler/Code",
       "source": {
-        "path": "asset.ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b",
+        "path": "asset.9077f405cf4d526599078b901f6280e3de958643309b80cb7ef658c517d32d7d",
         "packaging": "zip"
       },
       "destinations": {
-        "232247293056-us-east-2-cbb1432c": {
+        "232247293056-us-east-2-c30a3972": {
           "bucketName": "cdk-hnb659fds-assets-232247293056-us-east-2",
-          "objectKey": "ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b.zip",
+          "objectKey": "9077f405cf4d526599078b901f6280e3de958643309b80cb7ef658c517d32d7d.zip",
           "region": "us-east-2",
           "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-file-publishing-role-232247293056-us-east-2"
         }
       }
     },
-    "3afd458a6ce11c789fb1bd6f27026eb9d6de51c309a45cfc3e21f6dcad6e90a2": {
+    "ef3d634151a8272c5df68b9c6db0e6945a32d1cb5e53638298567d0658632ea3": {
       "displayName": "ChatWebSocketStack-prod Template",
       "source": {
         "path": "ChatWebSocketStack-prod.template.json",
         "packaging": "file"
       },
       "destinations": {
-        "232247293056-us-east-2-d1c5fd62": {
+        "232247293056-us-east-2-04f5ab60": {
           "bucketName": "cdk-hnb659fds-assets-232247293056-us-east-2",
-          "objectKey": "3afd458a6ce11c789fb1bd6f27026eb9d6de51c309a45cfc3e21f6dcad6e90a2.json",
+          "objectKey": "ef3d634151a8272c5df68b9c6db0e6945a32d1cb5e53638298567d0658632ea3.json",
           "region": "us-east-2",
           "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-file-publishing-role-232247293056-us-east-2"
         }

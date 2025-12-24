@@ -83,7 +83,7 @@ export function ProfessionalsGrid({
                       rating={professional.rating || 0}
                       reviewCount={professional.reviewCount || 0}
                       rate={professional.rate || 0}
-                      className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors"
+                      className="hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 transition-colors"
                     />
                   </Link>
                 </motion.div>

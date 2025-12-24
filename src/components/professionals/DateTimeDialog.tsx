@@ -113,7 +113,7 @@ export function DateTimeDialog({
                   className={cn(
                     "flex flex-col h-auto py-2 transition-colors",
                     isPresetActive(preset) &&
-                      "bg-[#F3CFC6] text-black border-[#F3CFC6] hover:bg-[#F3CFC6]/80"
+                      "bg-[#F3CFC6] text-black border-[#F3CFC6] hover:bg-[#fff]/80"
                   )}
                   aria-pressed={isPresetActive(preset)}
                 >
@@ -167,7 +167,7 @@ export function DateTimeDialog({
             </Button>
             <Button
               onClick={onApply}
-              className="bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80"
+              className="bg-[#F3CFC6] text-black hover:bg-[#fff]/80"
             >
               Apply
             </Button>

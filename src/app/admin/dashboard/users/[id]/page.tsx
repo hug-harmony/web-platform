@@ -198,7 +198,7 @@ export default function UserDetailPage() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:bg-black/80 dark:hover:bg-gray-700"
+              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#fff]/80 dark:bg-black/80 dark:hover:bg-gray-700"
               disabled={user.status === "active"}
               onClick={() => handleStatusChange("active")}
             >
@@ -206,7 +206,7 @@ export default function UserDetailPage() {
             </Button>
             <Button
               variant="outline"
-              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:bg-black/80 dark:hover:bg-gray-700"
+              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#fff]/80 dark:bg-black/80 dark:hover:bg-gray-700"
               disabled={user.status === "suspended"}
               onClick={() => handleStatusChange("suspended")}
             >

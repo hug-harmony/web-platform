@@ -3879,7 +3879,6 @@ __export(ws_connect_exports, {
   handler: () => handler
 });
 module.exports = __toCommonJS(ws_connect_exports);
-var import_client_apigatewaymanagementapi = require("@aws-sdk/client-apigatewaymanagementapi");
 
 // src/lambda/utils/dynamo.ts
 var import_client_dynamodb = require("@aws-sdk/client-dynamodb");
@@ -3912,35 +3911,6 @@ async function saveConnection(connectionId, userId, conversationIds) {
       }
     })
   );
-}
-async function removeConnection(connectionId) {
-  console.log("Removing connection:", connectionId);
-  await docClient.send(
-    new import_lib_dynamodb.DeleteCommand({
-      TableName: TABLE_NAME,
-      Key: { connectionId }
-    })
-  );
-}
-async function getAllActiveConnections() {
-  console.log("Getting all active connections");
-  try {
-    const result = await docClient.send(
-      new import_lib_dynamodb.ScanCommand({
-        TableName: TABLE_NAME,
-        ProjectionExpression: "connectionId, userId"
-      })
-    );
-    const connections = (result.Items || []).map((item) => ({
-      connectionId: item.connectionId,
-      userId: item.userId
-    }));
-    console.log(`Found ${connections.length} total active connections`);
-    return connections;
-  } catch (error) {
-    console.error("Error getting all connections:", error);
-    return [];
-  }
 }
 async function updateUserLastOnline(userId) {
   if (!APP_URL) {
@@ -4009,8 +3979,6 @@ var jwt = __toESM(require_jsonwebtoken());
 var handler = async (event) => {
   console.log("Connect event:", JSON.stringify(event, null, 2));
   const connectionId = event.requestContext.connectionId;
-  const domainName = event.requestContext.domainName;
-  const stage = event.requestContext.stage;
   if (!connectionId) {
     console.error("No connectionId found");
     return { statusCode: 400, body: "Missing connectionId" };
@@ -4043,15 +4011,6 @@ var handler = async (event) => {
     });
     await saveConnection(connectionId, userId, conversationIds);
     await updateUserLastOnline(userId);
-    if (domainName && stage) {
-      await broadcastOnlineStatus(
-        domainName,
-        stage,
-        userId,
-        true,
-        connectionId
-      );
-    }
     console.log("Connection saved and user marked online successfully");
     return { statusCode: 200, body: "Connected" };
   } catch (error) {
@@ -4067,53 +4026,6 @@ var handler = async (event) => {
     };
   }
 };
-async function broadcastOnlineStatus(domainName, stage, userId, isOnline, excludeConnectionId) {
-  const endpoint = `https://${domainName}/${stage}`;
-  const apiClient = new import_client_apigatewaymanagementapi.ApiGatewayManagementApiClient({ endpoint });
-  try {
-    const connections = await getAllActiveConnections();
-    console.log(
-      `Broadcasting online status for user ${userId} (isOnline: ${isOnline}) to ${connections.length} connections`
-    );
-    const message = {
-      type: "onlineStatus",
-      userId,
-      isOnline,
-      lastOnline: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    const targetConnections = connections.filter(
-      (conn) => conn.connectionId !== excludeConnectionId && conn.userId !== userId
-    );
-    console.log(`Sending to ${targetConnections.length} other connections`);
-    const results = await Promise.allSettled(
-      targetConnections.map(async (conn) => {
-        try {
-          await apiClient.send(
-            new import_client_apigatewaymanagementapi.PostToConnectionCommand({
-              ConnectionId: conn.connectionId,
-              Data: Buffer.from(JSON.stringify(message))
-            })
-          );
-          return true;
-        } catch (error) {
-          if (error instanceof import_client_apigatewaymanagementapi.GoneException) {
-            console.log(`Stale connection, removing: ${conn.connectionId}`);
-            await removeConnection(conn.connectionId);
-          }
-          return false;
-        }
-      })
-    );
-    const successful = results.filter(
-      (r) => r.status === "fulfilled" && r.value
-    ).length;
-    console.log(
-      `Online status broadcast complete: ${successful}/${targetConnections.length} successful`
-    );
-  } catch (error) {
-    console.error("Error broadcasting online status:", error);
-  }
-}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   handler

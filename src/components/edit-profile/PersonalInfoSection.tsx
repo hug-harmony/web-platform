@@ -474,7 +474,7 @@ export function PersonalInfoSection({
             <Button
               variant="outline"
               onClick={() => setIsEditing(true)}
-              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 rounded-full"
             >
               Edit
             </Button>

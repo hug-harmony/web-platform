@@ -38,6 +38,7 @@ export async function getProfessionalProfile(
     where: { id },
     include: {
       applications: {
+        where: { status: "APPROVED" },
         select: {
           userId: true,
           user: {
@@ -55,15 +56,13 @@ export async function getProfessionalProfile(
               petOwnership: true,
               biography: true,
               photos: {
-                select: {
-                  id: true,
-                  url: true,
-                },
+                select: { id: true, url: true },
                 orderBy: { createdAt: "desc" },
               },
             },
           },
         },
+        take: 1,
       },
       reviews: {
         select: {

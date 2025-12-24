@@ -105,7 +105,7 @@ export default function SettingsPage() {
               <Button
                 type="submit"
                 disabled={submitting}
-                className="bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80"
+                className="bg-[#F3CFC6] text-black hover:bg-[#fff]/80"
               >
                 {submitting ? "Saving..." : "Save Changes"}
               </Button>

@@ -343,7 +343,7 @@ export default function NotificationsPage() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
+                    className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                   >
                     <Filter className="h-6 w-6 text-[#F3CFC6]" />
                     <span>
@@ -358,7 +358,7 @@ export default function NotificationsPage() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => setTypeFilter("")}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     All
                   </DropdownMenuItem>
@@ -367,7 +367,7 @@ export default function NotificationsPage() {
                       <DropdownMenuItem
                         key={type}
                         onClick={() => setTypeFilter(type)}
-                        className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                        className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                       >
                         {getTypeLabel(type)}
                       </DropdownMenuItem>
@@ -378,7 +378,7 @@ export default function NotificationsPage() {
               <Button
                 variant="outline"
                 onClick={() => setShowUnreadOnly(!showUnreadOnly)}
-                className={`text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto ${
+                className={`text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto ${
                   showUnreadOnly ? "bg-[#F3CFC6]/20" : ""
                 }`}
               >
@@ -388,7 +388,7 @@ export default function NotificationsPage() {
                 <Button
                   variant="outline"
                   onClick={markAllAsRead}
-                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
+                  className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                 >
                   <CheckCheck className="h-4 w-4 mr-2" />
                   Mark All Read
@@ -465,7 +465,7 @@ export default function NotificationsPage() {
                               variant="outline"
                               size="sm"
                               onClick={() => markAsRead(notif.id)}
-                              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                             >
                               <CheckCircle className="h-4 w-4 mr-1 text-[#F3CFC6]" />
                               Mark as Read
@@ -476,7 +476,7 @@ export default function NotificationsPage() {
                               asChild
                               variant="outline"
                               size="sm"
-                              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                             >
                               <Link href={link}>View</Link>
                             </Button>

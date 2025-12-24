@@ -34,7 +34,7 @@ export function QuickActions() {
           transition={{ duration: 0.2 }}
         >
           <Link href={item.href}>
-            <Card className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors shadow-lg">
+            <Card className="hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 transition-colors shadow-lg">
               <CardContent className="flex items-center space-x-4 p-6">
                 {item.icon}
                 <div>

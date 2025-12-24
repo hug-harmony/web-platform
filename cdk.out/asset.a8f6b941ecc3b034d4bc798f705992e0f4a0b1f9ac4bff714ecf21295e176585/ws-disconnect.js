@@ -23,7 +23,6 @@ __export(ws_disconnect_exports, {
   handler: () => handler
 });
 module.exports = __toCommonJS(ws_disconnect_exports);
-var import_client_apigatewaymanagementapi = require("@aws-sdk/client-apigatewaymanagementapi");
 
 // src/lambda/utils/dynamo.ts
 var import_client_dynamodb = require("@aws-sdk/client-dynamodb");
@@ -45,18 +44,13 @@ async function removeConnection(connectionId) {
 }
 async function getConnectionByConnectionId(connectionId) {
   console.log("Getting connection by connectionId:", connectionId);
-  try {
-    const result = await docClient.send(
-      new import_lib_dynamodb.GetCommand({
-        TableName: TABLE_NAME,
-        Key: { connectionId }
-      })
-    );
-    return result.Item || null;
-  } catch (error) {
-    console.error("Error getting connection:", error);
-    return null;
-  }
+  const result = await docClient.send(
+    new import_lib_dynamodb.GetCommand({
+      TableName: TABLE_NAME,
+      Key: { connectionId }
+    })
+  );
+  return result.Item || null;
 }
 async function getConnectionsByUser(userId) {
   console.log("Getting connections for user:", userId);
@@ -76,26 +70,6 @@ async function getConnectionsByUser(userId) {
   }));
   console.log(`Found ${connections.length} connections for user ${userId}`);
   return connections;
-}
-async function getAllActiveConnections() {
-  console.log("Getting all active connections");
-  try {
-    const result = await docClient.send(
-      new import_lib_dynamodb.ScanCommand({
-        TableName: TABLE_NAME,
-        ProjectionExpression: "connectionId, userId"
-      })
-    );
-    const connections = (result.Items || []).map((item) => ({
-      connectionId: item.connectionId,
-      userId: item.userId
-    }));
-    console.log(`Found ${connections.length} total active connections`);
-    return connections;
-  } catch (error) {
-    console.error("Error getting all connections:", error);
-    return [];
-  }
 }
 async function updateUserLastOnline(userId) {
   if (!APP_URL) {
@@ -133,8 +107,6 @@ async function updateUserLastOnline(userId) {
 var handler = async (event) => {
   console.log("Disconnect event:", JSON.stringify(event, null, 2));
   const connectionId = event.requestContext.connectionId;
-  const domainName = event.requestContext.domainName;
-  const stage = event.requestContext.stage;
   if (!connectionId) {
     console.error("No connectionId found");
     return { statusCode: 400, body: "Missing connectionId" };
@@ -149,11 +121,8 @@ var handler = async (event) => {
       const remainingConnections = await getConnectionsByUser(userId);
       if (remainingConnections.length === 0) {
         await updateUserLastOnline(userId);
-        if (domainName && stage) {
-          await broadcastOnlineStatus(domainName, stage, userId, false);
-        }
         console.log(
-          `User ${userId} has no remaining connections, marked offline and broadcasted`
+          `User ${userId} has no remaining connections, lastOnline updated`
         );
       } else {
         console.log(
@@ -170,49 +139,6 @@ var handler = async (event) => {
     };
   }
 };
-async function broadcastOnlineStatus(domainName, stage, userId, isOnline) {
-  const endpoint = `https://${domainName}/${stage}`;
-  const apiClient = new import_client_apigatewaymanagementapi.ApiGatewayManagementApiClient({ endpoint });
-  try {
-    const connections = await getAllActiveConnections();
-    console.log(
-      `Broadcasting offline status for user ${userId} to ${connections.length} connections`
-    );
-    const message = {
-      type: "onlineStatus",
-      userId,
-      isOnline,
-      lastOnline: (/* @__PURE__ */ new Date()).toISOString()
-    };
-    const results = await Promise.allSettled(
-      connections.map(async (conn) => {
-        try {
-          await apiClient.send(
-            new import_client_apigatewaymanagementapi.PostToConnectionCommand({
-              ConnectionId: conn.connectionId,
-              Data: Buffer.from(JSON.stringify(message))
-            })
-          );
-          return true;
-        } catch (error) {
-          if (error instanceof import_client_apigatewaymanagementapi.GoneException) {
-            console.log(`Stale connection, removing: ${conn.connectionId}`);
-            await removeConnection(conn.connectionId);
-          }
-          return false;
-        }
-      })
-    );
-    const successful = results.filter(
-      (r) => r.status === "fulfilled" && r.value
-    ).length;
-    console.log(
-      `Offline status broadcast complete: ${successful}/${connections.length} successful`
-    );
-  } catch (error) {
-    console.error("Error broadcasting offline status:", error);
-  }
-}
 // Annotate the CommonJS export names for ESM import in node:
 0 && (module.exports = {
   handler

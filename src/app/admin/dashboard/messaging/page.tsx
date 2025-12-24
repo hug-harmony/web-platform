@@ -138,7 +138,7 @@ export default function MessagingPage() {
                         asChild
                         variant="outline"
                         size="sm"
-                        className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                        className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#fff]/80"
                       >
                         <Link href={`/admin/dashboard/messaging/${conv.id}`}>
                           View

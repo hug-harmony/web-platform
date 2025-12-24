@@ -116,7 +116,7 @@ export default function ReportDetailPage() {
           <div className="flex gap-2">
             <Button
               variant="outline"
-              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#fff]/80"
               onClick={() => setStatus("closed")}
               disabled={status === "closed"}
               aria-label="Resolve report"
@@ -125,7 +125,7 @@ export default function ReportDetailPage() {
             </Button>
             <Button
               variant="outline"
-              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#fff]/80"
               onClick={() => setStatus("open")}
               disabled={status === "open"}
               aria-label="Reopen report"

@@ -48,7 +48,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
           placeholder="Search Professionals... (press / to focus)"
           value={searchQuery}
           onChange={onSearchChange}
-          className="pl-12 pr-16 py-3 rounded-full border border-[#F3CFC6] focus:ring-2 focus:ring-[#F3CFC6]/50"
+          className="pl-12 pr-16 py-3 rounded-full border border-[#000] focus:ring-2 focus:ring-[#F3CFC6]/50"
           data-search-input
           aria-label="Search professionals"
         />
@@ -73,7 +73,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
-              className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+              className="border-[#F3CFC6] text-[#000] hover:bg-white/80"
             >
               Clear
               <ChevronDown className="ml-1 h-3 w-3" aria-hidden="true" />

@@ -327,7 +327,7 @@ export default function ForumPage() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
+                    className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                   >
                     <MessageSquare className="h-6 w-6 text-[#F3CFC6]" />
                     <span>Category</span>
@@ -340,7 +340,7 @@ export default function ForumPage() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => handleCategoryFilterChange("")}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     All
                   </DropdownMenuItem>
@@ -348,7 +348,7 @@ export default function ForumPage() {
                     <DropdownMenuItem
                       key={category}
                       onClick={() => handleCategoryFilterChange(category)}
-                      className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                      className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                     >
                       {category}
                     </DropdownMenuItem>
@@ -394,7 +394,7 @@ export default function ForumPage() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="w-full sm:w-auto text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="w-full sm:w-auto text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     {newPost.category || "Select Category"}
                   </Button>
@@ -408,7 +408,7 @@ export default function ForumPage() {
                     <DropdownMenuItem
                       key={category}
                       onClick={() => setNewPost({ ...newPost, category })}
-                      className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                      className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                     >
                       {category}
                     </DropdownMenuItem>
@@ -417,7 +417,7 @@ export default function ForumPage() {
               </DropdownMenu>
               <Button
                 type="submit"
-                className="w-full sm:w-auto bg-[#F3CFC6] hover:bg-[#F3CFC6]/80 text-black dark:text-white"
+                className="w-full sm:w-auto bg-[#F3CFC6] hover:bg-[#fff]/80 text-black dark:text-white"
               >
                 <Send className="mr-2 h-4 w-4" />
                 Post

@@ -179,7 +179,7 @@ export default function VideoSessionsPage() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
+                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                 >
                   <Filter className="h-6 w-6 text-[#F3CFC6]" />
                   <span>Status</span>
@@ -192,7 +192,7 @@ export default function VideoSessionsPage() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => handleStatusFilterChange("")}
-                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                 >
                   All
                 </DropdownMenuItem>
@@ -200,7 +200,7 @@ export default function VideoSessionsPage() {
                   <DropdownMenuItem
                     key={status}
                     onClick={() => handleStatusFilterChange(status)}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     {status.charAt(0).toUpperCase() + status.slice(1)}
                   </DropdownMenuItem>
@@ -265,7 +265,7 @@ export default function VideoSessionsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                           onClick={() =>
                             router.push(
                               `/dashboard/video-session/${session.id}`
@@ -313,7 +313,7 @@ export default function VideoSessionsPage() {
                           asChild
                           variant="outline"
                           size="sm"
-                          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                         >
                           <Link href={`/appointments/${session.id}`}>
                             Details

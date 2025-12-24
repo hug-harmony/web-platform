@@ -176,7 +176,7 @@ export default function NotesPage() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
+                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                 >
                   <Filter className="h-6 w-6 text-[#F3CFC6]" />
                   <span>Type</span>
@@ -189,7 +189,7 @@ export default function NotesPage() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => handleTypeFilterChange("")}
-                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                 >
                   All
                 </DropdownMenuItem>
@@ -197,7 +197,7 @@ export default function NotesPage() {
                   <DropdownMenuItem
                     key={type}
                     onClick={() => handleTypeFilterChange(type)}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     {type.charAt(0).toUpperCase() + type.slice(1)}
                   </DropdownMenuItem>

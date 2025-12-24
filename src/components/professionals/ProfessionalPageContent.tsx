@@ -205,7 +205,7 @@ export default function ProfessionalPageContent() {
             variant="outline"
             onClick={() => setIsDateTimeDialogOpen(true)}
             className={cn(
-              "border-[#F3CFC6] text-black dark:text-white hover:bg-[#F3CFC6]/20 relative",
+              "border-[#F3CFC6] text-black dark:text-white hover:bg-[#fff]/80 relative",
               hasDatePendingChanges && "ring-2 ring-amber-400"
             )}
             aria-label="Filter by availability"

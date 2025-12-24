@@ -400,7 +400,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b.zip"
+     "S3Key": "9077f405cf4d526599078b901f6280e3de958643309b80cb7ef658c517d32d7d.zip"
     },
     "Environment": {
      "Variables": {
@@ -415,7 +415,9 @@
       },
       "SECRETS_ARN": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",
       "SECRETS_NAME": "hug-harmony/prod/secrets",
-      "NODE_OPTIONS": "--enable-source-maps"
+      "NODE_OPTIONS": "--enable-source-maps",
+      "APP_URL": "",
+      "INTERNAL_API_KEY": ""
      }
     },
     "Handler": "ws-connect.handler",
@@ -435,7 +437,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/ConnectHandler/Resource",
-    "aws:asset:path": "asset.ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b",
+    "aws:asset:path": "asset.9077f405cf4d526599078b901f6280e3de958643309b80cb7ef658c517d32d7d",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
@@ -461,7 +463,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b.zip"
+     "S3Key": "9077f405cf4d526599078b901f6280e3de958643309b80cb7ef658c517d32d7d.zip"
     },
     "Environment": {
      "Variables": {
@@ -476,7 +478,9 @@
       },
       "SECRETS_ARN": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",
       "SECRETS_NAME": "hug-harmony/prod/secrets",
-      "NODE_OPTIONS": "--enable-source-maps"
+      "NODE_OPTIONS": "--enable-source-maps",
+      "APP_URL": "",
+      "INTERNAL_API_KEY": ""
      }
     },
     "Handler": "ws-disconnect.handler",
@@ -496,7 +500,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/DisconnectHandler/Resource",
-    "aws:asset:path": "asset.ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b",
+    "aws:asset:path": "asset.9077f405cf4d526599078b901f6280e3de958643309b80cb7ef658c517d32d7d",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
@@ -522,7 +526,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b.zip"
+     "S3Key": "9077f405cf4d526599078b901f6280e3de958643309b80cb7ef658c517d32d7d.zip"
     },
     "Environment": {
      "Variables": {
@@ -537,7 +541,9 @@
       },
       "SECRETS_ARN": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",
       "SECRETS_NAME": "hug-harmony/prod/secrets",
-      "NODE_OPTIONS": "--enable-source-maps"
+      "NODE_OPTIONS": "--enable-source-maps",
+      "APP_URL": "",
+      "INTERNAL_API_KEY": ""
      }
     },
     "Handler": "ws-message.handler",
@@ -557,7 +563,7 @@
    ],
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/MessageHandler/Resource",
-    "aws:asset:path": "asset.ea72338832572148cb0c14bce0ea6f54c2ae5fda2bc0d86ff16ba9245353ad1b",
+    "aws:asset:path": "asset.9077f405cf4d526599078b901f6280e3de958643309b80cb7ef658c517d32d7d",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
    }
@@ -853,6 +859,29 @@
    },
    "Metadata": {
     "aws:cdk:path": "ChatWebSocketStack-prod/notificationRoute"
+   }
+  },
+  "heartbeatRoute": {
+   "Type": "AWS::ApiGatewayV2::Route",
+   "Properties": {
+    "ApiId": {
+     "Ref": "ChatWebSocketApi"
+    },
+    "RouteKey": "heartbeat",
+    "Target": {
+     "Fn::Join": [
+      "",
+      [
+       "integrations/",
+       {
+        "Ref": "MessageIntegration"
+       }
+      ]
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "ChatWebSocketStack-prod/heartbeatRoute"
    }
   },
   "WebSocketStage": {

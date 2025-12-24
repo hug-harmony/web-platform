@@ -370,7 +370,7 @@ export function RadiusDialog({
           <Button
             onClick={handleApply}
             disabled={!hasLocation}
-            className="w-full bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80"
+            className="w-full bg-[#F3CFC6] text-black hover:bg-[#fff]/80"
             size="lg"
           >
             {hasLocation ? "Apply Filter" : "Select a Location First"}

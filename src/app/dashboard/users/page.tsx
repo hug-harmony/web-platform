@@ -158,7 +158,7 @@ export default function ExplorePage() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
+                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                 >
                   <MapPin className="h-6 w-6 text-[#F3CFC6]" />
                   <span>Location</span>
@@ -171,7 +171,7 @@ export default function ExplorePage() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => handleFilterChange("location", "")}
-                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                 >
                   All
                 </DropdownMenuItem>
@@ -179,7 +179,7 @@ export default function ExplorePage() {
                   <DropdownMenuItem
                     key={location}
                     onClick={() => handleFilterChange("location", location)}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     {location}
                   </DropdownMenuItem>
@@ -233,7 +233,7 @@ export default function ExplorePage() {
                         name={user.name}
                         imageSrc={user.image || ""}
                         isProfessional={user.isProfessional}
-                        className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors"
+                        className="hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 transition-colors"
                       />
                     </Link>
                   </motion.div>

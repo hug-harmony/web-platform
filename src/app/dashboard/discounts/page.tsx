@@ -218,7 +218,7 @@ function DiscountsContent() {
           <Dialog open={isDialogOpen} onOpenChange={setIsDialogOpen}>
             <DialogTrigger asChild>
               <Button
-                className="flex items-center space-x-2 bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80"
+                className="flex items-center space-x-2 bg-[#F3CFC6] text-black hover:bg-[#fff]/80"
                 onClick={() => {
                   setEditingDiscount(null);
                   setFormData({
@@ -278,7 +278,7 @@ function DiscountsContent() {
                 </div>
                 <Button
                   onClick={handleSubmit}
-                  className="w-full bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80"
+                  className="w-full bg-[#F3CFC6] text-black hover:bg-[#fff]/80"
                 >
                   {editingDiscount ? "Update Discount" : "Create Discount"}
                 </Button>
@@ -313,7 +313,7 @@ function DiscountsContent() {
                     }}
                     transition={{ duration: 0.2 }}
                   >
-                    <Card className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors">
+                    <Card className="hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 transition-colors">
                       <CardContent className="pt-4">
                         <div className="flex items-center justify-between">
                           <div className="flex items-center space-x-2">

@@ -78,7 +78,7 @@ export function MobileFilterSheet({
           </Button>
           <Button
             onClick={handleApply}
-            className="flex-1 bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80"
+            className="flex-1 bg-[#F3CFC6] text-black hover:bg-[#fff]/80"
           >
             Apply Filters
           </Button>

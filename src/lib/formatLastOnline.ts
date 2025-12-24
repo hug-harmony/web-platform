@@ -1,10 +1,11 @@
 // src/lib/formatLastOnline.ts
+
 export function formatLastOnline(lastOnline: Date | null | undefined): {
   text: string;
   isOnline: boolean;
 } {
   if (!lastOnline) {
-    return { text: "Offline", isOnline: false };
+    return { text: "Last seen a long time ago", isOnline: false };
   }
 
   const now = new Date();
@@ -30,5 +31,6 @@ export function formatLastOnline(lastOnline: Date | null | undefined): {
     return { text: `Active ${days}d ago`, isOnline: false };
   }
 
-  return { text: "Offline", isOnline: false };
+  // For 7 days or more, show the number of days ago instead of "Offline"
+  return { text: `Active ${days}d ago`, isOnline: false };
 }

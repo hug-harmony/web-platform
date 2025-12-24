@@ -1,4 +1,4 @@
-// middleware.ts
+// src/middleware.ts
 
 import { withAuth } from "next-auth/middleware";
 import { NextResponse } from "next/server";
@@ -35,6 +35,7 @@ const PUBLIC_API_ROUTES = [
   "/api/auth/verify-email",
   "/api/auth/resend-verification",
   "/api/auth/reset-password",
+  "/api/users/update-online-status", // Lambda calls this with API key
 ];
 
 export default withAuth(

@@ -274,7 +274,7 @@ export default function DisputeHandlingPage() {
                               <Button
                                 variant="outline"
                                 size="sm"
-                                className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                                className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#fff]/80"
                                 onClick={() => setSelectedDispute(dispute)}
                               >
                                 Review
@@ -351,7 +351,7 @@ export default function DisputeHandlingPage() {
                                   variant="outline"
                                   onClick={() => handleAction("deny")}
                                   disabled={submitting}
-                                  className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                                  className="border-[#F3CFC6] text-[#F3CFC6] hover:bg-[#fff]/80"
                                 >
                                   Deny Dispute
                                 </Button>

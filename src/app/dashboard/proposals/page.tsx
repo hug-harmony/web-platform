@@ -269,7 +269,7 @@ export default function ProposalsPage() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
+                    className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                   >
                     <Filter className="h-6 w-6 text-[#F3CFC6]" />
                     <span>Status</span>
@@ -282,7 +282,7 @@ export default function ProposalsPage() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => handleStatusFilterChange("")}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     All
                   </DropdownMenuItem>
@@ -290,7 +290,7 @@ export default function ProposalsPage() {
                     <DropdownMenuItem
                       key={status}
                       onClick={() => handleStatusFilterChange(status)}
-                      className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                      className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                     >
                       {status.charAt(0).toUpperCase() + status.slice(1)}
                     </DropdownMenuItem>

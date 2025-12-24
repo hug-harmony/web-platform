@@ -194,7 +194,7 @@ const BookingConfirmationPage: React.FC = () => {
             <Button
               asChild
               variant="outline"
-              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 rounded-full"
             >
               <a href="/dashboard">
                 <MessageSquare className="mr-2 h-4 w-4 text-[#F3CFC6]" />
@@ -269,7 +269,7 @@ const BookingConfirmationPage: React.FC = () => {
             <Button
               onClick={handleAddToCalendar}
               variant="outline"
-              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 rounded-full"
+              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 rounded-full"
             >
               Add to Calendar
             </Button>

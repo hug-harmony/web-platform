@@ -11,6 +11,7 @@ import {
   updateVisibleConversation,
   removeConnection,
   createNotification,
+  updateUserLastOnline,
   NotificationRecord,
 } from "./utils/dynamo";
 
@@ -39,6 +40,11 @@ export const handler: APIGatewayProxyHandler = async (
       userId,
       hasMessage: !!message,
     });
+
+    // Update lastOnline on any activity
+    if (userId) {
+      await updateUserLastOnline(userId);
+    }
 
     switch (action) {
       case "join": {
@@ -127,7 +133,23 @@ export const handler: APIGatewayProxyHandler = async (
       }
 
       case "ping": {
+        // Update lastOnline on ping as well
+        if (userId) {
+          await updateUserLastOnline(userId);
+        }
         await sendToConnection(apiClient, connectionId, { type: "pong" });
+        break;
+      }
+
+      case "heartbeat": {
+        // Explicit heartbeat to update online status
+        if (userId) {
+          await updateUserLastOnline(userId);
+          await sendToConnection(apiClient, connectionId, {
+            type: "heartbeatAck",
+            timestamp: new Date().toISOString(),
+          });
+        }
         break;
       }
 

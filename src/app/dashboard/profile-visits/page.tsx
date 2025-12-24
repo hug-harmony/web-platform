@@ -202,7 +202,7 @@ export default function ProfileVisitsPage() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
+                    className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                   >
                     <Filter className="h-6 w-6 text-[#F3CFC6]" />
                     <span>Filter</span>
@@ -215,25 +215,25 @@ export default function ProfileVisitsPage() {
                   <DropdownMenuSeparator />
                   <DropdownMenuItem
                     onClick={() => handleFilterChange("today")}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     Today
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleFilterChange("7d")}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     Last 7 days
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleFilterChange("30d")}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     Last 30 days
                   </DropdownMenuItem>
                   <DropdownMenuItem
                     onClick={() => handleFilterChange("all")}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     All time
                   </DropdownMenuItem>
@@ -306,7 +306,7 @@ export default function ProfileVisitsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                             >
                               <Eye className="mr-2 h-4 w-4" />
                               View Visits
@@ -341,7 +341,7 @@ export default function ProfileVisitsPage() {
                         <Button
                           variant="outline"
                           size="sm"
-                          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                           onClick={() => handleMessageClick(visitor.userId)}
                         >
                           <MessageSquare className="mr-2 h-4 w-4" />

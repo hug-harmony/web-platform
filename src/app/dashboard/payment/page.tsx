@@ -226,7 +226,7 @@ export default function PaymentsPage() {
               <DropdownMenuTrigger asChild>
                 <Button
                   variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
+                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
                 >
                   <Filter className="h-6 w-6 text-[#F3CFC6]" />
                   <span>Status</span>
@@ -239,7 +239,7 @@ export default function PaymentsPage() {
                 <DropdownMenuSeparator />
                 <DropdownMenuItem
                   onClick={() => handleStatusFilterChange("")}
-                  className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                  className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                 >
                   All
                 </DropdownMenuItem>
@@ -247,7 +247,7 @@ export default function PaymentsPage() {
                   <DropdownMenuItem
                     key={status}
                     onClick={() => handleStatusFilterChange(status)}
-                    className="text-black dark:text-white hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     {status.charAt(0).toUpperCase() + status.slice(1)}
                   </DropdownMenuItem>
@@ -320,7 +320,7 @@ export default function PaymentsPage() {
                                 asChild
                                 variant="outline"
                                 size="sm"
-                                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                               >
                                 <Link href={`/payment/${payment.id}`}>
                                   Pay Now
@@ -369,7 +369,7 @@ export default function PaymentsPage() {
                             <Button
                               variant="outline"
                               size="sm"
-                              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                             >
                               Edit
                             </Button>
@@ -384,7 +384,7 @@ export default function PaymentsPage() {
                   </ScrollArea>
                   <Button
                     variant="outline"
-                    className="mt-4 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                    className="mt-4 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                   >
                     Add Payment Method
                   </Button>
@@ -422,7 +422,7 @@ export default function PaymentsPage() {
                             asChild
                             variant="outline"
                             size="sm"
-                            className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+                            className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
                           >
                             <Link href={`/payment/${payment.id}`}>Details</Link>
                           </Button>

@@ -1,11 +1,15 @@
-// components/chat/ChatHeader.tsx
-import React from "react";
+// src/components/chat/ChatHeader.tsx
+"use client";
+
+import React, { useState, useEffect, useCallback } from "react";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { CardHeader } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Notebook, Wifi, WifiOff } from "lucide-react";
 import { formatLastOnline } from "@/lib/formatLastOnline";
 import { cn } from "@/lib/utils";
+import { useWebSocket } from "@/hooks/useWebSocket";
+import { useSession } from "next-auth/react";
 import type { Participant } from "@/types/chat";
 
 interface ChatHeaderProps {
@@ -17,9 +21,16 @@ interface ChatHeaderProps {
 
 const ChatHeader: React.FC<ChatHeaderProps> = ({
   otherUser,
+
   onNotesClick,
   isConnected = true,
 }) => {
+  const { data: session } = useSession();
+
+  // Real-time online status state
+  const [isOtherUserOnline, setIsOtherUserOnline] = useState(false);
+  const [lastOnlineTime, setLastOnlineTime] = useState<Date | null>(null);
+
   const otherUserName = otherUser
     ? `${otherUser.firstName || ""} ${otherUser.lastName || ""}`.trim() ||
       "Unknown User"
@@ -34,11 +45,44 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
     .slice(0, 2)
     .toUpperCase();
 
-  const lastOnlineDate = otherUser?.lastOnline
-    ? new Date(otherUser.lastOnline)
-    : null;
+  // Initialize last online from otherUser data
+  useEffect(() => {
+    if (otherUser?.lastOnline) {
+      const lastOnline = new Date(otherUser.lastOnline);
+      setLastOnlineTime(lastOnline);
+      // Consider online if last activity was within 5 minutes
+      const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+      setIsOtherUserOnline(lastOnline > fiveMinutesAgo);
+    }
+  }, [otherUser?.lastOnline]);
 
-  const { text: statusText, isOnline } = formatLastOnline(lastOnlineDate);
+  // Listen for real-time online status changes
+  useWebSocket({
+    enabled: !!session?.user && !!otherUser?.id,
+    onOnlineStatusChange: useCallback(
+      (userId: string, online: boolean) => {
+        if (userId === otherUser?.id) {
+          console.log(`Chat partner online status changed: ${online}`);
+          setIsOtherUserOnline(online);
+          if (!online) {
+            setLastOnlineTime(new Date());
+          }
+        }
+      },
+      [otherUser?.id]
+    ),
+  });
+
+  // Calculate display values
+  const { text: initialStatusText, isOnline: initialIsOnline } =
+    formatLastOnline(
+      lastOnlineTime ||
+        (otherUser?.lastOnline ? new Date(otherUser.lastOnline) : null)
+    );
+
+  // Prefer real-time status over initial status
+  const displayIsOnline = isOtherUserOnline || initialIsOnline;
+  const displayStatusText = isOtherUserOnline ? "Online" : initialStatusText;
 
   return (
     <CardHeader className="p-4 sm:p-6 border-b bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20 flex flex-row items-center justify-between space-x-2">
@@ -46,7 +90,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
         <div className="relative">
           <Avatar className="h-10 w-10 border-2 border-white">
             <AvatarImage
-              src={profileImage || "/assets/images/avatar-placeholder.png"}
+              src={profileImage || "/avatar-placeholder.png"}
               alt={otherUserName}
             />
             <AvatarFallback className="bg-[#C4C4C4] text-black">
@@ -56,16 +100,24 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           {/* Online indicator dot */}
           <div
             className={cn(
-              "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white",
-              isOnline ? "bg-green-500" : "bg-gray-400"
+              "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white transition-colors duration-300",
+              displayIsOnline ? "bg-green-500 animate-pulse" : "bg-gray-400"
             )}
+            title={displayStatusText}
           />
         </div>
         <div className="flex flex-col">
           <p className="font-semibold text-black dark:text-white">
             {otherUserName}
           </p>
-          <p className="text-xs text-[#C4C4C4]">{statusText}</p>
+          <p
+            className={cn(
+              "text-xs transition-colors duration-300",
+              displayIsOnline ? "text-green-600 font-medium" : "text-[#C4C4C4]"
+            )}
+          >
+            {displayStatusText}
+          </p>
         </div>
       </div>
 
@@ -96,7 +148,7 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
           variant="ghost"
           size="sm"
           onClick={onNotesClick}
-          className="text-[#000] hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20"
+          className="text-[#000] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
         >
           <Notebook className="h-5 w-5 mr-1" />
           <span className="hidden sm:inline">Notes</span>

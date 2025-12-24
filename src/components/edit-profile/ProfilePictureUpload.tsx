@@ -70,7 +70,7 @@ export function ProfilePictureUpload({
           variant="outline"
           disabled={!isEditing || updating}
           onClick={() => fileInputRef.current?.click()}
-          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 rounded-full px-8"
+          className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 rounded-full px-8"
         >
           <Upload className="w-4 h-4 mr-2" />
           {selectedFile || profileImage ? "Change Photo" : "Upload Photo"}

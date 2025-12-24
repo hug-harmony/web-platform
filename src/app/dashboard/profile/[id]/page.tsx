@@ -1,4 +1,4 @@
-// app/dashboard/profile/[id]/page.tsx
+// src/app/dashboard/profile/[id]/page.tsx
 
 "use client";
 
@@ -58,6 +58,7 @@ import {
 import { cn } from "@/lib/utils";
 import { formatLastOnline } from "@/lib/formatLastOnline";
 import { ProfessionalGallery } from "@/components/professionals/ProfessionalGallery";
+import { useWebSocket } from "@/hooks/useWebSocket";
 import type {
   Profile,
   ProfessionalProfile,
@@ -95,6 +96,10 @@ export default function ProfilePage() {
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
+  // Real-time online status
+  const [isProfileOnline, setIsProfileOnline] = useState(false);
+  const [lastOnlineTime, setLastOnlineTime] = useState<Date | null>(null);
+
   // Dialog states
   const [isReviewDialogOpen, setIsReviewDialogOpen] = useState(false);
   const [isViewAllReviewsOpen, setIsViewAllReviewsOpen] = useState(false);
@@ -110,6 +115,33 @@ export default function ProfilePage() {
   const [submitError, setSubmitError] = useState<string | null>(null);
 
   const profileId = params.id as string;
+
+  // Get the user ID to track (for professionals, we need the userId, not the professional ID)
+  const profileUserId = profile
+    ? isProfessional(profile)
+      ? profile.userId
+      : profile.id
+    : null;
+
+  // WebSocket for real-time online status
+  useWebSocket({
+    enabled: !!session?.user && !!profileUserId,
+    onOnlineStatusChange: useCallback(
+      (userId: string, isOnline: boolean) => {
+        // Check if this status update is for the profile we're viewing
+        if (userId === profileUserId || userId === profileId) {
+          console.log(
+            `Real-time online status update for profile: ${isOnline}`
+          );
+          setIsProfileOnline(isOnline);
+          if (!isOnline) {
+            setLastOnlineTime(new Date());
+          }
+        }
+      },
+      [profileUserId, profileId]
+    ),
+  });
 
   // Fetch profile
   useEffect(() => {
@@ -147,6 +179,15 @@ export default function ProfilePage() {
 
         const data = await res.json();
         setProfile(data);
+
+        // Set initial online status from profile data
+        if (data.lastOnline) {
+          const lastOnline = new Date(data.lastOnline);
+          setLastOnlineTime(lastOnline);
+          // Consider online if last activity was within 5 minutes
+          const fiveMinutesAgo = new Date(Date.now() - 5 * 60 * 1000);
+          setIsProfileOnline(lastOnline > fiveMinutesAgo);
+        }
       } catch (err) {
         console.error("Fetch profile error:", err);
         setError("Failed to load profile");
@@ -349,9 +390,16 @@ export default function ProfilePage() {
   }
 
   const validImageSrc = profile.image || "/register.jpg";
-  const { text: lastOnlineText, isOnline } = formatLastOnline(
-    profile.lastOnline ? new Date(profile.lastOnline) : null
+
+  // Use real-time online status if available, otherwise use profile data
+  const { text: lastOnlineText, isOnline: initialIsOnline } = formatLastOnline(
+    lastOnlineTime || (profile.lastOnline ? new Date(profile.lastOnline) : null)
   );
+
+  // Prefer real-time status over initial status
+  const displayIsOnline = isProfileOnline || initialIsOnline;
+  const displayOnlineText = isProfileOnline ? "Online" : lastOnlineText;
+
   const isPro = isProfessional(profile);
 
   return (
@@ -395,6 +443,14 @@ export default function ProfilePage() {
                   </div>
                 )}
               </div>
+              {/* Online indicator on avatar */}
+              <div
+                className={cn(
+                  "absolute bottom-2 right-2 w-5 h-5 rounded-full border-2 border-white",
+                  displayIsOnline ? "bg-green-500" : "bg-gray-400"
+                )}
+                title={displayOnlineText}
+              />
             </div>
           </div>
         </div>
@@ -407,7 +463,7 @@ export default function ProfilePage() {
                 {profile.name}
               </h2>
               {isPro ? (
-                <Badge className="bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80">
+                <Badge className="bg-[#F3CFC6] text-black hover:bg-[#fff]/80">
                   <Shield className="w-3 h-3 mr-1" />
                   Professional
                 </Badge>
@@ -429,12 +485,20 @@ export default function ProfilePage() {
               )}
               <div className="flex items-center gap-2">
                 <div
-                  className={`w-2 h-2 rounded-full ${
-                    isOnline ? "bg-green-500" : "bg-gray-400"
-                  }`}
+                  className={cn(
+                    "w-2 h-2 rounded-full transition-colors duration-300",
+                    displayIsOnline
+                      ? "bg-green-500 animate-pulse"
+                      : "bg-gray-400"
+                  )}
                 />
-                <span className={isOnline ? "text-green-600" : ""}>
-                  {lastOnlineText}
+                <span
+                  className={cn(
+                    "transition-colors duration-300",
+                    displayIsOnline ? "text-green-600 font-medium" : ""
+                  )}
+                >
+                  {displayOnlineText}
                 </span>
               </div>
               {isPro && profile.rating !== undefined && (
@@ -506,7 +570,7 @@ export default function ProfilePage() {
                 <DropdownMenuTrigger asChild>
                   <Button
                     variant="outline"
-                    className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#F3CFC6]/20 px-6 py-2 rounded-full w-full sm:w-auto"
+                    className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 px-6 py-2 rounded-full w-full sm:w-auto"
                   >
                     <MoreVertical className="h-4 w-4" />
                   </Button>
@@ -822,7 +886,7 @@ function DiscountCard({ discount }: { discount: ProfileDiscount }) {
       whileHover={{ scale: 1.05, boxShadow: "0 8px 16px rgba(0,0,0,0.1)" }}
       transition={{ duration: 0.2 }}
     >
-      <Card className="hover:bg-[#F3CFC6]/20 dark:hover:bg-[#C4C4C4]/20 transition-colors">
+      <Card className="hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 transition-colors">
         <CardContent className="pt-4">
           <div className="flex items-center space-x-2">
             <DollarSign className="h-6 w-6 text-[#F3CFC6]" />

@@ -343,7 +343,7 @@ export default function NoteDetailPage() {
                               variant="ghost"
                               size="icon"
                               onClick={() => handleEdit(note)}
-                              className="text-[#F3CFC6] hover:bg-[#F3CFC6]/20"
+                              className="text-[#F3CFC6] hover:bg-[#fff]/80"
                             >
                               <Pencil className="h-4 w-4" />
                             </Button>

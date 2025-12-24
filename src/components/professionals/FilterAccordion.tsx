@@ -26,6 +26,8 @@ import {
 import { Label } from "@/components/ui/label";
 import { MapPin } from "lucide-react";
 import { Filters } from "@/hooks/professionals/useFilters";
+import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
+import { Slider } from "../ui/slider";
 
 interface Props {
   filters: Filters;
@@ -68,75 +70,68 @@ export function FilterAccordion({
                 Basic Filters
               </h3>
               <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-4 gap-4">
-                {/* Min Age */}
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="min-age-filter">Min Age</Label>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
+                {/* Age Range Slider */}
+                <div className="flex flex-col gap-1.5 sm:col-span-2">
+                  <Label htmlFor="age-range-filter">Age Range</Label>
+                  <Popover>
+                    <PopoverTrigger asChild>
                       <Button
-                        id="min-age-filter"
+                        id="age-range-filter"
                         variant="outline"
                         className="w-full border-[#F3CFC6]"
-                        aria-label="Select minimum age"
+                        aria-label="Select age range"
                       >
-                        {filters.minAge || "All"}
+                        {filters.minAge && filters.maxAge
+                          ? `${filters.minAge} - ${filters.maxAge}`
+                          : filters.minAge
+                            ? `${filters.minAge}+`
+                            : filters.maxAge
+                              ? `Up to ${filters.maxAge}`
+                              : "All Ages"}
                       </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem
-                        onClick={() => onFilterChange("minAge", undefined)}
-                      >
-                        All
-                      </DropdownMenuItem>
-                      {ageRanges.map((r) => (
-                        <DropdownMenuItem
-                          key={r}
-                          onClick={() =>
-                            onFilterChange("minAge", parseInt(r.split("-")[0]))
-                          }
-                        >
-                          {r}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
-                </div>
+                    </PopoverTrigger>
+                    <PopoverContent className="w-80 p-4" align="start">
+                      <div className="space-y-4">
+                        <div className="flex justify-between items-center">
+                          <span className="text-sm font-medium">Age Range</span>
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="h-auto p-1 text-xs text-muted-foreground"
+                            onClick={() => {
+                              onFilterChange("minAge", undefined);
+                              onFilterChange("maxAge", undefined);
+                            }}
+                          >
+                            Reset
+                          </Button>
+                        </div>
 
-                {/* Max Age */}
-                <div className="flex flex-col gap-1.5">
-                  <Label htmlFor="max-age-filter">Max Age</Label>
-                  <DropdownMenu>
-                    <DropdownMenuTrigger asChild>
-                      <Button
-                        id="max-age-filter"
-                        variant="outline"
-                        className="w-full border-[#F3CFC6]"
-                        aria-label="Select maximum age"
-                      >
-                        {filters.maxAge || "All"}
-                      </Button>
-                    </DropdownMenuTrigger>
-                    <DropdownMenuContent>
-                      <DropdownMenuItem
-                        onClick={() => onFilterChange("maxAge", undefined)}
-                      >
-                        All
-                      </DropdownMenuItem>
-                      {ageRanges.map((r) => (
-                        <DropdownMenuItem
-                          key={r}
-                          onClick={() =>
+                        <Slider
+                          min={18}
+                          max={80}
+                          step={1}
+                          value={[filters.minAge || 18, filters.maxAge || 80]}
+                          onValueChange={(values) => {
+                            onFilterChange(
+                              "minAge",
+                              values[0] === 18 ? undefined : values[0]
+                            );
                             onFilterChange(
                               "maxAge",
-                              parseInt(r.split("-")[1]) || 100
-                            )
-                          }
-                        >
-                          {r}
-                        </DropdownMenuItem>
-                      ))}
-                    </DropdownMenuContent>
-                  </DropdownMenu>
+                              values[1] === 80 ? undefined : values[1]
+                            );
+                          }}
+                          className="w-full"
+                        />
+
+                        <div className="flex justify-between text-sm text-muted-foreground">
+                          <span>{filters.minAge || 18}</span>
+                          <span>{filters.maxAge || 80}</span>
+                        </div>
+                      </div>
+                    </PopoverContent>
+                  </Popover>
                 </div>
 
                 {/* Gender */}
