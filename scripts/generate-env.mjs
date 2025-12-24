@@ -38,6 +38,7 @@ const envVars = [
   "WEBSOCKET_API_ENDPOINT",
   "CONNECTIONS_TABLE",
   "NOTIFICATIONS_TABLE",
+  "VIDEO_ROOMS_TABLE",
 
   // Online Status (NEW)
   "APP_URL",
