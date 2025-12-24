@@ -21,7 +21,8 @@ type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
       select: {
         name: true;
         rate: true;
-        application: {
+        // ✅ FIX: Use 'applications' (plural) since it's an array relation
+        applications: {
           select: {
             user: { select: { location: true } };
           };
@@ -32,7 +33,7 @@ type AppointmentWithRelations = Prisma.AppointmentGetPayload<{
 }>;
 
 export async function GET(
-  request: Request,
+  _request: Request, // ✅ FIX: Prefix with underscore to indicate intentionally unused
   { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
@@ -57,7 +58,11 @@ export async function GET(
             select: {
               name: true,
               rate: true,
-              application: { select: { user: { select: { location: true } } } },
+              // ✅ FIX: Use 'applications' (plural) and take first one
+              applications: {
+                select: { user: { select: { location: true } } },
+                take: 1, // Only need the first application
+              },
             },
           },
         },
@@ -84,14 +89,17 @@ export async function GET(
       date.getUTCMinutes(),
     ];
 
+    // ✅ FIX: Access first application from the array
+    const professionalLocation =
+      appointment.professional?.applications?.[0]?.user?.location ||
+      "Virtual Session";
+
     const event: EventAttributes = {
       start: formatICalDate(appointmentStartDateTime),
       end: formatICalDate(appointmentEndDateTime),
       title: `Appointment with ${appointment.professional?.name || "Professional"}`,
       description: `Appointment with ${appointment.professional?.name || "Professional"} for ${appointment.user?.name || "Client"}. Rate: $${appointment.professional?.rate?.toFixed(2) || "50.00"}`,
-      location:
-        appointment.professional?.application?.user?.location ||
-        "Virtual Session",
+      location: professionalLocation,
       organizer: {
         name: appointment.professional?.name || "Professional",
         email: "no-reply@yourapp.com",
