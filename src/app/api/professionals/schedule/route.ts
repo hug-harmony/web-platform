@@ -23,46 +23,94 @@ interface WorkingHour {
 
 /* ---------- helpers ---------- */
 const BUFFER_MINUTES = 30;
+const SLOT_DURATION = 30; // Each slot is 30 minutes
 
+/**
+ * Convert time string like "12:00 AM", "1:30 PM" to minutes since midnight
+ */
 const timeToMinutes = (time: string): number => {
   const trimmed = time.trim();
-  const [timePart, period] = trimmed.split(" ");
-  const [h, m] = timePart.split(":").map(Number);
-  let hours24 = h;
-  if (period === "PM" && h !== 12) hours24 += 12;
-  if (period === "AM" && h === 12) hours24 = 0;
-  return hours24 * 60 + (m ?? 0);
+  const match = trimmed.match(/^(\d{1,2}):(\d{2})\s*(AM|PM)$/i);
+
+  if (!match) {
+    console.error(`Invalid time format: ${time}`);
+    return 0;
+  }
+
+  let hours = parseInt(match[1], 10);
+  const minutes = parseInt(match[2], 10);
+  const period = match[3].toUpperCase();
+
+  // Convert to 24-hour format
+  if (period === "AM") {
+    if (hours === 12) hours = 0; // 12:00 AM = 00:00
+  } else {
+    // PM
+    if (hours !== 12) hours += 12; // 1:00 PM = 13:00, but 12:00 PM = 12:00
+  }
+
+  return hours * 60 + minutes;
 };
 
+/**
+ * Convert minutes since midnight to "HH:MM" format
+ */
 const minutesToTime = (mins: number): string => {
-  const h = Math.floor(mins / 60) % 24;
+  // Handle 24:00 (midnight next day) as "24:00" for end times
+  if (mins >= 1440) {
+    return "24:00";
+  }
+  const h = Math.floor(mins / 60);
   const m = mins % 60;
   return `${String(h).padStart(2, "0")}:${String(m).padStart(2, "0")}`;
 };
 
-const mergeContiguousSlots = (slots: string[]): WorkingHour[] => {
-  if (!slots.length) return [];
+/**
+ * Merge contiguous time slots into working hour blocks
+ * e.g., ["12:00 AM", "12:30 AM", "1:00 AM"] -> [{ startTime: "00:00", endTime: "01:30" }]
+ */
+const mergeContiguousSlots = (
+  slots: string[]
+): Omit<WorkingHour, "dayOfWeek">[] => {
+  if (!slots || slots.length === 0) return [];
 
-  const mins = slots.map(timeToMinutes).sort((a, b) => a - b);
+  // Convert all slots to minutes and sort
+  const sortedMins = slots.map(timeToMinutes).sort((a, b) => a - b);
+
+  // Remove duplicates
+  const uniqueMins = [...new Set(sortedMins)];
+
+  if (uniqueMins.length === 0) return [];
+
   const blocks: { start: number; end: number }[] = [];
 
-  let curStart = mins[0];
-  let curEnd = mins[0] + 30;
+  let blockStart = uniqueMins[0];
+  let blockEnd = uniqueMins[0] + SLOT_DURATION;
 
-  for (let i = 1; i < mins.length; i++) {
-    const next = mins[i];
-    if (next <= curEnd) {
-      curEnd = next + 30;
+  for (let i = 1; i < uniqueMins.length; i++) {
+    const currentSlotStart = uniqueMins[i];
+
+    // Check if this slot is contiguous with the current block
+    // A slot is contiguous if it starts exactly where the previous slot ends
+    if (currentSlotStart === blockEnd) {
+      // Extend the current block
+      blockEnd = currentSlotStart + SLOT_DURATION;
+    } else if (currentSlotStart < blockEnd) {
+      // Overlapping slot (shouldn't happen, but handle it)
+      blockEnd = Math.max(blockEnd, currentSlotStart + SLOT_DURATION);
     } else {
-      blocks.push({ start: curStart, end: curEnd });
-      curStart = next;
-      curEnd = next + 30;
+      // Gap detected - save current block and start new one
+      blocks.push({ start: blockStart, end: blockEnd });
+      blockStart = currentSlotStart;
+      blockEnd = currentSlotStart + SLOT_DURATION;
     }
   }
-  blocks.push({ start: curStart, end: curEnd });
 
+  // Don't forget the last block
+  blocks.push({ start: blockStart, end: blockEnd });
+
+  // Convert to WorkingHour format
   return blocks.map((b) => ({
-    dayOfWeek: 0,
     startTime: minutesToTime(b.start),
     endTime: minutesToTime(b.end),
   }));
@@ -86,13 +134,13 @@ export async function GET(request: Request) {
   const end = new Date(endDate);
 
   try {
-    /* ---- 1. FETCH ONLY REAL APPOINTMENTS (no "break" status) ---- */
+    /* ---- 1. FETCH ONLY REAL APPOINTMENTS ---- */
     const appointments: Appointment[] = await prisma.appointment.findMany({
       where: {
         professionalId,
         startTime: { lt: end },
         endTime: { gt: start },
-        status: { in: ["upcoming", "pending"] }, // ← Removed "break"
+        status: { in: ["upcoming", "pending"] },
       },
       select: { id: true, startTime: true, endTime: true },
     });
@@ -100,13 +148,11 @@ export async function GET(request: Request) {
     /* ---- 2. BUILD EVENTS WITH DYNAMIC BUFFERS ---- */
     const events: Event[] = [];
 
-    // Sort all appointments by start time
     const sortedAppointments = [...appointments].sort(
       (a, b) => a.startTime.getTime() - b.startTime.getTime()
     );
 
     sortedAppointments.forEach((appointment, index) => {
-      // Add the booked appointment event
       events.push({
         id: appointment.id,
         title: "Booked",
@@ -114,30 +160,24 @@ export async function GET(request: Request) {
         end: appointment.endTime,
       });
 
-      // Calculate buffer
       const bufferStart = new Date(appointment.endTime);
       const bufferEnd = new Date(
         bufferStart.getTime() + BUFFER_MINUTES * 60 * 1000
       );
 
-      // Check if buffer overlaps with next appointment
       const nextAppointment = sortedAppointments[index + 1];
 
       if (nextAppointment) {
-        // If next appointment starts before buffer ends, truncate buffer
         if (nextAppointment.startTime < bufferEnd) {
-          // Only add buffer if there's actually a gap
           if (nextAppointment.startTime > bufferStart) {
             events.push({
               id: `buf-${appointment.id}`,
               title: "Blocked (Buffer)",
               start: bufferStart,
-              end: nextAppointment.startTime, // Truncated buffer
+              end: nextAppointment.startTime,
             });
           }
-          // If next appointment starts exactly at buffer start, no buffer shown
         } else {
-          // Full buffer - no overlap with next appointment
           events.push({
             id: `buf-${appointment.id}`,
             title: "Blocked (Buffer)",
@@ -146,7 +186,6 @@ export async function GET(request: Request) {
           });
         }
       } else {
-        // Last appointment of the day - always show full buffer
         events.push({
           id: `buf-${appointment.id}`,
           title: "Blocked (Buffer)",
@@ -156,11 +195,14 @@ export async function GET(request: Request) {
       }
     });
 
-    /* ---- 3. WORKING HOURS (unchanged) ---- */
+    /* ---- 3. WORKING HOURS ---- */
     const weekly = await prisma.availability.findMany({
       where: { professionalId },
       select: { dayOfWeek: true, slots: true },
     });
+
+    // Debug log to see what's being fetched
+    console.log("Weekly availability:", JSON.stringify(weekly, null, 2));
 
     const workingHours: WorkingHour[] = [];
     const current = new Date(start);
@@ -168,17 +210,30 @@ export async function GET(request: Request) {
     while (current <= end) {
       const dow = current.getDay();
       const rule = weekly.find((r) => r.dayOfWeek === dow);
-      if (rule?.slots?.length) {
+
+      if (rule?.slots && rule.slots.length > 0) {
         const blocks = mergeContiguousSlots(rule.slots);
-        blocks.forEach((b) => {
+
+        // Debug log
+        console.log(
+          `Day ${dow}: ${rule.slots.length} slots -> ${blocks.length} blocks`,
+          blocks
+        );
+
+        blocks.forEach((block) => {
           workingHours.push({
-            ...b,
             dayOfWeek: dow,
+            startTime: block.startTime,
+            endTime: block.endTime,
           });
         });
       }
+
       current.setDate(current.getDate() + 1);
     }
+
+    // Debug log final working hours
+    console.log("Final working hours:", JSON.stringify(workingHours, null, 2));
 
     return NextResponse.json({ events, workingHours }, { status: 200 });
   } catch (err) {

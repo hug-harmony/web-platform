@@ -1,3 +1,5 @@
+// src\app\dashboard\edit-profile\[id]\ProfilePage.tsx
+
 /* eslint-disable @typescript-eslint/no-explicit-any */
 "use client";
 

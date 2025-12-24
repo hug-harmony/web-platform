@@ -1,5 +1,6 @@
+// src\app\dashboard\availability\page.tsx
 import { Suspense } from "react";
-import ManageAvailabilityPage from "@/components/ManageAvailabilityPage";
+import ManageAvailabilityPage from "./ManageAvailabilityPage";
 import { Skeleton } from "@/components/ui/skeleton";
 
 // Server component to wrap the client component with Suspense

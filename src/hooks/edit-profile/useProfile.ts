@@ -1,6 +1,6 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
 // src/hooks/edit-profile/useProfile.ts
-import { useEffect, useState } from "react";
+import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -17,103 +17,122 @@ export function useProfile(id: string) {
   const { data: session } = useSession();
   const router = useRouter();
 
-  useEffect(() => {
-    if (!/^[0-9a-fA-F]{24}$/.test(id)) notFound();
+  const fetchProfile = useCallback(async () => {
+    // Validate MongoDB ObjectId format
+    if (!/^[0-9a-fA-F]{24}$/.test(id)) {
+      notFound();
+      return;
+    }
 
-    (async () => {
-      try {
-        // Fetch user + photos
-        const userRes = await fetch(`/api/users/${id}`, {
-          cache: "no-store",
+    try {
+      // Fetch user + photos
+      const userRes = await fetch(`/api/users/${id}`, {
+        cache: "no-store",
+        credentials: "include",
+      });
+
+      if (!userRes.ok) {
+        if (userRes.status === 401) {
+          router.push("/login");
+          return;
+        }
+        if (userRes.status === 404) {
+          notFound();
+          return;
+        }
+        throw new Error("User not found");
+      }
+
+      const user = await userRes.json();
+
+      const baseProfile: Profile = {
+        id: user.id,
+        name: user.name,
+        firstName: user.firstName,
+        lastName: user.lastName,
+        phoneNumber: user.phoneNumber,
+        profileImage: user.profileImage,
+        location: user.location,
+        biography: user.biography,
+        email: user.email,
+        type: "user",
+        relationshipStatus: user.relationshipStatus,
+        orientation: user.orientation,
+        height: user.height,
+        ethnicity: user.ethnicity,
+        zodiacSign: user.zodiacSign,
+        favoriteColor: user.favoriteColor,
+        favoriteMedia: user.favoriteMedia,
+        petOwnership: user.petOwnership,
+        venue: null,
+        rate: null,
+        photos:
+          user.photos?.map((p: any) => ({
+            id: p.id,
+            url: p.url,
+          })) || [],
+      };
+
+      setProfile(baseProfile);
+
+      // Only fetch professional status if it's your own profile
+      if (session?.user?.id === id) {
+        const statusRes = await fetch("/api/professionals/onboarding/status", {
           credentials: "include",
         });
 
-        if (!userRes.ok) {
-          if (userRes.status === 401) router.push("/login");
-          if (userRes.status === 404) notFound();
-          throw new Error("User not found");
-        }
+        if (statusRes.ok) {
+          const data = await statusRes.json();
+          console.log("Onboarding status:", data); // Debug log
+          setOnboarding(data);
 
-        const user = await userRes.json();
+          // ✅ FIX: Use "application" (singular) not "applications"
+          if (data.step === "APPROVED" && data.application?.professionalId) {
+            // Fetch professional details
+            const specRes = await fetch(
+              `/api/professionals/${data.application.professionalId}`,
+              { credentials: "include" }
+            );
 
-        const baseProfile: Profile = {
-          id: user.id,
-          name: user.name,
-          firstName: user.firstName,
-          lastName: user.lastName,
-          phoneNumber: user.phoneNumber,
-          profileImage: user.profileImage,
-          location: user.location,
-          biography: user.biography,
-          email: user.email,
-          type: "user",
-          relationshipStatus: user.relationshipStatus,
-          orientation: user.orientation,
-          height: user.height,
-          ethnicity: user.ethnicity,
-          zodiacSign: user.zodiacSign,
-          favoriteColor: user.favoriteColor,
-          favoriteMedia: user.favoriteMedia,
-          petOwnership: user.petOwnership,
-          venue: null,
-          // Add photos
-          photos:
-            user.photos?.map((p: any) => ({
-              id: p.id,
-              url: p.url,
-            })) || [],
-        };
+            if (specRes.ok) {
+              const spec = await specRes.json();
+              console.log("Professional details:", spec); // Debug log
 
-        setProfile(baseProfile);
-
-        // Only fetch professional status if it's your own profile
-        if (session?.user?.id === id) {
-          const statusRes = await fetch(
-            "/api/professionals/onboarding/status",
-            {
-              credentials: "include",
-            }
-          );
-
-          if (statusRes.ok) {
-            const data = await statusRes.json();
-            setOnboarding(data);
-
-            if (
-              data.step === "APPROVED" &&
-              data.applications?.[0]?.professionalId
-            ) {
-              const specRes = await fetch(
-                `/api/professionals/${data.application.professionalId}`,
-                { credentials: "include" }
+              setIsProfessional(true);
+              setProfessionalId(spec.id);
+              setProfile((p) =>
+                p
+                  ? {
+                      ...p,
+                      type: "professional",
+                      biography: spec.biography ?? p.biography,
+                      rate: spec.rate ?? null,
+                      venue: spec.venue ?? null,
+                    }
+                  : p
               );
-              if (specRes.ok) {
-                const spec = await specRes.json();
-                setIsProfessional(true);
-                setProfessionalId(spec.id);
-                setProfile((p) =>
-                  p
-                    ? {
-                        ...p,
-                        type: "professional",
-                        biography: spec.biography,
-                        rate: spec.rate,
-                        venue: spec.venue,
-                      }
-                    : p
-                );
-              }
+            } else {
+              console.error(
+                "Failed to fetch professional details:",
+                specRes.status
+              );
             }
           }
+        } else {
+          console.error("Failed to fetch onboarding status:", statusRes.status);
         }
-      } catch (err) {
-        console.error(err);
-        toast.error("Failed to load profile");
-      } finally {
-        setLoading(false);
       }
-    })();
+    } catch (err) {
+      console.error("Profile fetch error:", err);
+      toast.error("Failed to load profile");
+    } finally {
+      setLoading(false);
+    }
   }, [id, session?.user?.id, router]);
+
+  useEffect(() => {
+    fetchProfile();
+  }, [fetchProfile]);
 
   return {
     profile,
@@ -122,5 +141,6 @@ export function useProfile(id: string) {
     isProfessional,
     professionalId,
     loading,
+    refetch: fetchProfile,
   };
 }

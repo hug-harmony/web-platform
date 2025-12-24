@@ -87,12 +87,10 @@ export default function ProfessionalApplicationsPage() {
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (searchTerm) params.set("search", searchTerm);
 
-      const res = await fetch(
-        `/api/professionals/applications?.[0]?${params}`,
-        {
-          credentials: "include",
-        }
-      );
+      // ✅ FIX: Correct API endpoint
+      const res = await fetch(`/api/professionals/application?${params}`, {
+        credentials: "include",
+      });
 
       if (!res.ok) {
         if (res.status === 401) {
@@ -257,7 +255,7 @@ export default function ProfessionalApplicationsPage() {
               <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
                 <AnimatePresence mode="popLayout">
                   {applications.map((app) => (
-                    <ApplicationCard key={app.id} applications={app} />
+                    <ApplicationCard key={app.id} application={app} />
                   ))}
                 </AnimatePresence>
               </div>
@@ -299,7 +297,7 @@ function StatsCard({
 }
 
 // Application Card Component
-function ApplicationCard({ applications: app }: { applications: Application }) {
+function ApplicationCard({ application: app }: { application: Application }) {
   const statusConfig = STATUS_CONFIG[app.status];
   const StatusIcon = statusConfig.icon;
 

@@ -1,3 +1,5 @@
+// src\app\dashboard\edit-profile\[id]\page.tsx
+
 import ProfilePage from "./ProfilePage";
 
 export default async function Page({
