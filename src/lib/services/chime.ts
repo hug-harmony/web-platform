@@ -13,7 +13,7 @@ import {
 
 // Initialize client with explicit credentials
 const chimeClient = new ChimeSDKMeetingsClient({
-  region: process.env.AWS_REGION || process.env.REGION || "us-east-1",
+  region: process.env.AWS_REGION || process.env.REGION || "us-east-2",
   credentials: {
     accessKeyId: process.env.ACCESS_KEY_ID!,
     secretAccessKey: process.env.SECRET_ACCESS_KEY!,
@@ -32,7 +32,7 @@ export async function createChimeMeeting(
   externalMeetingId: string,
   hostUserId: string,
   hostDisplayName: string,
-  mediaRegion: string = "us-east-1"
+  mediaRegion: string = "us-east-2"
 ): Promise<CreateMeetingResult> {
   console.log("Creating Chime meeting:", {
     externalMeetingId,
@@ -184,7 +184,7 @@ export async function endChimeMeeting(meetingId: string): Promise<void> {
  */
 export function getOptimalMediaRegion(userRegion?: string): string {
   const regionMap: Record<string, string> = {
-    "us-east": "us-east-1",
+    "us-east": "us-east-2",
     "us-west": "us-west-2",
     "eu-west": "eu-west-1",
     "eu-central": "eu-central-1",
@@ -192,5 +192,5 @@ export function getOptimalMediaRegion(userRegion?: string): string {
     "ap-northeast": "ap-northeast-1",
   };
 
-  return regionMap[userRegion || "us-east"] || "us-east-1";
+  return regionMap[userRegion || "us-east"] || "us-east-2";
 }

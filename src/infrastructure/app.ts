@@ -11,7 +11,7 @@ const stage = app.node.tryGetContext("stage") || process.env.STAGE || "prod";
 const envConfig = {
   account: process.env.CDK_DEFAULT_ACCOUNT || process.env.AWS_ACCOUNT_ID,
   region:
-    process.env.CDK_DEFAULT_REGION || process.env.AWS_REGION || "us-east-1",
+    process.env.CDK_DEFAULT_REGION || process.env.AWS_REGION || "us-east-2",
 };
 
 const tags = {

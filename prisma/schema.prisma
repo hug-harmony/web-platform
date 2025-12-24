@@ -235,7 +235,7 @@ model VideoSession {
   // Chime Meeting Info
   meetingId         String  @unique
   externalMeetingId String? @unique
-  mediaRegion       String  @default("us-east-1")
+  mediaRegion       String  @default("us-east-2")
   mediaPlacement    Json?
 
   // Participants
