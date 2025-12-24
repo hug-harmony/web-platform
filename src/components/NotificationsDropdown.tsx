@@ -16,22 +16,12 @@ import {
   DollarSign,
   Eye,
   RefreshCw,
+  Video,
 } from "lucide-react";
 import Link from "next/link";
 import { toast } from "sonner";
 import { useWebSocket } from "@/hooks/useWebSocket";
-
-interface Notification {
-  id: string;
-  userId: string;
-  senderId?: string;
-  type: "message" | "appointment" | "payment" | "profile_visit";
-  content: string;
-  timestamp: string;
-  unread: string;
-  unreadBool: boolean;
-  relatedId?: string;
-}
+import { Notification } from "@/lib/websocket/types";
 
 export default function NotificationsDropdown({
   className,
@@ -126,6 +116,8 @@ export default function NotificationsDropdown({
         return <DollarSign className="h-4 w-4 text-[#F3CFC6] mt-1" />;
       case "profile_visit":
         return <Eye className="h-4 w-4 text-[#F3CFC6] mt-1" />;
+      case "video_call":
+        return <Video className="h-4 w-4 text-[#F3CFC6] mt-1" />;
       default:
         return <Bell className="h-4 w-4 text-[#F3CFC6] mt-1" />;
     }
@@ -143,6 +135,10 @@ export default function NotificationsDropdown({
         return `/dashboard/payment/${notif.relatedId}`;
       case "profile_visit":
         return `/dashboard/profile/${notif.relatedId}`;
+      case "video_call":
+        return notif.relatedId
+          ? `/dashboard/video-call/${notif.relatedId}`
+          : null;
       default:
         return null;
     }

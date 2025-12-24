@@ -3,20 +3,12 @@
 
 import { useEffect, useRef, useCallback, useState } from "react";
 import { useSession } from "next-auth/react";
-import type { WSMessage, VideoCallSignal } from "@/lib/websocket/types";
+import {
+  WSMessage,
+  VideoCallSignal,
+  Notification,
+} from "@/lib/websocket/types";
 import type { ChatMessage } from "@/types/chat";
-
-interface Notification {
-  id: string;
-  userId: string;
-  senderId?: string;
-  type: "message" | "appointment" | "payment" | "profile_visit" | "video_call";
-  content: string;
-  timestamp: string;
-  unread: string;
-  unreadBool: boolean;
-  relatedId?: string;
-}
 
 interface UseWebSocketOptions {
   conversationId?: string;
