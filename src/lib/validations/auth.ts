@@ -101,7 +101,8 @@ export const registerApiSchema = z.object({
   heardFromOther: z.string().optional(),
 });
 
-// Login schema
+// Login schema (email or username)
+/*
 export const loginSchema = z.object({
   identifier: z
     .string()
@@ -115,6 +116,16 @@ export const loginSchema = z.object({
       },
       { message: "Enter a valid email or username (3–20 chars)" }
     ),
+  password: z.string().min(1, "Password is required"),
+});
+*/
+
+// Login schema (email only)
+export const loginSchema = z.object({
+  email: z
+    .string()
+    .min(1, "Email is required")
+    .email("Please enter a valid email address"),
   password: z.string().min(1, "Password is required"),
 });
 

@@ -113,7 +113,8 @@ const appleSecret = generateAppleClientSecret();
 
 export const authOptions: NextAuthOptions = {
   providers: [
-    // Credentials Provider
+    /*
+    // Credentials Provider (for email/username + password)
     CredentialsProvider({
       name: "Credentials",
       credentials: {
@@ -150,6 +151,113 @@ export const authOptions: NextAuthOptions = {
           : prisma.user.findFirst({
               where: { usernameLower: id.toLowerCase() },
             }));
+
+        if (!user) {
+          throw new Error("Invalid credentials");
+        }
+
+        // Check if account is locked
+        if (user.lockedUntil && user.lockedUntil > new Date()) {
+          const remainingMinutes = Math.ceil(
+            (user.lockedUntil.getTime() - Date.now()) / 60000
+          );
+          throw new Error(
+            `Account is temporarily locked. Try again in ${remainingMinutes} minutes.`
+          );
+        }
+
+        // Check if user has password (not OAuth-only)
+        if (!user.password) {
+          throw new Error(
+            "This account uses social login. Please sign in with Google, Apple, or Facebook."
+          );
+        }
+
+        // Verify password (plain text comparison as requested - no hashing)
+        if (credentials.password !== user.password) {
+          // Increment failed attempts
+          const newFailedAttempts = user.failedLoginAttempts + 1;
+          const lockAccount = newFailedAttempts >= 5;
+
+          await prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLoginAttempts: newFailedAttempts,
+              lockedUntil: lockAccount
+                ? new Date(Date.now() + 30 * 60 * 1000) // 30 minute lockout
+                : null,
+            },
+          });
+
+          if (lockAccount) {
+            throw new Error(
+              "Too many failed attempts. Account locked for 30 minutes."
+            );
+          }
+
+          throw new Error("Invalid credentials");
+        }
+
+        // Successful login - reset failed attempts and rate limit
+        await Promise.all([
+          prisma.user.update({
+            where: { id: user.id },
+            data: {
+              failedLoginAttempts: 0,
+              lockedUntil: null,
+              lastLoginAt: new Date(),
+              lastLoginIp: ip,
+            },
+          }),
+          resetRateLimit(rateLimitKey, "login"),
+        ]);
+
+        return {
+          id: user.id,
+          email: user.email,
+          name: user.name,
+          username: user.username ?? null,
+          isAdmin: user.isAdmin,
+          emailVerified: user.emailVerified,
+        };
+      },
+    }),
+    */
+
+    // Credentials Provider (email + password only)
+    CredentialsProvider({
+      name: "Credentials",
+      credentials: {
+        email: { label: "Email", type: "email" },
+        password: { label: "Password", type: "password" },
+      },
+      async authorize(credentials, req) {
+        if (!credentials?.email || !credentials?.password) {
+          throw new Error("Email and password are required");
+        }
+
+        const email = credentials.email.trim().toLowerCase();
+
+        // Get IP for rate limiting
+        const headers = req?.headers as Record<string, string> | undefined;
+        const ip = headers ? getClientIp(new Headers(headers)) : "unknown";
+        const rateLimitKey = `${ip}:${email}`;
+
+        // Check rate limit
+        const rateLimit = await checkRateLimit(rateLimitKey, "login");
+        if (!rateLimit.allowed) {
+          const resetMinutes = Math.ceil(
+            (rateLimit.resetAt.getTime() - Date.now()) / 60000
+          );
+          throw new Error(
+            `Too many login attempts. Please try again in ${resetMinutes} minutes.`
+          );
+        }
+
+        // Only lookup by email
+        const user = await prisma.user.findUnique({
+          where: { email },
+        });
 
         if (!user) {
           throw new Error("Invalid credentials");

@@ -1,5 +1,3 @@
-// app/login/page.tsx
-
 "use client";
 
 import { useState } from "react";
@@ -40,7 +38,7 @@ export default function LoginPage() {
 
   const form = useForm<LoginInput>({
     resolver: zodResolver(loginSchema),
-    defaultValues: { identifier: "", password: "" },
+    defaultValues: { email: "", password: "" },
   });
 
   const logSecurityEvent = async (
@@ -69,7 +67,7 @@ export default function LoginPage() {
 
     try {
       const result = await signIn("credentials", {
-        identifier: values.identifier.trim(),
+        email: values.email.trim().toLowerCase(),
         password: values.password,
         redirect: false,
       });
@@ -114,7 +112,7 @@ export default function LoginPage() {
           </div>
           <h1 className="text-2xl font-bold text-gray-800 mb-2">Login</h1>
           <p className="text-gray-600 text-sm mb-6">
-            Login to access your Hug Harmony account
+            welcome back your space for connection and comfort awaits
           </p>
 
           {error && (
@@ -130,18 +128,16 @@ export default function LoginPage() {
             >
               <FormField
                 control={form.control}
-                name="identifier"
+                name="email"
                 render={({ field }) => (
                   <FormItem>
-                    <FormLabel className="text-sm font-medium">
-                      Email or Username
-                    </FormLabel>
+                    <FormLabel className="text-sm font-medium">Email</FormLabel>
                     <FormControl>
                       <Input
                         className="text-sm border-gray-300"
-                        placeholder="you@example.com or username"
-                        type="text"
-                        autoComplete="username"
+                        placeholder="you@example.com"
+                        type="email"
+                        autoComplete="email"
                         {...field}
                       />
                     </FormControl>
