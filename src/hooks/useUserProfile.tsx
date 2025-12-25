@@ -11,6 +11,7 @@ import {
   useCallback,
 } from "react";
 import { useSession } from "next-auth/react";
+import { usePathname } from "next/navigation"; // <-- Add this import
 import { type ProOnboardingStatus } from "@/lib/constants/application-status";
 
 interface Profile {
@@ -25,7 +26,7 @@ interface Profile {
 interface UserContextType {
   user: Profile;
   isProfessional: boolean;
-  applicationStatus: ProOnboardingStatus | null; // Full status for banner
+  applicationStatus: ProOnboardingStatus | null;
   unreadNotifications: number;
   isLoading: boolean;
   refetch: () => Promise<void>;
@@ -35,6 +36,8 @@ const UserContext = createContext<UserContextType | null>(null);
 
 export function UserProvider({ children }: { children: ReactNode }) {
   const { data: session, status } = useSession();
+  const pathname = usePathname(); // <-- Track current route
+
   const [profile, setProfile] = useState<Partial<Profile> | null>(null);
   const [isProfessional, setIsProfessional] = useState(false);
   const [applicationStatus, setApplicationStatus] =
@@ -86,10 +89,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
         const data = await professionalRes.json();
         const appStatus = data.status as ProOnboardingStatus | null;
 
-        // Check if user is approved professional
         setIsProfessional(appStatus === "APPROVED");
-
-        // Store the full status (null if no application)
         setApplicationStatus(appStatus || null);
       } else {
         console.error(
@@ -114,8 +114,9 @@ export function UserProvider({ children }: { children: ReactNode }) {
     }
   }, [session?.user?.id]);
 
+  // Refetch on authentication change OR route change within dashboard
   useEffect(() => {
-    if (status === "authenticated") {
+    if (status === "authenticated" && pathname.startsWith("/dashboard")) {
       fetchUserData();
     } else if (status === "unauthenticated") {
       setProfile(null);
@@ -124,7 +125,7 @@ export function UserProvider({ children }: { children: ReactNode }) {
       setUnreadNotifications(0);
       setIsLoading(false);
     }
-  }, [status, fetchUserData]);
+  }, [status, pathname, fetchUserData]); // <-- pathname added as dependency
 
   const user = useMemo<Profile>(
     () => ({

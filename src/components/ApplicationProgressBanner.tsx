@@ -10,7 +10,6 @@ import { useUserProfile } from "@/hooks/useUserProfile";
 import { X, ArrowRight } from "lucide-react";
 import {
   BANNER_CONFIG,
-  type ProOnboardingStatus,
   isApplicationInProgress,
 } from "@/lib/constants/application-status";
 

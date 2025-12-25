@@ -24,7 +24,7 @@ export function WelcomeHero({ user }: WelcomeHeroProps) {
           variants={itemVariants}
           className="flex items-center space-x-4"
         >
-          <Link href={`/dashboard/profile/${user.id}`}>
+          <Link href={`/dashboard/edit-profile/${user.id}`}>
             <Avatar className="h-16 w-16 border-2 border-white cursor-pointer hover:opacity-80 transition-opacity">
               <AvatarImage src={user.profileImage} alt={user.name} />
               <AvatarFallback className="bg-[#C4C4C4] text-black">
