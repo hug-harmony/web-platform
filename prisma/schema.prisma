@@ -343,6 +343,7 @@ model Message {
   recipientId    String       @db.ObjectId
   conversationId String       @db.ObjectId
   createdAt      DateTime     @default(now())
+  deletedAt      DateTime?
   proposalId     String?      @db.ObjectId
   senderUser     User         @relation("SentMessagesUser", fields: [senderId], references: [id], onDelete: Cascade)
   recipientUser  User         @relation("ReceivedMessagesUser", fields: [recipientId], references: [id], onDelete: Cascade)

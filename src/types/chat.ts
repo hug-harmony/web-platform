@@ -1,4 +1,3 @@
-// src/types/chat.ts
 export interface ChatMessage {
   id: string;
   text: string;
@@ -18,6 +17,10 @@ export interface ChatMessage {
     userId: string | null;
   };
   conversationId: string;
+
+  // NEW: For edit and delete support
+  edited?: boolean; // true if message was edited (based on updatedAt !== createdAt)
+  deletedAt?: string | null; // ISO string if soft-deleted
 }
 
 export interface Participant {
@@ -75,9 +78,18 @@ export interface Proposal {
 }
 
 export interface WSMessage {
-  type: "newMessage" | "typing" | "proposalUpdate" | "pong" | "error";
+  type:
+    | "newMessage"
+    | "typing"
+    | "proposalUpdate"
+    | "pong"
+    | "error"
+    | "editMessage" // NEW
+    | "deleteMessage"; // NEW
   conversationId?: string;
   message?: ChatMessage;
+  messageId?: string; // For edit/delete
+  updatedText?: string; // For edit
   userId?: string;
   proposalId?: string;
   error?: string;

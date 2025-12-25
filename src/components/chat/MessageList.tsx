@@ -1,4 +1,4 @@
-// components/chat/MessageList.tsx
+// src/components/chat/MessageList.tsx
 import React, { useEffect, useRef } from "react";
 import { CardContent } from "@/components/ui/card";
 import MessageBubble from "./MessageBubble";
@@ -16,6 +16,8 @@ interface MessageListProps {
   sending: boolean;
   proposalActionMessage: string | null;
   typingUsers?: Set<string>;
+  onEdit: (message: ChatMessage) => void;
+  onDelete: (messageId: string) => void;
 }
 
 const cardVariants = {
@@ -30,6 +32,8 @@ const MessageList: React.FC<MessageListProps> = ({
   sending,
   proposalActionMessage,
   typingUsers = new Set(),
+  onEdit,
+  onDelete,
 }) => {
   const messagesEndRef = useRef<HTMLDivElement>(null);
   const containerRef = useRef<HTMLDivElement>(null);
@@ -121,6 +125,8 @@ const MessageList: React.FC<MessageListProps> = ({
               handleProposalAction={handleProposalAction}
               sending={sending}
               currentUserId={sessionUserId}
+              onEdit={onEdit}
+              onDelete={onDelete}
             />
           )
         )}

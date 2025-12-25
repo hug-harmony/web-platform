@@ -14,9 +14,11 @@ interface UseWebSocketOptions {
   conversationId?: string;
   onMessage?: (data: WSMessage) => void;
   onNewMessage?: (message: ChatMessage) => void;
+  onEditMessage?: (messageId: string, updatedText: string) => void; // NEW
+  onDeleteMessage?: (messageId: string) => void; // NEW
   onTyping?: (userId: string) => void;
   onNotification?: (notification: Notification) => void;
-  onVideoCallSignal?: (signal: VideoCallSignal) => void; // NEW
+  onVideoCallSignal?: (signal: VideoCallSignal) => void;
   onConnect?: () => void;
   onDisconnect?: () => void;
   onError?: (error: Event) => void;
@@ -38,7 +40,7 @@ interface UseWebSocketReturn {
   ) => void;
   sendHeartbeat: () => void;
   reconnect: () => void;
-  // NEW: Video call methods
+  // Video call methods
   sendVideoInvite: (
     targetUserId: string,
     sessionId: string,
@@ -84,9 +86,11 @@ export function useWebSocket(
     conversationId,
     onMessage,
     onNewMessage,
+    onEditMessage, // NEW
+    onDeleteMessage, // NEW
     onTyping,
     onNotification,
-    onVideoCallSignal, // NEW
+    onVideoCallSignal,
     onConnect,
     onDisconnect,
     onError,
@@ -175,6 +179,18 @@ export function useWebSocket(
                 onNewMessage?.(data.message as ChatMessage);
               }
               break;
+            // NEW: Handle edit message
+            case "editMessage":
+              if (data.messageId && data.updatedText) {
+                onEditMessage?.(data.messageId, data.updatedText);
+              }
+              break;
+            // NEW: Handle delete message
+            case "deleteMessage":
+              if (data.messageId) {
+                onDeleteMessage?.(data.messageId);
+              }
+              break;
             case "typing":
               if (data.userId) {
                 onTyping?.(data.userId);
@@ -190,7 +206,6 @@ export function useWebSocket(
                 onOnlineStatusChange?.(data.userId, data.isOnline);
               }
               break;
-            // NEW: Handle video call signals
             case "videoCallSignal":
               if (data.videoSignal) {
                 console.log(
@@ -267,6 +282,8 @@ export function useWebSocket(
     onError,
     onMessage,
     onNewMessage,
+    onEditMessage, // NEW
+    onDeleteMessage, // NEW
     onTyping,
     onNotification,
     onVideoCallSignal,
@@ -339,7 +356,7 @@ export function useWebSocket(
   }, [connect]);
 
   // ============================================
-  // NEW: Video Call Signaling Methods
+  // Video Call Signaling Methods
   // ============================================
 
   const sendVideoInvite = useCallback(

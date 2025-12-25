@@ -59,6 +59,11 @@ const MessageInterface: React.FC = () => {
   const [isNotesSidebarOpen, setIsNotesSidebarOpen] = useState(false);
   const [typingUsers, setTypingUsers] = useState<Set<string>>(new Set());
 
+  // NEW: Edit message state
+  const [editingMessage, setEditingMessage] = useState<ChatMessage | null>(
+    null
+  );
+
   // Refs for cleanup
   const typingTimeoutRef = useRef<Map<string, NodeJS.Timeout>>(new Map());
 
@@ -85,6 +90,22 @@ const MessageInterface: React.FC = () => {
         }
         return [...prev, message];
       });
+    }, []),
+    // NEW: Handle edit message from WebSocket
+    onEditMessage: useCallback((messageId: string, updatedText: string) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, text: updatedText, edited: true } : m
+        )
+      );
+    }, []),
+    // NEW: Handle delete message from WebSocket
+    onDeleteMessage: useCallback((messageId: string) => {
+      setMessages((prev) =>
+        prev.map((m) =>
+          m.id === messageId ? { ...m, deletedAt: new Date().toISOString() } : m
+        )
+      );
     }, []),
     onTyping: useCallback(
       (typingUserId: string) => {
@@ -237,8 +258,116 @@ const MessageInterface: React.FC = () => {
     };
   }, [imagePreview]);
 
-  // Send message
+  // NEW: Handle edit - set the message to edit mode
+  const handleEdit = useCallback((message: ChatMessage) => {
+    setEditingMessage(message);
+    setInput(message.text);
+  }, []);
+
+  // NEW: Handle delete message
+  const handleDelete = useCallback(
+    async (messageId: string) => {
+      try {
+        const res = await fetch(`/api/messages/${messageId}`, {
+          method: "DELETE",
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || "Failed to delete message");
+        }
+
+        // Update local state
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === messageId
+              ? { ...m, deletedAt: new Date().toISOString() }
+              : m
+          )
+        );
+
+        // Broadcast via WebSocket
+        if (send) {
+          send({
+            action: "deleteMessage",
+            conversationId,
+            messageId,
+          });
+        }
+
+        toast.success("Message deleted");
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to delete message"
+        );
+      }
+    },
+    [conversationId, send]
+  );
+
+  // NEW: Cancel edit mode
+  const cancelEdit = useCallback(() => {
+    setEditingMessage(null);
+    setInput("");
+  }, []);
+
+  // Send message (UPDATED to support editing)
   const handleSend = useCallback(async () => {
+    // NEW: Edit flow
+    if (editingMessage) {
+      if (!input.trim()) {
+        toast.error("Message cannot be empty");
+        return;
+      }
+
+      setSending(true);
+      try {
+        const res = await fetch(`/api/messages/${editingMessage.id}`, {
+          method: "PATCH",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ text: input.trim() }),
+          credentials: "include",
+        });
+
+        if (!res.ok) {
+          const error = await res.json();
+          throw new Error(error.error || "Failed to edit message");
+        }
+
+        const updatedMessage: ChatMessage = await res.json();
+
+        // Update local state
+        setMessages((prev) =>
+          prev.map((m) =>
+            m.id === updatedMessage.id ? { ...updatedMessage, edited: true } : m
+          )
+        );
+
+        // Broadcast via WebSocket
+        if (send) {
+          send({
+            action: "editMessage",
+            conversationId,
+            messageId: editingMessage.id,
+            updatedText: input.trim(),
+          });
+        }
+
+        setEditingMessage(null);
+        setInput("");
+        toast.success("Message edited");
+      } catch (error) {
+        toast.error(
+          error instanceof Error ? error.message : "Failed to edit message"
+        );
+      } finally {
+        setSending(false);
+      }
+      return;
+    }
+
+    // Existing send flow (unchanged)
     if (!input.trim() && !imagePreview) {
       toast.error("Please enter a message or select an image");
       return;
@@ -332,6 +461,7 @@ const MessageInterface: React.FC = () => {
       setSending(false);
     }
   }, [
+    editingMessage,
     input,
     imagePreview,
     session?.user?.id,
@@ -563,6 +693,8 @@ const MessageInterface: React.FC = () => {
           sending={sending}
           proposalActionMessage={proposalActionMessage}
           typingUsers={typingUsers}
+          onEdit={handleEdit}
+          onDelete={handleDelete}
         />
         <MessageInput
           input={input}
@@ -574,6 +706,8 @@ const MessageInterface: React.FC = () => {
           sending={sending}
           isProfessional={isProfessional}
           setIsProposalDialogOpen={setIsProposalDialogOpen}
+          editingMessage={editingMessage}
+          cancelEdit={cancelEdit}
         />
       </Card>
 

@@ -104,6 +104,72 @@ export const handler: APIGatewayProxyHandler = async (
         break;
       }
 
+      // NEW: Edit message action
+      case "editMessage": {
+        const { messageId, updatedText } = body;
+
+        if (conversationId && messageId && updatedText) {
+          console.log(
+            `Broadcasting edited message ${messageId} to conversation ${conversationId}`
+          );
+          await broadcastToConversation(
+            apiClient,
+            conversationId,
+            {
+              type: "editMessage",
+              messageId,
+              updatedText,
+              conversationId,
+            },
+            connectionId
+          );
+
+          await sendToConnection(apiClient, connectionId, {
+            type: "editMessageAck",
+            messageId,
+          });
+        } else {
+          console.warn("editMessage action missing required fields", {
+            conversationId,
+            messageId,
+            updatedText,
+          });
+        }
+        break;
+      }
+
+      // NEW: Delete message action
+      case "deleteMessage": {
+        const { messageId } = body;
+
+        if (conversationId && messageId) {
+          console.log(
+            `Broadcasting deleted message ${messageId} to conversation ${conversationId}`
+          );
+          await broadcastToConversation(
+            apiClient,
+            conversationId,
+            {
+              type: "deleteMessage",
+              messageId,
+              conversationId,
+            },
+            connectionId
+          );
+
+          await sendToConnection(apiClient, connectionId, {
+            type: "deleteMessageAck",
+            messageId,
+          });
+        } else {
+          console.warn("deleteMessage action missing required fields", {
+            conversationId,
+            messageId,
+          });
+        }
+        break;
+      }
+
       case "notification": {
         const { targetUserId, type, content, senderId, relatedId } = body;
 
@@ -134,7 +200,7 @@ export const handler: APIGatewayProxyHandler = async (
       }
 
       // ============================================
-      // NEW: Video Call Signaling Actions
+      // Video Call Signaling Actions
       // ============================================
       case "videoInvite": {
         const { targetUserId, sessionId, senderName, appointmentId } = body;
@@ -393,7 +459,7 @@ async function sendNotificationToUser(
   );
 }
 
-// NEW: Send video signal to user
+// Send video signal to user
 async function sendVideoSignalToUser(
   apiClient: ApiGatewayManagementApiClient,
   userId: string,

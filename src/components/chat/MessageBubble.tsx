@@ -1,4 +1,3 @@
-// components/chat/MessageBubble.tsx
 import React from "react";
 import { Button } from "@/components/ui/button";
 import Image from "next/image";
@@ -7,7 +6,13 @@ import { toast } from "sonner";
 import Link from "next/link";
 import { Avatar, AvatarImage, AvatarFallback } from "@/components/ui/avatar";
 import { motion } from "framer-motion";
-import { Check, X, Clock } from "lucide-react";
+import { Check, X, Clock, MoreVertical, Edit2, Trash2 } from "lucide-react";
+import {
+  DropdownMenu,
+  DropdownMenuContent,
+  DropdownMenuItem,
+  DropdownMenuTrigger,
+} from "@/components/ui/dropdown-menu";
 import type { ChatMessage } from "@/types/chat";
 
 interface MessageBubbleProps {
@@ -19,6 +24,8 @@ interface MessageBubbleProps {
   ) => Promise<void>;
   sending: boolean;
   currentUserId?: string;
+  onEdit: (message: ChatMessage) => void;
+  onDelete: (messageId: string) => void;
 }
 
 const bubbleVariants = {
@@ -31,8 +38,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   isSender,
   handleProposalAction,
   sending,
+  onEdit,
+  onDelete,
 }) => {
-  // Determine profile link - FIXED: Changed odI to userId
   const profileHref = message.sender.isProfessional
     ? `/dashboard/profile/${message.sender.userId || message.senderId}`
     : `/dashboard/profile/${message.senderId}`;
@@ -42,12 +50,34 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
   const isAccepted = message.proposalStatus === "accepted";
   const isRejected = message.proposalStatus === "rejected";
 
+  const createdAt = new Date(message.createdAt);
+  const now = new Date();
+  const minutesSinceCreation = (now.getTime() - createdAt.getTime()) / 60000;
+
+  const canEdit = isSender && minutesSinceCreation <= 10 && !message.deletedAt;
+  const canDelete = isSender && minutesSinceCreation <= 5 && !message.deletedAt;
+
+  if (message.deletedAt) {
+    return (
+      <motion.div
+        variants={bubbleVariants}
+        initial="hidden"
+        animate="visible"
+        className={`flex ${isSender ? "justify-end" : "justify-start"} mb-4`}
+      >
+        <div className="bg-gray-200/50 dark:bg-gray-700/50 text-gray-500 italic px-4 py-2 rounded-xl text-sm">
+          This message was deleted
+        </div>
+      </motion.div>
+    );
+  }
+
   return (
     <motion.div
       variants={bubbleVariants}
       initial="hidden"
       animate="visible"
-      className={`flex ${isSender ? "justify-end" : "justify-start"} mb-4`}
+      className={`flex ${isSender ? "justify-end" : "justify-start"} mb-4 group`}
     >
       <div
         className={`relative p-4 rounded-xl max-w-xs lg:max-w-md min-h-[3rem] flex flex-col gap-2 shadow-lg transition-all ${
@@ -100,6 +130,9 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
         ) : (
           <p className="break-words text-sm font-medium leading-relaxed">
             {message.text}
+            {message.edited && (
+              <span className="text-xs opacity-70 ml-2 italic">(edited)</span>
+            )}
           </p>
         )}
 
@@ -168,11 +201,42 @@ const MessageBubble: React.FC<MessageBubbleProps> = ({
           </div>
         )}
 
-        {/* Timestamp */}
-        <div className="flex items-center justify-end mt-1">
+        {/* Timestamp and menu */}
+        <div className="flex items-center justify-between mt-1">
           <span className="text-xs opacity-60">
-            {format(new Date(message.createdAt), "HH:mm")}
+            {format(createdAt, "HH:mm")}
           </span>
+
+          {isSender && (canEdit || canDelete) && (
+            <DropdownMenu>
+              <DropdownMenuTrigger asChild>
+                <Button
+                  variant="ghost"
+                  size="icon"
+                  className="h-6 w-6 opacity-0 group-hover:opacity-100 transition-opacity"
+                >
+                  <MoreVertical className="h-4 w-4" />
+                </Button>
+              </DropdownMenuTrigger>
+              <DropdownMenuContent align="end">
+                {canEdit && (
+                  <DropdownMenuItem onClick={() => onEdit(message)}>
+                    <Edit2 className="h-4 w-4 mr-2" />
+                    Edit message
+                  </DropdownMenuItem>
+                )}
+                {canDelete && (
+                  <DropdownMenuItem
+                    className="text-red-600"
+                    onClick={() => onDelete(message.id)}
+                  >
+                    <Trash2 className="h-4 w-4 mr-2" />
+                    Undo send
+                  </DropdownMenuItem>
+                )}
+              </DropdownMenuContent>
+            </DropdownMenu>
+          )}
         </div>
       </div>
     </motion.div>

@@ -32,6 +32,10 @@ export interface VideoCallSignal {
 export interface WSMessage {
   type:
     | "newMessage"
+    | "editMessage" // NEW
+    | "deleteMessage" // NEW
+    | "editMessageAck" // NEW
+    | "deleteMessageAck" // NEW
     | "typing"
     | "joined"
     | "pong"
@@ -45,6 +49,8 @@ export interface WSMessage {
     | string;
   conversationId?: string;
   message?: ChatMessage;
+  messageId?: string; // NEW
+  updatedText?: string; // NEW
   notification?: Notification;
   userId?: string;
   isOnline?: boolean;
