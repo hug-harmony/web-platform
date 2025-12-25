@@ -6,10 +6,6 @@ import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
 import { ProOnboardingStatus, VenueType } from "@prisma/client";
-import {
-  getProOnboardingVideo,
-  getOrCreateProVideoWatch,
-} from "@/lib/onboarding";
 
 const submitSchema = z.object({
   rate: z
@@ -242,8 +238,11 @@ export async function POST(req: NextRequest) {
 
     const { rate, venue } = parseResult.data;
 
-    // Get onboarding video
-    const video = await getProOnboardingVideo();
+    // Get active onboarding video
+    const video = await prisma.trainingVideo.findFirst({
+      where: { isActive: true, isProOnboarding: true },
+    });
+
     if (!video) {
       return NextResponse.json(
         { error: "Onboarding video not configured. Please contact support." },
@@ -258,7 +257,6 @@ export async function POST(req: NextRequest) {
         select: { id: true, status: true, professionalId: true },
       });
 
-      // Check for active/approved applications
       const blockedStatuses: ProOnboardingStatus[] = [
         "VIDEO_PENDING",
         "QUIZ_PENDING",
@@ -277,7 +275,6 @@ export async function POST(req: NextRequest) {
 
       // Clean up existing rejected/failed applications
       if (existing) {
-        // Delete related records first
         await tx.trainingVideoWatch.deleteMany({
           where: { applicationId: existing.id },
         });
@@ -285,32 +282,18 @@ export async function POST(req: NextRequest) {
           where: { applicationId: existing.id },
         });
 
-        // Delete associated professional if exists
         if (existing.professionalId) {
           await tx.professional
             .delete({
               where: { id: existing.professionalId },
             })
-            .catch(() => {
-              // Ignore if professional doesn't exist
-            });
+            .catch(() => {});
         }
 
-        // Delete the application
         await tx.professionalApplication.delete({
           where: { id: existing.id },
         });
       }
-
-      // Also clean up any orphaned applications without professionalId
-      // This prevents the unique constraint issue
-      await tx.professionalApplication.deleteMany({
-        where: {
-          userId: { not: session.user.id },
-          professionalId: null,
-          status: { in: ["REJECTED", "SUSPENDED", "QUIZ_FAILED"] },
-        },
-      });
 
       // Create new application
       const app = await tx.professionalApplication.create({
@@ -323,12 +306,34 @@ export async function POST(req: NextRequest) {
         },
       });
 
-      // Create video watch record
-      await getOrCreateProVideoWatch({
-        userId: session.user.id,
-        videoId: video.id,
-        applicationId: app.id,
+      // Safely create or reuse TrainingVideoWatch record
+      const existingWatch = await tx.trainingVideoWatch.findUnique({
+        where: {
+          userId_videoId: {
+            userId: session.user.id,
+            videoId: video.id,
+          },
+        },
       });
+
+      if (existingWatch) {
+        // Reuse existing watch record (update applicationId)
+        await tx.trainingVideoWatch.update({
+          where: { id: existingWatch.id },
+          data: { applicationId: app.id },
+        });
+      } else {
+        // Create fresh watch record
+        await tx.trainingVideoWatch.create({
+          data: {
+            userId: session.user.id,
+            videoId: video.id,
+            applicationId: app.id,
+            watchedSec: 0,
+            isCompleted: false,
+          },
+        });
+      }
 
       return app;
     });
@@ -362,16 +367,6 @@ export async function POST(req: NextRequest) {
         error.message.includes("in progress")
       ) {
         return NextResponse.json({ error: error.message }, { status: 409 });
-      }
-
-      // Handle unique constraint error gracefully
-      if (error.message.includes("Unique constraint")) {
-        return NextResponse.json(
-          {
-            error: "Please try again. If the issue persists, contact support.",
-          },
-          { status: 409 }
-        );
       }
     }
 
