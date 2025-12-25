@@ -75,7 +75,7 @@ const MessageInterface: React.FC = () => {
     otherUser?.isProfessional ? "professional" : "user";
 
   // WebSocket connection
-  const { isConnected, sendTyping } = useWebSocket({
+  const { isConnected, sendTyping, send } = useWebSocket({
     conversationId,
     enabled: status === "authenticated" && !!conversationId,
     onNewMessage: useCallback((message: ChatMessage) => {
@@ -243,7 +243,7 @@ const MessageInterface: React.FC = () => {
       toast.error("Please enter a message or select an image");
       return;
     }
-    if (!session?.user?.id || !conversation) {
+    if (!session?.user?.id || !conversation || !send) {
       toast.error("Please log in to send messages");
       return;
     }
@@ -301,16 +301,23 @@ const MessageInterface: React.FC = () => {
 
       const newMessage: ChatMessage = await res.json();
 
+      // Optimistic update (local UI)
       setMessages((prev) => {
         if (prev.some((m) => m.id === newMessage.id)) {
           return prev;
         }
-        // Ensure conversationId is present (fallback if API omits it)
         const messageWithId: ChatMessage = {
           ...newMessage,
           conversationId: conversationId as string,
         };
         return [...prev, messageWithId];
+      });
+
+      // IMPORTANT: Broadcast via WebSocket so other participants receive it in real-time
+      send({
+        action: "sendMessage",
+        conversationId,
+        message: newMessage,
       });
 
       setInput("");
@@ -324,7 +331,14 @@ const MessageInterface: React.FC = () => {
     } finally {
       setSending(false);
     }
-  }, [input, imagePreview, session?.user?.id, conversation, conversationId]);
+  }, [
+    input,
+    imagePreview,
+    session?.user?.id,
+    conversation,
+    conversationId,
+    send,
+  ]);
 
   // Send proposal
   const handleSendProposal = useCallback(

@@ -1,9 +1,7 @@
-// app/api/messages/route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
-import { broadcastToConversation } from "@/lib/websocket/server";
 import { createMessageNotification } from "@/lib/notifications";
 
 export async function POST(request: NextRequest) {
@@ -90,7 +88,7 @@ export async function POST(request: NextRequest) {
       data: { updatedAt: new Date() },
     });
 
-    // Get professional application info (it's a single object, not array)
+    // Get professional application info
     const profApp = message.senderUser?.professionalApplication;
     const isProfessional = !!profApp?.professionalId;
     const professionalId = profApp?.professionalId ?? null;
@@ -100,7 +98,7 @@ export async function POST(request: NextRequest) {
       `${message.senderUser?.firstName ?? ""} ${message.senderUser?.lastName ?? ""}`.trim() ||
       "Someone";
 
-    // Format message for response and broadcast
+    // Format message for response
     const formattedMessage = {
       id: message.id,
       text: message.text,
@@ -121,20 +119,7 @@ export async function POST(request: NextRequest) {
       },
     };
 
-    // Broadcast via WebSocket (non-blocking)
-    broadcastToConversation(
-      conversationId,
-      {
-        type: "newMessage",
-        conversationId,
-        message: formattedMessage,
-      },
-      session.user.id // Exclude sender
-    ).catch((err) => {
-      console.error("WebSocket broadcast error:", err);
-    });
-
-    // Send notification to recipient (non-blocking)
+    // Still send notification to recipient (push/email/etc.)
     createMessageNotification(
       session.user.id,
       senderName,
