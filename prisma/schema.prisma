@@ -80,6 +80,8 @@ model User {
   trainingVideoWatches    TrainingVideoWatch[]
   photos                  UserPhoto[]
   EmailVerificationToken  EmailVerificationToken[]
+  blocking                Block[]                  @relation("UserBlocking")
+  blockedBy               Block[]                  @relation("UserBlocked")
 }
 
 model PasswordResetToken {
@@ -592,4 +594,18 @@ model RateLimitRecord {
 
   @@unique([key, action])
   @@index([expiresAt])
+}
+
+model Block {
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  blockerId String   @db.ObjectId
+  blockedId String   @db.ObjectId
+  createdAt DateTime @default(now())
+
+  blocker User @relation("UserBlocking", fields: [blockerId], references: [id], onDelete: Cascade)
+  blocked User @relation("UserBlocked", fields: [blockedId], references: [id], onDelete: Cascade)
+
+  @@unique([blockerId, blockedId])
+  @@index([blockerId])
+  @@index([blockedId])
 }
