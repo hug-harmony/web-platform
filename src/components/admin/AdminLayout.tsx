@@ -45,6 +45,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
+import Image from "next/image";
 
 export default function AdminDashboardLayout({
   children,
@@ -128,13 +129,13 @@ export default function AdminDashboardLayout({
                 animate={{ opacity: 1 }}
                 transition={{ duration: 0.3 }}
               >
-                <div
+                {/* <div
                   className="h-8 w-8 bg-[#C4C4C4] rounded-full"
                   aria-label="Hug Harmony Logo"
-                />
+                /> */}
                 {isSidebarOpen && (
                   <h2 className="text-lg font-bold text-black dark:text-white">
-                    Hug Harmony
+                    Hug Harmony Admin
                   </h2>
                 )}
               </motion.div>
@@ -239,7 +240,7 @@ export default function AdminDashboardLayout({
               </SidebarGroup>
             </SidebarContent>
             <SidebarFooter className="p-4 border-t border-[#C4C4C4] dark:border-black">
-              <Button
+              {/* <Button
                 variant="ghost"
                 className="w-full justify-start text-black dark:text-white hover:bg-[#E8A8A2] dark:hover:bg-[#A0A0A0]"
                 onClick={() => setTheme(theme === "dark" ? "light" : "dark")}
@@ -251,7 +252,7 @@ export default function AdminDashboardLayout({
                 )}
                 {isSidebarOpen &&
                   (theme === "dark" ? "Light Mode" : "Dark Mode")}
-              </Button>
+              </Button> */}
               <Button
                 variant="ghost"
                 className="w-full justify-start text-black dark:text-white hover:bg-[#E8A8A2] dark:hover:bg-[#A0A0A0]"
@@ -275,10 +276,8 @@ export default function AdminDashboardLayout({
         {/* Main Content */}
         <div className="flex-1 flex flex-col">
           <header className="bg-white dark:bg-black border-b border-[#C4C4C4] dark:border-black p-3 sticky top-0 z-10">
-            <div className="flex items-center justify-between max-w-7xl mx-auto">
-              <h1 className="text-xl font-semibold text-black dark:text-white">
-                Hug Harmony Admin
-              </h1>
+            <div className="flex items-center justify-end max-w-7xl mx-auto">
+              <h1 className="text-xl font-semibold text-black dark:text-white"></h1>
               <div className="flex items-center gap-4">
                 {/* Notification Bell */}
                 <Popover>

@@ -2,8 +2,8 @@
 
 "use client";
 import React from "react";
-import AdminSessionProvider from "@/components/AdminSessionProvider";
-import AdminLayout from "@/components/AdminLayout";
+import AdminSessionProvider from "@/components/admin/AdminSessionProvider";
+import AdminLayout from "@/components/admin/AdminLayout";
 
 export default function Layout({
   children,

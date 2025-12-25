@@ -3,9 +3,7 @@ import type { Metadata } from "next";
 import { Manrope } from "next/font/google";
 import "./globals.css";
 import { Toaster } from "@/components/ui/sonner";
-import { ThemeProvider } from "next-themes";
-// import { Analytics } from "@vercel/analytics/next";
-import { SpeedInsights } from "@vercel/speed-insights/next";
+// import { ThemeProvider } from "next-themes";
 
 const manrope = Manrope({
   subsets: ["latin"],
@@ -49,16 +47,8 @@ export default function RootLayout({
         />
       </head>
       <body className={`${manrope.className} antialiased`}>
-        <ThemeProvider
-          attribute="class"
-          defaultTheme="light"
-          disableTransitionOnChange
-        >
-          {children}
-          <Toaster />
-          {/* <Analytics /> */}
-          <SpeedInsights />
-        </ThemeProvider>
+        {children}
+        <Toaster />
       </body>
     </html>
   );
