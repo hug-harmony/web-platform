@@ -28,6 +28,7 @@ import { useSession } from "next-auth/react";
 import { toast } from "sonner";
 import type { Participant } from "@/types/chat";
 import type { VideoCallSignal } from "@/lib/websocket/types";
+import Link from "next/link";
 
 interface ChatHeaderProps {
   otherUser: Participant | undefined;
@@ -216,29 +217,48 @@ const ChatHeader: React.FC<ChatHeaderProps> = ({
   // Check if video calling is available (user must be a professional or talking to one)
   const canStartVideoCall = otherUser?.isProfessional || professionalId;
 
+  console.log("Debug ChatHeader:", {
+    otherUserId: otherUser?.id,
+    professionalId: professionalId,
+    isProfessional: otherUser?.isProfessional,
+    sessionUserId: session?.user?.id,
+    otherUser: otherUser,
+  });
+
+  const profileHref = otherUser?.isProfessional
+    ? `/dashboard/profile/${otherUser.id}` // Use the userId, not professionalId
+    : `/dashboard/profile/${otherUser?.id}`;
+
+  console.log("Profile href:", profileHref);
+
   return (
     <>
       <CardHeader className="p-4 sm:p-6 border-b bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20 flex flex-row items-center justify-between space-x-2">
         <div className="flex items-center space-x-3">
-          <div className="relative">
-            <Avatar className="h-10 w-10 border-2 border-white">
-              <AvatarImage
-                src={profileImage || "/avatar-placeholder.png"}
-                alt={otherUserName}
+          <Link
+            href={profileHref}
+            className="flex items-center space-x-3 hover:opacity-80 transition-opacity cursor-pointer"
+          >
+            <div className="relative">
+              <Avatar className="h-10 w-10 border-2 border-white">
+                <AvatarImage
+                  src={profileImage || "/avatar-placeholder.png"}
+                  alt={otherUserName}
+                />
+                <AvatarFallback className="bg-[#C4C4C4] text-black">
+                  {initials}
+                </AvatarFallback>
+              </Avatar>
+              {/* Online indicator dot */}
+              <div
+                className={cn(
+                  "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white transition-colors duration-300",
+                  displayIsOnline ? "bg-green-500 animate-pulse" : "bg-gray-400"
+                )}
+                title={displayStatusText}
               />
-              <AvatarFallback className="bg-[#C4C4C4] text-black">
-                {initials}
-              </AvatarFallback>
-            </Avatar>
-            {/* Online indicator dot */}
-            <div
-              className={cn(
-                "absolute bottom-0 right-0 w-3 h-3 rounded-full border-2 border-white transition-colors duration-300",
-                displayIsOnline ? "bg-green-500 animate-pulse" : "bg-gray-400"
-              )}
-              title={displayStatusText}
-            />
-          </div>
+            </div>
+          </Link>
           <div className="flex flex-col">
             <p className="font-semibold text-black dark:text-white">
               {otherUserName}

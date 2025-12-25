@@ -12,6 +12,7 @@ import type {
 /**
  * Get a profile by ID - automatically detects if it's a user or professional
  */
+/*
 export async function getProfileById(id: string): Promise<Profile | null> {
   // First, try to find as a professional
   const professional = await getProfessionalProfile(id);
@@ -20,6 +21,42 @@ export async function getProfileById(id: string): Promise<Profile | null> {
   }
 
   // If not found, try to find as a user
+  const user = await getUserProfile(id);
+  if (user) {
+    return user;
+  }
+
+  return null;
+}
+*/
+
+export async function getProfileById(id: string): Promise<Profile | null> {
+  // First, try to find as a professional by professional ID
+  const professional = await getProfessionalProfile(id);
+  if (professional) {
+    return professional;
+  }
+
+  // Check if this user ID has an approved professional application
+  const application = await prisma.professionalApplication.findFirst({
+    where: {
+      userId: id,
+      status: "APPROVED",
+    },
+    select: { professionalId: true },
+  });
+
+  // If they're a professional, fetch their professional profile
+  if (application?.professionalId) {
+    const professionalProfile = await getProfessionalProfile(
+      application.professionalId
+    );
+    if (professionalProfile) {
+      return professionalProfile;
+    }
+  }
+
+  // Otherwise, try to find as a regular user
   const user = await getUserProfile(id);
   if (user) {
     return user;

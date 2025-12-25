@@ -22,6 +22,9 @@ export async function GET(
 
     const { id } = await params;
 
+    console.log("API /profiles/[id] - Requested ID:", id);
+    console.log("API /profiles/[id] - Session user ID:", session.user.id);
+
     // Validate ID format
     if (!id || !/^[0-9a-fA-F]{24}$/.test(id)) {
       return NextResponse.json({ error: "Invalid ID format" }, { status: 400 });
@@ -29,6 +32,9 @@ export async function GET(
 
     // Get the profile
     const profile = await getProfileById(id);
+
+    console.log("API /profiles/[id] - Returned profile ID:", profile?.id);
+    console.log("API /profiles/[id] - Returned profile name:", profile?.name);
 
     if (!profile) {
       return NextResponse.json({ error: "Profile not found" }, { status: 404 });
