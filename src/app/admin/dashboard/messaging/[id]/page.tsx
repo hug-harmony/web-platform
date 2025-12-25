@@ -1,3 +1,4 @@
+// src\app\admin\dashboard\messaging\[id]\page.tsx
 "use client";
 
 import { useParams } from "next/navigation";
@@ -202,6 +203,8 @@ export default function ConversationDetailPage() {
                         isSender={false}
                         handleProposalAction={handleProposalAction}
                         sending={false}
+                        onEdit={() => {}}
+                        onDelete={() => {}}
                       />
                     </motion.div>
                   ))
