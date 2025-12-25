@@ -1,5 +1,4 @@
-// C:\DEVELOPER\projects\hug-harmony\src\app\api\professionals\onboarding\video\complete\route.ts
-
+// src/app/api/professionals/onboarding/video/complete/route.ts
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
@@ -25,29 +24,43 @@ export async function POST(req: Request) {
       select: { id: true, status: true },
     });
 
-    if (!app || app.status !== "VIDEO_PENDING") {
-      return NextResponse.json({ error: "Invalid state" }, { status: 400 });
+    if (!app) {
+      return NextResponse.json(
+        { error: "No application found" },
+        { status: 400 }
+      );
     }
 
     const watch = await prisma.trainingVideoWatch.findFirst({
       where: { applicationId: app.id },
-      select: { videoId: true },
+      include: { video: { select: { durationSec: true } } },
     });
 
     if (!watch?.videoId) {
       return NextResponse.json({ error: "No video linked" }, { status: 400 });
     }
 
+    const duration = watch.video.durationSec ?? 0;
+    const requiredSec = Math.ceil(duration * 0.9); // 90%
+    const shouldComplete = isCompleted || watchedSec >= requiredSec;
+
     await prisma.$transaction(async (tx) => {
       await tx.trainingVideoWatch.update({
         where: { userId_videoId: { userId, videoId: watch.videoId } },
-        data: { watchedSec, isCompleted, lastWatchedAt: new Date() },
+        data: {
+          watchedSec,
+          isCompleted: shouldComplete,
+          lastWatchedAt: new Date(),
+        },
       });
 
-      if (isCompleted) {
+      if (shouldComplete && app.status === "VIDEO_PENDING") {
         await tx.professionalApplication.update({
           where: { id: app.id },
-          data: { status: "QUIZ_PENDING", videoWatchedAt: new Date() },
+          data: {
+            status: "QUIZ_PENDING",
+            videoWatchedAt: new Date(),
+          },
         });
       }
     });

@@ -29,20 +29,8 @@ interface ProfessionalApplication {
   venue: VenueType;
 }
 
-type ApplicationStatus =
-  | "none"
-  | "FORM_PENDING"
-  | "VIDEO_PENDING"
-  | "QUIZ_PENDING"
-  | "QUIZ_PASSED"
-  | "QUIZ_FAILED"
-  | "ADMIN_REVIEW"
-  | "APPROVED"
-  | "REJECTED"
-  | "SUSPENDED";
-
 interface ExistingApplication {
-  status: ApplicationStatus;
+  status: string;
   professionalId: string | null;
 }
 
@@ -61,7 +49,7 @@ const itemVariants = {
 };
 
 const STATUS_CONFIG: Record<
-  ApplicationStatus,
+  string,
   {
     title: string;
     description: string;
@@ -70,21 +58,10 @@ const STATUS_CONFIG: Record<
     action?: { label: string; href: string };
   }
 > = {
-  none: {
-    title: "",
-    description: "",
-    icon: null,
-    variant: "default",
-  },
-  FORM_PENDING: {
-    title: "Application Started",
-    description: "Complete the form below to continue.",
-    icon: <Clock className="h-4 w-4" />,
-    variant: "default",
-  },
   VIDEO_PENDING: {
-    title: "Video Pending",
-    description: "Please watch the onboarding video to continue.",
+    title: "Continue to Video",
+    description:
+      "You have already submitted the form. Please watch the onboarding video.",
     icon: <Clock className="h-4 w-4" />,
     variant: "default",
     action: {
@@ -93,8 +70,8 @@ const STATUS_CONFIG: Record<
     },
   },
   QUIZ_PENDING: {
-    title: "Quiz Pending",
-    description: "Complete the quiz to proceed with your application.",
+    title: "Proceed to Quiz",
+    description: "Complete the quiz to continue your application.",
     icon: <Clock className="h-4 w-4" />,
     variant: "default",
     action: {
@@ -102,18 +79,8 @@ const STATUS_CONFIG: Record<
       href: "/dashboard/edit-profile/professional-application/quiz",
     },
   },
-  QUIZ_PASSED: {
-    title: "Quiz Passed!",
-    description: "Your application is being reviewed by our team.",
-    icon: <CheckCircle className="h-4 w-4 text-green-600" />,
-    variant: "default",
-    action: {
-      label: "View Status",
-      href: "/dashboard/edit-profile/professional-application/status",
-    },
-  },
   QUIZ_FAILED: {
-    title: "Quiz Not Passed",
+    title: "Quiz Cooldown",
     description: "You can retake the quiz after the cooldown period.",
     icon: <XCircle className="h-4 w-4" />,
     variant: "destructive",
@@ -124,8 +91,7 @@ const STATUS_CONFIG: Record<
   },
   ADMIN_REVIEW: {
     title: "Under Review",
-    description:
-      "Your application is being reviewed. We'll notify you once complete.",
+    description: "Your application is being reviewed by our team.",
     icon: <Clock className="h-4 w-4" />,
     variant: "default",
     action: {
@@ -142,7 +108,7 @@ const STATUS_CONFIG: Record<
   },
   REJECTED: {
     title: "Application Rejected",
-    description: "Your application was not approved. You may reapply.",
+    description: "Your application was not approved. You may start a new one.",
     icon: <XCircle className="h-4 w-4" />,
     variant: "destructive",
   },
@@ -168,29 +134,54 @@ export default function ProfessionalApplicationPage() {
   const { data: session, status } = useSession();
   const router = useRouter();
 
-  // Check for existing application
   const checkExistingApplication = useCallback(async () => {
     try {
-      const res = await fetch("/api/professionals/applications?.[0]?me=true", {
+      const res = await fetch("/api/professionals/onboarding/status", {
         credentials: "include",
       });
 
-      if (res.ok) {
-        const data: ExistingApplication = await res.json();
-        setExistingApplication(data);
-
-        // Auto-redirect based on status
-        if (data.status === "VIDEO_PENDING") {
-          router.push("/dashboard/edit-profile/professional-application/video");
-        } else if (data.status === "QUIZ_PENDING") {
-          router.push("/dashboard/edit-profile/professional-application/quiz");
-        } else if (data.status === "APPROVED" && data.professionalId) {
-          router.push("/dashboard");
-        }
+      if (!res.ok) {
+        setIsCheckingStatus(false);
+        return;
       }
+
+      const data = await res.json();
+
+      if (!data.application) {
+        setExistingApplication(null);
+        setIsCheckingStatus(false);
+        return;
+      }
+
+      setExistingApplication({
+        status: data.step,
+        professionalId: data.application.professionalId,
+      });
+
+      if (data.step !== "FORM_PENDING") {
+        const redirectMap: Record<string, string> = {
+          VIDEO_PENDING:
+            "/dashboard/edit-profile/professional-application/video",
+          QUIZ_PENDING: "/dashboard/edit-profile/professional-application/quiz",
+          QUIZ_FAILED:
+            "/dashboard/edit-profile/professional-application/quiz/cooldown",
+          ADMIN_REVIEW:
+            "/dashboard/edit-profile/professional-application/status",
+          APPROVED: "/dashboard",
+          REJECTED: "/dashboard/edit-profile/professional-application",
+          SUSPENDED: "/dashboard/edit-profile/professional-application",
+        };
+
+        const target =
+          redirectMap[data.step] ??
+          "/dashboard/edit-profile/professional-application/status"; // Guaranteed string
+        router.replace(target);
+        return;
+      }
+
+      setIsCheckingStatus(false);
     } catch (error) {
       console.error("Error checking application status:", error);
-    } finally {
       setIsCheckingStatus(false);
     }
   }, [router]);
@@ -203,7 +194,6 @@ export default function ProfessionalApplicationPage() {
     }
   }, [status, checkExistingApplication, router]);
 
-  // Validate form
   const validateForm = (): boolean => {
     const newErrors: { rate?: string; venue?: string } = {};
 
@@ -249,15 +239,11 @@ export default function ProfessionalApplicationPage() {
 
       if (!res.ok) {
         toast.error(data.error ?? "Failed to submit application");
-        if (res.status === 401) router.push("/login");
         return;
       }
 
       toast.success("Application submitted! Redirecting to video...");
-      router.push(
-        data.nextStep ||
-          "/dashboard/edit-profile/professional-application/video"
-      );
+      router.push("/dashboard/edit-profile/professional-application/video");
     } catch (error) {
       console.error(error);
       toast.error("Error submitting application. Please try again.");
@@ -266,7 +252,6 @@ export default function ProfessionalApplicationPage() {
     }
   };
 
-  // Loading states
   if (status === "loading" || isCheckingStatus) {
     return <LoadingSkeleton />;
   }
@@ -275,13 +260,12 @@ export default function ProfessionalApplicationPage() {
     return null;
   }
 
-  // Show existing application status
-  const appStatus = existingApplication?.status || "none";
-  const statusConfig = STATUS_CONFIG[appStatus];
+  const appStatus = existingApplication?.status;
+  const statusConfig = appStatus ? STATUS_CONFIG[appStatus] : null;
   const showForm =
-    appStatus === "none" ||
+    !existingApplication ||
     appStatus === "FORM_PENDING" ||
-    appStatus === "REJECTED";
+    (appStatus && ["REJECTED", "SUSPENDED"].includes(appStatus));
 
   return (
     <motion.div
@@ -290,7 +274,6 @@ export default function ProfessionalApplicationPage() {
       initial="hidden"
       animate="visible"
     >
-      {/* Header */}
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
           <motion.div variants={itemVariants}>
@@ -313,8 +296,7 @@ export default function ProfessionalApplicationPage() {
         </CardContent>
       </Card>
 
-      {/* Status Alert for existing applications */}
-      {appStatus !== "none" && statusConfig.title && (
+      {statusConfig && (
         <motion.div variants={itemVariants}>
           <Alert variant={statusConfig.variant}>
             {statusConfig.icon}
@@ -333,12 +315,10 @@ export default function ProfessionalApplicationPage() {
         </motion.div>
       )}
 
-      {/* Application Form */}
       {showForm && (
         <Card className="shadow-lg">
           <CardContent className="space-y-6 pt-6">
             <motion.div variants={itemVariants} className="space-y-6">
-              {/* Rate Input */}
               <div className="space-y-2">
                 <Label htmlFor="rate">
                   Hourly Rate ($) <span className="text-red-500">*</span>
@@ -368,7 +348,6 @@ export default function ProfessionalApplicationPage() {
                 </p>
               </div>
 
-              {/* Venue Select */}
               <div className="space-y-2">
                 <Label htmlFor="venue">
                   Service Location <span className="text-red-500">*</span>
@@ -403,17 +382,8 @@ export default function ProfessionalApplicationPage() {
                 {errors.venue && (
                   <p className="text-sm text-red-500">{errors.venue}</p>
                 )}
-                <p className="text-xs text-muted-foreground">
-                  {formData.venue === "host" &&
-                    "Clients will come to your location for appointments."}
-                  {formData.venue === "visit" &&
-                    "You'll travel to the client's location for appointments."}
-                  {formData.venue === "both" &&
-                    "You can offer appointments at your location or travel to clients."}
-                </p>
               </div>
 
-              {/* Submit Button */}
               <Button
                 onClick={handleSubmit}
                 disabled={isSubmitting || !session?.user?.name}

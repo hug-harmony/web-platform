@@ -205,18 +205,21 @@ export default function BottomNav() {
             </button>
           </SheetTrigger>
 
-          <SheetContent side="bottom" className="h-[85vh] rounded-t-3xl p-0">
+          <SheetContent
+            side="bottom"
+            className="flex flex-col rounded-t-3xl p-0 h-[90vh]"
+          >
             <SheetHeader className="sr-only">
               <SheetTitle>Navigation Menu</SheetTitle>
             </SheetHeader>
 
-            {/* Drag Handle */}
-            <div className="flex justify-center py-3">
+            {/* Drag Handle - fixed */}
+            <div className="flex justify-center py-3 shrink-0">
               <div className="w-10 h-1 bg-gray-300 rounded-full" />
             </div>
 
-            {/* User Card */}
-            <div className="px-4 pb-4">
+            {/* User Card - fixed */}
+            <div className="px-4 pb-4 shrink-0">
               <button
                 onClick={() =>
                   handleNavigation(`/dashboard/edit-profile/${user.id}`)
@@ -243,11 +246,11 @@ export default function BottomNav() {
               </button>
             </div>
 
-            <Separator />
+            <Separator className="shrink-0" />
 
-            {/* Menu Items */}
-            <ScrollArea className="flex-1 h-[calc(85vh-200px)]">
-              <div className="p-4 grid gap-1">
+            {/* Menu Items - scrollable */}
+            <ScrollArea className="flex-1 px-4">
+              <div className="grid gap-1 pb-4">
                 {moreMenuItems.map((item) => {
                   const active = isActive(item.href);
                   return (
@@ -289,8 +292,8 @@ export default function BottomNav() {
               </div>
             </ScrollArea>
 
-            {/* Logout */}
-            <div className="p-4 border-t bg-white">
+            {/* Logout - fixed at bottom */}
+            <div className="p-4 border-t bg-white shrink-0">
               <Button
                 variant="ghost"
                 className="w-full justify-start gap-3 text-red-600 hover:text-red-700 hover:bg-red-50 h-12 rounded-xl"

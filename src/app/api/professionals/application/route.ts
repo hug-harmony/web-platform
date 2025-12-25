@@ -59,11 +59,11 @@ export async function GET(req: NextRequest) {
       });
 
       if (!application) {
-        return NextResponse.json({
-          status: "none",
-          professionalId: null,
-          applications: null,
-        });
+        // Return 404 so frontend treats it as no application
+        return NextResponse.json(
+          { error: "No application found" },
+          { status: 404 }
+        );
       }
 
       return NextResponse.json({

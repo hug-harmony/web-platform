@@ -227,7 +227,7 @@ export default function QuizPage() {
                 size="sm"
                 className="rounded-full"
               >
-                <Link href="/dashboard/edit-profile/professional-application">
+                <Link href="/dashboard/edit-profile/professional-application/status">
                   <ArrowLeft className="mr-2 h-4 w-4" /> Back
                 </Link>
               </Button>
@@ -287,21 +287,21 @@ export default function QuizPage() {
       {/* Header */}
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
-          <div className="flex items-center justify-between">
+          <div className="flex flex-col md:flex-row gap-2 items-start justify-between">
             <Button
               asChild
               variant="outline"
               size="sm"
               className="rounded-full"
             >
-              <Link href="/dashboard/edit-profile/professional-application/video">
-                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Video
+              <Link href="/dashboard/edit-profile/professional-application/status">
+                <ArrowLeft className="mr-2 h-4 w-4" /> Back to Status
               </Link>
             </Button>
             <CardTitle className="text-xl text-black">
               Step 3: Knowledge Quiz
             </CardTitle>
-            <div className="w-28" />
+            <div className="w-20" />
           </div>
         </CardHeader>
       </Card>

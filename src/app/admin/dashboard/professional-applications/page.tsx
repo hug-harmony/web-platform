@@ -1,7 +1,7 @@
 // src/app/admin/dashboard/professional-applications/page.tsx
 "use client";
 
-import { useState, useEffect, useCallback } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
@@ -24,9 +24,10 @@ import {
   Clock,
   CheckCircle,
   XCircle,
-  DollarSign,
-  Video,
+  AlertTriangle,
+  ArrowUpDown,
   Eye,
+  DollarSign,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -36,7 +37,6 @@ import {
   formatCooldown,
   formatVideoProgress,
   type ProOnboardingStatus,
-  type VenueType,
 } from "@/lib/constants/application-status";
 
 interface Application {
@@ -49,7 +49,7 @@ interface Application {
   videoWatchedAt?: string | null;
   quizPassedAt?: string | null;
   rate: number;
-  venue: VenueType;
+  venue: string;
   video?: {
     watchedSec: number;
     durationSec: number;
@@ -63,18 +63,21 @@ interface Application {
   professionalId?: string | null;
 }
 
-interface Stats {
-  total: number;
-  pending: number;
-  approved: number;
-  rejected: number;
-}
+const RELEVANT_STATUSES: ProOnboardingStatus[] = [
+  "VIDEO_PENDING",
+  "QUIZ_PENDING",
+  "QUIZ_FAILED",
+  "ADMIN_REVIEW",
+  "APPROVED",
+  "REJECTED",
+];
 
 export default function ProfessionalApplicationsPage() {
   const [searchTerm, setSearchTerm] = useState("");
-  const [statusFilter, setStatusFilter] = useState<ProOnboardingStatus | "all">(
+  const [statusFilter, setStatusFilter] = useState<"all" | ProOnboardingStatus>(
     "all"
   );
+  const [sortBy, setSortBy] = useState<"newest" | "oldest">("newest");
   const [applications, setApplications] = useState<Application[]>([]);
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -87,7 +90,6 @@ export default function ProfessionalApplicationsPage() {
       if (statusFilter !== "all") params.set("status", statusFilter);
       if (searchTerm) params.set("search", searchTerm);
 
-      // ✅ FIX: Correct API endpoint
       const res = await fetch(`/api/professionals/application?${params}`, {
         credentials: "include",
       });
@@ -114,12 +116,53 @@ export default function ProfessionalApplicationsPage() {
     fetchApplications();
   }, [fetchApplications]);
 
-  // Calculate stats
-  const stats: Stats = {
-    total: applications.length,
-    pending: applications.filter((a) => a.status === "ADMIN_REVIEW").length,
-    approved: applications.filter((a) => a.status === "APPROVED").length,
-    rejected: applications.filter((a) => a.status === "REJECTED").length,
+  const filteredAndSorted = useMemo(() => {
+    let filtered = applications;
+
+    if (searchTerm) {
+      filtered = filtered.filter((a) =>
+        a.name.toLowerCase().includes(searchTerm.toLowerCase())
+      );
+    }
+
+    if (statusFilter !== "all") {
+      filtered = filtered.filter((a) => a.status === statusFilter);
+    }
+
+    return filtered.sort((a, b) => {
+      const dateA = new Date(a.createdAt).getTime();
+      const dateB = new Date(b.createdAt).getTime();
+      return sortBy === "newest" ? dateB - dateA : dateA - dateB;
+    });
+  }, [applications, searchTerm, statusFilter, sortBy]);
+
+  const stats = useMemo(() => {
+    const now = Date.now();
+    return {
+      total: applications.length,
+      needsAttention:
+        applications.filter((a) => a.status === "ADMIN_REVIEW").length +
+        applications.filter(
+          (a) =>
+            a.status === "QUIZ_FAILED" &&
+            (!a.latestQuiz?.nextEligibleAt ||
+              new Date(a.latestQuiz.nextEligibleAt).getTime() <= now)
+        ).length,
+      pendingReview: applications.filter((a) => a.status === "ADMIN_REVIEW")
+        .length,
+      approved: applications.filter((a) => a.status === "APPROVED").length,
+      rejected: applications.filter((a) => a.status === "REJECTED").length,
+    };
+  }, [applications]);
+
+  const timeSince = (date: string) => {
+    const rtf = new Intl.RelativeTimeFormat("en", { numeric: "auto" });
+    const diff = Date.now() - new Date(date).getTime();
+    const days = Math.floor(diff / (1000 * 60 * 60 * 24));
+    if (days < 1) return "Today";
+    if (days < 7) return rtf.format(-days, "day");
+    if (days < 30) return rtf.format(-Math.floor(days / 7), "week");
+    return new Date(date).toLocaleDateString();
   };
 
   return (
@@ -127,9 +170,7 @@ export default function ProfessionalApplicationsPage() {
       className="space-y-6"
       initial={{ opacity: 0, y: 20 }}
       animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.3 }}
     >
-      {/* Header */}
       <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
         <CardHeader>
           <div className="flex items-center justify-between">
@@ -158,8 +199,7 @@ export default function ProfessionalApplicationsPage() {
         </CardHeader>
       </Card>
 
-      {/* Stats Cards */}
-      <div className="grid grid-cols-2 md:grid-cols-4 gap-4">
+      <div className="grid grid-cols-2 md:grid-cols-5 gap-4">
         <StatsCard
           label="Total"
           value={stats.total}
@@ -167,11 +207,17 @@ export default function ProfessionalApplicationsPage() {
           color="bg-gray-100 text-gray-700"
         />
         <StatsCard
+          label="Needs Attention"
+          value={stats.needsAttention}
+          icon={<AlertTriangle className="h-5 w-5" />}
+          color="bg-amber-100 text-amber-700"
+          highlight={stats.needsAttention > 0}
+        />
+        <StatsCard
           label="Pending Review"
-          value={stats.pending}
+          value={stats.pendingReview}
           icon={<Clock className="h-5 w-5" />}
           color="bg-blue-100 text-blue-700"
-          highlight={stats.pending > 0}
         />
         <StatsCard
           label="Approved"
@@ -187,8 +233,7 @@ export default function ProfessionalApplicationsPage() {
         />
       </div>
 
-      {/* Filters */}
-      <div className="flex flex-col sm:flex-row gap-4">
+      <div className="flex flex-col lg:flex-row gap-4">
         <div className="relative flex-1">
           <Search className="absolute left-3 top-1/2 -translate-y-1/2 h-4 w-4 text-muted-foreground" />
           <Input
@@ -201,42 +246,58 @@ export default function ProfessionalApplicationsPage() {
 
         <Select
           value={statusFilter}
-          onValueChange={(v) =>
-            setStatusFilter(v as ProOnboardingStatus | "all")
-          }
+          onValueChange={(v) => setStatusFilter(v as any)}
         >
-          <SelectTrigger className="w-full sm:w-[200px]">
-            <SelectValue placeholder="Filter by status" />
+          <SelectTrigger className="w-full lg:w-64">
+            <SelectValue placeholder="All statuses" />
           </SelectTrigger>
           <SelectContent>
             <SelectItem value="all">All Statuses</SelectItem>
-            {Object.entries(STATUS_CONFIG).map(([key, config]) => (
-              <SelectItem key={key} value={key}>
-                <span className="flex items-center gap-2">
-                  <span className={config.color}>{config.label}</span>
-                </span>
-              </SelectItem>
-            ))}
+            {RELEVANT_STATUSES.map((status) => {
+              const config = STATUS_CONFIG[status];
+              return (
+                <SelectItem key={status} value={status}>
+                  <span className="flex items-center gap-2">
+                    <span className={config.color}>{config.label}</span>
+                  </span>
+                </SelectItem>
+              );
+            })}
+          </SelectContent>
+        </Select>
+
+        <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+          <SelectTrigger className="w-full lg:w-48">
+            <SelectValue />
+          </SelectTrigger>
+          <SelectContent>
+            <SelectItem value="newest">
+              <ArrowUpDown className="h-4 w-4 inline mr-2" />
+              Newest First
+            </SelectItem>
+            <SelectItem value="oldest">
+              <ArrowUpDown className="h-4 w-4 inline mr-2" />
+              Oldest First
+            </SelectItem>
           </SelectContent>
         </Select>
       </div>
 
-      {/* Applications List */}
       <Card>
         <CardContent className="p-4">
           {error ? (
-            <div className="text-center py-8">
+            <div className="text-center py-12">
               <p className="text-red-500 mb-4">{error}</p>
-              <Button onClick={fetchApplications} variant="outline">
-                Try Again
-              </Button>
+              <Button onClick={fetchApplications}>Retry</Button>
             </div>
           ) : loading ? (
             <ApplicationsSkeleton />
-          ) : applications.length === 0 ? (
+          ) : filteredAndSorted.length === 0 ? (
             <div className="text-center py-12">
               <FileText className="h-12 w-12 mx-auto text-muted-foreground mb-4" />
-              <p className="text-muted-foreground">No applications found</p>
+              <p className="text-lg text-muted-foreground">
+                No applications found
+              </p>
               {(searchTerm || statusFilter !== "all") && (
                 <Button
                   variant="link"
@@ -244,18 +305,21 @@ export default function ProfessionalApplicationsPage() {
                     setSearchTerm("");
                     setStatusFilter("all");
                   }}
-                  className="mt-2"
                 >
                   Clear filters
                 </Button>
               )}
             </div>
           ) : (
-            <ScrollArea className="h-[600px]">
-              <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
+            <ScrollArea className="h-[700px] pr-4">
+              <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
                 <AnimatePresence mode="popLayout">
-                  {applications.map((app) => (
-                    <ApplicationCard key={app.id} application={app} />
+                  {filteredAndSorted.map((app) => (
+                    <ApplicationCard
+                      key={app.id}
+                      application={app}
+                      timeSince={timeSince}
+                    />
                   ))}
                 </AnimatePresence>
               </div>
@@ -267,7 +331,6 @@ export default function ProfessionalApplicationsPage() {
   );
 }
 
-// Stats Card Component
 function StatsCard({
   label,
   value,
@@ -282,24 +345,35 @@ function StatsCard({
   highlight?: boolean;
 }) {
   return (
-    <Card className={highlight ? "ring-2 ring-blue-500" : ""}>
+    <Card className={highlight ? "ring-2 ring-amber-500" : ""}>
       <CardContent className="p-4">
         <div className="flex items-center justify-between">
           <div>
             <p className="text-sm text-muted-foreground">{label}</p>
             <p className="text-2xl font-bold">{value}</p>
           </div>
-          <div className={`p-2 rounded-full ${color}`}>{icon}</div>
+          <div className={`p-3 rounded-full ${color}`}>{icon}</div>
         </div>
       </CardContent>
     </Card>
   );
 }
 
-// Application Card Component
-function ApplicationCard({ application: app }: { application: Application }) {
+function ApplicationCard({
+  application: app,
+  timeSince,
+}: {
+  application: Application;
+  timeSince: (date: string) => string;
+}) {
   const statusConfig = STATUS_CONFIG[app.status];
   const StatusIcon = statusConfig.icon;
+
+  const isReadyForReview = app.status === "ADMIN_REVIEW";
+  const isQuizRetryReady =
+    app.status === "QUIZ_FAILED" &&
+    app.latestQuiz?.nextEligibleAt &&
+    new Date(app.latestQuiz.nextEligibleAt).getTime() <= Date.now();
 
   return (
     <motion.div
@@ -307,11 +381,10 @@ function ApplicationCard({ application: app }: { application: Application }) {
       initial={{ opacity: 0, scale: 0.95 }}
       animate={{ opacity: 1, scale: 1 }}
       exit={{ opacity: 0, scale: 0.95 }}
-      transition={{ duration: 0.2 }}
+      className={`relative ${isReadyForReview || isQuizRetryReady ? "ring-2 ring-amber-400" : ""}`}
     >
-      <Card className="hover:shadow-md transition-shadow">
-        <CardContent className="p-4">
-          {/* Header */}
+      <Card className="hover:shadow-lg transition-shadow h-full flex flex-col">
+        <CardContent className="p-4 flex-1 flex flex-col">
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-3">
               {app.avatarUrl ? (
@@ -330,7 +403,7 @@ function ApplicationCard({ application: app }: { application: Application }) {
               <div>
                 <p className="font-semibold">{app.name}</p>
                 <p className="text-xs text-muted-foreground">
-                  Applied {new Date(app.createdAt).toLocaleDateString()}
+                  {timeSince(app.createdAt)}
                 </p>
               </div>
             </div>
@@ -342,52 +415,35 @@ function ApplicationCard({ application: app }: { application: Application }) {
             </Badge>
           </div>
 
-          {/* Details */}
-          <div className="space-y-2 text-sm">
-            {/* Rate & Venue */}
+          <div className="space-y-2 text-sm flex-1">
             <div className="flex items-center gap-4">
               <span className="flex items-center gap-1 text-muted-foreground">
-                <DollarSign className="h-3.5 w-3.5" />$
-                {app.rate?.toFixed(2) ?? "0.00"}/hr
+                <DollarSign className="h-3.5 w-3.5" />${app.rate.toFixed(2)}/hr
               </span>
               <span className="text-muted-foreground">
                 {VENUE_ICONS[app.venue]} {app.venue}
               </span>
             </div>
 
-            {/* Video Progress */}
             {app.video && (
-              <div className="flex items-center gap-1 text-muted-foreground">
-                <Video className="h-3.5 w-3.5" />
+              <div className="text-muted-foreground text-xs">
                 Video:{" "}
-                {app.video.isCompleted ? (
-                  <span className="text-green-600">Completed</span>
-                ) : (
-                  <span>
-                    {formatVideoProgress(
-                      app.video.watchedSec,
-                      app.video.durationSec
-                    )}
-                  </span>
-                )}
+                {app.video.isCompleted
+                  ? "Completed ✓"
+                  : `${Math.round((app.video.watchedSec / app.video.durationSec) * 100)}%`}
               </div>
             )}
 
-            {/* Quiz Info */}
             {app.latestQuiz && (
-              <div className="text-muted-foreground">
+              <div className="text-muted-foreground text-xs">
                 Quiz: <strong>{app.latestQuiz.score.toFixed(0)}%</strong>
-                {app.latestQuiz.nextEligibleAt &&
-                  new Date(app.latestQuiz.nextEligibleAt) > new Date() && (
-                    <span className="text-red-500 ml-2">
-                      Retry in {formatCooldown(app.latestQuiz.nextEligibleAt)}
-                    </span>
-                  )}
+                {isQuizRetryReady && (
+                  <span className="text-green-600 ml-2">← Retry ready</span>
+                )}
               </div>
             )}
           </div>
 
-          {/* Action */}
           <div className="mt-4">
             <Button asChild variant="outline" size="sm" className="w-full">
               <Link
@@ -398,22 +454,29 @@ function ApplicationCard({ application: app }: { application: Application }) {
               </Link>
             </Button>
           </div>
+
+          {(isReadyForReview || isQuizRetryReady) && (
+            <div className="absolute -top-2 -right-2">
+              <div className="bg-amber-500 text-white text-xs px-2 py-1 rounded-full animate-pulse">
+                Action Needed
+              </div>
+            </div>
+          )}
         </CardContent>
       </Card>
     </motion.div>
   );
 }
 
-// Skeleton Loader
 function ApplicationsSkeleton() {
   return (
-    <div className="grid grid-cols-1 lg:grid-cols-2 gap-4">
-      {Array.from({ length: 6 }).map((_, i) => (
+    <div className="grid grid-cols-1 lg:grid-cols-2 xl:grid-cols-3 gap-4">
+      {Array.from({ length: 9 }).map((_, i) => (
         <Card key={i}>
           <CardContent className="p-4">
             <div className="flex items-center gap-3 mb-3">
               <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="space-y-2">
+              <div className="space-y-2 flex-1">
                 <Skeleton className="h-4 w-32" />
                 <Skeleton className="h-3 w-24" />
               </div>
