@@ -34,8 +34,6 @@ import Image from "next/image";
 import {
   STATUS_CONFIG,
   VENUE_ICONS,
-  formatCooldown,
-  formatVideoProgress,
   type ProOnboardingStatus,
 } from "@/lib/constants/application-status";
 
@@ -49,7 +47,7 @@ interface Application {
   videoWatchedAt?: string | null;
   quizPassedAt?: string | null;
   rate: number;
-  venue: string;
+  venue: "host" | "visit" | "both";
   video?: {
     watchedSec: number;
     durationSec: number;
@@ -246,7 +244,9 @@ export default function ProfessionalApplicationsPage() {
 
         <Select
           value={statusFilter}
-          onValueChange={(v) => setStatusFilter(v as any)}
+          onValueChange={(v) =>
+            setStatusFilter(v as "all" | ProOnboardingStatus)
+          }
         >
           <SelectTrigger className="w-full lg:w-64">
             <SelectValue placeholder="All statuses" />
@@ -266,7 +266,10 @@ export default function ProfessionalApplicationsPage() {
           </SelectContent>
         </Select>
 
-        <Select value={sortBy} onValueChange={(v) => setSortBy(v as any)}>
+        <Select
+          value={sortBy}
+          onValueChange={(v) => setSortBy(v as "newest" | "oldest")}
+        >
           <SelectTrigger className="w-full lg:w-48">
             <SelectValue />
           </SelectTrigger>
