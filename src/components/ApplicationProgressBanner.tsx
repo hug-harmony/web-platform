@@ -60,19 +60,10 @@ export default function ApplicationProgressBanner() {
     sessionStorage.setItem("app-banner-dismissed", "true");
   };
 
-  // Don't render on server
   if (!hasMounted) return null;
-
-  // Don't render while loading
   if (isLoading) return null;
-
-  // Don't render if user is already a professional
   if (isProfessional) return null;
-
-  // Don't render if dismissed
   if (isDismissed) return null;
-
-  // Don't render if no application or not in progress
   if (!applicationStatus || !isApplicationInProgress(applicationStatus))
     return null;
 
@@ -93,7 +84,6 @@ export default function ApplicationProgressBanner() {
       >
         <div className="max-w-7xl mx-auto px-4 py-2 sm:py-3">
           <div className="flex items-center justify-between gap-3 sm:gap-4">
-            {/* Left: Icon + Text */}
             <div className="flex items-center gap-2 sm:gap-3 min-w-0 flex-1">
               <div
                 className={`hidden sm:flex h-8 w-8 sm:h-10 sm:w-10 shrink-0 items-center justify-center rounded-full ${styles.icon}`}
@@ -120,7 +110,6 @@ export default function ApplicationProgressBanner() {
                   {config.description}
                 </p>
 
-                {/* Progress bar - only on larger screens */}
                 {config.progress > 0 && config.progress < 100 && (
                   <div className="mt-1.5 hidden lg:block max-w-xs">
                     <Progress value={config.progress} className="h-1" />
@@ -129,7 +118,6 @@ export default function ApplicationProgressBanner() {
               </div>
             </div>
 
-            {/* Right: Action Button + Dismiss */}
             <div className="flex items-center gap-1 sm:gap-2 shrink-0">
               <Button
                 asChild

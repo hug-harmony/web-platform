@@ -101,7 +101,7 @@ export default function LoginPage() {
     <div className="flex items-center justify-center min-h-screen p-4">
       <Card className="flex flex-col md:flex-row w-full max-w-5xl p-0 overflow-hidden gap-0">
         <div className="w-full md:w-1/2 p-8">
-          <div className="flex justify-start mb-4">
+          <div className="flex justify-center mb-4">
             <Image
               src={logo}
               alt="Hug Harmony Logo"

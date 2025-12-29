@@ -1,20 +1,16 @@
 // components/DashboardHeader.tsx
+// You can delete this file entirely since the sidebar now handles the header on desktop
+// Or keep a minimal version if you want additional desktop header content:
+
 "use client";
 
 import Image from "next/image";
 import Link from "next/link";
-import { SidebarTrigger } from "@/components/ui/sidebar";
-import { Separator } from "@/components/ui/separator";
 import NotificationsDropdown from "@/components/NotificationsDropdown";
 
 export default function DashboardHeader() {
   return (
-    <header className="hidden md:flex h-14 items-center gap-4 border-b bg-white px-4 sticky top-0 z-40">
-      <SidebarTrigger className="h-8 w-8" />
-      <Separator orientation="vertical" className="h-6" />
-
-      <div className="flex-1" />
-
+    <header className="hidden lg:flex h-14 items-center justify-end gap-4 border-b bg-white px-4 sticky top-0 z-20">
       <NotificationsDropdown />
 
       <Link

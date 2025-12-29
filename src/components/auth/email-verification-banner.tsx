@@ -13,7 +13,6 @@ export function EmailVerificationBanner() {
   const [isResending, setIsResending] = useState(false);
   const [resendSuccess, setResendSuccess] = useState(false);
 
-  // Don't show if verified, dismissed, or no session
   if (!session?.user || session.user.emailVerified || isDismissed) {
     return null;
   }
@@ -37,7 +36,6 @@ export function EmailVerificationBanner() {
       setResendSuccess(true);
       toast.success("Verification email sent! Check your inbox.");
 
-      // Reset success state after 5 seconds
       setTimeout(() => setResendSuccess(false), 5000);
     } catch (error) {
       toast.error(
@@ -57,7 +55,6 @@ export function EmailVerificationBanner() {
     <div className="bg-amber-50 border-b border-amber-200">
       <div className="max-w-7xl mx-auto px-4 py-2 sm:py-3">
         <div className="flex items-center justify-between gap-3 sm:gap-4">
-          {/* Left: Icon + Message */}
           <div className="flex items-center gap-2 sm:gap-3 min-w-0">
             <AlertTriangle className="h-4 w-4 sm:h-5 sm:w-5 text-amber-600 flex-shrink-0" />
             <p className="text-xs sm:text-sm text-amber-800 truncate">
@@ -69,7 +66,6 @@ export function EmailVerificationBanner() {
             </p>
           </div>
 
-          {/* Right: Actions */}
           <div className="flex items-center gap-1 sm:gap-2 flex-shrink-0">
             <Button
               variant="outline"

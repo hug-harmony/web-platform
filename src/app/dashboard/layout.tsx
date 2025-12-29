@@ -1,16 +1,14 @@
 // app/dashboard/layout.tsx
 "use client";
 
-import { SidebarProvider, SidebarInset } from "@/components/ui/sidebar";
 import { UserProvider } from "@/hooks/useUserProfile";
 import ClientSessionProvider from "@/components/ClientSessionProvider";
 import Sidebar from "@/components/Sidebar";
-import BottomNav from "@/components/BottomNav";
 import { LastOnlineUpdater } from "@/components/LastOnlineUpdater";
-import DashboardHeader from "@/components/DashboardHeader";
 import { EmailVerificationBanner } from "@/components/auth/email-verification-banner";
 import IncomingCallDialog from "@/components/IncomingCallDialog";
 import ApplicationProgressBanner from "@/components/ApplicationProgressBanner";
+import DashboardHeader from "@/components/DashboardHeader";
 
 export default function DashboardLayout({
   children,
@@ -20,34 +18,30 @@ export default function DashboardLayout({
   return (
     <ClientSessionProvider>
       <UserProvider>
-        <SidebarProvider defaultOpen={true}>
-          <div className="flex min-h-screen w-full bg-gray-50/50">
-            {/* Desktop Sidebar */}
-            <Sidebar />
+        <div className="min-h-screen bg-gray-50/50">
+          {/* Desktop Sidebar */}
+          <Sidebar />
 
-            {/* Main Content Area */}
-            <SidebarInset className="flex flex-col flex-1 min-h-screen">
-              {/* Sticky Banners Container */}
-              <div className="sticky top-0 z-40">
-                <EmailVerificationBanner />
-                <ApplicationProgressBanner />
-              </div>
+          {/* Main Content Area - with left margin for desktop sidebar */}
+          <div className="lg:ml-64 min-h-screen flex flex-col">
+            {/* Mobile top spacing */}
+            <div className="h-14 lg:hidden" />
 
-              {/* Header - Desktop Only */}
-              <DashboardHeader />
+            {/* Sticky Banners Container */}
+            <div className="sticky top-0 lg:top-0 z-30">
+              <EmailVerificationBanner />
+              <ApplicationProgressBanner />
+            </div>
 
-              {/* Page Content */}
-              <main className="flex-1 p-4 md:p-6 pb-20 md:pb-6 max-w-7xl mx-auto w-full">
-                <LastOnlineUpdater />
-                {children}
-                <IncomingCallDialog />
-              </main>
-            </SidebarInset>
+            <DashboardHeader />
+            {/* Page Content */}
+            <main className="flex-1 p-4 md:p-6 pb-20 lg:pb-6 max-w-7xl mx-auto w-full">
+              <LastOnlineUpdater />
+              {children}
+              <IncomingCallDialog />
+            </main>
           </div>
-
-          {/* Mobile Bottom Navigation */}
-          <BottomNav />
-        </SidebarProvider>
+        </div>
       </UserProvider>
     </ClientSessionProvider>
   );
