@@ -24,19 +24,24 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Label } from "@/components/ui/label";
-import { MapPin } from "lucide-react";
+import { MapPin, CalendarIcon } from "lucide-react";
 import { Filters } from "@/hooks/professionals/useFilters";
 import { Popover, PopoverContent, PopoverTrigger } from "../ui/popover";
 import { Slider } from "../ui/slider";
+import { cn } from "@/lib/utils";
 
 interface Props {
   filters: Filters;
   locations: string[];
   onFilterChange: (key: string, value: any) => void;
   onCustomLocation: () => void;
+  // Date/Time props
+  onDateTimeClick: () => void;
+  selectedDate?: Date;
+  timeRange: [number, number];
+  hasDatePendingChanges?: boolean;
 }
 
-const ageRanges = ["18-25", "26-35", "36-45", "46-55", "56+"];
 const genders = ["male", "female"];
 const onlineStatuses = ["24hrs", "1day", "1week", "1month", "1year"];
 const venues = ["host", "visit", "both"];
@@ -46,11 +51,24 @@ const ethnicities = ["Hispanic", "Non-Hispanic", "Other"];
 const bodyTypes = ["Slim", "Athletic", "Average", "Curvy", "Other"];
 const personalityTypes = ["Introvert", "Extrovert", "Ambivert", "Other"];
 
+// Helper to convert minutes to time string
+function minutesToTime(minutes: number): string {
+  const hours = Math.floor(minutes / 60);
+  const mins = minutes % 60;
+  const period = hours >= 12 ? "PM" : "AM";
+  const displayHours = hours % 12 || 12;
+  return `${displayHours}:${mins.toString().padStart(2, "0")} ${period}`;
+}
+
 export function FilterAccordion({
   filters,
   locations,
   onFilterChange,
   onCustomLocation,
+  onDateTimeClick,
+  selectedDate,
+  timeRange,
+  hasDatePendingChanges,
 }: Props) {
   return (
     <Accordion type="multiple" className="w-full space-y-4">
@@ -358,7 +376,7 @@ export function FilterAccordion({
         </AccordionContent>
       </AccordionItem>
 
-      {/* Advanced Filters - Coming Soon */}
+      {/* Advanced Filters - Coming Soon (but fully functional underneath) */}
       <AccordionItem
         value="advanced"
         className="bg-white/50 dark:bg-white/5 rounded-xl shadow-sm border relative overflow-hidden"
@@ -367,58 +385,189 @@ export function FilterAccordion({
           Advanced Filters
         </AccordionTrigger>
         <AccordionContent className="px-6 pb-6 relative">
-          {/* Dimmed Filter Content */}
-          <div className="opacity-30 pointer-events-none" aria-hidden="true">
-            <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
-              {(
-                [
-                  { key: "race", options: races, label: "Race" },
-                  {
-                    key: "ethnicity",
-                    options: ethnicities,
-                    label: "Ethnicity",
-                  },
-                  { key: "bodyType", options: bodyTypes, label: "Body Type" },
-                  {
-                    key: "personalityType",
-                    options: personalityTypes,
-                    label: "Personality",
-                  },
-                ] as const
-              ).map(({ key, options, label }) => (
-                <div key={key} className="flex flex-col gap-1.5">
-                  <Label>{label}</Label>
+          {/* ============================================
+              FULLY FUNCTIONAL CONTENT - Just visually blocked by overlay
+              To enable: Delete the "Coming Soon Overlay" div below
+              ============================================ */}
+          <div className="space-y-6">
+            {/* Date/Time Availability Filter */}
+            <div>
+              <h3 className="text-base font-medium text-muted-foreground mb-3">
+                Availability
+              </h3>
+              <div className="flex flex-col gap-1.5">
+                <Label htmlFor="availability-filter">Date & Time</Label>
+                <Button
+                  id="availability-filter"
+                  variant="outline"
+                  onClick={onDateTimeClick}
+                  className={cn(
+                    "w-full border-[#F3CFC6] justify-start",
+                    hasDatePendingChanges && "ring-2 ring-amber-400"
+                  )}
+                  aria-label="Filter by availability"
+                >
+                  <CalendarIcon className="mr-2 h-4 w-4" aria-hidden="true" />
+                  {selectedDate ? (
+                    <span className="flex items-center gap-2">
+                      {selectedDate.toLocaleDateString()} •{" "}
+                      {minutesToTime(timeRange[0])} -{" "}
+                      {minutesToTime(timeRange[1])}
+                      {hasDatePendingChanges && (
+                        <span className="text-[10px] bg-amber-400 text-black px-1.5 py-0.5 rounded font-medium">
+                          pending
+                        </span>
+                      )}
+                    </span>
+                  ) : (
+                    "Filter by Availability"
+                  )}
+                </Button>
+              </div>
+            </div>
+
+            {/* Demographics Filters */}
+            <div>
+              <h3 className="text-base font-medium text-muted-foreground mb-3">
+                Demographics
+              </h3>
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {/* Race */}
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="race-filter">Race</Label>
                   <DropdownMenu>
                     <DropdownMenuTrigger asChild>
                       <Button
+                        id="race-filter"
                         variant="outline"
                         className="w-full border-[#F3CFC6]"
-                        disabled
+                        aria-label="Filter by race"
                       >
-                        {filters[key] || "All"}
+                        {filters.race || "All"}
                       </Button>
                     </DropdownMenuTrigger>
                     <DropdownMenuContent>
-                      <DropdownMenuItem onClick={() => onFilterChange(key, "")}>
+                      <DropdownMenuItem
+                        onClick={() => onFilterChange("race", "")}
+                      >
                         All
                       </DropdownMenuItem>
-                      {options.map((o) => (
+                      {races.map((r) => (
                         <DropdownMenuItem
-                          key={o}
-                          onClick={() => onFilterChange(key, o)}
+                          key={r}
+                          onClick={() => onFilterChange("race", r)}
                         >
-                          {o}
+                          {r}
                         </DropdownMenuItem>
                       ))}
                     </DropdownMenuContent>
                   </DropdownMenu>
                 </div>
-              ))}
+
+                {/* Ethnicity */}
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="ethnicity-filter">Ethnicity</Label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        id="ethnicity-filter"
+                        variant="outline"
+                        className="w-full border-[#F3CFC6]"
+                        aria-label="Filter by ethnicity"
+                      >
+                        {filters.ethnicity || "All"}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem
+                        onClick={() => onFilterChange("ethnicity", "")}
+                      >
+                        All
+                      </DropdownMenuItem>
+                      {ethnicities.map((e) => (
+                        <DropdownMenuItem
+                          key={e}
+                          onClick={() => onFilterChange("ethnicity", e)}
+                        >
+                          {e}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Body Type */}
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="body-type-filter">Body Type</Label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        id="body-type-filter"
+                        variant="outline"
+                        className="w-full border-[#F3CFC6]"
+                        aria-label="Filter by body type"
+                      >
+                        {filters.bodyType || "All"}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem
+                        onClick={() => onFilterChange("bodyType", "")}
+                      >
+                        All
+                      </DropdownMenuItem>
+                      {bodyTypes.map((b) => (
+                        <DropdownMenuItem
+                          key={b}
+                          onClick={() => onFilterChange("bodyType", b)}
+                        >
+                          {b}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+
+                {/* Personality Type */}
+                <div className="flex flex-col gap-1.5">
+                  <Label htmlFor="personality-filter">Personality</Label>
+                  <DropdownMenu>
+                    <DropdownMenuTrigger asChild>
+                      <Button
+                        id="personality-filter"
+                        variant="outline"
+                        className="w-full border-[#F3CFC6]"
+                        aria-label="Filter by personality type"
+                      >
+                        {filters.personalityType || "All"}
+                      </Button>
+                    </DropdownMenuTrigger>
+                    <DropdownMenuContent>
+                      <DropdownMenuItem
+                        onClick={() => onFilterChange("personalityType", "")}
+                      >
+                        All
+                      </DropdownMenuItem>
+                      {personalityTypes.map((p) => (
+                        <DropdownMenuItem
+                          key={p}
+                          onClick={() => onFilterChange("personalityType", p)}
+                        >
+                          {p}
+                        </DropdownMenuItem>
+                      ))}
+                    </DropdownMenuContent>
+                  </DropdownMenu>
+                </div>
+              </div>
             </div>
           </div>
 
-          {/* Coming Soon Overlay */}
-          <div className="absolute inset-0 flex items-center justify-center bg-white/10 dark:bg-black/80 z-10">
+          {/* ============================================
+              COMING SOON OVERLAY
+              To enable advanced filters: DELETE THIS ENTIRE DIV
+              ============================================ */}
+          <div className="absolute inset-0 flex items-center justify-center bg-white/80 dark:bg-black/80 z-10">
             <div className="text-center">
               <p className="text-2xl font-bold text-primary mb-1">
                 Coming Soon

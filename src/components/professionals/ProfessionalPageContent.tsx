@@ -5,32 +5,22 @@
 import { useState, useRef, useCallback, useMemo, useEffect } from "react";
 import { motion } from "framer-motion";
 import { Card, CardHeader, CardTitle, CardContent } from "@/components/ui/card";
-import { CalendarIcon } from "lucide-react";
 import { useProfessionals } from "@/hooks/professionals/useProfessionals";
 import { useFilters } from "@/hooks/professionals/useFilters";
 import { useMediaQuery } from "@/hooks/professionals/useMediaQuery";
 import { useKeyboardShortcut } from "@/hooks/professionals/useKeyboardShortcut";
-import { SearchBar } from "@/components/professionals/SearchBar";
 import { FilterAccordion } from "@/components/professionals/FilterAccordion";
 import { ProfessionalsGrid } from "@/components/professionals/ProfessionalsGrid";
 import { RadiusDialog } from "@/components/professionals/RadiusDialog";
 import { DateTimeDialog } from "@/components/professionals/DateTimeDialog";
 import { ActiveFilters } from "@/components/professionals/ActiveFilters";
 import { MobileFilterSheet } from "@/components/professionals/MobileFilterSheet";
-import { Button } from "@/components/ui/button";
-import { cn } from "@/lib/utils";
+import { SearchInput } from "./SearchInput";
+import { FilterActions } from "./FilterActions";
 
 const containerVariants = {
   hidden: { opacity: 0, y: 20 },
   visible: { opacity: 1, y: 0, transition: { staggerChildren: 0.2 } },
-};
-
-const minutesToTime = (mins: number): string => {
-  const h = Math.floor(mins / 60) % 24;
-  const m = mins % 60;
-  const period = h >= 12 ? "PM" : "AM";
-  const hour = h % 12 || 12;
-  return `${hour}:${String(m).padStart(2, "0")} ${period}`;
 };
 
 export default function ProfessionalPageContent() {
@@ -165,15 +155,11 @@ export default function ProfessionalPageContent() {
           </p>
         </CardHeader>
         <CardContent className="space-y-6">
-          <SearchBar
+          {/* Search Input Only (no buttons) */}
+          <SearchInput
             ref={searchInputRef}
             searchQuery={searchQuery}
             onSearchChange={(e) => setSearchQuery(e.target.value)}
-            onApply={handleSearch}
-            onClear={handleClear}
-            onClearSearch={handleClearSearch}
-            hasPendingChanges={hasPendingChanges}
-            hasActiveFilters={hasActiveFilters}
           />
 
           {/* Mobile Filter Sheet */}
@@ -197,34 +183,22 @@ export default function ProfessionalPageContent() {
                 setFilters((prev) => ({ ...prev, [k]: v }))
               }
               onCustomLocation={handleCustomLocation}
+              onDateTimeClick={() => setIsDateTimeDialogOpen(true)}
+              selectedDate={filters.selectedDate}
+              timeRange={filters.timeRange}
+              hasDatePendingChanges={hasDatePendingChanges}
             />
           )}
 
-          {/* Date/Time Filter Button */}
-          <Button
-            variant="outline"
-            onClick={() => setIsDateTimeDialogOpen(true)}
-            className={cn(
-              "border-[#F3CFC6] text-black dark:text-white hover:bg-[#fff]/80 relative",
-              hasDatePendingChanges && "ring-2 ring-amber-400"
-            )}
-            aria-label="Filter by availability"
-          >
-            <CalendarIcon className="mr-2 h-4 w-4" aria-hidden="true" />
-            {selectedDate ? (
-              <span className="flex items-center gap-2">
-                {selectedDate.toLocaleDateString()} •{" "}
-                {minutesToTime(timeRange[0])} - {minutesToTime(timeRange[1])}
-                {hasDatePendingChanges && (
-                  <span className="text-[10px] bg-amber-400 text-black px-1.5 py-0.5 rounded font-medium">
-                    pending
-                  </span>
-                )}
-              </span>
-            ) : (
-              "Filter by Availability"
-            )}
-          </Button>
+          {/* Action Buttons - NOW BELOW FILTERS */}
+          <FilterActions
+            onApply={handleSearch}
+            onClear={handleClear}
+            onClearSearch={handleClearSearch}
+            searchQuery={searchQuery}
+            hasPendingChanges={hasPendingChanges}
+            hasActiveFilters={hasActiveFilters}
+          />
 
           {/* Active Filters Summary */}
           <ActiveFilters filters={appliedFilters} onRemove={removeFilter} />

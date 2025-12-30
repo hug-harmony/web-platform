@@ -14,7 +14,7 @@ import {
   AppointmentsSection,
   QuickActions,
 } from "@/components/dashboard";
-import HowDidYouHearDialog from "@/components/HowDidYouHearDialog";
+import HowDidYouHearDialog from "@/components/dashboard/HowDidYouHearDialog";
 import { toast } from "sonner";
 
 const containerVariants = {

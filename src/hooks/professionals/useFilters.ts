@@ -7,7 +7,7 @@ export interface Filters extends ProfessionalFilters {
   // UI-specific state
   selectedDate: Date | undefined;
   timeRange: [number, number];
-  // Additional filter fields used by UI components
+
   type: "" | "user" | "professional";
   race: string;
   ethnicity: string;
@@ -101,6 +101,11 @@ export function useFilters() {
     if (f.type) count++;
     if (f.minRating && f.minRating > 0) count++;
 
+    if (f.race) count++;
+    if (f.ethnicity) count++;
+    if (f.bodyType) count++;
+    if (f.personalityType) count++;
+
     return count;
   }, [appliedFilters]);
 
@@ -123,7 +128,11 @@ export function useFilters() {
       f.onlineStatus ||
       f.venue ||
       f.type ||
-      (f.minRating && f.minRating > 0)
+      (f.minRating && f.minRating > 0) ||
+      f.race ||
+      f.ethnicity ||
+      f.bodyType ||
+      f.personalityType
     );
   }, [appliedFilters]);
 
@@ -145,6 +154,12 @@ export function useFilters() {
       radius: f.radius,
       unit: f.unit,
       date: f.selectedDate?.toISOString().split("T")[0],
+
+      race: f.race || undefined,
+      ethnicity: f.ethnicity || undefined,
+      bodyType: f.bodyType || undefined,
+      personalityType: f.personalityType || undefined,
+
       timeRangeStart: f.timeRange[0] !== 0 ? f.timeRange[0] : undefined,
       timeRangeEnd: f.timeRange[1] !== 1410 ? f.timeRange[1] : undefined,
       sortBy: f.sortBy,

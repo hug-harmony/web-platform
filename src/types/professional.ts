@@ -23,6 +23,10 @@ export interface Professional {
 
   // Availability (when date filter is applied)
   availableSlots?: string[];
+
+  personalityType?: string | undefined;
+  bodyType?: string | undefined;
+  race?: string | undefined;
 }
 
 export interface ProfessionalDetail extends Professional {
@@ -62,6 +66,11 @@ export interface ProfessionalFilters {
 
   // Sorting
   sortBy?: "rating" | "rate" | "rate-desc" | "name" | "newest";
+
+  race?: string;
+  ethnicity?: string;
+  bodyType?: string;
+  personalityType?: string;
 
   // Pagination
   page?: number;

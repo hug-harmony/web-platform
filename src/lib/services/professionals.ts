@@ -270,6 +270,28 @@ export async function getProfessionals(
     );
   }
 
+  // Race filter
+  if (filters.race) {
+    results = results.filter((p) => p.race === filters.race);
+  }
+
+  // Ethnicity filter
+  if (filters.ethnicity) {
+    results = results.filter((p) => p.ethnicity === filters.ethnicity);
+  }
+
+  // Body Type filter
+  if (filters.bodyType) {
+    results = results.filter((p) => p.bodyType === filters.bodyType);
+  }
+
+  // Personality Type filter
+  if (filters.personalityType) {
+    results = results.filter(
+      (p) => p.personalityType === filters.personalityType
+    );
+  }
+
   // Apply pagination after all filters
   const total = results.length;
   const paginatedResults = results.slice(skip, skip + limit);

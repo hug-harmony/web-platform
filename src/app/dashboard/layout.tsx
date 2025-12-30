@@ -3,12 +3,12 @@
 
 import { UserProvider } from "@/hooks/useUserProfile";
 import ClientSessionProvider from "@/components/ClientSessionProvider";
-import Sidebar from "@/components/Sidebar";
+import Sidebar from "@/components/layout/Sidebar";
 import { LastOnlineUpdater } from "@/components/LastOnlineUpdater";
 import { EmailVerificationBanner } from "@/components/auth/email-verification-banner";
 import IncomingCallDialog from "@/components/IncomingCallDialog";
-import ApplicationProgressBanner from "@/components/ApplicationProgressBanner";
-import DashboardHeader from "@/components/DashboardHeader";
+import ApplicationProgressBanner from "@/components/layout/ApplicationProgressBanner";
+import DashboardHeader from "@/components/layout/DashboardHeader";
 
 export default function DashboardLayout({
   children,
