@@ -24,6 +24,9 @@ interface MobileFilterSheetProps {
   onCustomLocation: () => void;
   onApplyFilters: () => void;
   onClearFilters: () => void;
+  // New props for date/time filter
+  onDateTimeClick: () => void;
+  hasDatePendingChanges?: boolean;
 }
 
 export function MobileFilterSheet({
@@ -34,6 +37,8 @@ export function MobileFilterSheet({
   onCustomLocation,
   onApplyFilters,
   onClearFilters,
+  onDateTimeClick,
+  hasDatePendingChanges,
 }: MobileFilterSheetProps) {
   const [open, setOpen] = useState(false);
 
@@ -45,6 +50,12 @@ export function MobileFilterSheet({
   const handleClear = () => {
     onClearFilters();
     setOpen(false);
+  };
+
+  const handleDateTimeClick = () => {
+    // Close sheet first, then open date dialog
+    setOpen(false);
+    onDateTimeClick();
   };
 
   return (
@@ -70,6 +81,10 @@ export function MobileFilterSheet({
             locations={locations}
             onFilterChange={onFilterChange}
             onCustomLocation={onCustomLocation}
+            onDateTimeClick={handleDateTimeClick}
+            selectedDate={filters.selectedDate}
+            timeRange={filters.timeRange}
+            hasDatePendingChanges={hasDatePendingChanges}
           />
         </div>
         <SheetFooter className="flex-row gap-2 pt-4 border-t">

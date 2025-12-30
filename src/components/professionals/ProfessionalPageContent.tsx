@@ -174,6 +174,8 @@ export default function ProfessionalPageContent() {
               onCustomLocation={handleCustomLocation}
               onApplyFilters={handleSearch}
               onClearFilters={handleClear}
+              onDateTimeClick={() => setIsDateTimeDialogOpen(true)}
+              hasDatePendingChanges={hasDatePendingChanges}
             />
           ) : (
             <FilterAccordion
