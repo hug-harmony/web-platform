@@ -8,6 +8,7 @@ import {
   confirmAppointment,
   getConfirmationByAppointmentId,
   hasPendingConfirmations,
+  ensureConfirmationExists,
 } from "@/lib/services/payments";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -52,14 +53,37 @@ export async function GET(request: NextRequest) {
 
     // Get specific confirmation by appointment ID
     if (params.appointmentId) {
+      // First check if appointment exists and is completed
+      const appointment = await prisma.appointment.findUnique({
+        where: { id: params.appointmentId },
+        select: { id: true, status: true },
+      });
+
+      if (!appointment) {
+        return NextResponse.json(
+          { error: "Appointment not found" },
+          { status: 404 }
+        );
+      }
+
+      if (appointment.status !== "completed") {
+        return NextResponse.json(
+          { error: "Appointment is not completed yet" },
+          { status: 400 }
+        );
+      }
+
+      // Ensure confirmation exists
+      await ensureConfirmationExists(params.appointmentId);
+
       const confirmation = await getConfirmationByAppointmentId(
         params.appointmentId
       );
 
       if (!confirmation) {
         return NextResponse.json(
-          { error: "Confirmation not found" },
-          { status: 404 }
+          { error: "Failed to retrieve confirmation" },
+          { status: 500 }
         );
       }
 
@@ -130,16 +154,57 @@ export async function POST(request: NextRequest) {
     const body = await request.json();
     const { appointmentId, confirmed, review } = confirmSchema.parse(body);
 
-    // Get the confirmation to determine user's role
+    // First, verify the appointment exists
+    const appointment = await prisma.appointment.findUnique({
+      where: { id: appointmentId },
+      select: {
+        id: true,
+        status: true,
+        userId: true,
+        professionalId: true,
+      },
+    });
+
+    if (!appointment) {
+      return NextResponse.json(
+        { error: "Appointment not found" },
+        { status: 404 }
+      );
+    }
+
+    // Check if appointment is completed
+    if (appointment.status !== "completed") {
+      return NextResponse.json(
+        {
+          error: `Cannot confirm appointment. Current status: "${appointment.status}". Appointment must be completed first.`,
+        },
+        { status: 400 }
+      );
+    }
+
+    // Ensure confirmation record exists (creates if missing)
+    try {
+      await ensureConfirmationExists(appointmentId);
+    } catch (createError) {
+      console.error("Failed to ensure confirmation exists:", createError);
+      return NextResponse.json(
+        {
+          error:
+            createError instanceof Error
+              ? createError.message
+              : "Failed to create confirmation record",
+        },
+        { status: 500 }
+      );
+    }
+
+    // Get the confirmation with details
     const confirmation = await getConfirmationByAppointmentId(appointmentId);
 
     if (!confirmation) {
       return NextResponse.json(
-        {
-          error:
-            "Confirmation not found. The appointment may not be completed yet.",
-        },
-        { status: 404 }
+        { error: "Failed to retrieve confirmation record" },
+        { status: 500 }
       );
     }
 
@@ -169,7 +234,7 @@ export async function POST(request: NextRequest) {
     const result = await confirmAppointment(
       {
         appointmentId,
-        oderId: session.user.id,
+        userId: session.user.id,
         confirmed,
         reviewData: review,
       },
@@ -189,6 +254,7 @@ export async function POST(request: NextRequest) {
     }
 
     if (error instanceof Error) {
+      // Return specific error messages from the service
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 

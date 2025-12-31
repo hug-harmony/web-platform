@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // src/lib/services/payments/confirmation.service.ts
 
 import prisma from "@/lib/prisma";
