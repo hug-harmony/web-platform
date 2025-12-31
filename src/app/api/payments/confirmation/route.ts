@@ -234,7 +234,7 @@ export async function POST(request: NextRequest) {
     const result = await confirmAppointment(
       {
         appointmentId,
-        userId: session.user.id,
+        oderId: session.user.id,
         confirmed,
         reviewData: review,
       },
