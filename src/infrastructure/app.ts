@@ -1,8 +1,10 @@
 // src/infrastructure/app.ts
+
 import "source-map-support/register";
 import * as cdk from "aws-cdk-lib";
 import { WebSocketStack } from "./websocket-stack";
 import { ChimeStack } from "./chime-stack";
+import { PaymentSchedulerStack } from "./payment-scheduler-stack";
 
 const app = new cdk.App();
 
@@ -27,8 +29,15 @@ new WebSocketStack(app, `ChatWebSocketStack-${stage}`, {
   tags,
 });
 
-// Chime Stack (new)
+// Chime Stack (existing)
 new ChimeStack(app, `ChimeStack-${stage}`, {
+  stage,
+  env: envConfig,
+  tags,
+});
+
+// Payment Scheduler Stack (new)
+new PaymentSchedulerStack(app, `PaymentSchedulerStack-${stage}`, {
   stage,
   env: envConfig,
   tags,

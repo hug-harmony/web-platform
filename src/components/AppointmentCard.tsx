@@ -1,3 +1,5 @@
+// src/components/AppointmentCard.tsx
+
 "use client";
 
 import React, { useState, useEffect } from "react";
@@ -9,6 +11,10 @@ import {
   MessageSquare,
   DollarSign,
   AlertTriangle,
+  CheckCircle2,
+  XCircle,
+  Star,
+  Loader2,
 } from "lucide-react";
 import {
   Dialog,
@@ -24,6 +30,7 @@ import { Label } from "@/components/ui/label";
 import { toast } from "sonner";
 import { Input } from "@/components/ui/input";
 import { format, parseISO } from "date-fns";
+import { useConfirmAppointment } from "@/hooks/payments";
 
 interface Appointment {
   _id: string;
@@ -34,7 +41,7 @@ interface Appointment {
   clientId?: string;
   startTime: string;
   endTime: string;
-  status: "upcoming" | "completed" | "cancelled" | "disputed";
+  status: "upcoming" | "ongoing" | "completed" | "cancelled" | "disputed";
   rating?: number | null;
   reviewCount?: number | null;
   rate?: number | null;
@@ -74,6 +81,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
     reviewCount,
   } = appointment;
 
+  // Existing state
   const [disputeReason, setDisputeReason] = useState("");
   const [submittingDispute, setSubmittingDispute] = useState(false);
   const [adjustRate, setAdjustRate] = useState<string>(rate?.toString() || "0");
@@ -84,6 +92,13 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   const [newEndTime, setNewEndTime] = useState("");
   const [rescheduleNote, setRescheduleNote] = useState("");
   const [submittingReschedule, setSubmittingReschedule] = useState(false);
+
+  // New confirmation state
+  const [showConfirmDialog, setShowConfirmDialog] = useState(false);
+  const [confirmRating, setConfirmRating] = useState(0);
+  const [hoveredRating, setHoveredRating] = useState(0);
+  const [confirmFeedback, setConfirmFeedback] = useState("");
+  const { confirm, isSubmitting: confirmSubmitting } = useConfirmAppointment();
 
   useEffect(() => {
     if (startTime) {
@@ -99,6 +114,29 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
       setAdjustRate(rate.toString());
     }
   }, [startTime, endTime, rate]);
+
+  // Confirmation handler
+  const handleConfirmAppointment = async (occurred: boolean) => {
+    try {
+      const reviewData =
+        occurred && confirmRating > 0
+          ? { rating: confirmRating, feedback: confirmFeedback }
+          : undefined;
+
+      await confirm(_id, occurred, reviewData);
+      toast.success(
+        occurred
+          ? "Appointment confirmed! Thank you for your feedback."
+          : "Appointment marked as not occurred."
+      );
+      setShowConfirmDialog(false);
+      setConfirmRating(0);
+      setConfirmFeedback("");
+      onUpdate();
+    } catch (error) {
+      toast.error(error instanceof Error ? error.message : "Failed to confirm");
+    }
+  };
 
   const handleDispute = async () => {
     if (!disputeReason || disputeReason.length < 10) {
@@ -162,6 +200,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
       const end = new Date(`${newDate}T${newEndTime}`).toISOString();
       if (new Date(start) >= new Date(end)) {
         toast.error("End time must be after start");
+        setSubmittingReschedule(false);
         return;
       }
 
@@ -193,41 +232,29 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   const generateCalendarLinks = () => {
     const start = new Date(appointment.startTime);
     const end = new Date(appointment.endTime);
-
-    // Always encode all components properly
     const sanitize = (str: string) => encodeURIComponent(str);
-
     const title = sanitize(`${displayName} – Appointment`);
     const description = sanitize(
       `Appointment with ${displayName}. Rate: $${rate || 50}`
     );
     const location = sanitize("Virtual / In-person (check details)");
-
     const formatDateForWeb = (date: Date) =>
       date.toISOString().replace(/-|:|\.\d+/g, "");
-
     const startStr = formatDateForWeb(start);
     const endStr = formatDateForWeb(end);
 
     return {
-      // Google Calendar
       google: `https://calendar.google.com/calendar/render?action=TEMPLATE&text=${title}&dates=${startStr}/${endStr}&details=${description}&location=${location}`,
-
-      // Outlook / Office 365
       outlook: `https://outlook.live.com/owa/?path=/calendar/action/compose&subject=${title}&startdt=${start.toISOString()}&enddt=${end.toISOString()}&body=${description}&location=${location}`,
-
-      // Yahoo Calendar
       yahoo: `https://calendar.yahoo.com/?v=60&view=d&type=20&title=${title}&st=${startStr}&et=${endStr}&desc=${description}&in_loc=${location}`,
     };
   };
 
   const handleAddToCalendar = async () => {
     if (isMobile()) {
-      // Mobile → download ICS
       try {
         const res = await fetch(`/api/appointment/${appointment._id}/calendar`);
         if (!res.ok) throw new Error("Failed to fetch calendar event");
-
         const blob = await res.blob();
         const url = URL.createObjectURL(blob);
         const link = document.createElement("a");
@@ -242,9 +269,7 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
         toast.error("Could not download calendar event. Please try again.");
       }
     } else {
-      // Desktop → open Google/Outlook/Yahoo links
       const links = generateCalendarLinks();
-      // You can choose which calendar to open, e.g., Google Calendar:
       window.open(links.google, "_blank");
     }
   };
@@ -252,6 +277,9 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
   const displayName = isOwnerProfessional ? clientName : professionalName;
   const startDate = parseISO(startTime);
   const endDate = parseISO(endTime);
+
+  // Check if confirmation is needed
+  const needsConfirmation = status === "completed" && disputeStatus === "none";
 
   return (
     <motion.div className="p-4 space-y-3" variants={cardVariants}>
@@ -282,10 +310,30 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
       </div>
       <div className="text-sm font-medium text-gray-600 dark:text-gray-300">
         <span>Status: </span>
-        <span className="capitalize p-1 px-2 rounded-full bg-gray-100 dark:bg-gray-700 text-xs">
+        <span
+          className={`capitalize p-1 px-2 rounded-full text-xs ${
+            status === "completed"
+              ? "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400"
+              : status === "upcoming"
+                ? "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400"
+                : status === "ongoing"
+                  ? "bg-yellow-100 text-yellow-800 dark:bg-yellow-900/30 dark:text-yellow-400"
+                  : "bg-gray-100 dark:bg-gray-700"
+          }`}
+        >
           {status}
         </span>
       </div>
+
+      {/* Confirmation Alert for Completed Appointments */}
+      {needsConfirmation && (
+        <div className="p-3 bg-yellow-50 dark:bg-yellow-900/20 border border-yellow-200 dark:border-yellow-800 rounded-lg">
+          <p className="text-sm text-yellow-800 dark:text-yellow-200 flex items-center gap-2">
+            <AlertTriangle className="h-4 w-4" />
+            Please confirm if this session occurred
+          </p>
+        </div>
+      )}
 
       <div className="flex flex-wrap gap-2 mt-4 pt-4 border-t border-gray-200 dark:border-gray-700">
         <Button variant="outline" className="rounded-full" onClick={onMessage}>
@@ -301,6 +349,112 @@ const AppointmentCard: React.FC<AppointmentCardProps> = ({
           Add to Calendar
         </Button>
 
+        {/* Confirmation Button - Show for completed appointments */}
+        {needsConfirmation && (
+          <Dialog open={showConfirmDialog} onOpenChange={setShowConfirmDialog}>
+            <DialogTrigger asChild>
+              <Button className="rounded-full bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80">
+                <CheckCircle2 className="mr-2 h-4 w-4" />
+                Confirm Session
+              </Button>
+            </DialogTrigger>
+            <DialogContent>
+              <DialogHeader>
+                <DialogTitle>Confirm Appointment</DialogTitle>
+                <DialogDescription>
+                  Did this appointment with {displayName} take place?
+                </DialogDescription>
+              </DialogHeader>
+
+              <div className="space-y-4 py-4">
+                {/* Only show review options for clients */}
+                {!isOwnerProfessional && (
+                  <>
+                    {/* Rating */}
+                    <div>
+                      <Label>Rate your experience (optional)</Label>
+                      <div className="flex gap-1 mt-2">
+                        {[1, 2, 3, 4, 5].map((star) => (
+                          <button
+                            key={star}
+                            type="button"
+                            onClick={() => setConfirmRating(star)}
+                            onMouseEnter={() => setHoveredRating(star)}
+                            onMouseLeave={() => setHoveredRating(0)}
+                            className="p-1 transition-transform hover:scale-110"
+                          >
+                            <Star
+                              className={`h-7 w-7 transition-colors ${
+                                star <= (hoveredRating || confirmRating)
+                                  ? "fill-yellow-400 text-yellow-400"
+                                  : "text-gray-300"
+                              }`}
+                            />
+                          </button>
+                        ))}
+                      </div>
+                    </div>
+
+                    {/* Feedback */}
+                    <div>
+                      <Label htmlFor="confirm-feedback">
+                        Feedback (optional)
+                      </Label>
+                      <Textarea
+                        id="confirm-feedback"
+                        value={confirmFeedback}
+                        onChange={(e) => setConfirmFeedback(e.target.value)}
+                        placeholder="Share your experience..."
+                        maxLength={500}
+                        className="mt-1"
+                      />
+                      <p className="text-xs text-gray-500 mt-1 text-right">
+                        {confirmFeedback.length}/500
+                      </p>
+                    </div>
+                  </>
+                )}
+
+                {isOwnerProfessional && (
+                  <p className="text-sm text-gray-600 dark:text-gray-400">
+                    Please confirm whether this session with {displayName} took
+                    place as scheduled.
+                  </p>
+                )}
+              </div>
+
+              <DialogFooter className="flex-col sm:flex-row gap-2">
+                <Button
+                  variant="outline"
+                  onClick={() => handleConfirmAppointment(false)}
+                  disabled={confirmSubmitting}
+                  className="border-red-300 text-red-600 hover:bg-red-50"
+                >
+                  {confirmSubmitting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <XCircle className="h-4 w-4 mr-2" />
+                  )}
+                  Did Not Occur
+                </Button>
+                <Button
+                  onClick={() => handleConfirmAppointment(true)}
+                  disabled={confirmSubmitting}
+                  className="bg-[#F3CFC6] text-black hover:bg-[#F3CFC6]/80"
+                >
+                  {confirmSubmitting ? (
+                    <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  ) : (
+                    <CheckCircle2 className="h-4 w-4 mr-2" />
+                  )}
+                  Yes, It Occurred
+                </Button>
+              </DialogFooter>
+            </DialogContent>
+          </Dialog>
+        )}
+
+        {/* Professional-only actions */}
         {isProfessional && isOwnerProfessional && (
           <>
             {status === "completed" && disputeStatus === "none" && (

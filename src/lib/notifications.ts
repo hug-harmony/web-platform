@@ -352,3 +352,81 @@ export async function createPaymentNotification(
     relatedId: paymentId,
   });
 }
+
+export async function createEarningConfirmedNotification(
+  professionalUserId: string,
+  amount: number,
+  clientName: string,
+  earningId: string
+): Promise<NotificationRecord> {
+  const formattedAmount = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
+
+  return createNotification({
+    targetUserId: professionalUserId,
+    type: "payment",
+    content: `Earning of ${formattedAmount} confirmed for session with ${clientName}`,
+    relatedId: earningId,
+  });
+}
+
+/**
+ * Helper to create payout processed notification
+ */
+export async function createPayoutProcessedNotification(
+  professionalUserId: string,
+  amount: number,
+  payoutId: string
+): Promise<NotificationRecord> {
+  const formattedAmount = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
+
+  return createNotification({
+    targetUserId: professionalUserId,
+    type: "payment",
+    content: `Your payout of ${formattedAmount} has been processed!`,
+    relatedId: payoutId,
+  });
+}
+
+/**
+ * Helper to create confirmation request notification
+ */
+export async function createConfirmationRequestNotification(
+  targetUserId: string,
+  otherPartyName: string,
+  appointmentId: string,
+  isReminder: boolean = false
+): Promise<NotificationRecord> {
+  const content = isReminder
+    ? `Reminder: Please confirm your session with ${otherPartyName}`
+    : `Please confirm if your session with ${otherPartyName} occurred`;
+
+  return createNotification({
+    targetUserId,
+    type: "appointment",
+    content,
+    relatedId: appointmentId,
+  });
+}
+
+/**
+ * Helper to create dispute notification for admin
+ */
+export async function createDisputeNotificationForAdmin(
+  adminUserId: string,
+  clientName: string,
+  professionalName: string,
+  confirmationId: string
+): Promise<NotificationRecord> {
+  return createNotification({
+    targetUserId: adminUserId,
+    type: "payment",
+    content: `Payment dispute between ${clientName} and ${professionalName} requires review`,
+    relatedId: confirmationId,
+  });
+}

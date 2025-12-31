@@ -199,6 +199,13 @@ export async function PATCH(
         );
       }
 
+      console.log(
+        `[Proposals] Appointment ${appointment.id} created from proposal ${id}`
+      );
+      console.log(
+        `[Proposals] Rate: $${proposal.professional.rate}/hr, Duration: ${durationHours.toFixed(2)}hrs`
+      );
+
       return NextResponse.json({
         success: true,
         proposal: updatedProposal,

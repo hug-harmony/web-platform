@@ -9,9 +9,12 @@
     "start": "next start",
     "lint": "next lint",
     "build:lambda": "npx esbuild src/lambda/ws-connect.ts src/lambda/ws-disconnect.ts src/lambda/ws-message.ts --bundle --platform=node --target=node18 --outdir=lambda-dist --format=cjs --external:@aws-sdk/*",
-    "cdk:deploy": "npm run build:lambda && npx cdk deploy --all --app \"npx ts-node --project tsconfig.cdk.json src/infrastructure/app.ts\" --require-approval never --outputs-file cdk-outputs.json",
+    "build:lambda:payments": "npx esbuild src/lambda/payments/payment-processor.ts --bundle --platform=node --target=node18 --outdir=lambda-dist/payments --format=cjs --external:@aws-sdk/*",
+    "build:lambda:all": "npm run build:lambda && npm run build:lambda:payments",
+    "cdk:deploy": "npm run build:lambda:all && npx cdk deploy --all --app \"npx ts-node --project tsconfig.cdk.json src/infrastructure/app.ts\" --require-approval never --outputs-file cdk-outputs.json",
     "cdk:deploy:websocket": "npm run build:lambda && npx cdk deploy ChatWebSocketStack-prod --app \"npx ts-node --project tsconfig.cdk.json src/infrastructure/app.ts\" --require-approval never --outputs-file cdk-outputs.json",
     "cdk:deploy:chime": "npx cdk deploy ChimeStack-prod --app \"npx ts-node --project tsconfig.cdk.json src/infrastructure/app.ts\" --require-approval never --outputs-file cdk-outputs.json",
+    "cdk:deploy:payments": "npm run build:lambda:payments && npx cdk deploy PaymentSchedulerStack-prod --app \"npx ts-node --project tsconfig.cdk.json src/infrastructure/app.ts\" --require-approval never --outputs-file cdk-outputs.json",
     "cdk:destroy": "npx cdk destroy --app \"npx ts-node --project tsconfig.cdk.json src/infrastructure/app.ts\" --force",
     "deploy:websocket": "npm run cdk:deploy && node scripts/update-amplify-env.mjs"
   },

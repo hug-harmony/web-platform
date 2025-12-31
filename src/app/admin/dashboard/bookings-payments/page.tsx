@@ -1,3 +1,4 @@
+// src\app\admin\dashboard\bookings-payments\page.tsx
 "use client";
 
 import { motion, AnimatePresence } from "framer-motion";

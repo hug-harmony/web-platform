@@ -55,33 +55,35 @@ model User {
   status             String    @default("active")
 
   // Relations
-  PasswordResetToken      PasswordResetToken[]
-  appointments            Appointment[]            @relation("UserAppointments")
-  sentMessages            Message[]                @relation("SentMessagesUser")
-  receivedMessages        Message[]                @relation("ReceivedMessagesUser")
-  conversations1          Conversation[]           @relation("User1Conversations")
-  conversations2          Conversation[]           @relation("User2Conversations")
-  posts                   Post[]                   @relation("UserPosts")
-  replies                 Reply[]                  @relation("UserReplies")
-  professionalApplication ProfessionalApplication?
-  VideoSession            VideoSession[]
-  ProfileVisit            ProfileVisit[]           @relation("Visitor")
-  Proposal                Proposal[]               @relation
-  reviews                 Review[]                 @relation("UserReviews")
-  surveyResponses         SurveyResponse[]         @relation("UserSurveys")
-  securityLogs            SecurityLog[]            @relation("UserSecurityLogs")
-  reported                Report[]                 @relation("ReportedUser")
-  reports                 Report[]                 @relation("Reporter")
-  notesAuthored           Note[]                   @relation("AuthorNotes")
-  notesReceived           Note[]                   @relation("TargetUserNotes")
-  profileVisits           ProfileVisit[]           @relation("VisitedUser")
-  cart                    Cart?
-  orders                  Order[]
-  trainingVideoWatches    TrainingVideoWatch[]
-  photos                  UserPhoto[]
-  EmailVerificationToken  EmailVerificationToken[]
-  blocking                Block[]                  @relation("UserBlocking")
-  blockedBy               Block[]                  @relation("UserBlocked")
+  PasswordResetToken        PasswordResetToken[]
+  appointments              Appointment[]             @relation("UserAppointments")
+  sentMessages              Message[]                 @relation("SentMessagesUser")
+  receivedMessages          Message[]                 @relation("ReceivedMessagesUser")
+  conversations1            Conversation[]            @relation("User1Conversations")
+  conversations2            Conversation[]            @relation("User2Conversations")
+  posts                     Post[]                    @relation("UserPosts")
+  replies                   Reply[]                   @relation("UserReplies")
+  professionalApplication   ProfessionalApplication?
+  VideoSession              VideoSession[]
+  ProfileVisit              ProfileVisit[]            @relation("Visitor")
+  Proposal                  Proposal[]                @relation
+  reviews                   Review[]                  @relation("UserReviews")
+  surveyResponses           SurveyResponse[]          @relation("UserSurveys")
+  securityLogs              SecurityLog[]             @relation("UserSecurityLogs")
+  reported                  Report[]                  @relation("ReportedUser")
+  reports                   Report[]                  @relation("Reporter")
+  notesAuthored             Note[]                    @relation("AuthorNotes")
+  notesReceived             Note[]                    @relation("TargetUserNotes")
+  profileVisits             ProfileVisit[]            @relation("VisitedUser")
+  cart                      Cart?
+  orders                    Order[]
+  trainingVideoWatches      TrainingVideoWatch[]
+  photos                    UserPhoto[]
+  EmailVerificationToken    EmailVerificationToken[]
+  blocking                  Block[]                   @relation("UserBlocking")
+  blockedBy                 Block[]                   @relation("UserBlocked")
+  clientConfirmations       AppointmentConfirmation[] @relation("ClientConfirmations")
+  professionalConfirmations AppointmentConfirmation[] @relation("ProfessionalUserConfirmations")
 }
 
 model PasswordResetToken {
@@ -113,6 +115,9 @@ model Appointment {
   payment             Payment?
   videoSessions       VideoSession[]
 
+  confirmation AppointmentConfirmation?
+  earning      Earning?
+
   @@index([professionalId, startTime, endTime])
 }
 
@@ -142,16 +147,19 @@ model Professional {
   createdAt            DateTime   @default(now())
   location             String?
 
-  appointments  Appointment[]             @relation("ProfessionalAppointments")
-  applications  ProfessionalApplication[] @relation
-  VideoSession  VideoSession[]
-  availability  Availability[]            @relation
-  profileVisits ProfileVisit[]            @relation("Visitee")
-  Proposal      Proposal[]                @relation
-  reviews       Review[]                  @relation("ProfessionalReviews")
-  discounts     Discount[]                @relation
-  reported      Report[]                  @relation("ReportedProfessional")
-  notesReceived Note[]                    @relation("TargetProfessionalNotes")
+  appointments             Appointment[]             @relation("ProfessionalAppointments")
+  applications             ProfessionalApplication[] @relation
+  VideoSession             VideoSession[]
+  availability             Availability[]            @relation
+  profileVisits            ProfileVisit[]            @relation("Visitee")
+  Proposal                 Proposal[]                @relation
+  reviews                  Review[]                  @relation("ProfessionalReviews")
+  discounts                Discount[]                @relation
+  reported                 Report[]                  @relation("ReportedProfessional")
+  notesReceived            Note[]                    @relation("TargetProfessionalNotes")
+  earnings                 Earning[]
+  payouts                  Payout[]
+  appointmentConfirmations AppointmentConfirmation[]
 }
 
 model Post {
@@ -609,4 +617,129 @@ model Block {
   @@unique([blockerId, blockedId])
   @@index([blockerId])
   @@index([blockedId])
+}
+
+model PayoutCycle {
+  id          String    @id @default(auto()) @map("_id") @db.ObjectId
+  startDate   DateTime // Monday 12:00 AM UTC
+  endDate     DateTime // Sunday 11:59:59 PM UTC
+  cutoffDate  DateTime // Next Monday 3:00 PM UTC
+  status      String    @default("active") // active | processing | completed | failed
+  processedAt DateTime?
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  earnings Earning[]
+  payouts  Payout[]
+}
+
+model Earning {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  professionalId String @db.ObjectId
+  appointmentId  String @unique @db.ObjectId
+  cycleId        String @db.ObjectId
+
+  // Amounts (stored as Float for MongoDB compatibility)
+  grossAmount        Float // hourlyRate * hours
+  platformFeePercent Float // % at time of earning (snapshot)
+  platformFeeAmount  Float // Calculated fee
+  netAmount          Float // grossAmount - platformFeeAmount
+
+  // Session details
+  sessionDurationMinutes Int
+  hourlyRate             Float
+  sessionStartTime       DateTime // When the appointment started
+  sessionEndTime         DateTime // When the appointment ended
+
+  status String @default("pending")
+  // pending | confirmed | disputed | cancelled | paid
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  appointment  Appointment  @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  cycle        PayoutCycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@index([professionalId])
+  @@index([cycleId])
+  @@index([status])
+}
+
+model Payout {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  professionalId String @db.ObjectId
+  cycleId        String @db.ObjectId
+
+  // Amounts
+  grossTotal       Float
+  platformFeeTotal Float
+  netTotal         Float
+  earningsCount    Int // Number of sessions included
+
+  // Payout details
+  status String @default("pending")
+  // pending | processing | completed | failed
+
+  stripePayoutId   String? // For future Stripe integration
+  stripeTransferId String?
+  processedAt      DateTime?
+  failedReason     String?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  cycle        PayoutCycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+
+  @@unique([professionalId, cycleId]) // One payout per professional per cycle
+  @@index([professionalId])
+  @@index([cycleId])
+  @@index([status])
+}
+
+model AppointmentConfirmation {
+  id String @id @default(auto()) @map("_id") @db.ObjectId
+
+  appointmentId String @unique @db.ObjectId
+
+  // Client (user who booked)
+  clientId          String    @db.ObjectId
+  clientConfirmed   Boolean? // null = pending, true = occurred, false = did not occur
+  clientConfirmedAt DateTime?
+  clientReviewId    String?   @db.ObjectId // Link to Review if left
+
+  // Professional
+  professionalId          String    @db.ObjectId
+  professionalUserId      String    @db.ObjectId // The User ID of the professional
+  professionalConfirmed   Boolean? // null = pending
+  professionalConfirmedAt DateTime?
+
+  // Resolution
+  finalStatus String @default("pending")
+  // pending | confirmed | not_occurred | disputed | auto_confirmed
+
+  isDisputed        Boolean   @default(false)
+  disputeReason     String?
+  disputeCreatedAt  DateTime?
+  disputeResolvedAt DateTime?
+  disputeResolution String? // admin_confirmed | admin_cancelled
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  appointment      Appointment  @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
+  client           User         @relation("ClientConfirmations", fields: [clientId], references: [id], onDelete: Cascade)
+  professional     Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
+  professionalUser User         @relation("ProfessionalUserConfirmations", fields: [professionalUserId], references: [id], onDelete: Cascade)
+
+  @@index([clientId])
+  @@index([professionalId])
+  @@index([professionalUserId])
+  @@index([finalStatus])
 }

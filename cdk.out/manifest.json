@@ -23,7 +23,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-deploy-role-232247293056-us-east-2",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-cfn-exec-role-232247293056-us-east-2",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/c5f59a6cad08e3d0c50315bc261b8453a5f83eb8d99b0692a7f50959e411e649.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/2464f2d5c3b70eadbcf7adab1ff415c6b3211f4368a36f8cc234a928e9fab157.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -416,6 +416,150 @@
         ]
       },
       "displayName": "ChimeStack-prod"
+    },
+    "PaymentSchedulerStack-prod.assets": {
+      "type": "cdk:asset-manifest",
+      "properties": {
+        "file": "PaymentSchedulerStack-prod.assets.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+      }
+    },
+    "PaymentSchedulerStack-prod": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://232247293056/us-east-2",
+      "properties": {
+        "templateFile": "PaymentSchedulerStack-prod.template.json",
+        "terminationProtection": false,
+        "tags": {
+          "Environment": "prod",
+          "ManagedBy": "CDK",
+          "Project": "HugHarmony"
+        },
+        "validateOnSynth": false,
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-deploy-role-232247293056-us-east-2",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-cfn-exec-role-232247293056-us-east-2",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/94b91c64a0b43fb151acdce106269f5318ab774cc0ba443bfcb9f9737220ce52.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
+        "additionalDependencies": [
+          "PaymentSchedulerStack-prod.assets"
+        ],
+        "lookupRole": {
+          "arn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-lookup-role-232247293056-us-east-2",
+          "requiresBootstrapStackVersion": 8,
+          "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+        }
+      },
+      "dependencies": [
+        "PaymentSchedulerStack-prod.assets"
+      ],
+      "metadata": {
+        "/PaymentSchedulerStack-prod": [
+          {
+            "type": "aws:cdk:stack-tags",
+            "data": [
+              {
+                "Key": "Environment",
+                "Value": "prod"
+              },
+              {
+                "Key": "ManagedBy",
+                "Value": "CDK"
+              },
+              {
+                "Key": "Project",
+                "Value": "HugHarmony"
+              }
+            ]
+          }
+        ],
+        "/PaymentSchedulerStack-prod/PaymentSchedulerLambdaRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PaymentSchedulerLambdaRole0BFC6C61"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/PaymentSchedulerLambdaRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PaymentSchedulerLambdaRoleDefaultPolicy839A8558"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/PaymentProcessorHandler/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PaymentProcessorHandlerBCE6CC2B"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/WeeklyPaymentProcessing/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "WeeklyPaymentProcessingED011536"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/WeeklyPaymentProcessing/AllowEventRulePaymentSchedulerStackprodPaymentProcessorHandlerB146C0AE": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "WeeklyPaymentProcessingAllowEventRulePaymentSchedulerStackprodPaymentProcessorHandlerB146C0AEFADC93B2"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/DailyConfirmationCheck/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DailyConfirmationCheck5CD47085"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/DailyConfirmationCheck/AllowEventRulePaymentSchedulerStackprodPaymentProcessorHandlerB146C0AE": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DailyConfirmationCheckAllowEventRulePaymentSchedulerStackprodPaymentProcessorHandlerB146C0AE8CF0BF76"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/AutoConfirmCheck/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AutoConfirmCheck2D7EACC9"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/AutoConfirmCheck/AllowEventRulePaymentSchedulerStackprodPaymentProcessorHandlerB146C0AE": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AutoConfirmCheckAllowEventRulePaymentSchedulerStackprodPaymentProcessorHandlerB146C0AE80CBDC7D"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/PaymentProcessorLambdaArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "PaymentProcessorLambdaArn"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/WeeklyPaymentRuleArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "WeeklyPaymentRuleArn"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/BootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BootstrapVersion"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/CheckBootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CheckBootstrapVersion"
+          }
+        ]
+      },
+      "displayName": "PaymentSchedulerStack-prod"
     },
     "Tree": {
       "type": "cdk:tree",

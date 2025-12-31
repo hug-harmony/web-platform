@@ -1,8 +1,11 @@
+// src/app/api/cron/update-appointments.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
+import { createConfirmation } from "@/lib/services/payments/confirmation.service";
 
 export async function GET(request: NextRequest) {
-  // Verify the request is from Vercel Cron (optional security check)
+  // Verify the request is from authorized source
   const authHeader = request.headers.get("authorization");
   if (
     process.env.CRON_SECRET &&
@@ -16,6 +19,8 @@ export async function GET(request: NextRequest) {
     let updatedCount = 0;
     let ongoingCount = 0;
     let completedCount = 0;
+    let confirmationsCreated = 0;
+    const confirmationErrors: string[] = [];
 
     console.log(
       `[CRON] Starting appointment status update at ${now.toISOString()}`
@@ -78,28 +83,36 @@ export async function GET(request: NextRequest) {
         updatedCount++;
         console.log(`[CRON] Marked appointment ${appointment.id} as ongoing`);
       }
+      // Check if appointment should be directly marked as completed
+      else if (now >= appointmentEndTime) {
+        await prisma.appointment.update({
+          where: { id: appointment.id },
+          data: { status: "completed" },
+        });
+
+        completedCount++;
+        updatedCount++;
+        console.log(
+          `[CRON] Directly marked appointment ${appointment.id} as completed`
+        );
+
+        // Create confirmation for payment tracking
+        try {
+          await createConfirmation(appointment.id);
+          confirmationsCreated++;
+          console.log(
+            `[CRON] Created confirmation for appointment ${appointment.id}`
+          );
+        } catch (error) {
+          const errorMsg = `Failed to create confirmation for ${appointment.id}: ${error}`;
+          confirmationErrors.push(errorMsg);
+          console.error(`[CRON] ${errorMsg}`);
+        }
+      }
     }
 
     // Process ongoing appointments to mark as completed
-    const allOngoingAppointments = [...ongoingAppointments];
-
-    // Add newly marked ongoing appointments to the check
-    const newlyOngoing = await prisma.appointment.findMany({
-      where: {
-        status: "ongoing",
-        id: { in: upcomingAppointments.map((a) => a.id) },
-      },
-      select: {
-        id: true,
-        startTime: true,
-        endTime: true,
-        status: true,
-      },
-    });
-
-    allOngoingAppointments.push(...newlyOngoing);
-
-    for (const appointment of allOngoingAppointments) {
+    for (const appointment of ongoingAppointments) {
       const appointmentEndTime = appointment.endTime;
 
       if (!appointmentEndTime) {
@@ -119,31 +132,19 @@ export async function GET(request: NextRequest) {
         completedCount++;
         updatedCount++;
         console.log(`[CRON] Marked appointment ${appointment.id} as completed`);
-      }
-    }
 
-    // Check for upcoming appointments that should be directly marked as completed
-    for (const appointment of upcomingAppointments) {
-      const appointmentEndTime = appointment.endTime;
-
-      if (!appointmentEndTime) {
-        console.log(
-          `[CRON] Skipping appointment ${appointment.id} - invalid endTime`
-        );
-        continue;
-      }
-
-      if (now >= appointmentEndTime) {
-        await prisma.appointment.update({
-          where: { id: appointment.id },
-          data: { status: "completed" },
-        });
-
-        completedCount++;
-        updatedCount++;
-        console.log(
-          `[CRON] Directly marked appointment ${appointment.id} as completed`
-        );
+        // Create confirmation for payment tracking
+        try {
+          await createConfirmation(appointment.id);
+          confirmationsCreated++;
+          console.log(
+            `[CRON] Created confirmation for appointment ${appointment.id}`
+          );
+        } catch (error) {
+          const errorMsg = `Failed to create confirmation for ${appointment.id}: ${error}`;
+          confirmationErrors.push(errorMsg);
+          console.error(`[CRON] ${errorMsg}`);
+        }
       }
     }
 
@@ -153,6 +154,8 @@ export async function GET(request: NextRequest) {
       totalUpdated: updatedCount,
       markedOngoing: ongoingCount,
       markedCompleted: completedCount,
+      confirmationsCreated,
+      confirmationErrors,
       message: "Appointment status update completed successfully",
     };
 
@@ -175,17 +178,6 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// Helper function to parse appointment date and time (no longer needed but kept for reference)
-// function parseAppointmentDateTime(startTime: Date): Date | null {
-//   try {
-//     return startTime; // startTime is already a Date object
-//   } catch (error) {
-//     console.error(`[CRON] Error parsing startTime: ${startTime}`, error);
-//     return null;
-//   }
-// }
-
-// For manual testing - you can remove this
 export async function POST(request: NextRequest) {
   console.log("[CRON] Manual trigger received");
   return GET(request);

@@ -9,6 +9,7 @@ import { EmailVerificationBanner } from "@/components/auth/email-verification-ba
 import IncomingCallDialog from "@/components/IncomingCallDialog";
 import ApplicationProgressBanner from "@/components/layout/ApplicationProgressBanner";
 import DashboardHeader from "@/components/layout/DashboardHeader";
+import { PendingConfirmationsBanner } from "@/components/dashboard/PendingConfirmationsBanner";
 
 export default function DashboardLayout({
   children,
@@ -31,6 +32,7 @@ export default function DashboardLayout({
             <div className="sticky top-0 lg:top-0 z-30">
               <EmailVerificationBanner />
               <ApplicationProgressBanner />
+              <PendingConfirmationsBanner />
             </div>
 
             <DashboardHeader />

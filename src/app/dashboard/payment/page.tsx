@@ -1,195 +1,129 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+// src/app/dashboard/payment/page.tsx
+
 "use client";
 
-import { useState, useEffect } from "react";
-import { motion, AnimatePresence } from "framer-motion";
-import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
-import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
-import { ScrollArea } from "@/components/ui/scroll-area";
-import { DollarSign, CreditCard, Search, Filter } from "lucide-react";
-import Link from "next/link";
+import { useState } from "react";
+import { motion } from "framer-motion";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
-import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
-import {
-  DropdownMenu,
-  DropdownMenuContent,
-  DropdownMenuItem,
-  DropdownMenuLabel,
-  DropdownMenuSeparator,
-  DropdownMenuTrigger,
-} from "@/components/ui/dropdown-menu";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
+import { usePaymentDashboard } from "@/hooks/payments";
 
-interface Payment {
-  id: string;
-  professional: { name: string; id: string };
-  amount: number;
-  date: string;
-  status: "pending" | "completed" | "failed";
-  appointmentId?: string;
-}
-
-interface PaymentMethod {
-  id: string;
-  type: string;
-  lastFour: string;
-  expiry: string;
-}
+// Components
+import { EarningsSummaryCard } from "@/components/payments/EarningsSummaryCard";
+import { CurrentCycleCard } from "@/components/payments/CurrentCycleCard";
+import { PendingConfirmationsCard } from "@/components/payments/PendingConfirmationsCard";
+import { UpcomingPayoutCard } from "@/components/payments/UpcomingPayoutCard";
+import { EarningsTable } from "@/components/payments/EarningsTable";
+import { PayoutHistoryTable } from "@/components/payments/PayoutHistoryTable";
+import { WeeklyBreakdownChart } from "@/components/payments/WeeklyBreakdownChart";
+import { MonthlyBreakdownTable } from "@/components/payments/MonthlyBreakdownTable";
+import { PaymentPageSkeleton } from "@/components/payments/PaymentPageSkeleton";
+import { EmptyEarningsState } from "@/components/payments/EmptyEarningsState";
+import { ConfirmationDialog } from "@/components/payments/ConfirmationDialog";
 
 const containerVariants = {
-  hidden: { opacity: 0, y: 20 },
+  hidden: { opacity: 0 },
   visible: {
     opacity: 1,
-    y: 0,
-    transition: { duration: 0.5, staggerChildren: 0.2 },
+    transition: {
+      staggerChildren: 0.1,
+    },
   },
 };
 
 const itemVariants = {
-  hidden: { opacity: 0, y: 10 },
-  visible: { opacity: 1, y: 0 },
-};
-
-const cardVariants = {
   hidden: { opacity: 0, y: 20 },
-  visible: { opacity: 1, y: 0, transition: { duration: 0.3 } },
+  visible: {
+    opacity: 1,
+    y: 0,
+    transition: { duration: 0.4 },
+  },
 };
 
 export default function PaymentsPage() {
-  const [activeTab, setActiveTab] = useState<"manage" | "history">("manage");
-  const [payments, setPayments] = useState<Payment[]>([]);
-  const [paymentMethods, setPaymentMethods] = useState<PaymentMethod[]>([]);
-  const [searchQuery, setSearchQuery] = useState("");
-  const [statusFilter, setStatusFilter] = useState<string>("");
-  const [loading, setLoading] = useState(true);
-  const { data: session, status } = useSession();
+  const { data: session, status: authStatus } = useSession();
   const router = useRouter();
+  const [activeTab, setActiveTab] = useState<
+    "overview" | "earnings" | "payouts"
+  >("overview");
+  const [selectedConfirmation, setSelectedConfirmation] = useState<
+    string | null
+  >(null);
 
-  useEffect(() => {
-    if (status === "authenticated") {
-      const fetchData = async () => {
-        try {
-          // Fetch payments
-          const paymentsRes = await fetch("/api/payments", {
-            cache: "no-store",
-            credentials: "include",
-          });
-          if (!paymentsRes.ok) {
-            throw new Error(`Failed to fetch payments: ${paymentsRes.status}`);
-          }
-          const paymentsData = await paymentsRes.json();
-          setPayments(
-            Array.isArray(paymentsData)
-              ? paymentsData.map((payment: any) => ({
-                  id: payment.id || "",
-                  professional: {
-                    name: payment.professional?.name || "Unknown Professional",
-                    id: payment.professional?.id || "",
-                  },
-                  amount: payment.amount || 0,
-                  date: payment.date || "",
-                  status: payment.status || "pending",
-                  appointmentId: payment.appointmentId || undefined,
-                }))
-              : []
-          );
+  const {
+    data,
+    isLoading,
+    error,
+    refetch,
+    hasEarnings,
+    hasPendingConfirmations,
+    currentCycleProgress,
+    formattedCycleDateRange,
+  } = usePaymentDashboard();
 
-          // Fetch payment methods
-          const methodsRes = await fetch("/api/payment-methods", {
-            cache: "no-store",
-            credentials: "include",
-          });
-          if (!methodsRes.ok) {
-            throw new Error(
-              `Failed to fetch payment methods: ${methodsRes.status}`
-            );
-          }
-          const methodsData = await methodsRes.json();
-          setPaymentMethods(
-            Array.isArray(methodsData)
-              ? methodsData.map((method: any) => ({
-                  id: method.id || "",
-                  type: method.type || "Unknown",
-                  lastFour: method.lastFour || "****",
-                  expiry: method.expiry || "",
-                }))
-              : []
-          );
-        } catch (error) {
-          console.error("Error fetching data:", error);
-        } finally {
-          setLoading(false);
-        }
-      };
-      fetchData();
-    }
-  }, [status, session]);
+  // Redirect if not authenticated
+  if (authStatus === "unauthenticated") {
+    router.push("/login");
+    return null;
+  }
 
-  const handleSearchChange = (e: React.ChangeEvent<HTMLInputElement>) => {
-    setSearchQuery(e.target.value);
-  };
+  // Loading state
+  if (authStatus === "loading" || isLoading) {
+    return <PaymentPageSkeleton />;
+  }
 
-  const handleStatusFilterChange = (value: string) => {
-    setStatusFilter(value);
-  };
-
-  const filterPayments = (data: Payment[]) =>
-    data
-      .filter((payment) =>
-        searchQuery
-          ? payment.professional.name
-              .toLowerCase()
-              .includes(searchQuery.toLowerCase())
-          : true
-      )
-      .filter((payment) =>
-        statusFilter ? payment.status === statusFilter : true
-      );
-
-  const filteredPayments = filterPayments(payments);
-
-  if (status === "loading" || loading) {
+  // Error state
+  if (error) {
     return (
-      <motion.div
-        className="p-4 space-y-6 max-w-7xl mx-auto"
-        variants={containerVariants}
-        initial="hidden"
-        animate="visible"
-      >
-        <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
-          <CardHeader>
-            <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
-            <Skeleton className="h-4 w-64 mt-2 bg-[#C4C4C4]/50" />
-          </CardHeader>
-          <CardContent className="flex flex-col sm:flex-row space-y-2 sm:space-y-0 sm:space-x-4">
-            <Skeleton className="h-10 w-full sm:w-2/3 bg-[#C4C4C4]/50" />
-            <Skeleton className="h-10 w-full sm:w-1/3 bg-[#C4C4C4]/50" />
-          </CardContent>
-        </Card>
-        <Card className="shadow-lg">
-          <CardHeader>
-            <Skeleton className="h-8 w-48 bg-[#C4C4C4]/50" />
-          </CardHeader>
-          <CardContent className="space-y-4 pt-6">
-            <div className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-3 gap-6">
-              {[...Array(3)].map((_, idx) => (
-                <Skeleton
-                  key={idx}
-                  className="h-24 w-full bg-[#C4C4C4]/50 rounded-lg"
-                />
-              ))}
-            </div>
-          </CardContent>
-        </Card>
-      </motion.div>
+      <div className="p-4 max-w-7xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg p-6 text-center"
+        >
+          <h2 className="text-lg font-semibold text-red-800 dark:text-red-200 mb-2">
+            Unable to load payment data
+          </h2>
+          <p className="text-red-600 dark:text-red-300 mb-4">{error}</p>
+          <button
+            onClick={() => refetch()}
+            className="px-4 py-2 bg-red-100 dark:bg-red-800 text-red-800 dark:text-red-100 rounded-md hover:bg-red-200 dark:hover:bg-red-700 transition-colors"
+          >
+            Try Again
+          </button>
+        </motion.div>
+      </div>
     );
   }
 
-  if (status === "unauthenticated") {
-    router.push("/login");
-    return null;
+  // Not a professional
+  if (!data) {
+    return (
+      <div className="p-4 max-w-7xl mx-auto">
+        <motion.div
+          initial={{ opacity: 0, y: 20 }}
+          animate={{ opacity: 1, y: 0 }}
+          className="bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/10 border border-[#F3CFC6] dark:border-[#C4C4C4]/30 rounded-lg p-8 text-center"
+        >
+          <h2 className="text-xl font-semibold text-black dark:text-white mb-2">
+            Professional Account Required
+          </h2>
+          <p className="text-[#C4C4C4] dark:text-[#C4C4C4] mb-4">
+            You need to be an approved professional to view earnings and
+            payouts.
+          </p>
+          <button
+            onClick={() =>
+              router.push("/dashboard/edit-profile/professional-application")
+            }
+            className="px-6 py-2 bg-[#F3CFC6] text-black rounded-md hover:bg-[#F3CFC6]/80 transition-colors"
+          >
+            Apply to Become a Professional
+          </button>
+        </motion.div>
+      </div>
+    );
   }
 
   return (
@@ -199,246 +133,161 @@ export default function PaymentsPage() {
       initial="hidden"
       animate="visible"
     >
-      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
-        <CardHeader>
-          <motion.div variants={itemVariants}>
-            <CardTitle className="text-2xl font-bold text-black dark:text-white">
-              Your Payments
-            </CardTitle>
-            <p className="text-sm opacity-80">
-              Manage your payments and view history
+      {/* Header */}
+      <motion.div variants={itemVariants}>
+        <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
+          <div>
+            <h1 className="text-2xl font-bold text-black dark:text-white">
+              Earnings & Payouts
+            </h1>
+            <p className="text-[#C4C4C4] dark:text-[#C4C4C4] text-sm mt-1">
+              Track your earnings, confirmations, and payout history
             </p>
-          </motion.div>
-        </CardHeader>
-        <CardContent>
-          <div className="flex flex-col sm:flex-row items-center mb-6 w-full space-y-2 sm:space-y-0 sm:space-x-2">
-            <div className="relative flex-grow w-full">
-              <Search className="absolute left-3 top-1/2 h-6 w-6 -translate-y-1/2 text-[#fff]" />
-              <Input
-                type="text"
-                placeholder="Search by professional name..."
-                value={searchQuery}
-                onChange={handleSearchChange}
-                className="p-2 pl-10 rounded border-[#F3CFC6] text-black dark:text-white focus:ring-[#F3CFC6]"
-              />
-            </div>
-            <DropdownMenu>
-              <DropdownMenuTrigger asChild>
-                <Button
-                  variant="outline"
-                  className="flex items-center space-x-2 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 w-full sm:w-auto"
-                >
-                  <Filter className="h-6 w-6 text-[#F3CFC6]" />
-                  <span>Status</span>
-                </Button>
-              </DropdownMenuTrigger>
-              <DropdownMenuContent className="w-56 bg-white dark:bg-gray-800">
-                <DropdownMenuLabel className="text-black dark:text-white">
-                  Filter by Status
-                </DropdownMenuLabel>
-                <DropdownMenuSeparator />
-                <DropdownMenuItem
-                  onClick={() => handleStatusFilterChange("")}
-                  className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
-                >
-                  All
-                </DropdownMenuItem>
-                {["pending", "completed", "failed"].map((status) => (
-                  <DropdownMenuItem
-                    key={status}
-                    onClick={() => handleStatusFilterChange(status)}
-                    className="text-black dark:text-white hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
-                  >
-                    {status.charAt(0).toUpperCase() + status.slice(1)}
-                  </DropdownMenuItem>
-                ))}
-              </DropdownMenuContent>
-            </DropdownMenu>
           </div>
-        </CardContent>
-      </Card>
+          {data.currentCycle && (
+            <div className="text-right">
+              <p className="text-sm text-[#C4C4C4]">Current Cycle</p>
+              <p className="text-black dark:text-white font-medium">
+                {formattedCycleDateRange}
+              </p>
+            </div>
+          )}
+        </div>
+      </motion.div>
 
-      <Card className="shadow-lg">
-        <CardHeader>
-          <CardTitle className="flex items-center text-black dark:text-white">
-            <DollarSign className="mr-2 h-6 w-6 text-[#F3CFC6]" />
-            Payment Management
-          </CardTitle>
-        </CardHeader>
-        <CardContent className="pt-6">
-          <Tabs
-            value={activeTab}
-            onValueChange={(value) =>
-              setActiveTab(value as "manage" | "history")
+      {/* Pending Confirmations Alert */}
+      {hasPendingConfirmations && (
+        <motion.div variants={itemVariants}>
+          <PendingConfirmationsCard
+            confirmations={data.pendingConfirmations}
+            onConfirmClick={(appointmentId) =>
+              setSelectedConfirmation(appointmentId)
             }
-            className="w-full"
-          >
-            <TabsList className="grid w-full grid-cols-2 bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20">
-              <TabsTrigger value="manage">
-                Manage (
-                {paymentMethods.length +
-                  filteredPayments.filter((p) => p.status === "pending").length}
-                )
-              </TabsTrigger>
-              <TabsTrigger value="history">
-                History (
-                {filteredPayments.filter((p) => p.status !== "pending").length})
-              </TabsTrigger>
-            </TabsList>
-            <TabsContent value="manage">
-              <motion.div className="space-y-6" variants={containerVariants}>
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 text-black dark:text-white">
-                    Upcoming Payments
-                  </h3>
-                  <ScrollArea className="h-[200px]">
-                    <AnimatePresence>
-                      {filteredPayments.filter((p) => p.status === "pending")
-                        .length > 0 ? (
-                        filteredPayments
-                          .filter((p) => p.status === "pending")
-                          .map((payment) => (
-                            <motion.div
-                              key={payment.id}
-                              variants={cardVariants}
-                              whileHover={{
-                                scale: 1.05,
-                                boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-                              }}
-                              transition={{ duration: 0.2 }}
-                              className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
-                            >
-                              <div>
-                                <p className="font-semibold text-black dark:text-white">
-                                  {payment.professional.name}
-                                </p>
-                                <p className="text-sm text-[#C4C4C4]">
-                                  ${payment.amount} - Due {payment.date}
-                                </p>
-                              </div>
-                              <Button
-                                asChild
-                                variant="outline"
-                                size="sm"
-                                className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
-                              >
-                                <Link href={`/payment/${payment.id}`}>
-                                  Pay Now
-                                </Link>
-                              </Button>
-                            </motion.div>
-                          ))
-                      ) : (
-                        <p className="text-center text-[#C4C4C4]">
-                          No upcoming payments found.
-                        </p>
-                      )}
-                    </AnimatePresence>
-                  </ScrollArea>
+          />
+        </motion.div>
+      )}
+
+      {/* Summary Cards */}
+      <motion.div
+        variants={itemVariants}
+        className="grid grid-cols-1 md:grid-cols-2 lg:grid-cols-4 gap-4"
+      >
+        <EarningsSummaryCard
+          title="This Week"
+          gross={data.currentCycleEarnings?.gross ?? 0}
+          net={data.currentCycleEarnings?.net ?? 0}
+          sessions={data.currentCycleEarnings?.sessionsCount ?? 0}
+          pending={data.currentCycleEarnings?.pendingConfirmations ?? 0}
+          variant="current"
+        />
+        <EarningsSummaryCard
+          title="Lifetime Earnings"
+          gross={data.lifetime?.totalGross ?? 0}
+          net={data.lifetime?.totalNet ?? 0}
+          sessions={data.lifetime?.totalSessions ?? 0}
+          variant="lifetime"
+        />
+        <CurrentCycleCard
+          daysRemaining={data.currentCycle?.daysRemaining ?? 0}
+          hoursUntilCutoff={data.currentCycle?.hoursUntilCutoff ?? 0}
+          progress={currentCycleProgress}
+          isProcessing={data.currentCycle?.isProcessing ?? false}
+        />
+        <UpcomingPayoutCard
+          amount={data.upcomingPayout?.estimatedAmount ?? 0}
+          date={data.upcomingPayout?.estimatedDate ?? null}
+          sessions={data.upcomingPayout?.sessionsCount ?? 0}
+          pendingConfirmations={data.upcomingPayout?.pendingConfirmations ?? 0}
+        />
+      </motion.div>
+
+      {/* Main Content Tabs */}
+      <motion.div variants={itemVariants}>
+        <Tabs
+          value={activeTab}
+          onValueChange={(v) => setActiveTab(v as typeof activeTab)}
+          className="w-full"
+        >
+          <TabsList className="grid w-full grid-cols-3 bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/10">
+            <TabsTrigger
+              value="overview"
+              className="data-[state=active]:bg-[#F3CFC6] data-[state=active]:text-black"
+            >
+              Overview
+            </TabsTrigger>
+            <TabsTrigger
+              value="earnings"
+              className="data-[state=active]:bg-[#F3CFC6] data-[state=active]:text-black"
+            >
+              Earnings
+            </TabsTrigger>
+            <TabsTrigger
+              value="payouts"
+              className="data-[state=active]:bg-[#F3CFC6] data-[state=active]:text-black"
+            >
+              Payouts
+            </TabsTrigger>
+          </TabsList>
+
+          {/* Overview Tab */}
+          <TabsContent value="overview" className="mt-6 space-y-6">
+            {!hasEarnings ? (
+              <EmptyEarningsState />
+            ) : (
+              <>
+                {/* Weekly Chart */}
+                <WeeklyBreakdownChart data={data.weeklyBreakdown} />
+
+                {/* Monthly Breakdown (if applicable) */}
+                {data.showMonthlyView && data.monthlyBreakdown && (
+                  <MonthlyBreakdownTable data={data.monthlyBreakdown} />
+                )}
+
+                {/* Recent Earnings */}
+                <div className="space-y-4">
+                  <div className="flex items-center justify-between">
+                    <h3 className="text-lg font-semibold text-black dark:text-white">
+                      Recent Sessions
+                    </h3>
+                    <button
+                      onClick={() => setActiveTab("earnings")}
+                      className="text-sm text-[#F3CFC6] hover:underline"
+                    >
+                      View All
+                    </button>
+                  </div>
+                  <EarningsTable
+                    earnings={data.recentEarnings}
+                    compact
+                    showPagination={false}
+                  />
                 </div>
-                <div>
-                  <h3 className="text-lg font-semibold mb-4 text-black dark:text-white">
-                    Payment Methods
-                  </h3>
-                  <ScrollArea className="h-[200px]">
-                    <AnimatePresence>
-                      {paymentMethods.length > 0 ? (
-                        paymentMethods.map((method) => (
-                          <motion.div
-                            key={method.id}
-                            variants={cardVariants}
-                            whileHover={{
-                              scale: 1.05,
-                              boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-                            }}
-                            transition={{ duration: 0.2 }}
-                            className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
-                          >
-                            <div className="flex items-center space-x-3">
-                              <CreditCard className="h-6 w-6 text-[#F3CFC6]" />
-                              <div>
-                                <p className="font-semibold text-black dark:text-white">
-                                  {method.type}
-                                </p>
-                                <p className="text-sm text-[#C4C4C4]">
-                                  Ending in {method.lastFour} • Expires{" "}
-                                  {method.expiry}
-                                </p>
-                              </div>
-                            </div>
-                            <Button
-                              variant="outline"
-                              size="sm"
-                              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
-                            >
-                              Edit
-                            </Button>
-                          </motion.div>
-                        ))
-                      ) : (
-                        <p className="text-center text-[#C4C4C4]">
-                          No payment methods found.
-                        </p>
-                      )}
-                    </AnimatePresence>
-                  </ScrollArea>
-                  <Button
-                    variant="outline"
-                    className="mt-4 text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
-                  >
-                    Add Payment Method
-                  </Button>
-                </div>
-              </motion.div>
-            </TabsContent>
-            <TabsContent value="history">
-              <motion.div className="space-y-4" variants={containerVariants}>
-                <AnimatePresence>
-                  {filteredPayments.filter((p) => p.status !== "pending")
-                    .length > 0 ? (
-                    filteredPayments
-                      .filter((p) => p.status !== "pending")
-                      .map((payment) => (
-                        <motion.div
-                          key={payment.id}
-                          variants={cardVariants}
-                          whileHover={{
-                            scale: 1.05,
-                            boxShadow: "0 8px 16px rgba(0,0,0,0.1)",
-                          }}
-                          transition={{ duration: 0.2 }}
-                          className="flex items-center justify-between p-4 hover:bg-[#F3CFC6]/10 dark:hover:bg-[#C4C4C4]/10 rounded-md"
-                        >
-                          <div>
-                            <p className="font-semibold text-black dark:text-white">
-                              {payment.professional.name}
-                            </p>
-                            <p className="text-sm text-[#C4C4C4]">
-                              ${payment.amount} - {payment.date} -{" "}
-                              {payment.status}
-                            </p>
-                          </div>
-                          <Button
-                            asChild
-                            variant="outline"
-                            size="sm"
-                            className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20"
-                          >
-                            <Link href={`/payment/${payment.id}`}>Details</Link>
-                          </Button>
-                        </motion.div>
-                      ))
-                  ) : (
-                    <p className="text-center text-[#C4C4C4]">
-                      No payment history found.
-                    </p>
-                  )}
-                </AnimatePresence>
-              </motion.div>
-            </TabsContent>
-          </Tabs>
-        </CardContent>
-      </Card>
+              </>
+            )}
+          </TabsContent>
+
+          {/* Earnings Tab */}
+          <TabsContent value="earnings" className="mt-6">
+            <EarningsTable showFilters showPagination />
+          </TabsContent>
+
+          {/* Payouts Tab */}
+          <TabsContent value="payouts" className="mt-6">
+            <PayoutHistoryTable />
+          </TabsContent>
+        </Tabs>
+      </motion.div>
+
+      {/* Confirmation Dialog */}
+      <ConfirmationDialog
+        appointmentId={selectedConfirmation}
+        open={!!selectedConfirmation}
+        onClose={() => setSelectedConfirmation(null)}
+        onSuccess={() => {
+          setSelectedConfirmation(null);
+          refetch();
+        }}
+      />
     </motion.div>
   );
 }

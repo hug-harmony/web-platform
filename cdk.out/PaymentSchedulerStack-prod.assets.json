@@ -1,0 +1,36 @@
+{
+  "version": "48.0.0",
+  "files": {
+    "e61b6358bd35c2bb1c1d471189c27b06d2bd8b6a60507f318ec75ba986429cca": {
+      "displayName": "PaymentProcessorHandler/Code",
+      "source": {
+        "path": "asset.e61b6358bd35c2bb1c1d471189c27b06d2bd8b6a60507f318ec75ba986429cca",
+        "packaging": "zip"
+      },
+      "destinations": {
+        "232247293056-us-east-2-ac91ce46": {
+          "bucketName": "cdk-hnb659fds-assets-232247293056-us-east-2",
+          "objectKey": "e61b6358bd35c2bb1c1d471189c27b06d2bd8b6a60507f318ec75ba986429cca.zip",
+          "region": "us-east-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-file-publishing-role-232247293056-us-east-2"
+        }
+      }
+    },
+    "94b91c64a0b43fb151acdce106269f5318ab774cc0ba443bfcb9f9737220ce52": {
+      "displayName": "PaymentSchedulerStack-prod Template",
+      "source": {
+        "path": "PaymentSchedulerStack-prod.template.json",
+        "packaging": "file"
+      },
+      "destinations": {
+        "232247293056-us-east-2-231fc534": {
+          "bucketName": "cdk-hnb659fds-assets-232247293056-us-east-2",
+          "objectKey": "94b91c64a0b43fb151acdce106269f5318ab774cc0ba443bfcb9f9737220ce52.json",
+          "region": "us-east-2",
+          "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-file-publishing-role-232247293056-us-east-2"
+        }
+      }
+    }
+  },
+  "dockerImages": {}
+}
