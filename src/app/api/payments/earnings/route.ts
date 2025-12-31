@@ -11,12 +11,13 @@ import {
   getMonthlyBreakdown,
 } from "@/lib/services/payments";
 import { EarningStatus } from "@/types/payments";
+import { getPreviousCycleDates } from "@/lib/utils/paymentCycle";
 import { z } from "zod";
 
 // Query params schema
 const querySchema = z.object({
   view: z
-    .enum(["list", "weekly", "monthly", "summary"])
+    .enum(["list", "weekly", "monthly", "summary", "previous-cycle"])
     .optional()
     .default("list"),
   status: z
@@ -73,6 +74,13 @@ export async function GET(request: NextRequest) {
           currentCycle,
           lifetime,
         });
+      }
+
+      case "previous-cycle": {
+        const previousCycleSummary =
+          await getPreviousCycleEarningsSummary(professionalId);
+
+        return NextResponse.json(previousCycleSummary);
       }
 
       case "weekly": {
@@ -147,4 +155,74 @@ async function getProfessionalIdForUser(
   }
 
   return null;
+}
+
+// Helper function to get previous cycle earnings summary
+async function getPreviousCycleEarningsSummary(professionalId: string) {
+  const { default: prisma } = await import("@/lib/prisma");
+
+  const previousCycle = getPreviousCycleDates();
+
+  // Find the cycle in the database
+  const cycle = await prisma.payoutCycle.findFirst({
+    where: {
+      startDate: {
+        gte: new Date(previousCycle.startDate.getTime() - 1000), // 1 second tolerance
+        lte: new Date(previousCycle.startDate.getTime() + 1000),
+      },
+    },
+  });
+
+  if (!cycle) {
+    return {
+      hasPreviousCycleEarnings: false,
+      summary: null,
+      cycle: {
+        startDate: previousCycle.startDate,
+        endDate: previousCycle.endDate,
+      },
+    };
+  }
+
+  // Get aggregated earnings for the previous cycle
+  const aggregation = await prisma.earning.aggregate({
+    where: {
+      professionalId,
+      cycleId: cycle.id,
+      status: { in: ["pending", "confirmed", "paid"] },
+    },
+    _sum: {
+      grossAmount: true,
+      platformFeeAmount: true,
+      netAmount: true,
+    },
+    _count: true,
+  });
+
+  const sessionsCount = aggregation._count || 0;
+
+  if (sessionsCount === 0) {
+    return {
+      hasPreviousCycleEarnings: false,
+      summary: null,
+      cycle: {
+        startDate: cycle.startDate,
+        endDate: cycle.endDate,
+      },
+    };
+  }
+
+  return {
+    hasPreviousCycleEarnings: true,
+    summary: {
+      grossTotal: aggregation._sum.grossAmount || 0,
+      platformFeeTotal: aggregation._sum.platformFeeAmount || 0,
+      netTotal: aggregation._sum.netAmount || 0,
+      sessionsCount,
+    },
+    cycle: {
+      startDate: cycle.startDate,
+      endDate: cycle.endDate,
+    },
+  };
 }

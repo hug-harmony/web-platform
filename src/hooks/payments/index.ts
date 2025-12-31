@@ -44,3 +44,4 @@ export {
 // CYCLES
 // ============================================
 export { useCurrentCycle, useCycles, useCycleEarnings } from "./useCycles";
+export { useCycleEndBanner } from "./useCycleEndBanner";
