@@ -1,7 +1,10 @@
-// components/VideoCard.tsx
-import { Play, Clock, CheckCircle } from "lucide-react";
-import { Button } from "@/components/ui/button";
-import { Card } from "@/components/ui/card";
+// src/components/trainingvideos/VideoCard.tsx
+"use client";
+
+import { Card, CardContent } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
+import { Progress } from "@/components/ui/progress";
+import { Video, Play, CheckCircle, Clock } from "lucide-react";
 
 interface VideoCardProps {
   video: {
@@ -18,86 +21,84 @@ interface VideoCardProps {
 }
 
 export default function VideoCard({ video, onPlay }: VideoCardProps) {
+  const progress =
+    video.userProgress && video.durationSec
+      ? Math.min(100, (video.userProgress.watchedSec / video.durationSec) * 100)
+      : 0;
+
+  const isCompleted = video.userProgress?.isCompleted;
+  const hasStarted = video.userProgress && video.userProgress.watchedSec > 0;
+
   const formatDuration = (sec?: number | null) => {
     if (!sec) return "—";
-    const m = Math.floor(sec / 60);
-    const s = sec % 60;
-    return `${m}:${s.toString().padStart(2, "0")}`;
+    const hours = Math.floor(sec / 3600);
+    const mins = Math.floor((sec % 3600) / 60);
+    const secs = sec % 60;
+    if (hours > 0) {
+      return `${hours}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
+    return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
-
-  const watched = video.userProgress?.watchedSec || 0;
-  const total = video.durationSec || 1;
-  const progress = (watched / total) * 100;
-  const isCompleted = video.userProgress?.isCompleted || progress >= 100;
 
   return (
     <Card
-      className="overflow-hidden cursor-pointer hover:shadow-lg transition-all duration-200 group"
+      className={`overflow-hidden border-[#C4C4C4]/30 hover:shadow-lg transition-all cursor-pointer group ${
+        isCompleted ? "ring-2 ring-emerald-500/30" : ""
+      }`}
       onClick={onPlay}
     >
       {/* Thumbnail */}
-      <div className="relative h-48 bg-gradient-to-br from-[#F3CFC6] to-[#C4C4C4] flex items-center justify-center">
-        <Play className="h-16 w-16 text-white opacity-80 group-hover:opacity-100 transition-opacity" />
-        <div className="absolute inset-0 flex items-center justify-center">
-          <Button
-            size="lg"
-            className="bg-white/20 backdrop-blur-sm hover:bg-white/30 opacity-0 group-hover:opacity-100 transition-opacity"
-            onClick={(e) => {
-              e.stopPropagation();
-              onPlay();
-            }}
-          >
-            <Play className="h-8 w-8 text-white" />
-          </Button>
+      <div className="relative h-40 bg-gradient-to-br from-[#F3CFC6] to-[#C4C4C4] flex items-center justify-center overflow-hidden">
+        <Video className="h-12 w-12 text-white/80" />
+
+        {/* Play Overlay */}
+        <div className="absolute inset-0 bg-black/40 opacity-0 group-hover:opacity-100 transition-opacity flex items-center justify-center">
+          <div className="h-16 w-16 rounded-full bg-white/90 flex items-center justify-center transform group-hover:scale-110 transition-transform">
+            <Play className="h-8 w-8 text-[#F3CFC6] ml-1" />
+          </div>
         </div>
 
-        {/* Progress Overlay on Thumbnail */}
-        {watched > 0 && (
-          <div className="absolute bottom-0 left-0 right-0 h-1 bg-black/30">
-            <div
-              className="h-full bg-[#F3CFC6] transition-all duration-500"
-              style={{ width: `${Math.min(progress, 100)}%` }}
-            />
-          </div>
-        )}
-      </div>
-
-      {/* Content */}
-      <div className="p-4 space-y-2">
-        <h3 className="font-semibold text-black dark:text-white line-clamp-2 leading-tight">
-          {video.name}
-        </h3>
-
-        <div className="flex items-center justify-between text-sm text-[#C4C4C4]">
-          <span className="flex items-center gap-1">
-            <Clock className="h-3 w-3" />
-            {formatDuration(video.durationSec)}
-          </span>
-
+        {/* Status Badge */}
+        <div className="absolute top-3 right-3">
           {isCompleted ? (
-            <span className="flex items-center gap-1 text-green-600 font-medium">
-              <CheckCircle className="h-3.5 w-3.5" />
+            <Badge className="bg-emerald-500 text-white gap-1">
+              <CheckCircle className="h-3 w-3" />
               Completed
-            </span>
-          ) : watched > 0 ? (
-            <span className="text-xs font-medium">
-              {Math.round(progress)}% watched
-            </span>
+            </Badge>
+          ) : hasStarted ? (
+            <Badge className="bg-amber-500 text-white">In Progress</Badge>
           ) : (
-            <span className="text-xs text-[#C4C4C4]/70">Not started</span>
+            <Badge variant="secondary" className="bg-white/90 text-black">
+              New
+            </Badge>
           )}
         </div>
 
-        {/* Progress Bar Below */}
-        {video.durationSec && (
-          <div className="w-full h-1.5 bg-gray-200 dark:bg-gray-700 rounded-full overflow-hidden">
-            <div
-              className="h-full bg-gradient-to-r from-[#F3CFC6] to-[#E8A8A2] transition-all duration-500"
-              style={{ width: `${Math.min(progress, 100)}%` }}
-            />
-          </div>
-        )}
+        {/* Duration */}
+        <div className="absolute bottom-3 right-3 bg-black/70 text-white text-xs px-2 py-1 rounded-md flex items-center gap-1">
+          <Clock className="h-3 w-3" />
+          {formatDuration(video.durationSec)}
+        </div>
       </div>
+
+      {/* Content */}
+      <CardContent className="p-4">
+        <h3 className="font-semibold text-foreground line-clamp-2 mb-3 group-hover:text-[#F3CFC6] transition-colors">
+          {video.name}
+        </h3>
+
+        {/* Progress Bar */}
+        <div className="space-y-1.5">
+          <div className="flex items-center justify-between text-xs text-muted-foreground">
+            <span>Progress</span>
+            <span className="font-medium">{Math.round(progress)}%</span>
+          </div>
+          <Progress
+            value={progress}
+            className={`h-1.5 ${isCompleted ? "bg-emerald-100" : "bg-[#C4C4C4]/20"}`}
+          />
+        </div>
+      </CardContent>
     </Card>
   );
 }

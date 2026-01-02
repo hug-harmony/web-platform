@@ -1,4 +1,4 @@
-// app/dashboard/edit-profile/professional-application/video/page.tsx
+// src/app/dashboard/edit-profile/professional-application/video/page.tsx
 "use client";
 
 import { useEffect, useRef, useState, useCallback } from "react";
@@ -7,6 +7,7 @@ import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { Button } from "@/components/ui/button";
 import { Progress } from "@/components/ui/progress";
 import { Skeleton } from "@/components/ui/skeleton";
+import { Badge } from "@/components/ui/badge";
 import {
   ArrowLeft,
   Play,
@@ -16,6 +17,10 @@ import {
   CheckCircle,
   Loader2,
   ArrowRight,
+  AlertTriangle,
+  RotateCcw,
+  Clock,
+  Shield,
 } from "lucide-react";
 import Link from "next/link";
 import { useSession } from "next-auth/react";
@@ -36,6 +41,7 @@ declare global {
         controls?: 0 | 1;
         playsinline?: 0 | 1;
         start?: number;
+        disablekb?: 0 | 1;
       };
       events?: {
         onReady?: (event: PlayerEvent) => void;
@@ -51,6 +57,7 @@ declare global {
       isMuted(): boolean;
       getDuration(): number;
       getCurrentTime(): number;
+      seekTo(seconds: number, allowSeekAhead: boolean): void;
       destroy(): void;
     }
 
@@ -108,11 +115,18 @@ const VIDEO_ALLOWED_STATUSES = [
   "APPROVED",
 ];
 
+const containerVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.5 } },
+};
+
 export default function VideoPage() {
   const playerRef = useRef<YT.Player | null>(null);
   const containerRef = useRef<HTMLDivElement>(null);
   const saveIntervalRef = useRef<NodeJS.Timeout | null>(null);
   const progressIntervalRef = useRef<NodeJS.Timeout | null>(null);
+  const maxWatchedRef = useRef<number>(0);
+  const lastValidTimeRef = useRef<number>(0);
 
   const [pageStatus, setPageStatus] = useState<PageStatus>("loading");
   const [video, setVideo] = useState<VideoData | null>(null);
@@ -124,6 +138,7 @@ export default function VideoPage() {
   const [playerReady, setPlayerReady] = useState(false);
   const [isComplete, setIsComplete] = useState(false);
   const [isSaving, setIsSaving] = useState(false);
+  const [seekWarning, setSeekWarning] = useState(false);
 
   const { status } = useSession();
   const router = useRouter();
@@ -161,6 +176,8 @@ export default function VideoPage() {
       setApplication(data.application);
       setIsComplete(data.video.isCompleted);
       setCurrentTime(data.video.watchedSec);
+      maxWatchedRef.current = data.video.watchedSec;
+      lastValidTimeRef.current = data.video.watchedSec;
       setProgress(
         data.video.durationSec
           ? (data.video.watchedSec / data.video.durationSec) * 100
@@ -216,8 +233,24 @@ export default function VideoPage() {
       playerRef.current?.getDuration() || video?.durationSec || 0;
     await saveProgress(Math.floor(duration), true);
     setIsComplete(true);
-    toast.success("Video completed! You can now proceed to the quiz.");
+    toast.success("Video completed! You can now proceed to the quiz. 🎉");
   }, [isComplete, video?.durationSec, saveProgress]);
+
+  const handleSeekAttempt = useCallback((attemptedTime: number) => {
+    // Allow seeking backwards
+    if (attemptedTime <= maxWatchedRef.current) {
+      lastValidTimeRef.current = attemptedTime;
+      return;
+    }
+
+    // Block forward seeking
+    setSeekWarning(true);
+    setTimeout(() => setSeekWarning(false), 3000);
+
+    if (playerRef.current) {
+      playerRef.current.seekTo(lastValidTimeRef.current, true);
+    }
+  }, []);
 
   const createPlayer = useCallback(() => {
     if (!containerRef.current || !video) return;
@@ -237,9 +270,10 @@ export default function VideoPage() {
       playerVars: {
         autoplay: 0,
         rel: 0,
-        controls: 1,
+        controls: 0, // Disable default controls for seek restriction
         playsinline: 1,
         start: 0,
+        disablekb: 1, // Disable keyboard controls
       },
       events: {
         onReady: () => setPlayerReady(true),
@@ -252,6 +286,7 @@ export default function VideoPage() {
       },
     });
 
+    // Save progress every 10 seconds
     saveIntervalRef.current = setInterval(() => {
       if (isComplete || !playerRef.current?.getCurrentTime) return;
       const current = Math.floor(playerRef.current.getCurrentTime());
@@ -275,14 +310,11 @@ export default function VideoPage() {
     window.onYouTubeIframeAPIReady = createPlayer;
 
     return () => {
-      if (saveIntervalRef.current !== null) {
-        clearInterval(saveIntervalRef.current);
-      }
-      if (progressIntervalRef.current !== null) {
+      if (saveIntervalRef.current) clearInterval(saveIntervalRef.current);
+      if (progressIntervalRef.current)
         clearInterval(progressIntervalRef.current);
-      }
       playerRef.current?.destroy();
-      void (playerRef.current = null); // Explicitly mark as intentional side effect
+      playerRef.current = null;
     };
   }, [video, pageStatus, createPlayer]);
 
@@ -294,26 +326,49 @@ export default function VideoPage() {
 
       const current = playerRef.current.getCurrentTime();
       const duration = video.durationSec;
-      const pct = (current / duration) * 100;
 
+      // Check for forward seek attempts
+      if (current > maxWatchedRef.current + 2) {
+        handleSeekAttempt(current);
+        return;
+      }
+
+      // Update max watched position
+      if (current > maxWatchedRef.current) {
+        maxWatchedRef.current = current;
+      }
+      lastValidTimeRef.current = current;
+
+      const pct = (current / duration) * 100;
       setCurrentTime(Math.floor(current));
       setProgress(pct);
 
+      // Complete at 90%
       if (pct >= 90 && !isComplete) {
         markComplete();
       }
-    }, 1000);
+    }, 500);
 
     return () => {
-      if (progressIntervalRef.current !== null) {
+      if (progressIntervalRef.current)
         clearInterval(progressIntervalRef.current);
-      }
     };
-  }, [playerReady, video?.durationSec, isComplete, markComplete]);
+  }, [
+    playerReady,
+    video?.durationSec,
+    isComplete,
+    markComplete,
+    handleSeekAttempt,
+  ]);
 
   const formatTime = (seconds: number): string => {
-    const mins = Math.floor(seconds / 60);
+    const hrs = Math.floor(seconds / 3600);
+    const mins = Math.floor((seconds % 3600) / 60);
     const secs = Math.floor(seconds % 60);
+
+    if (hrs > 0) {
+      return `${hrs}:${mins.toString().padStart(2, "0")}:${secs.toString().padStart(2, "0")}`;
+    }
     return `${mins}:${secs.toString().padStart(2, "0")}`;
   };
 
@@ -344,8 +399,9 @@ export default function VideoPage() {
 
   if (pageStatus === "error") {
     return (
-      <div className="p-4 max-w-3xl mx-auto">
+      <div className="p-4 max-w-4xl mx-auto">
         <Alert variant="destructive">
+          <AlertTriangle className="h-4 w-4" />
           <AlertTitle>Error Loading Video</AlertTitle>
           <AlertDescription>
             Unable to load the onboarding video. Please try again.
@@ -364,10 +420,13 @@ export default function VideoPage() {
 
   if (pageStatus === "no_application") {
     return (
-      <div className="p-4 max-w-3xl mx-auto">
-        <Alert>
-          <AlertTitle>Step Not Available</AlertTitle>
-          <AlertDescription>
+      <div className="p-4 max-w-4xl mx-auto">
+        <Alert className="border-amber-300 bg-amber-50 dark:bg-amber-950/30">
+          <AlertTriangle className="h-4 w-4 text-amber-600" />
+          <AlertTitle className="text-amber-800 dark:text-amber-300">
+            Step Not Available
+          </AlertTitle>
+          <AlertDescription className="text-amber-700 dark:text-amber-400">
             You must complete the application form before accessing this video.
             <Button asChild variant="link" className="p-0 h-auto ml-2">
               <Link href="/dashboard/edit-profile/professional-application">
@@ -385,75 +444,122 @@ export default function VideoPage() {
   return (
     <motion.div
       className="p-4 space-y-6 max-w-4xl mx-auto"
-      initial={{ opacity: 0, y: 20 }}
-      animate={{ opacity: 1, y: 0 }}
-      transition={{ duration: 0.5 }}
+      variants={containerVariants}
+      initial="hidden"
+      animate="visible"
     >
       {/* Header */}
-      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
-        <CardHeader>
-          <div className="flex flex-col md:flex-row gap-2 items-start justify-between">
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg border-0">
+        <CardHeader className="pb-4">
+          <div className="flex flex-col md:flex-row gap-4 items-start justify-between">
             <Button
               asChild
               variant="outline"
               size="sm"
-              className="rounded-full"
+              className="rounded-full bg-white/80 hover:bg-white"
             >
               <Link href="/dashboard/edit-profile/professional-application/status">
                 <ArrowLeft className="mr-2 h-4 w-4" /> Back to Status
               </Link>
             </Button>
-            <CardTitle className="text-xl text-black">
-              Step 2: Watch Onboarding Video
-            </CardTitle>
-            <div className="w-20" />
+
+            <div className="text-center flex-1">
+              <Badge className="bg-black/20 text-black mb-2">Step 2 of 3</Badge>
+              <CardTitle className="text-xl text-black">
+                Watch Onboarding Video
+              </CardTitle>
+            </div>
+
+            <div className="w-32 hidden md:block" />
           </div>
         </CardHeader>
       </Card>
 
+      {/* Seek Warning Toast */}
+      {seekWarning && (
+        <motion.div
+          initial={{ opacity: 0, y: -20 }}
+          animate={{ opacity: 1, y: 0 }}
+          exit={{ opacity: 0, y: -20 }}
+          className="fixed top-20 left-1/2 -translate-x-1/2 z-50"
+        >
+          <Alert className="bg-amber-500 text-black border-amber-600 shadow-lg">
+            <AlertTriangle className="h-4 w-4" />
+            <AlertDescription className="font-medium">
+              You can rewind but cannot skip ahead
+            </AlertDescription>
+          </Alert>
+        </motion.div>
+      )}
+
       {/* Already Completed Notice */}
       {canProceed && (
-        <Alert className="border-green-500 bg-green-50">
-          <CheckCircle className="h-5 w-5 text-green-600" />
-          <AlertTitle className="text-green-800">Video Completed</AlertTitle>
-          <AlertDescription className="text-green-700">
-            You have already watched this video. You may rewatch or proceed to
-            the next step.
+        <Alert className="border-emerald-300 bg-emerald-50 dark:bg-emerald-950/30">
+          <CheckCircle className="h-5 w-5 text-emerald-600" />
+          <AlertTitle className="text-emerald-800 dark:text-emerald-300">
+            Video Completed!
+          </AlertTitle>
+          <AlertDescription className="text-emerald-700 dark:text-emerald-400">
+            Great job! You&apos;ve completed this video. You may rewatch it or
+            proceed to the quiz.
           </AlertDescription>
         </Alert>
       )}
 
-      {/* Video Player */}
-      <Card className="shadow-lg overflow-hidden">
+      {/* Video Player Card */}
+      <Card className="shadow-xl overflow-hidden border-0">
         <CardContent className="p-0">
+          {/* Video Container */}
           <div className="relative bg-black aspect-video">
             <div ref={containerRef} className="w-full h-full" />
 
+            {/* Loading State */}
             {!playerReady && (
-              <div className="absolute inset-0 flex items-center justify-center bg-black/70">
+              <div className="absolute inset-0 flex items-center justify-center bg-gradient-to-br from-zinc-900 to-black">
                 <div className="text-white text-center">
-                  <Loader2 className="h-12 w-12 animate-spin mx-auto mb-3" />
-                  <p className="text-lg">Loading video player...</p>
+                  <Loader2 className="h-14 w-14 animate-spin mx-auto mb-4" />
+                  <p className="text-lg font-medium">Loading video player...</p>
+                  <p className="text-sm text-zinc-400 mt-1">Please wait</p>
                 </div>
               </div>
             )}
 
-            {/* Custom Bottom Controls */}
-            <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-black/90 via-black/50 to-transparent">
-              <div className="mb-4">
-                <Progress value={progress} className="h-3 bg-white/20" />
+            {/* Seek Restriction Notice */}
+            {!canProceed && playerReady && (
+              <div className="absolute top-4 left-4 bg-black/70 text-white px-3 py-1.5 rounded-full text-xs flex items-center gap-2">
+                <Shield className="h-3 w-3" />
+                Seeking restricted
+              </div>
+            )}
+
+            {/* Custom Controls */}
+            <div className="absolute bottom-0 left-0 right-0 p-5 bg-gradient-to-t from-black via-black/70 to-transparent">
+              {/* Progress Bar */}
+              <div className="mb-4 relative group">
+                <div className="h-2 bg-white/20 rounded-full overflow-hidden">
+                  <div
+                    className="h-full bg-[#F3CFC6] transition-all duration-300"
+                    style={{ width: `${progress}%` }}
+                  />
+                </div>
+                {/* Max watched indicator */}
+                {!canProceed && (
+                  <div
+                    className="absolute top-0 h-2 w-1 bg-white/60 rounded-full"
+                    style={{
+                      left: `${(maxWatchedRef.current / video.durationSec) * 100}%`,
+                    }}
+                  />
+                )}
               </div>
 
-              <div className="flex items-center justify-between text-white">
-                <div className="text-sm font-medium">
-                  {formatTime(currentTime)} / {formatTime(video.durationSec)}
-                </div>
-
+              <div className="flex items-center justify-between">
+                {/* Left Controls */}
                 <div className="flex items-center gap-3">
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="text-white hover:bg-white/20 rounded-full"
+                    className="text-white hover:bg-white/20 rounded-full h-12 w-12"
                     onClick={() =>
                       isPlaying
                         ? playerRef.current?.pauseVideo()
@@ -464,90 +570,111 @@ export default function VideoPage() {
                     {isPlaying ? (
                       <Pause className="h-6 w-6" />
                     ) : (
-                      <Play className="h-6 w-6" />
+                      <Play className="h-6 w-6 ml-0.5" />
                     )}
                   </Button>
 
                   <Button
                     size="icon"
                     variant="ghost"
-                    className="text-white hover:bg-white/20 rounded-full"
+                    className="text-white hover:bg-white/20 rounded-full h-10 w-10"
                     onClick={() => {
                       if (!playerRef.current) return;
-
                       if (playerRef.current.isMuted()) {
                         playerRef.current.unMute();
+                        setIsMuted(false);
                       } else {
                         playerRef.current.mute();
+                        setIsMuted(true);
                       }
-
-                      setIsMuted(!isMuted);
                     }}
                     disabled={!playerReady}
                   >
                     {isMuted ? (
-                      <VolumeX className="h-6 w-6" />
+                      <VolumeX className="h-5 w-5" />
                     ) : (
-                      <Volume2 className="h-6 w-6" />
+                      <Volume2 className="h-5 w-5" />
                     )}
                   </Button>
 
-                  {canProceed && (
-                    <div className="flex items-center gap-2 bg-green-600 text-white px-3 py-1.5 rounded-full text-sm font-medium">
-                      <CheckCircle className="h-4 w-4" />
-                      Completed
+                  <div className="text-white font-mono text-sm flex items-center gap-2">
+                    <Clock className="h-4 w-4 opacity-60" />
+                    {formatTime(currentTime)} / {formatTime(video.durationSec)}
+                  </div>
+                </div>
+
+                {/* Right Status */}
+                <div className="flex items-center gap-3">
+                  {isSaving && (
+                    <div className="text-white/60 text-xs flex items-center gap-1">
+                      <Loader2 className="h-3 w-3 animate-spin" />
+                      Saving...
                     </div>
+                  )}
+
+                  {canProceed && (
+                    <Badge className="bg-emerald-500 text-white gap-1.5 py-1">
+                      <CheckCircle className="h-3.5 w-3.5" />
+                      Completed
+                    </Badge>
                   )}
                 </div>
               </div>
             </div>
           </div>
 
-          {/* Info & Action */}
-          <div className="p-6 space-y-5">
+          {/* Video Info & Actions */}
+          <div className="p-6 space-y-5 bg-white dark:bg-zinc-900">
             <div>
-              <h3 className="text-lg font-semibold text-foreground">
+              <h3 className="text-xl font-semibold text-foreground">
                 {video.name}
               </h3>
               <p className="text-sm text-muted-foreground mt-1">
                 {canProceed
-                  ? "You have completed this step. Proceed to the quiz when ready."
+                  ? "You've completed this step. Proceed to the quiz when ready."
                   : "Watch at least 90% of the video to unlock the next step."}
               </p>
             </div>
 
+            {/* Progress Stats */}
             {!canProceed && (
-              <div className="flex items-center justify-between text-sm">
-                <div className="flex items-center gap-2">
-                  <div
-                    className={`h-3 w-3 rounded-full ${
-                      progress >= 90 ? "bg-green-500" : "bg-amber-500"
-                    }`}
-                  />
-                  <span className="font-medium">
-                    {Math.round(progress)}% complete
+              <div className="bg-muted/50 rounded-xl p-4">
+                <div className="flex items-center justify-between mb-3">
+                  <div className="flex items-center gap-2">
+                    <div
+                      className={`h-3 w-3 rounded-full ${
+                        progress >= 90 ? "bg-emerald-500" : "bg-amber-500"
+                      }`}
+                    />
+                    <span className="font-medium">
+                      {Math.round(progress)}% complete
+                    </span>
+                  </div>
+                  <span className="text-sm text-muted-foreground">
+                    {Math.max(
+                      0,
+                      Math.ceil(video.durationSec * 0.9 - currentTime)
+                    )}{" "}
+                    seconds to 90%
                   </span>
                 </div>
-                <span className="text-muted-foreground">
-                  {Math.max(
-                    0,
-                    Math.ceil(video.durationSec * 0.9 - currentTime)
-                  )}{" "}
-                  seconds remaining
-                </span>
+                <Progress value={progress} className="h-2" />
+
+                <div className="flex items-center gap-2 text-xs text-muted-foreground mt-3">
+                  <RotateCcw className="h-3 w-3" />
+                  You can rewind to review content, but cannot skip ahead
+                </div>
               </div>
             )}
 
-            {isSaving && (
-              <div className="text-xs text-muted-foreground flex items-center gap-1">
-                <Loader2 className="h-3 w-3 animate-spin" />
-                Saving progress...
-              </div>
-            )}
-
+            {/* Action Button */}
             <Button
               size="lg"
-              className="w-full bg-[#F3CFC6] hover:bg-[#e5b8ad] text-black rounded-full text-base font-medium"
+              className={`w-full rounded-xl text-base font-medium ${
+                canProceed
+                  ? "bg-[#F3CFC6] hover:bg-[#e5b8ad] text-black"
+                  : "bg-muted text-muted-foreground"
+              }`}
               onClick={() => router.push(getNextStepUrl())}
               disabled={!canProceed}
             >
@@ -557,7 +684,7 @@ export default function VideoPage() {
                   <ArrowRight className="ml-2 h-5 w-5" />
                 </>
               ) : (
-                `Watch 90% to Proceed (${Math.round(progress)}%)`
+                `Watch ${90 - Math.round(progress)}% more to continue`
               )}
             </Button>
           </div>
@@ -570,23 +697,26 @@ export default function VideoPage() {
 function LoadingSkeleton() {
   return (
     <div className="p-4 space-y-6 max-w-4xl mx-auto">
-      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg">
+      <Card className="bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg border-0">
         <CardHeader>
-          <div className="flex flex-col md:flex-row gap-2 items-start justify-between">
+          <div className="flex flex-col md:flex-row gap-4 items-start justify-between">
             <Skeleton className="h-9 w-32 rounded-full" />
-            <Skeleton className="h-7 w-64" />
-            <div className="w-20" />
+            <div className="text-center flex-1 space-y-2">
+              <Skeleton className="h-5 w-20 mx-auto" />
+              <Skeleton className="h-7 w-48 mx-auto" />
+            </div>
+            <div className="w-32 hidden md:block" />
           </div>
         </CardHeader>
       </Card>
 
-      <Card className="shadow-lg overflow-hidden">
-        <Skeleton className="aspect-video w-full bg-gray-200" />
+      <Card className="shadow-xl overflow-hidden border-0">
+        <Skeleton className="aspect-video w-full" />
         <div className="p-6 space-y-5">
           <Skeleton className="h-7 w-80" />
           <Skeleton className="h-4 w-full" />
-          <Skeleton className="h-4 w-64" />
-          <Skeleton className="h-12 w-full rounded-full" />
+          <Skeleton className="h-20 w-full rounded-xl" />
+          <Skeleton className="h-12 w-full rounded-xl" />
         </div>
       </Card>
     </div>

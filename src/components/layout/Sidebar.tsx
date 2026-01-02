@@ -30,6 +30,7 @@ import {
   Menu,
   X,
   ChevronRight,
+  VideoIcon,
 } from "lucide-react";
 
 interface NavItem {
@@ -128,11 +129,18 @@ export default function Sidebar() {
     );
 
     if (isProfessional) {
-      items.push({
-        href: "/dashboard/payment",
-        label: "Payments",
-        icon: <CreditCard className={iconClass} />,
-      });
+      items.push(
+        {
+          href: "/dashboard/payment",
+          label: "Payments",
+          icon: <CreditCard className={iconClass} />,
+        },
+        {
+          href: "/dashboard/training-videos",
+          label: "Training Videos",
+          icon: <VideoIcon className={iconClass} />,
+        }
+      );
     }
 
     return items;
