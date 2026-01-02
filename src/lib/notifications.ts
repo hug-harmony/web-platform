@@ -201,7 +201,9 @@ async function sendRealtimeNotification(
   notification: NotificationRecord
 ): Promise<void> {
   if (!isWebSocketConfigured()) {
-    console.log("WebSocket not configured, skipping real-time notification");
+    console.log(
+      "[Notifications] WebSocket not configured, skipping real-time notification"
+    );
     return;
   }
 
@@ -223,13 +225,38 @@ async function sendRealtimeNotification(
     const connections = connectionsResult.Items || [];
 
     if (connections.length === 0) {
-      console.log(`No active connections for user ${userId}`);
+      console.log(`[Notifications] No active connections for user ${userId}`);
       return;
     }
 
-    console.log(`Found ${connections.length} connections for user ${userId}`);
+    console.log(
+      `[Notifications] Found ${connections.length} connections for user ${userId}`
+    );
 
     const apiClient = getApiGatewayManagementClient();
+
+    // This is the message format that the frontend expects
+    const message = {
+      type: "notification",
+      notification: {
+        ...notification,
+        // Ensure all required fields are present
+        id: notification.id,
+        userId: notification.userId,
+        type: notification.type,
+        content: notification.content,
+        timestamp: notification.timestamp,
+        unread: notification.unread,
+        unreadBool: notification.unreadBool,
+        senderId: notification.senderId,
+        relatedId: notification.relatedId,
+      },
+    };
+
+    console.log(
+      `[Notifications] Sending WebSocket message:`,
+      JSON.stringify(message)
+    );
 
     const results = await Promise.allSettled(
       connections.map(async (conn) => {
@@ -237,19 +264,17 @@ async function sendRealtimeNotification(
           await apiClient.send(
             new PostToConnectionCommand({
               ConnectionId: conn.connectionId,
-              Data: Buffer.from(
-                JSON.stringify({
-                  type: "notification",
-                  notification,
-                })
-              ),
+              Data: Buffer.from(JSON.stringify(message)),
             })
+          );
+          console.log(
+            `[Notifications] Sent to connection ${conn.connectionId}`
           );
           return true;
         } catch (error: unknown) {
           if ((error as { name?: string }).name !== "GoneException") {
             console.error(
-              `Error sending to connection ${conn.connectionId}:`,
+              `[Notifications] Error sending to connection ${conn.connectionId}:`,
               error
             );
           }
@@ -262,10 +287,13 @@ async function sendRealtimeNotification(
       (r) => r.status === "fulfilled" && r.value
     ).length;
     console.log(
-      `Sent notification to ${successful}/${connections.length} connections`
+      `[Notifications] Sent to ${successful}/${connections.length} connections`
     );
   } catch (error) {
-    console.error("Failed to send real-time notification:", error);
+    console.error(
+      "[Notifications] Failed to send real-time notification:",
+      error
+    );
   }
 }
 
