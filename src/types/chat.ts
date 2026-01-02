@@ -1,3 +1,4 @@
+// src/types/chat.ts
 export interface ChatMessage {
   id: string;
   text: string;
@@ -17,10 +18,9 @@ export interface ChatMessage {
     userId: string | null;
   };
   conversationId: string;
-
-  // NEW: For edit and delete support
-  edited?: boolean; // true if message was edited (based on updatedAt !== createdAt)
-  deletedAt?: string | null; // ISO string if soft-deleted
+  type?: "text" | "image" | "audio";
+  edited?: boolean;
+  deletedAt?: string | null;
 }
 
 export interface Participant {
@@ -32,22 +32,44 @@ export interface Participant {
   isProfessional?: boolean;
 }
 
+export interface ConversationUser {
+  id: string;
+  firstName?: string | null;
+  lastName?: string | null;
+  profileImage?: string | null;
+  lastOnline?: Date | string | null;
+  biography?: string | null;
+  location?: string | null;
+  createdAt?: Date | string | null;
+  isVerified?: boolean;
+  isProfessional?: boolean;
+  professionalId?: string | null;
+  rating?: number | null;
+  reviewCount?: number | null;
+}
+
+export interface ConversationLastMessage {
+  id: string;
+  text: string;
+  createdAt: string;
+  senderId: string;
+  type?: "text" | "image" | "audio";
+  read?: boolean;
+}
+
 export interface Conversation {
   id: string;
-  user1: Participant;
-  user2: Participant;
+  user1: Participant | ConversationUser;
+  user2: Participant | ConversationUser;
   userId1: string;
   userId2: string;
   professionalId?: string | null;
-  lastMessage?: {
-    id: string;
-    text: string;
-    createdAt: string;
-    senderId: string;
-  } | null;
+  lastMessage?: ConversationLastMessage | null;
   messageCount?: number;
   unreadCount?: number;
   updatedAt?: string;
+  isPinned?: boolean;
+  isArchived?: boolean;
 }
 
 export interface ConversationWithMessages extends Conversation {
@@ -84,12 +106,12 @@ export interface WSMessage {
     | "proposalUpdate"
     | "pong"
     | "error"
-    | "editMessage" // NEW
-    | "deleteMessage"; // NEW
+    | "editMessage"
+    | "deleteMessage";
   conversationId?: string;
   message?: ChatMessage;
-  messageId?: string; // For edit/delete
-  updatedText?: string; // For edit
+  messageId?: string;
+  updatedText?: string;
   userId?: string;
   proposalId?: string;
   error?: string;

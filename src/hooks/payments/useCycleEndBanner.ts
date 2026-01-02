@@ -26,7 +26,7 @@ interface CycleEndBannerData {
 const DISMISS_KEY_PREFIX = "cycle_banner_dismissed_";
 
 // Set to true to always show the banner (for testing)
-const DEBUG_ALWAYS_SHOW = false;
+const DEBUG_ALWAYS_SHOW = true;
 
 /**
  * Hook to manage the cycle end notification banner
