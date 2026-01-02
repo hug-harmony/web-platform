@@ -1,4 +1,4 @@
-// lib/services/profiles.ts
+// src/lib/services/profiles.ts
 
 import prisma from "@/lib/prisma";
 import type {
@@ -12,24 +12,6 @@ import type {
 /**
  * Get a profile by ID - automatically detects if it's a user or professional
  */
-/*
-export async function getProfileById(id: string): Promise<Profile | null> {
-  // First, try to find as a professional
-  const professional = await getProfessionalProfile(id);
-  if (professional) {
-    return professional;
-  }
-
-  // If not found, try to find as a user
-  const user = await getUserProfile(id);
-  if (user) {
-    return user;
-  }
-
-  return null;
-}
-*/
-
 export async function getProfileById(id: string): Promise<Profile | null> {
   // First, try to find as a professional by professional ID
   const professional = await getProfessionalProfile(id);
@@ -167,6 +149,9 @@ export async function getProfessionalProfile(
     reviewCount: professional.reviewCount || undefined,
     venue: professional.venue || undefined,
     userId: professional.applications?.[0]?.userId || undefined,
+
+    // Payment acceptance methods
+    paymentAcceptanceMethods: professional.paymentAcceptanceMethods || [],
 
     // Reviews
     reviews: professional.reviews.map(

@@ -55,6 +55,8 @@ export interface Profile {
     id: string;
     url: string;
   }[];
+  // NEW: Payment acceptance methods for professionals
+  paymentAcceptanceMethods?: string[];
 }
 
 export interface LocationResult {

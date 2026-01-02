@@ -27,6 +27,7 @@ import type { Profile, ProfessionalProfile } from "@/types/profile";
 import { Star } from "lucide-react";
 import { cn } from "@/lib/utils";
 import { Button } from "@/components/ui/button";
+import { PaymentAcceptanceMethodsDisplay } from "@/components/profile/PaymentAcceptanceMethodsDisplay";
 
 // Animation variants
 const containerVariants = {
@@ -469,6 +470,15 @@ export default function ProfilePage() {
       )}
 
       <PersonalInfo profile={profile} />
+
+      {/* Payment Acceptance Methods - Only for professionals */}
+      {isPro &&
+        profile.paymentAcceptanceMethods &&
+        profile.paymentAcceptanceMethods.length > 0 && (
+          <PaymentAcceptanceMethodsDisplay
+            methods={profile.paymentAcceptanceMethods}
+          />
+        )}
 
       {isPro && profile.discounts && profile.discounts.length > 0 && (
         <DiscountsSection discounts={profile.discounts} />

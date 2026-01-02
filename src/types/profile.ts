@@ -1,4 +1,4 @@
-// types/profile.ts
+// src/types/profile.ts
 
 export type ProfileType = "user" | "professional";
 
@@ -48,6 +48,9 @@ export interface ProfessionalProfile extends BaseProfile {
   reviewCount?: number;
   venue?: "host" | "visit" | "both";
   userId?: string; // The linked user's ID for messaging
+
+  // NEW: Payment acceptance methods
+  paymentAcceptanceMethods?: string[];
 
   // Reviews
   reviews?: ProfileReview[];

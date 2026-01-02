@@ -1,9 +1,8 @@
-// app/api/professionals/[id]/route.ts
+// src/app/api/professionals/[id]/route.ts
 
 /* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
-// import { Prisma } from "@prisma/client";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
 
@@ -115,6 +114,8 @@ export async function GET(
       petOwnership: user?.petOwnership || "",
       photos: user?.photos || [],
       discounts: professional.discounts,
+      // NEW: Include payment acceptance methods
+      paymentAcceptanceMethods: professional.paymentAcceptanceMethods || [],
       reviews: professional.reviews.map((r) => ({
         id: r.id,
         rating: r.rating,
@@ -133,18 +134,18 @@ export async function GET(
 }
 
 /* --------------------------------------------------------------
-   PATCH – update biography / rate / venue
+   PATCH – update biography / rate / venue / paymentAcceptanceMethods
    -------------------------------------------------------------- */
 export async function PATCH(
   request: Request,
-  { params }: { params: Promise<{ id: string }> } // <-- Promise!
+  { params }: { params: Promise<{ id: string }> }
 ) {
   const session = await getServerSession(authOptions);
   if (!session?.user?.id) {
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
   }
 
-  const { id } = await params; // <-- await
+  const { id } = await params;
 
   if (!id) {
     return NextResponse.json(
@@ -177,7 +178,7 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { biography, rate, venue } = body;
+  const { biography, rate, venue, paymentAcceptanceMethods } = body;
 
   // ---- validation ----
   if (
@@ -199,6 +200,40 @@ export async function PATCH(
     return NextResponse.json({ error: "Invalid venue" }, { status: 400 });
   }
 
+  // NEW: Validate payment acceptance methods
+  if (paymentAcceptanceMethods !== undefined) {
+    if (!Array.isArray(paymentAcceptanceMethods)) {
+      return NextResponse.json(
+        { error: "paymentAcceptanceMethods must be an array" },
+        { status: 400 }
+      );
+    }
+
+    const validMethods = [
+      "cash",
+      "credit_card",
+      "debit_card",
+      "zelle",
+      "venmo",
+      "paypal",
+      "apple_pay",
+      "google_pay",
+      "cashapp",
+      "check",
+    ];
+
+    const invalidMethods = paymentAcceptanceMethods.filter(
+      (m: string) => !validMethods.includes(m)
+    );
+
+    if (invalidMethods.length > 0) {
+      return NextResponse.json(
+        { error: `Invalid payment methods: ${invalidMethods.join(", ")}` },
+        { status: 400 }
+      );
+    }
+  }
+
   // ---- update ----
   try {
     const updated = await prisma.professional.update({
@@ -207,12 +242,14 @@ export async function PATCH(
         biography: biography ?? undefined,
         rate: rate ?? undefined,
         venue: venue ?? undefined,
+        paymentAcceptanceMethods: paymentAcceptanceMethods ?? undefined,
       },
       select: {
         id: true,
         biography: true,
         rate: true,
         venue: true,
+        paymentAcceptanceMethods: true,
       },
     });
 

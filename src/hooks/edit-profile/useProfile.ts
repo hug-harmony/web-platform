@@ -1,5 +1,5 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/hooks/edit-profile/useProfile.ts
+/* eslint-disable @typescript-eslint/no-explicit-any */
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -66,6 +66,7 @@ export function useProfile(id: string) {
         petOwnership: user.petOwnership,
         venue: null,
         rate: null,
+        paymentAcceptanceMethods: [], // NEW: Initialize empty
         photos:
           user.photos?.map((p: any) => ({
             id: p.id,
@@ -83,10 +84,9 @@ export function useProfile(id: string) {
 
         if (statusRes.ok) {
           const data = await statusRes.json();
-          console.log("Onboarding status:", data); // Debug log
+          console.log("Onboarding status:", data);
           setOnboarding(data);
 
-          // ✅ FIX: Use "application" (singular) not "applications"
           if (data.step === "APPROVED" && data.application?.professionalId) {
             // Fetch professional details
             const specRes = await fetch(
@@ -96,7 +96,7 @@ export function useProfile(id: string) {
 
             if (specRes.ok) {
               const spec = await specRes.json();
-              console.log("Professional details:", spec); // Debug log
+              console.log("Professional details:", spec);
 
               setIsProfessional(true);
               setProfessionalId(spec.id);
@@ -108,6 +108,9 @@ export function useProfile(id: string) {
                       biography: spec.biography ?? p.biography,
                       rate: spec.rate ?? null,
                       venue: spec.venue ?? null,
+                      // NEW: Include payment acceptance methods
+                      paymentAcceptanceMethods:
+                        spec.paymentAcceptanceMethods || [],
                     }
                   : p
               );

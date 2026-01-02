@@ -16,6 +16,8 @@ import {
 import { toast } from "sonner";
 import { validateProfessionalProfileForm } from "@/lib/validate-edit-profile";
 import { Profile } from "@/types/edit-profile";
+import { PaymentMethodStatus } from "./PaymentMethodStatus";
+import { PaymentAcceptanceMethodsSection } from "./PaymentAcceptanceMethodsSection";
 
 interface Props {
   profile: Profile | null;
@@ -66,7 +68,6 @@ export function ProfessionalInfoSection({
 
       const updated = await res.json();
 
-      // Fixed: proper typing + no 'any'
       setProfile((prev) =>
         prev
           ? {
@@ -85,6 +86,17 @@ export function ProfessionalInfoSection({
     } finally {
       setUpdating(false);
     }
+  };
+
+  const handlePaymentMethodsUpdate = (methods: string[]) => {
+    setProfile((prev) =>
+      prev
+        ? {
+            ...prev,
+            paymentAcceptanceMethods: methods,
+          }
+        : prev
+    );
   };
 
   if (!profile) {
@@ -222,6 +234,20 @@ export function ProfessionalInfoSection({
           </Button>
         </div>
       )}
+
+      {/* Payment Acceptance Methods */}
+      <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+        <PaymentAcceptanceMethodsSection
+          professionalId={professionalId}
+          initialMethods={profile.paymentAcceptanceMethods || []}
+          onUpdate={handlePaymentMethodsUpdate}
+        />
+      </div>
+
+      {/* Payment Method Status (for platform fees) */}
+      <div className="pt-6 border-t border-gray-200 dark:border-gray-700">
+        <PaymentMethodStatus professionalId={professionalId} />
+      </div>
     </div>
   );
 }

@@ -258,7 +258,11 @@ export default function PaymentsPage() {
           hasPaymentMethod={hasPaymentMethod}
           cardLast4={data.paymentMethod?.cardLast4}
           cardBrand={data.paymentMethod?.cardBrand}
+          cardExpiryMonth={data.paymentMethod?.cardExpiryMonth}
+          cardExpiryYear={data.paymentMethod?.cardExpiryYear}
+          addedAt={data.paymentMethod?.addedAt}
           isBlocked={isPaymentBlocked}
+          blockedReason={data.paymentMethod?.blockedReason}
           onUpdate={refetch}
         />
       </motion.div>

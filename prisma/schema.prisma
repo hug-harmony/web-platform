@@ -161,6 +161,8 @@ model Professional {
   paymentBlockedAt      DateTime? // Set when charge fails
   paymentBlockReason    String? // Why they're blocked
 
+  paymentAcceptanceMethods String[] @default([])
+
   appointments             Appointment[]             @relation("ProfessionalAppointments")
   applications             ProfessionalApplication[] @relation
   VideoSession             VideoSession[]
