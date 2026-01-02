@@ -28,8 +28,10 @@ interface UseEarningsReturn {
   earnings: EarningWithDetails[];
   summary: {
     totalGross: number;
-    totalPlatformFees: number;
     totalNet: number;
+    totalPlatformFees: number;
+    confirmedCount: number;
+    pendingCount: number;
   };
   pagination: {
     total: number;
@@ -50,8 +52,10 @@ export function useEarnings(
   const [earnings, setEarnings] = useState<EarningWithDetails[]>([]);
   const [summary, setSummary] = useState({
     totalGross: 0,
-    totalPlatformFees: 0,
     totalNet: 0,
+    totalPlatformFees: 0,
+    confirmedCount: 0,
+    pendingCount: 0,
   });
   const [pagination, setPagination] = useState({
     total: 0,
@@ -96,6 +100,11 @@ export function useEarnings(
         });
 
         if (!response.ok) {
+          if (response.status === 403) {
+            // Not a professional
+            setIsLoading(false);
+            return;
+          }
           const errorData = await response.json();
           throw new Error(errorData.error || "Failed to fetch earnings");
         }
@@ -122,6 +131,8 @@ export function useEarnings(
   useEffect(() => {
     if (autoFetch) {
       fetchEarnings();
+    } else {
+      setIsLoading(false);
     }
   }, [fetchEarnings, autoFetch]);
 
@@ -149,18 +160,19 @@ export function useEarnings(
 interface EarningsSummary {
   currentCycle: {
     gross: number;
-    platformFee: number;
     net: number;
+    platformFee: number;
+    platformFeePercent: number;
     sessionsCount: number;
     pendingCount: number;
     confirmedCount: number;
   };
   lifetime: {
     totalGross: number;
-    totalPlatformFees: number;
     totalNet: number;
+    totalPlatformFees: number;
     totalSessions: number;
-    totalPaidOut: number;
+    totalCharged: number;
   };
 }
 
@@ -187,6 +199,10 @@ export function useEarningsSummary(): {
       });
 
       if (!response.ok) {
+        if (response.status === 403) {
+          setIsLoading(false);
+          return;
+        }
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to fetch summary");
       }
@@ -257,6 +273,10 @@ export function useWeeklyBreakdown(options: UseWeeklyBreakdownOptions = {}): {
         });
 
         if (!response.ok) {
+          if (response.status === 403) {
+            setIsLoading(false);
+            return;
+          }
           const errorData = await response.json();
           throw new Error(
             errorData.error || "Failed to fetch weekly breakdown"
@@ -343,6 +363,10 @@ export function useMonthlyBreakdown(options: UseMonthlyBreakdownOptions = {}): {
       });
 
       if (!response.ok) {
+        if (response.status === 403) {
+          setIsLoading(false);
+          return;
+        }
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to fetch monthly breakdown");
       }

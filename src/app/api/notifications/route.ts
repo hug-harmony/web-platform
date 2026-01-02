@@ -2,38 +2,34 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-  DynamoDBDocumentClient,
-  QueryCommand,
-  PutCommand,
-} from "@aws-sdk/lib-dynamodb";
+import { getDocClient, TABLES } from "@/lib/aws/clients";
+import { QueryCommand, PutCommand } from "@aws-sdk/lib-dynamodb";
 import { randomUUID } from "crypto";
 
-const client = new DynamoDBClient({
-  region: process.env.REGION || "us-east-2",
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
-
-const docClient = DynamoDBDocumentClient.from(client);
-const TABLE_NAME = process.env.NOTIFICATIONS_TABLE || "Notifications-prod";
+export type NotificationType =
+  | "message"
+  | "appointment"
+  | "payment"
+  | "profile_visit"
+  | "video_call";
 
 export interface Notification {
   id: string;
   userId: string;
   senderId?: string;
-  type: "message" | "appointment" | "payment" | "profile_visit";
+  type: NotificationType;
   content: string;
   timestamp: string;
   unread: string;
   unreadBool: boolean;
   relatedId?: string;
+  ttl?: number;
 }
 
-// GET - Fetch user's notifications
+/**
+ * GET - Fetch user's notifications
+ * Supports filtering by type and unread status using GSIs
+ */
 export async function GET(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -42,37 +38,83 @@ export async function GET(request: NextRequest) {
     }
 
     const { searchParams } = new URL(request.url);
-    const limit = parseInt(searchParams.get("limit") || "50");
+    const limit = Math.min(parseInt(searchParams.get("limit") || "50"), 100);
     const unreadOnly = searchParams.get("unreadOnly") === "true";
-    const type = searchParams.get("type");
+    const type = searchParams.get("type") as NotificationType | null;
 
-    const command = new QueryCommand({
-      TableName: TABLE_NAME,
-      KeyConditionExpression: "userId = :userId",
-      ExpressionAttributeValues: {
-        ":userId": session.user.id,
-      },
-      ScanIndexForward: false,
-      Limit: limit,
-    });
+    const docClient = getDocClient();
+    let notifications: Notification[] = [];
 
-    const result = await docClient.send(command);
-    let notifications = (result.Items || []) as Notification[];
-
-    // Apply filters
     if (unreadOnly) {
-      notifications = notifications.filter((n) => n.unreadBool === true);
-    }
-    if (type) {
-      notifications = notifications.filter((n) => n.type === type);
+      // Use UnreadIndex GSI for efficient unread queries
+      const command = new QueryCommand({
+        TableName: TABLES.NOTIFICATIONS,
+        IndexName: "UnreadIndex",
+        KeyConditionExpression: "userId = :userId AND unread = :unread",
+        ExpressionAttributeValues: {
+          ":userId": session.user.id,
+          ":unread": "true",
+        },
+        Limit: limit,
+        ScanIndexForward: false, // Most recent first (by timestamp in main table)
+      });
+
+      const result = await docClient.send(command);
+      notifications = (result.Items || []) as Notification[];
+
+      // If type filter is also specified, apply it client-side
+      // (Could create a composite GSI for userId#unread#type if this is common)
+      if (type) {
+        notifications = notifications.filter((n) => n.type === type);
+      }
+    } else if (type) {
+      // Use TypeIndex GSI for type filtering
+      const command = new QueryCommand({
+        TableName: TABLES.NOTIFICATIONS,
+        IndexName: "TypeIndex",
+        KeyConditionExpression: "userId = :userId AND #type = :type",
+        ExpressionAttributeNames: {
+          "#type": "type",
+        },
+        ExpressionAttributeValues: {
+          ":userId": session.user.id,
+          ":type": type,
+        },
+        Limit: limit,
+        ScanIndexForward: false,
+      });
+
+      const result = await docClient.send(command);
+      notifications = (result.Items || []) as Notification[];
+    } else {
+      // Default query - all notifications for user
+      const command = new QueryCommand({
+        TableName: TABLES.NOTIFICATIONS,
+        KeyConditionExpression: "userId = :userId",
+        ExpressionAttributeValues: {
+          ":userId": session.user.id,
+        },
+        Limit: limit,
+        ScanIndexForward: false, // Most recent first
+      });
+
+      const result = await docClient.send(command);
+      notifications = (result.Items || []) as Notification[];
     }
 
-    const unreadCount = notifications.filter(
-      (n) => n.unreadBool === true
-    ).length;
+    // Sort by timestamp (descending) - GSI might not preserve order
+    notifications.sort(
+      (a, b) =>
+        new Date(b.timestamp).getTime() - new Date(a.timestamp).getTime()
+    );
+
+    // Calculate unread count from the results or query separately
+    const unreadCount = unreadOnly
+      ? notifications.length
+      : notifications.filter((n) => n.unreadBool === true).length;
 
     return NextResponse.json({
-      notifications,
+      notifications: notifications.slice(0, limit),
       unreadCount,
       total: notifications.length,
     });
@@ -85,7 +127,9 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create a notification
+/**
+ * POST - Create a notification (direct method, prefer using SNS in production)
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -102,6 +146,23 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Validate type
+    const validTypes: NotificationType[] = [
+      "message",
+      "appointment",
+      "payment",
+      "profile_visit",
+      "video_call",
+    ];
+    if (!validTypes.includes(type)) {
+      return NextResponse.json(
+        { error: `Invalid type. Must be one of: ${validTypes.join(", ")}` },
+        { status: 400 }
+      );
+    }
+
+    const docClient = getDocClient();
 
     const now = new Date().toISOString();
     const ttl = Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60; // 30 days
@@ -121,7 +182,7 @@ export async function POST(request: NextRequest) {
 
     await docClient.send(
       new PutCommand({
-        TableName: TABLE_NAME,
+        TableName: TABLES.NOTIFICATIONS,
         Item: notification,
       })
     );

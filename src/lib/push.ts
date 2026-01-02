@@ -1,36 +1,27 @@
 // src/lib/push.ts
 import webpush from "web-push";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-  DynamoDBDocumentClient,
-  QueryCommand,
-  DeleteCommand,
-} from "@aws-sdk/lib-dynamodb";
+import { getDocClient, TABLES } from "@/lib/aws/clients";
+import { QueryCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 
-// Configure web-push
-if (
-  process.env.VAPID_EMAIL &&
-  process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY &&
-  process.env.VAPID_PRIVATE_KEY
-) {
-  webpush.setVapidDetails(
-    process.env.VAPID_EMAIL,
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+// Configure web-push with VAPID keys
+const configureWebPush = () => {
+  if (
+    process.env.VAPID_EMAIL &&
+    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY &&
     process.env.VAPID_PRIVATE_KEY
-  );
-}
+  ) {
+    webpush.setVapidDetails(
+      process.env.VAPID_EMAIL,
+      process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY,
+      process.env.VAPID_PRIVATE_KEY
+    );
+    return true;
+  }
+  return false;
+};
 
-const client = new DynamoDBClient({
-  region: process.env.REGION || "us-east-2",
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
-
-const docClient = DynamoDBDocumentClient.from(client);
-const TABLE_NAME =
-  process.env.PUSH_SUBSCRIPTIONS_TABLE || "PushSubscriptions-prod";
+// Initialize on module load
+const isConfigured = configureWebPush();
 
 export interface PushPayload {
   title: string;
@@ -42,19 +33,31 @@ export interface PushPayload {
   data?: Record<string, unknown>;
 }
 
+export interface PushResult {
+  success: number;
+  failed: number;
+}
+
 /**
  * Send push notification to a specific user
  */
 export async function sendPushToUser(
   userId: string,
   payload: PushPayload
-): Promise<{ success: number; failed: number }> {
+): Promise<PushResult> {
+  if (!isConfigured) {
+    console.log("Web push not configured, skipping");
+    return { success: 0, failed: 0 };
+  }
+
   try {
+    const docClient = getDocClient();
+
     // Get all subscriptions for user
     const result = await docClient.send(
       new QueryCommand({
-        TableName: TABLE_NAME,
-        KeyConditionExpression: "odI = :userId",
+        TableName: TABLES.PUSH_SUBSCRIPTIONS,
+        KeyConditionExpression: "userId = :userId",
         ExpressionAttributeValues: {
           ":userId": userId,
         },
@@ -100,9 +103,9 @@ export async function sendPushToUser(
             await docClient
               .send(
                 new DeleteCommand({
-                  TableName: TABLE_NAME,
+                  TableName: TABLES.PUSH_SUBSCRIPTIONS,
                   Key: {
-                    odI: userId,
+                    userId: userId,
                     endpoint: sub.endpoint,
                   },
                 })
@@ -129,9 +132,51 @@ export async function sendPushToUser(
  * Check if web-push is configured
  */
 export function isPushConfigured(): boolean {
-  return !!(
-    process.env.VAPID_EMAIL &&
-    process.env.NEXT_PUBLIC_VAPID_PUBLIC_KEY &&
-    process.env.VAPID_PRIVATE_KEY
-  );
+  return isConfigured;
+}
+
+/**
+ * Get push title based on notification type
+ */
+export function getPushTitle(type: string): string {
+  switch (type) {
+    case "message":
+      return "New Message";
+    case "appointment":
+      return "Appointment Update";
+    case "payment":
+      return "Payment Update";
+    case "profile_visit":
+      return "Profile Visitor";
+    case "video_call":
+      return "Video Call";
+    default:
+      return "Hug Harmony";
+  }
+}
+
+/**
+ * Get notification URL based on type
+ */
+export function getNotificationUrl(type: string, relatedId?: string): string {
+  switch (type) {
+    case "message":
+      return relatedId
+        ? `/dashboard/messaging/${relatedId}`
+        : "/dashboard/messaging";
+    case "appointment":
+      return "/dashboard/appointments";
+    case "payment":
+      return "/dashboard/payment";
+    case "profile_visit":
+      return relatedId
+        ? `/dashboard/profile/${relatedId}`
+        : "/dashboard/profile-visits";
+    case "video_call":
+      return relatedId
+        ? `/dashboard/video-session/${relatedId}`
+        : "/dashboard/video-session";
+    default:
+      return "/dashboard/notifications";
+  }
 }

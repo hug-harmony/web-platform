@@ -1,4 +1,4 @@
-// src/app/dashboard/payment/components/PayoutHistoryTable.tsx
+// src/components/payments/FeeChargeHistoryTable.tsx
 
 "use client";
 
@@ -29,7 +29,7 @@ import {
   AccordionTrigger,
 } from "@/components/ui/accordion";
 import {
-  Wallet,
+  CreditCard,
   Filter,
   ChevronDown,
   Loader2,
@@ -38,17 +38,20 @@ import {
   AlertCircle,
   XCircle,
   Calendar,
+  Ban,
 } from "lucide-react";
-import { usePayouts, usePayout } from "@/hooks/payments";
-import { PayoutStatus, PayoutHistoryItem } from "@/types/payments";
+import { useFeeCharges } from "@/hooks/payments";
+import { FeeChargeStatus } from "@/types/payments";
 import { cn } from "@/lib/utils";
 
-export function PayoutHistoryTable() {
-  const [statusFilter, setStatusFilter] = useState<PayoutStatus | "all">("all");
-  const [expandedPayout, setExpandedPayout] = useState<string | null>(null);
+export function FeeChargeHistoryTable() {
+  const [statusFilter, setStatusFilter] = useState<FeeChargeStatus | "all">(
+    "all"
+  );
+  const [expandedCharge, setExpandedCharge] = useState<string | null>(null);
 
-  const { payouts, summary, pagination, isLoading, error, loadMore } =
-    usePayouts({
+  const { feeCharges, summary, pagination, isLoading, error, loadMore } =
+    useFeeCharges({
       status: statusFilter === "all" ? undefined : statusFilter,
     });
 
@@ -79,9 +82,9 @@ export function PayoutHistoryTable() {
     });
   };
 
-  const getStatusInfo = (status: PayoutStatus) => {
+  const getStatusInfo = (status: FeeChargeStatus) => {
     const variants: Record<
-      PayoutStatus,
+      FeeChargeStatus,
       { icon: React.ReactNode; className: string; label: string }
     > = {
       pending: {
@@ -100,13 +103,25 @@ export function PayoutHistoryTable() {
         icon: <CheckCircle2 className="w-3.5 h-3.5" />,
         className:
           "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
-        label: "Completed",
+        label: "Paid",
       },
       failed: {
         icon: <XCircle className="w-3.5 h-3.5" />,
         className:
           "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
         label: "Failed",
+      },
+      partially_paid: {
+        icon: <AlertCircle className="w-3.5 h-3.5" />,
+        className:
+          "bg-orange-100 text-orange-800 dark:bg-orange-900/30 dark:text-orange-400",
+        label: "Partial",
+      },
+      waived: {
+        icon: <Ban className="w-3.5 h-3.5" />,
+        className:
+          "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+        label: "Waived",
       },
     };
 
@@ -129,15 +144,17 @@ export function PayoutHistoryTable() {
       <CardHeader className="pb-4">
         <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
           <CardTitle className="flex items-center gap-2">
-            <Wallet className="w-5 h-5 text-[#F3CFC6]" />
-            Payout History
+            <CreditCard className="w-5 h-5 text-[#F3CFC6]" />
+            Platform Fee History
           </CardTitle>
 
           <div className="flex items-center gap-2">
             <Filter className="w-4 h-4 text-[#C4C4C4]" />
             <Select
               value={statusFilter}
-              onValueChange={(v) => setStatusFilter(v as PayoutStatus | "all")}
+              onValueChange={(v) =>
+                setStatusFilter(v as FeeChargeStatus | "all")
+              }
             >
               <SelectTrigger className="w-[140px]">
                 <SelectValue placeholder="All Status" />
@@ -146,19 +163,20 @@ export function PayoutHistoryTable() {
                 <SelectItem value="all">All Status</SelectItem>
                 <SelectItem value="pending">Pending</SelectItem>
                 <SelectItem value="processing">Processing</SelectItem>
-                <SelectItem value="completed">Completed</SelectItem>
+                <SelectItem value="completed">Paid</SelectItem>
                 <SelectItem value="failed">Failed</SelectItem>
+                <SelectItem value="waived">Waived</SelectItem>
               </SelectContent>
             </Select>
           </div>
         </div>
 
         {/* Summary */}
-        <div className="flex gap-6 mt-4 text-sm">
+        <div className="flex gap-6 mt-4 text-sm flex-wrap">
           <div>
             <span className="text-[#C4C4C4]">Total Paid: </span>
             <span className="font-medium text-green-600 dark:text-green-400">
-              {formatCurrency(summary.totalPaid)}
+              {formatCurrency(summary.totalCharged)}
             </span>
           </div>
           <div>
@@ -167,20 +185,36 @@ export function PayoutHistoryTable() {
               {formatCurrency(summary.totalPending)}
             </span>
           </div>
+          {summary.totalFailed > 0 && (
+            <div>
+              <span className="text-[#C4C4C4]">Failed: </span>
+              <span className="font-medium text-red-600 dark:text-red-400">
+                {formatCurrency(summary.totalFailed)}
+              </span>
+            </div>
+          )}
+          {summary.totalWaived > 0 && (
+            <div>
+              <span className="text-[#C4C4C4]">Waived: </span>
+              <span className="font-medium text-purple-600 dark:text-purple-400">
+                {formatCurrency(summary.totalWaived)}
+              </span>
+            </div>
+          )}
         </div>
       </CardHeader>
 
       <CardContent>
-        {isLoading && payouts.length === 0 ? (
+        {isLoading && feeCharges.length === 0 ? (
           <div className="py-8 flex justify-center">
             <Loader2 className="w-6 h-6 text-[#F3CFC6] animate-spin" />
           </div>
-        ) : payouts.length === 0 ? (
+        ) : feeCharges.length === 0 ? (
           <div className="py-8 text-center">
-            <Wallet className="w-12 h-12 text-[#C4C4C4] mx-auto mb-3" />
-            <p className="text-[#C4C4C4]">No payouts yet</p>
+            <CreditCard className="w-12 h-12 text-[#C4C4C4] mx-auto mb-3" />
+            <p className="text-[#C4C4C4]">No fee charges yet</p>
             <p className="text-sm text-[#C4C4C4]/70 mt-1">
-              Complete sessions to receive your first payout
+              Platform fees will appear here after your sessions are confirmed
             </p>
           </div>
         ) : (
@@ -190,29 +224,28 @@ export function PayoutHistoryTable() {
               <Table>
                 <TableHeader>
                   <TableRow>
-                    <TableHead>Period</TableHead>
+                    <TableHead>Cycle Period</TableHead>
                     <TableHead className="text-right">Sessions</TableHead>
-                    <TableHead className="text-right">Gross</TableHead>
-                    <TableHead className="text-right">Fees</TableHead>
-                    <TableHead className="text-right">Net</TableHead>
+                    <TableHead className="text-right">Gross Earnings</TableHead>
+                    <TableHead className="text-right">Platform Fee</TableHead>
                     <TableHead>Status</TableHead>
-                    <TableHead>Paid On</TableHead>
+                    <TableHead>Charged On</TableHead>
                   </TableRow>
                 </TableHeader>
                 <TableBody>
                   <AnimatePresence>
-                    {payouts.map((payout, index) => {
-                      const statusInfo = getStatusInfo(payout.status);
+                    {feeCharges.map((charge, index) => {
+                      const statusInfo = getStatusInfo(charge.status);
                       return (
                         <motion.tr
-                          key={payout.id}
+                          key={charge.id}
                           initial={{ opacity: 0, y: 10 }}
                           animate={{ opacity: 1, y: 0 }}
                           transition={{ delay: index * 0.05 }}
                           className="border-b border-[#C4C4C4]/10 hover:bg-[#F3CFC6]/5 cursor-pointer"
                           onClick={() =>
-                            setExpandedPayout(
-                              expandedPayout === payout.id ? null : payout.id
+                            setExpandedCharge(
+                              expandedCharge === charge.id ? null : charge.id
                             )
                           }
                         >
@@ -221,23 +254,23 @@ export function PayoutHistoryTable() {
                               <Calendar className="w-4 h-4 text-[#C4C4C4]" />
                               <span className="font-medium text-black dark:text-white">
                                 {formatDateRange(
-                                  payout.cycleStartDate,
-                                  payout.cycleEndDate
+                                  charge.cycle.startDate,
+                                  charge.cycle.endDate
                                 )}
                               </span>
                             </div>
                           </TableCell>
                           <TableCell className="text-right text-[#C4C4C4]">
-                            {payout.earningsCount}
+                            {charge.earningsCount}
                           </TableCell>
                           <TableCell className="text-right text-black dark:text-white">
-                            {formatCurrency(payout.grossTotal)}
+                            {formatCurrency(charge.totalGrossEarnings)}
                           </TableCell>
-                          <TableCell className="text-right text-[#C4C4C4]">
-                            {formatCurrency(payout.platformFeeTotal)}
-                          </TableCell>
-                          <TableCell className="text-right font-semibold text-green-600 dark:text-green-400">
-                            {formatCurrency(payout.netTotal)}
+                          <TableCell className="text-right font-semibold text-[#F3CFC6]">
+                            {formatCurrency(charge.amountToCharge)}
+                            <span className="text-xs text-[#C4C4C4] ml-1">
+                              ({charge.platformFeePercent}%)
+                            </span>
                           </TableCell>
                           <TableCell>
                             <Badge
@@ -252,7 +285,7 @@ export function PayoutHistoryTable() {
                             </Badge>
                           </TableCell>
                           <TableCell className="text-[#C4C4C4]">
-                            {formatDate(payout.processedAt)}
+                            {formatDate(charge.chargedAt)}
                           </TableCell>
                         </motion.tr>
                       );
@@ -267,36 +300,36 @@ export function PayoutHistoryTable() {
               <Accordion
                 type="single"
                 collapsible
-                value={expandedPayout || undefined}
-                onValueChange={(v) => setExpandedPayout(v || null)}
+                value={expandedCharge || undefined}
+                onValueChange={(v) => setExpandedCharge(v || null)}
               >
-                {payouts.map((payout, index) => {
-                  const statusInfo = getStatusInfo(payout.status);
+                {feeCharges.map((charge, index) => {
+                  const statusInfo = getStatusInfo(charge.status);
                   return (
                     <motion.div
-                      key={payout.id}
+                      key={charge.id}
                       initial={{ opacity: 0, y: 10 }}
                       animate={{ opacity: 1, y: 0 }}
                       transition={{ delay: index * 0.05 }}
                     >
-                      <AccordionItem value={payout.id} className="border-b-0">
+                      <AccordionItem value={charge.id} className="border-b-0">
                         <AccordionTrigger className="py-3 px-0 hover:no-underline">
                           <div className="flex items-center justify-between w-full pr-2">
                             <div className="text-left">
                               <p className="font-medium text-black dark:text-white text-sm">
                                 {formatDateRange(
-                                  payout.cycleStartDate,
-                                  payout.cycleEndDate
+                                  charge.cycle.startDate,
+                                  charge.cycle.endDate
                                 )}
                               </p>
                               <p className="text-xs text-[#C4C4C4]">
-                                {payout.earningsCount} session
-                                {payout.earningsCount !== 1 ? "s" : ""}
+                                {charge.earningsCount} session
+                                {charge.earningsCount !== 1 ? "s" : ""}
                               </p>
                             </div>
                             <div className="text-right flex items-center gap-2">
-                              <span className="font-semibold text-green-600 dark:text-green-400">
-                                {formatCurrency(payout.netTotal)}
+                              <span className="font-semibold text-[#F3CFC6]">
+                                {formatCurrency(charge.amountToCharge)}
                               </span>
                               <Badge
                                 variant="secondary"
@@ -314,34 +347,53 @@ export function PayoutHistoryTable() {
                                 Gross Earnings
                               </span>
                               <span className="text-black dark:text-white">
-                                {formatCurrency(payout.grossTotal)}
+                                {formatCurrency(charge.totalGrossEarnings)}
                               </span>
                             </div>
                             <div className="flex justify-between">
                               <span className="text-[#C4C4C4]">
-                                Platform Fees
+                                Platform Fee ({charge.platformFeePercent}%)
                               </span>
-                              <span className="text-black dark:text-white">
-                                -{formatCurrency(payout.platformFeeTotal)}
+                              <span className="text-[#F3CFC6]">
+                                {formatCurrency(charge.amountToCharge)}
                               </span>
                             </div>
                             <div className="flex justify-between pt-2 border-t border-[#C4C4C4]/20">
                               <span className="font-medium text-black dark:text-white">
-                                Net Payout
+                                Your Net Earnings
                               </span>
                               <span className="font-semibold text-green-600 dark:text-green-400">
-                                {formatCurrency(payout.netTotal)}
+                                {formatCurrency(
+                                  charge.totalGrossEarnings -
+                                    charge.amountToCharge
+                                )}
                               </span>
                             </div>
 
-                            {payout.processedAt && (
+                            {charge.chargedAt && (
                               <div className="flex justify-between pt-2">
-                                <span className="text-[#C4C4C4]">Paid On</span>
+                                <span className="text-[#C4C4C4]">
+                                  Charged On
+                                </span>
                                 <span className="text-black dark:text-white">
-                                  {formatDate(payout.processedAt)}
+                                  {formatDate(charge.chargedAt)}
                                 </span>
                               </div>
                             )}
+
+                            {charge.status === "failed" &&
+                              charge.failureMessage && (
+                                <div className="mt-2 p-2 bg-red-50 dark:bg-red-900/20 rounded text-xs text-red-600 dark:text-red-400">
+                                  {charge.failureMessage}
+                                </div>
+                              )}
+
+                            {charge.status === "waived" &&
+                              charge.waivedReason && (
+                                <div className="mt-2 p-2 bg-purple-50 dark:bg-purple-900/20 rounded text-xs text-purple-600 dark:text-purple-400">
+                                  Waived: {charge.waivedReason}
+                                </div>
+                              )}
                           </div>
                         </AccordionContent>
                       </AccordionItem>

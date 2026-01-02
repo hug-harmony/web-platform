@@ -1,5 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
-import { useState, useEffect, useRef } from "react";
+import { useState, useEffect, useRef, useCallback } from "react";
 import { X, Play, Pause } from "lucide-react";
 import { Dialog, DialogContent } from "@/components/ui/dialog";
 import { Button } from "@/components/ui/button";
@@ -32,6 +31,21 @@ export default function VideoPlayerModal({
       video.url.split("/").pop()?.split("?")[0]
     : null;
 
+  const saveProgress = useCallback(
+    async (watchedSec: number) => {
+      const response = await fetch(`/api/trainingvideos/${video.id}/watch`, {
+        method: "POST",
+        body: JSON.stringify({ watchedSec }),
+        headers: { "Content-Type": "application/json" },
+      });
+
+      if (response.ok) {
+        onProgressUpdate();
+      }
+    },
+    [video.id, onProgressUpdate]
+  );
+
   useEffect(() => {
     if (video.userProgress?.watchedSec) {
       setCurrentTime(video.userProgress.watchedSec);
@@ -39,8 +53,10 @@ export default function VideoPlayerModal({
   }, [video.userProgress]);
 
   useEffect(() => {
+    const durationSec = video.durationSec;
+
     const interval = setInterval(() => {
-      if (isPlaying && currentTime < (video.durationSec || Infinity)) {
+      if (isPlaying && currentTime < (durationSec || Infinity)) {
         const newTime = currentTime + 1;
         setCurrentTime(newTime);
         saveProgress(newTime);
@@ -48,15 +64,7 @@ export default function VideoPlayerModal({
     }, 1000);
 
     return () => clearInterval(interval);
-  }, [isPlaying, currentTime, video.id]);
-
-  const saveProgress = async (watchedSec: number) => {
-    await fetch(`/api/trainingvideos/${video.id}/watch`, {
-      method: "POST",
-      body: JSON.stringify({ watchedSec }),
-      headers: { "Content-Type": "application/json" },
-    });
-  };
+  }, [isPlaying, currentTime, video.durationSec, saveProgress]);
 
   const togglePlay = () => setIsPlaying(!isPlaying);
 
@@ -76,7 +84,7 @@ export default function VideoPlayerModal({
           <div className="aspect-video bg-black">
             {isYouTube ? (
               <iframe
-                ref={videoRef as any}
+                ref={videoRef as React.RefObject<HTMLIFrameElement>}
                 src={`https://www.youtube.com/embed/${youtubeId}?start=${currentTime}&autoplay=1&rel=0`}
                 allow="accelerometer; autoplay; clipboard-write; encrypted-media; gyroscope; picture-in-picture"
                 allowFullScreen
@@ -84,7 +92,7 @@ export default function VideoPlayerModal({
               />
             ) : (
               <video
-                ref={videoRef as any}
+                ref={videoRef as React.RefObject<HTMLVideoElement>}
                 src={video.url}
                 controls
                 autoPlay

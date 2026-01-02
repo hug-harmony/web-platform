@@ -1,3 +1,4 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
 // lib/services/email.ts
 
 import nodemailer from "nodemailer";
@@ -1095,106 +1096,116 @@ The Hug Harmony Team`,
   };
 }
 
-// Earning Created Email (sent to professional after appointment completion)
-function getEarningCreatedEmailTemplate(
+// ---
+
+// ============================================
+// UPDATED PAYMENT EMAIL TEMPLATES
+// ============================================
+
+// Session Completed Email (sent to professional - updated messaging)
+function getSessionCompletedEmailTemplate(
   professionalName: string,
   clientName: string,
   date: string,
   amount: string,
-  netAmount: string,
+  platformFee: string,
   confirmationUrl: string
 ): EmailTemplate {
   return {
-    subject: `💰 New Earning: $${netAmount} from session with ${clientName}`,
+    subject: `✅ Session Completed with ${clientName}`,
     text: `Hello ${professionalName},
 
 Your session with ${clientName} on ${date} has been completed!
 
 Session Details:
-- Gross Amount: $${amount}
-- Your Earnings: $${netAmount}
+- Amount Received: $${amount}
+- Platform Fee (due at cycle end): $${platformFee}
 
 Please confirm the session took place: ${confirmationUrl}
 
-Both parties need to confirm for the payment to be processed.
+Both parties need to confirm by the end of the cycle. Unconfirmed sessions will be marked as not occurred.
 
 Warm hugs,
 The Hug Harmony Team`,
     html: `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
-          </div>
-          
-          <div style="text-align: center; margin-bottom: 20px;">
-            <span style="font-size: 48px;">💰</span>
-          </div>
-          
-          <h2 style="color: #333; text-align: center;">New Earning!</h2>
-          
-          <p>Hi ${professionalName},</p>
-          
-          <p>Your session with <strong>${clientName}</strong> on <strong>${date}</strong> has been completed!</p>
-          
-          <div style="background-color: #f0fdf4; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <h3 style="margin-top: 0; color: #166534;">Session Earnings</h3>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="padding: 8px 0; color: #166534;">Client:</td>
-                <td style="padding: 8px 0; font-weight: bold; color: #166534;">${clientName}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #166534;">Date:</td>
-                <td style="padding: 8px 0; font-weight: bold; color: #166534;">${date}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #166534;">Gross Amount:</td>
-                <td style="padding: 8px 0; font-weight: bold; color: #166534;">$${amount}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #166534;">Your Earnings:</td>
-                <td style="padding: 8px 0; font-weight: bold; font-size: 18px; color: #166534;">$${netAmount}</td>
-              </tr>
-            </table>
-          </div>
-          
-          <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0; color: #92400e;">
-              <strong>⏳ Action Required:</strong> Please confirm the session took place. Both parties need to confirm for your payment to be processed.
-            </p>
-          </div>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${confirmationUrl}" style="background-color: #10b981; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
-              Confirm Session
-            </a>
-          </div>
-          
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          
-          <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
-        </body>
-      </html>
-    `,
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
+  </div>
+  
+  <div style="text-align: center; margin-bottom: 20px;">
+    <span style="font-size: 48px;">✅</span>
+  </div>
+  
+  <h2 style="color: #333; text-align: center;">Session Completed!</h2>
+  
+  <p>Hi ${professionalName},</p>
+  
+  <p>Your session with <strong>${clientName}</strong> on <strong>${date}</strong> has been completed!</p>
+  
+  <div style="background-color: #f0fdf4; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+    <h3 style="margin-top: 0; color: #166534;">Session Details</h3>
+    <table style="width: 100%; border-collapse: collapse;">
+      <tr>
+        <td style="padding: 8px 0; color: #166534;">Client:</td>
+        <td style="padding: 8px 0; font-weight: bold; color: #166534;">${clientName}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #166534;">Date:</td>
+        <td style="padding: 8px 0; font-weight: bold; color: #166534;">${date}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #166534;">Amount Received:</td>
+        <td style="padding: 8px 0; font-weight: bold; font-size: 18px; color: #166534;">$${amount}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #666;">Platform Fee (due at cycle end):</td>
+        <td style="padding: 8px 0; color: #666;">$${platformFee}</td>
+      </tr>
+    </table>
+  </div>
+  
+  <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
+    <p style="margin: 0; color: #92400e;">
+      <strong>⏳ Action Required:</strong> Please confirm the session took place. Both parties need to confirm by the end of the billing cycle.
+    </p>
+  </div>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${confirmationUrl}" style="background-color: #10b981; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+      Confirm Session
+    </a>
+  </div>
+  
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  
+  <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
+</body>
+</html>`,
   };
 }
 
-// Confirmation Needed Email (reminder)
+// Confirmation Needed Email (updated for new flow)
 function getConfirmationNeededEmailTemplate(
   recipientName: string,
   otherPartyName: string,
   date: string,
-  hoursRemaining: number,
+  daysRemaining: number,
   confirmationUrl: string,
   isRecipientProfessional: boolean
 ): EmailTemplate {
-  const roleLabel = isRecipientProfessional ? "client" : "professional";
+  const urgencyText =
+    daysRemaining <= 1 ? "less than 24 hours" : `${daysRemaining} days`;
+
+  const consequenceText = isRecipientProfessional
+    ? "If not confirmed, no platform fee will be charged for this session."
+    : "If not confirmed by both parties, the session will be marked as not occurred.";
 
   return {
     subject: `⏰ Reminder: Confirm your session with ${otherPartyName}`,
@@ -1202,312 +1213,632 @@ function getConfirmationNeededEmailTemplate(
 
 This is a reminder to confirm your session with ${otherPartyName} on ${date}.
 
-You have ${hoursRemaining} hours remaining to confirm.
+You have ${urgencyText} remaining to confirm.
+
+${consequenceText}
 
 Confirm here: ${confirmationUrl}
-
-If no confirmation is received, the session will be auto-confirmed.
 
 Warm hugs,
 The Hug Harmony Team`,
     html: `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
-          </div>
-          
-          <div style="text-align: center; margin-bottom: 20px;">
-            <span style="font-size: 48px;">⏰</span>
-          </div>
-          
-          <h2 style="color: #333; text-align: center;">Confirmation Reminder</h2>
-          
-          <p>Hi ${recipientName},</p>
-          
-          <p>This is a friendly reminder to confirm your session with <strong>${otherPartyName}</strong> on <strong>${date}</strong>.</p>
-          
-          <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
-            <p style="margin: 0; color: #92400e; font-size: 18px;">
-              <strong>⏳ ${hoursRemaining} hours remaining</strong>
-            </p>
-            <p style="margin: 10px 0 0 0; color: #92400e; font-size: 14px;">
-              If no confirmation is received, the session will be auto-confirmed.
-            </p>
-          </div>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${confirmationUrl}" style="background-color: #f59e0b; color: #000; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
-              Confirm Now
-            </a>
-          </div>
-          
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          
-          <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
-        </body>
-      </html>
-    `,
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
+  </div>
+  
+  <div style="text-align: center; margin-bottom: 20px;">
+    <span style="font-size: 48px;">⏰</span>
+  </div>
+  
+  <h2 style="color: #333; text-align: center;">Confirmation Reminder</h2>
+  
+  <p>Hi ${recipientName},</p>
+  
+  <p>This is a friendly reminder to confirm your session with <strong>${otherPartyName}</strong> on <strong>${date}</strong>.</p>
+  
+  <div style="background-color: ${daysRemaining <= 1 ? "#fef2f2" : "#fef3c7"}; border: 1px solid ${daysRemaining <= 1 ? "#fecaca" : "#f59e0b"}; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+    <p style="margin: 0; color: ${daysRemaining <= 1 ? "#991b1b" : "#92400e"}; font-size: 18px;">
+      <strong>⏳ ${urgencyText} remaining</strong>
+    </p>
+    <p style="margin: 10px 0 0 0; color: ${daysRemaining <= 1 ? "#991b1b" : "#92400e"}; font-size: 14px;">
+      ${consequenceText}
+    </p>
+  </div>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${confirmationUrl}" style="background-color: #f59e0b; color: #000; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+      Confirm Now
+    </a>
+  </div>
+  
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  
+  <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
+</body>
+</html>`,
   };
 }
 
-// Payout Processed Email
-function getPayoutProcessedEmailTemplate(
+// ============================================
+// NEW: FEE CHARGE EMAIL TEMPLATES
+// ============================================
+
+// Platform Fee Charged Email (successful charge)
+function getFeeChargedEmailTemplate(
   professionalName: string,
   amount: string,
   sessionsCount: number,
   cycleStartDate: string,
   cycleEndDate: string,
-  paymentMethod: string,
+  cardLast4: string,
   dashboardUrl: string
 ): EmailTemplate {
   return {
-    subject: `🎉 Payout Processed: $${amount} sent to your account!`,
+    subject: `💳 Platform Fee Charged: $${amount}`,
     text: `Hello ${professionalName},
 
-Great news! Your payout has been processed!
+Your platform fee for ${cycleStartDate} - ${cycleEndDate} has been charged.
 
-Payout Details:
+Charge Details:
 - Amount: $${amount}
 - Sessions: ${sessionsCount}
-- Period: ${cycleStartDate} - ${cycleEndDate}
-- Payment Method: ${paymentMethod}
+- Card: •••• ${cardLast4}
 
-The funds should arrive in your account within 1-2 business days.
+View your payment history: ${dashboardUrl}
 
-View your earnings: ${dashboardUrl}
+Thank you for being part of Hug Harmony!
 
 Warm hugs,
 The Hug Harmony Team`,
     html: `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
-          </div>
-          
-          <div style="text-align: center; margin-bottom: 20px;">
-            <span style="font-size: 48px;">🎉</span>
-          </div>
-          
-          <h2 style="color: #333; text-align: center;">Payout Processed!</h2>
-          
-          <p>Hi ${professionalName},</p>
-          
-          <p>Great news! Your payout has been processed and is on its way to you!</p>
-          
-          <div style="background-color: #f0fdf4; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <div style="text-align: center; margin-bottom: 15px;">
-              <span style="font-size: 36px; font-weight: bold; color: #10b981;">$${amount}</span>
-            </div>
-            <table style="width: 100%; border-collapse: collapse;">
-              <tr>
-                <td style="padding: 8px 0; color: #166534;">Sessions:</td>
-                <td style="padding: 8px 0; font-weight: bold; color: #166534;">${sessionsCount}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #166534;">Period:</td>
-                <td style="padding: 8px 0; font-weight: bold; color: #166534;">${cycleStartDate} - ${cycleEndDate}</td>
-              </tr>
-              <tr>
-                <td style="padding: 8px 0; color: #166534;">Payment Method:</td>
-                <td style="padding: 8px 0; font-weight: bold; color: #166534;">${paymentMethod}</td>
-              </tr>
-            </table>
-          </div>
-          
-          <p style="color: #666; font-size: 14px; text-align: center;">
-            💳 Funds typically arrive within 1-2 business days.
-          </p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${dashboardUrl}" style="background-color: #10b981; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
-              View Your Earnings
-            </a>
-          </div>
-          
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          
-          <p style="margin-top: 30px;">Keep up the great work! 🌟<br><br>Warm hugs,<br>The Hug Harmony Team</p>
-        </body>
-      </html>
-    `,
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
+  </div>
+  
+  <div style="text-align: center; margin-bottom: 20px;">
+    <span style="font-size: 48px;">💳</span>
+  </div>
+  
+  <h2 style="color: #333; text-align: center;">Platform Fee Charged</h2>
+  
+  <p>Hi ${professionalName},</p>
+  
+  <p>Your platform fee for the billing cycle <strong>${cycleStartDate} - ${cycleEndDate}</strong> has been charged successfully.</p>
+  
+  <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0;">
+    <div style="text-align: center; margin-bottom: 15px;">
+      <span style="font-size: 32px; font-weight: bold; color: #333;">$${amount}</span>
+    </div>
+    <table style="width: 100%; border-collapse: collapse;">
+      <tr>
+        <td style="padding: 8px 0; color: #666;">Sessions:</td>
+        <td style="padding: 8px 0; font-weight: bold;">${sessionsCount}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #666;">Period:</td>
+        <td style="padding: 8px 0; font-weight: bold;">${cycleStartDate} - ${cycleEndDate}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #666;">Card:</td>
+        <td style="padding: 8px 0; font-weight: bold;">•••• ${cardLast4}</td>
+      </tr>
+    </table>
+  </div>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${dashboardUrl}" style="background-color: #E7C4BB; color: #000; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+      View Payment History
+    </a>
+  </div>
+  
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  
+  <p style="color: #666; font-size: 14px;">Thank you for being part of the Hug Harmony community!</p>
+  
+  <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
+</body>
+</html>`,
   };
 }
 
-// Payout Failed Email
-function getPayoutFailedEmailTemplate(
+// Fee Charge Failed Email
+function getFeeChargeFailedEmailTemplate(
   professionalName: string,
   amount: string,
   reason: string,
-  supportUrl: string
+  updatePaymentUrl: string
 ): EmailTemplate {
   return {
-    subject: `⚠️ Payout Issue: Action Required`,
+    subject: `⚠️ Platform Fee Charge Failed - Action Required`,
     text: `Hello ${professionalName},
 
-We encountered an issue processing your payout of $${amount}.
+We were unable to charge the platform fee of $${amount} to your card.
 
 Reason: ${reason}
 
-Please update your payment information or contact support: ${supportUrl}
+Please update your payment method to avoid service interruption: ${updatePaymentUrl}
 
-We'll retry the payout once the issue is resolved.
+We'll retry the charge automatically, but your account may be restricted until the fee is paid.
 
 Warm hugs,
 The Hug Harmony Team`,
     html: `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
-          </div>
-          
-          <div style="text-align: center; margin-bottom: 20px;">
-            <span style="font-size: 48px;">⚠️</span>
-          </div>
-          
-          <h2 style="color: #333; text-align: center;">Payout Issue</h2>
-          
-          <p>Hi ${professionalName},</p>
-          
-          <p>We encountered an issue while processing your payout.</p>
-          
-          <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <p style="margin: 0 0 10px 0; color: #991b1b;"><strong>Amount:</strong> $${amount}</p>
-            <p style="margin: 0; color: #991b1b;"><strong>Issue:</strong> ${reason}</p>
-          </div>
-          
-          <p>Please update your payment information to resolve this issue. Once updated, we'll automatically retry the payout.</p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${supportUrl}" style="background-color: #dc2626; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
-              Update Payment Info
-            </a>
-          </div>
-          
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          
-          <p style="color: #666; font-size: 14px;">Need help? Reply to this email or contact our support team.</p>
-          
-          <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
-        </body>
-      </html>
-    `,
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
+  </div>
+  
+  <div style="text-align: center; margin-bottom: 20px;">
+    <span style="font-size: 48px;">⚠️</span>
+  </div>
+  
+  <h2 style="color: #333; text-align: center;">Payment Failed</h2>
+  
+  <p>Hi ${professionalName},</p>
+  
+  <p>We were unable to charge your platform fee. Please update your payment method to continue receiving bookings.</p>
+  
+  <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; margin: 20px 0;">
+    <p style="margin: 0 0 10px 0; color: #991b1b;"><strong>Amount Due:</strong> $${amount}</p>
+    <p style="margin: 0; color: #991b1b;"><strong>Issue:</strong> ${reason}</p>
+  </div>
+  
+  <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
+    <p style="margin: 0; color: #92400e;">
+      <strong>⚠️ Important:</strong> Your account may be restricted from receiving new bookings until this is resolved.
+    </p>
+  </div>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${updatePaymentUrl}" style="background-color: #dc2626; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+      Update Payment Method
+    </a>
+  </div>
+  
+  <p style="color: #666; font-size: 14px;">We'll automatically retry the charge once you update your payment method.</p>
+  
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  
+  <p style="color: #666; font-size: 14px;">Need help? Reply to this email or contact our support team.</p>
+  
+  <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
+</body>
+</html>`,
   };
 }
 
-// Weekly Earnings Summary Email
-function getWeeklyEarningsSummaryEmailTemplate(
+// Account Blocked Email (due to failed payments)
+function getAccountBlockedEmailTemplate(
   professionalName: string,
-  weekStart: string,
-  weekEnd: string,
-  totalEarnings: string,
-  sessionsCount: number,
-  pendingConfirmations: number,
-  upcomingPayoutDate: string,
+  pendingAmount: string,
+  reason: string,
+  updatePaymentUrl: string
+): EmailTemplate {
+  return {
+    subject: `🚫 Your Account Has Been Restricted`,
+    text: `Hello ${professionalName},
+
+Your Hug Harmony professional account has been temporarily restricted due to unpaid platform fees.
+
+Amount Due: $${pendingAmount}
+Reason: ${reason}
+
+To restore your account and continue receiving bookings, please update your payment method: ${updatePaymentUrl}
+
+Warm hugs,
+The Hug Harmony Team`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
+  </div>
+  
+  <div style="text-align: center; margin-bottom: 20px;">
+    <span style="font-size: 48px;">🚫</span>
+  </div>
+  
+  <h2 style="color: #333; text-align: center;">Account Restricted</h2>
+  
+  <p>Hi ${professionalName},</p>
+  
+  <p>Your professional account has been temporarily restricted due to unpaid platform fees.</p>
+  
+  <div style="background-color: #fef2f2; border: 1px solid #fecaca; border-radius: 8px; padding: 20px; margin: 20px 0;">
+    <p style="margin: 0 0 10px 0; color: #991b1b;"><strong>Amount Due:</strong> $${pendingAmount}</p>
+    <p style="margin: 0; color: #991b1b;"><strong>Reason:</strong> ${reason}</p>
+  </div>
+  
+  <p><strong>What this means:</strong></p>
+  <ul style="color: #666;">
+    <li>You cannot receive new booking requests</li>
+    <li>Your profile is hidden from search results</li>
+    <li>Existing confirmed appointments are not affected</li>
+  </ul>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${updatePaymentUrl}" style="background-color: #dc2626; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+      Restore My Account
+    </a>
+  </div>
+  
+  <p style="color: #666; font-size: 14px;">Once you update your payment method and the outstanding fees are paid, your account will be automatically restored.</p>
+  
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  
+  <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
+</body>
+</html>`,
+  };
+}
+
+// Account Unblocked Email
+function getAccountUnblockedEmailTemplate(
+  professionalName: string,
   dashboardUrl: string
 ): EmailTemplate {
   return {
-    subject: `📊 Weekly Summary: $${totalEarnings} earned this week`,
+    subject: `✅ Your Account Has Been Restored`,
     text: `Hello ${professionalName},
 
-Here's your weekly earnings summary for ${weekStart} - ${weekEnd}:
+Great news! Your Hug Harmony professional account has been restored.
+
+You can now:
+- Receive new booking requests
+- Your profile is visible again
+- Continue earning with Hug Harmony
+
+Go to your dashboard: ${dashboardUrl}
+
+Thank you for resolving the outstanding fees!
+
+Warm hugs,
+The Hug Harmony Team`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
+  </div>
+  
+  <div style="text-align: center; margin-bottom: 20px;">
+    <span style="font-size: 48px;">✅</span>
+  </div>
+  
+  <h2 style="color: #333; text-align: center;">Account Restored!</h2>
+  
+  <p>Hi ${professionalName},</p>
+  
+  <p>Great news! Your professional account has been fully restored.</p>
+  
+  <div style="background-color: #f0fdf4; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+    <p style="margin: 0; color: #166534;"><strong>You can now:</strong></p>
+    <ul style="color: #166534; margin: 10px 0;">
+      <li>Receive new booking requests</li>
+      <li>Your profile is visible in search results</li>
+      <li>Continue earning with Hug Harmony</li>
+    </ul>
+  </div>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${dashboardUrl}" style="background-color: #10b981; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+      Go to Dashboard
+    </a>
+  </div>
+  
+  <p style="color: #666; font-size: 14px;">Thank you for being part of the Hug Harmony community!</p>
+  
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  
+  <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
+</body>
+</html>`,
+  };
+}
+
+// Fee Waived Email (admin waived the fee)
+function getFeeWaivedEmailTemplate(
+  professionalName: string,
+  amount: string,
+  cycleStartDate: string,
+  cycleEndDate: string,
+  reason: string,
+  dashboardUrl: string
+): EmailTemplate {
+  return {
+    subject: `Platform Fee Waived: $${amount}`,
+    text: `Hello ${professionalName},
+
+Your platform fee of $${amount} for ${cycleStartDate} - ${cycleEndDate} has been waived.
+
+Reason: ${reason}
+
+View your payment history: ${dashboardUrl}
+
+Warm hugs,
+The Hug Harmony Team`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
+  </div>
+  
+  <h2 style="color: #333; text-align: center;">Fee Waived</h2>
+  
+  <p>Hi ${professionalName},</p>
+  
+  <p>Your platform fee has been waived for the billing cycle <strong>${cycleStartDate} - ${cycleEndDate}</strong>.</p>
+  
+  <div style="background-color: #f0fdf4; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+    <p style="margin: 0 0 10px 0; color: #166534;"><strong>Amount Waived:</strong> $${amount}</p>
+    <p style="margin: 0; color: #166534;"><strong>Reason:</strong> ${reason}</p>
+  </div>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${dashboardUrl}" style="background-color: #E7C4BB; color: #000; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+      View Payment History
+    </a>
+  </div>
+  
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  
+  <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
+</body>
+</html>`,
+  };
+}
+
+// Payment Method Added Email
+function getPaymentMethodAddedEmailTemplate(
+  professionalName: string,
+  cardBrand: string,
+  cardLast4: string,
+  dashboardUrl: string
+): EmailTemplate {
+  return {
+    subject: `✅ Payment Method Added Successfully`,
+    text: `Hello ${professionalName},
+
+Your payment method has been added successfully!
+
+Card: ${cardBrand} •••• ${cardLast4}
+
+This card will be used for platform fee charges at the end of each billing cycle.
+
+Manage your payment method: ${dashboardUrl}
+
+Warm hugs,
+The Hug Harmony Team`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
+  </div>
+  
+  <div style="text-align: center; margin-bottom: 20px;">
+    <span style="font-size: 48px;">✅</span>
+  </div>
+  
+  <h2 style="color: #333; text-align: center;">Payment Method Added</h2>
+  
+  <p>Hi ${professionalName},</p>
+  
+  <p>Your payment method has been added successfully!</p>
+  
+  <div style="background-color: #f8f9fa; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+    <p style="margin: 0; font-size: 18px;">
+      <strong>${cardBrand.toUpperCase()}</strong> •••• ${cardLast4}
+    </p>
+  </div>
+  
+  <p style="color: #666;">This card will be used for platform fee charges at the end of each billing cycle (1st-15th and 16th-end of month).</p>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${dashboardUrl}" style="background-color: #E7C4BB; color: #000; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+      Manage Payment Method
+    </a>
+  </div>
+  
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  
+  <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
+</body>
+</html>`,
+  };
+}
+
+// Card Expiring Soon Email
+function getCardExpiringSoonEmailTemplate(
+  professionalName: string,
+  cardBrand: string,
+  cardLast4: string,
+  expiryMonth: number,
+  expiryYear: number,
+  updatePaymentUrl: string
+): EmailTemplate {
+  return {
+    subject: `⚠️ Your Card is Expiring Soon`,
+    text: `Hello ${professionalName},
+
+Your payment card (${cardBrand} •••• ${cardLast4}) expires ${expiryMonth}/${expiryYear}.
+
+Please update your payment method to avoid any service interruption: ${updatePaymentUrl}
+
+Warm hugs,
+The Hug Harmony Team`,
+    html: `
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
+  </div>
+  
+  <div style="text-align: center; margin-bottom: 20px;">
+    <span style="font-size: 48px;">⚠️</span>
+  </div>
+  
+  <h2 style="color: #333; text-align: center;">Card Expiring Soon</h2>
+  
+  <p>Hi ${professionalName},</p>
+  
+  <p>Your payment card is expiring soon. Please update it to avoid any service interruption.</p>
+  
+  <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 20px; margin: 20px 0; text-align: center;">
+    <p style="margin: 0; font-size: 18px; color: #92400e;">
+      <strong>${cardBrand.toUpperCase()}</strong> •••• ${cardLast4}
+    </p>
+    <p style="margin: 10px 0 0 0; color: #92400e;">
+      Expires: ${expiryMonth}/${expiryYear}
+    </p>
+  </div>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${updatePaymentUrl}" style="background-color: #f59e0b; color: #000; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+      Update Card
+    </a>
+  </div>
+  
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  
+  <p style="margin-top: 30px;">Warm hugs,<br>The Hug Harmony Team</p>
+</body>
+</html>`,
+  };
+}
+
+// Cycle Summary Email (replaces weekly payout email)
+function getCycleSummaryEmailTemplate(
+  professionalName: string,
+  cycleStartDate: string,
+  cycleEndDate: string,
+  totalEarnings: string,
+  platformFee: string,
+  platformFeePercent: string,
+  sessionsCount: number,
+  dashboardUrl: string
+): EmailTemplate {
+  return {
+    subject: `📊 Cycle Summary: ${cycleStartDate} - ${cycleEndDate}`,
+    text: `Hello ${professionalName},
+
+Here's your earnings summary for ${cycleStartDate} - ${cycleEndDate}:
 
 Total Earnings: $${totalEarnings}
-Sessions Completed: ${sessionsCount}
-Pending Confirmations: ${pendingConfirmations}
-Next Payout: ${upcomingPayoutDate}
+Platform Fee (${platformFeePercent}%): $${platformFee}
+Sessions: ${sessionsCount}
+
+The platform fee will be charged to your card on file.
 
 View details: ${dashboardUrl}
 
 Warm hugs,
 The Hug Harmony Team`,
     html: `
-      <!DOCTYPE html>
-      <html>
-        <head>
-          <meta charset="utf-8">
-          <meta name="viewport" content="width=device-width, initial-scale=1.0">
-        </head>
-        <body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
-          <div style="text-align: center; margin-bottom: 30px;">
-            <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
-          </div>
-          
-          <div style="text-align: center; margin-bottom: 20px;">
-            <span style="font-size: 48px;">📊</span>
-          </div>
-          
-          <h2 style="color: #333; text-align: center;">Weekly Earnings Summary</h2>
-          <p style="text-align: center; color: #666;">${weekStart} - ${weekEnd}</p>
-          
-          <p>Hi ${professionalName},</p>
-          
-          <p>Here's how you did this week:</p>
-          
-          <div style="background-color: #eff6ff; border: 1px solid #3b82f6; border-radius: 8px; padding: 20px; margin: 20px 0;">
-            <div style="text-align: center; margin-bottom: 15px;">
-              <span style="font-size: 36px; font-weight: bold; color: #1e40af;">$${totalEarnings}</span>
-              <p style="margin: 5px 0 0 0; color: #1e40af;">Total Earnings</p>
-            </div>
-            <div style="display: flex; justify-content: space-around; text-align: center;">
-              <div>
-                <span style="font-size: 24px; font-weight: bold; color: #1e40af;">${sessionsCount}</span>
-                <p style="margin: 0; color: #1e40af; font-size: 14px;">Sessions</p>
-              </div>
-              <div>
-                <span style="font-size: 24px; font-weight: bold; color: ${pendingConfirmations > 0 ? "#f59e0b" : "#10b981"};">${pendingConfirmations}</span>
-                <p style="margin: 0; color: #1e40af; font-size: 14px;">Pending</p>
-              </div>
-            </div>
-          </div>
-          
-          ${
-            pendingConfirmations > 0
-              ? `
-          <div style="background-color: #fef3c7; border: 1px solid #f59e0b; border-radius: 8px; padding: 15px; margin: 20px 0;">
-            <p style="margin: 0; color: #92400e;">
-              <strong>⏳ Action Needed:</strong> You have ${pendingConfirmations} session(s) awaiting confirmation.
-            </p>
-          </div>
-          `
-              : ""
-          }
-          
-          <p style="text-align: center; color: #666;">
-            💰 Next payout: <strong>${upcomingPayoutDate}</strong>
-          </p>
-          
-          <div style="text-align: center; margin: 30px 0;">
-            <a href="${dashboardUrl}" style="background-color: #3b82f6; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
-              View Full Details
-            </a>
-          </div>
-          
-          <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
-          
-          <p style="margin-top: 30px;">Keep up the amazing work! 🌟<br><br>Warm hugs,<br>The Hug Harmony Team</p>
-        </body>
-      </html>
-    `,
+<!DOCTYPE html>
+<html>
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+</head>
+<body style="font-family: Arial, sans-serif; line-height: 1.6; color: #333; max-width: 600px; margin: 0 auto; padding: 20px;">
+  <div style="text-align: center; margin-bottom: 30px;">
+    <h1 style="color: #E7C4BB; margin: 0;">Hug Harmony</h1>
+  </div>
+  
+  <div style="text-align: center; margin-bottom: 20px;">
+    <span style="font-size: 48px;">📊</span>
+  </div>
+  
+  <h2 style="color: #333; text-align: center;">Cycle Summary</h2>
+  <p style="text-align: center; color: #666;">${cycleStartDate} - ${cycleEndDate}</p>
+  
+  <p>Hi ${professionalName},</p>
+  
+  <p>Here's your earnings summary for this billing cycle:</p>
+  
+  <div style="background-color: #f0fdf4; border: 1px solid #10b981; border-radius: 8px; padding: 20px; margin: 20px 0;">
+    <div style="text-align: center; margin-bottom: 15px;">
+      <span style="font-size: 36px; font-weight: bold; color: #166534;">$${totalEarnings}</span>
+      <p style="margin: 5px 0 0 0; color: #166534;">Total Earnings</p>
+    </div>
+    <table style="width: 100%; border-collapse: collapse;">
+      <tr>
+        <td style="padding: 8px 0; color: #166534;">Sessions:</td>
+        <td style="padding: 8px 0; font-weight: bold; color: #166534;">${sessionsCount}</td>
+      </tr>
+      <tr>
+        <td style="padding: 8px 0; color: #166534;">Platform Fee (${platformFeePercent}%):</td>
+        <td style="padding: 8px 0; font-weight: bold; color: #166534;">$${platformFee}</td>
+      </tr>
+    </table>
+  </div>
+  
+  <p style="color: #666; font-size: 14px; text-align: center;">
+    💳 The platform fee will be charged to your card on file.
+  </p>
+  
+  <div style="text-align: center; margin: 30px 0;">
+    <a href="${dashboardUrl}" style="background-color: #10b981; color: #fff; padding: 14px 28px; border-radius: 8px; text-decoration: none; font-weight: bold; display: inline-block;">
+      View Full Details
+    </a>
+  </div>
+  
+  <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
+  
+  <p style="margin-top: 30px;">Keep up the amazing work! 🌟<br><br>Warm hugs,<br>The Hug Harmony Team</p>
+</body>
+</html>`,
   };
 }
+
+// ---
 
 // Email sending functions
 export async function sendVerificationEmail(
@@ -1855,22 +2186,23 @@ export async function sendAppointmentRescheduledEmail(
   });
 }
 
-export async function sendEarningCreatedEmail(
+// ---
+export async function sendSessionCompletedEmail(
   professionalEmail: string,
   professionalName: string,
   clientName: string,
   date: string,
-  grossAmount: string,
-  netAmount: string,
+  amount: string,
+  platformFee: string,
   appointmentId: string
 ): Promise<void> {
   const confirmationUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/appointments?confirm=${appointmentId}`;
-  const template = getEarningCreatedEmailTemplate(
+  const template = getSessionCompletedEmailTemplate(
     professionalName,
     clientName,
     date,
-    grossAmount,
-    netAmount,
+    amount,
+    platformFee,
     confirmationUrl
   );
 
@@ -1888,7 +2220,7 @@ export async function sendConfirmationNeededEmail(
   recipientName: string,
   otherPartyName: string,
   date: string,
-  hoursRemaining: number,
+  daysRemaining: number,
   appointmentId: string,
   isRecipientProfessional: boolean
 ): Promise<void> {
@@ -1897,7 +2229,7 @@ export async function sendConfirmationNeededEmail(
     recipientName,
     otherPartyName,
     date,
-    hoursRemaining,
+    daysRemaining,
     confirmationUrl,
     isRecipientProfessional
   );
@@ -1911,23 +2243,23 @@ export async function sendConfirmationNeededEmail(
   });
 }
 
-export async function sendPayoutProcessedEmail(
+export async function sendFeeChargedEmail(
   professionalEmail: string,
   professionalName: string,
   amount: string,
   sessionsCount: number,
   cycleStartDate: string,
   cycleEndDate: string,
-  paymentMethod: string = "Bank Transfer"
+  cardLast4: string
 ): Promise<void> {
   const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/payment`;
-  const template = getPayoutProcessedEmailTemplate(
+  const template = getFeeChargedEmailTemplate(
     professionalName,
     amount,
     sessionsCount,
     cycleStartDate,
     cycleEndDate,
-    paymentMethod,
+    cardLast4,
     dashboardUrl
   );
 
@@ -1940,18 +2272,18 @@ export async function sendPayoutProcessedEmail(
   });
 }
 
-export async function sendPayoutFailedEmail(
+export async function sendFeeChargeFailedEmail(
   professionalEmail: string,
   professionalName: string,
   amount: string,
   reason: string
 ): Promise<void> {
-  const supportUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/edit-profile`;
-  const template = getPayoutFailedEmailTemplate(
+  const updatePaymentUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/payment`;
+  const template = getFeeChargeFailedEmailTemplate(
     professionalName,
     amount,
     reason,
-    supportUrl
+    updatePaymentUrl
   );
 
   await getTransporter().sendMail({
@@ -1963,6 +2295,226 @@ export async function sendPayoutFailedEmail(
   });
 }
 
+export async function sendAccountBlockedEmail(
+  professionalEmail: string,
+  professionalName: string,
+  pendingAmount: string,
+  reason: string
+): Promise<void> {
+  const updatePaymentUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/payment`;
+  const template = getAccountBlockedEmailTemplate(
+    professionalName,
+    pendingAmount,
+    reason,
+    updatePaymentUrl
+  );
+
+  await getTransporter().sendMail({
+    from: `"Hug Harmony" <${process.env.GMAIL_USER}>`,
+    to: professionalEmail,
+    subject: template.subject,
+    text: template.text,
+    html: template.html,
+  });
+}
+
+export async function sendAccountUnblockedEmail(
+  professionalEmail: string,
+  professionalName: string
+): Promise<void> {
+  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard`;
+  const template = getAccountUnblockedEmailTemplate(
+    professionalName,
+    dashboardUrl
+  );
+
+  await getTransporter().sendMail({
+    from: `"Hug Harmony" <${process.env.GMAIL_USER}>`,
+    to: professionalEmail,
+    subject: template.subject,
+    text: template.text,
+    html: template.html,
+  });
+}
+
+export async function sendFeeWaivedEmail(
+  professionalEmail: string,
+  professionalName: string,
+  amount: string,
+  cycleStartDate: string,
+  cycleEndDate: string,
+  reason: string
+): Promise<void> {
+  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/payment`;
+  const template = getFeeWaivedEmailTemplate(
+    professionalName,
+    amount,
+    cycleStartDate,
+    cycleEndDate,
+    reason,
+    dashboardUrl
+  );
+
+  await getTransporter().sendMail({
+    from: `"Hug Harmony" <${process.env.GMAIL_USER}>`,
+    to: professionalEmail,
+    subject: template.subject,
+    text: template.text,
+    html: template.html,
+  });
+}
+
+export async function sendPaymentMethodAddedEmail(
+  professionalEmail: string,
+  professionalName: string,
+  cardBrand: string,
+  cardLast4: string
+): Promise<void> {
+  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/payment`;
+  const template = getPaymentMethodAddedEmailTemplate(
+    professionalName,
+    cardBrand,
+    cardLast4,
+    dashboardUrl
+  );
+
+  await getTransporter().sendMail({
+    from: `"Hug Harmony" <${process.env.GMAIL_USER}>`,
+    to: professionalEmail,
+    subject: template.subject,
+    text: template.text,
+    html: template.html,
+  });
+}
+
+export async function sendCardExpiringSoonEmail(
+  professionalEmail: string,
+  professionalName: string,
+  cardBrand: string,
+  cardLast4: string,
+  expiryMonth: number,
+  expiryYear: number
+): Promise<void> {
+  const updatePaymentUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/payment`;
+  const template = getCardExpiringSoonEmailTemplate(
+    professionalName,
+    cardBrand,
+    cardLast4,
+    expiryMonth,
+    expiryYear,
+    updatePaymentUrl
+  );
+
+  await getTransporter().sendMail({
+    from: `"Hug Harmony" <${process.env.GMAIL_USER}>`,
+    to: professionalEmail,
+    subject: template.subject,
+    text: template.text,
+    html: template.html,
+  });
+}
+
+export async function sendCycleSummaryEmail(
+  professionalEmail: string,
+  professionalName: string,
+  cycleStartDate: string,
+  cycleEndDate: string,
+  totalEarnings: string,
+  platformFee: string,
+  platformFeePercent: string,
+  sessionsCount: number
+): Promise<void> {
+  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/payment`;
+  const template = getCycleSummaryEmailTemplate(
+    professionalName,
+    cycleStartDate,
+    cycleEndDate,
+    totalEarnings,
+    platformFee,
+    platformFeePercent,
+    sessionsCount,
+    dashboardUrl
+  );
+
+  await getTransporter().sendMail({
+    from: `"Hug Harmony" <${process.env.GMAIL_USER}>`,
+    to: professionalEmail,
+    subject: template.subject,
+    text: template.text,
+    html: template.html,
+  });
+}
+
+// ============================================
+// DEPRECATED FUNCTIONS (keep for backward compatibility but mark as deprecated)
+// ============================================
+
+/**
+ * @deprecated Use sendSessionCompletedEmail instead
+ */
+export async function sendEarningCreatedEmail(
+  professionalEmail: string,
+  professionalName: string,
+  clientName: string,
+  date: string,
+  grossAmount: string,
+  netAmount: string,
+  appointmentId: string
+): Promise<void> {
+  // Calculate platform fee (difference between gross and net)
+  const gross = parseFloat(grossAmount);
+  const net = parseFloat(netAmount);
+  const platformFee = (gross - net).toFixed(2);
+
+  return sendSessionCompletedEmail(
+    professionalEmail,
+    professionalName,
+    clientName,
+    date,
+    grossAmount,
+    platformFee,
+    appointmentId
+  );
+}
+
+/**
+ * @deprecated Use sendFeeChargedEmail instead
+ */
+export async function sendPayoutProcessedEmail(
+  professionalEmail: string,
+  professionalName: string,
+  amount: string,
+  sessionsCount: number,
+  cycleStartDate: string,
+  cycleEndDate: string,
+  _paymentMethod: string = "Bank Transfer"
+): Promise<void> {
+  // This function is deprecated - payouts are now fee charges
+  console.warn(
+    "sendPayoutProcessedEmail is deprecated. Use sendFeeChargedEmail instead."
+  );
+}
+
+/**
+ * @deprecated Use sendFeeChargeFailedEmail instead
+ */
+export async function sendPayoutFailedEmail(
+  professionalEmail: string,
+  professionalName: string,
+  amount: string,
+  reason: string
+): Promise<void> {
+  return sendFeeChargeFailedEmail(
+    professionalEmail,
+    professionalName,
+    amount,
+    reason
+  );
+}
+
+/**
+ * @deprecated Use sendCycleSummaryEmail instead
+ */
 export async function sendWeeklyEarningsSummaryEmail(
   professionalEmail: string,
   professionalName: string,
@@ -1973,26 +2525,23 @@ export async function sendWeeklyEarningsSummaryEmail(
   pendingConfirmations: number,
   upcomingPayoutDate: string
 ): Promise<void> {
-  const dashboardUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/payment`;
-  const template = getWeeklyEarningsSummaryEmailTemplate(
+  // Redirect to new cycle summary email
+  // Note: We don't have platformFee info here, so we'll estimate at 20%
+  const earnings = parseFloat(totalEarnings);
+  const platformFee = (earnings * 0.2).toFixed(2);
+
+  return sendCycleSummaryEmail(
+    professionalEmail,
     professionalName,
     weekStart,
     weekEnd,
     totalEarnings,
-    sessionsCount,
-    pendingConfirmations,
-    upcomingPayoutDate,
-    dashboardUrl
+    platformFee,
+    "20",
+    sessionsCount
   );
-
-  await getTransporter().sendMail({
-    from: `"Hug Harmony" <${process.env.GMAIL_USER}>`,
-    to: professionalEmail,
-    subject: template.subject,
-    text: template.text,
-    html: template.html,
-  });
 }
+// ---
 
 // Verify transporter connection (useful for health checks)
 export async function verifyEmailConnection(): Promise<boolean> {

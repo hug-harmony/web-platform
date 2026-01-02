@@ -7,7 +7,6 @@ import { getCycleDates, getPreviousCycleDates } from "@/lib/utils/paymentCycle";
 interface PreviousCycleEarnings {
   grossTotal: number;
   platformFeeTotal: number;
-  netTotal: number;
   sessionsCount: number;
 }
 
@@ -27,11 +26,11 @@ interface CycleEndBannerData {
 const DISMISS_KEY_PREFIX = "cycle_banner_dismissed_";
 
 // Set to true to always show the banner (for testing)
-const DEBUG_ALWAYS_SHOW = true;
+const DEBUG_ALWAYS_SHOW = false;
 
 /**
- * Hook to manage the cycle end/restart notification banner
- * Shows on the first day of a new cycle (Monday) with previous cycle earnings
+ * Hook to manage the cycle end notification banner
+ * Shows on the first day of a new cycle with previous cycle earnings summary
  */
 export function useCycleEndBanner(): CycleEndBannerData {
   const { data: session, status: sessionStatus } = useSession();
@@ -41,25 +40,24 @@ export function useCycleEndBanner(): CycleEndBannerData {
   const [previousCycleEarnings, setPreviousCycleEarnings] =
     useState<CycleEndBannerData["previousCycleEarnings"]>(null);
 
-  // Check if today is the first day of a new cycle (Monday)
+  // Check if today is the first day of a new cycle (1st or 16th)
   const currentCycle = getCycleDates();
   const today = new Date();
   const cycleStartDay = currentCycle.startDate;
 
-  // Check if we're on the same day as cycle start (Monday)
+  // Check if we're on the same day as cycle start
   const isActuallyNewCycleDay =
     today.getUTCFullYear() === cycleStartDay.getUTCFullYear() &&
     today.getUTCMonth() === cycleStartDay.getUTCMonth() &&
     today.getUTCDate() === cycleStartDay.getUTCDate();
 
-  // For testing: always treat it as a new cycle day
   const isNewCycleDay = DEBUG_ALWAYS_SHOW || isActuallyNewCycleDay;
 
   // Generate dismiss key based on the previous cycle's end date
-  const previousCycle = getPreviousCycleDates();
+  const previousCycle = getPreviousCycleDates(new Date());
   const dismissKey = `${DISMISS_KEY_PREFIX}${previousCycle.endDate.toISOString().split("T")[0]}`;
 
-  // Check localStorage for dismissal (skip during debug)
+  // Check localStorage for dismissal
   useEffect(() => {
     if (DEBUG_ALWAYS_SHOW) {
       setIsDismissed(false);
@@ -77,18 +75,15 @@ export function useCycleEndBanner(): CycleEndBannerData {
   // Fetch previous cycle earnings
   useEffect(() => {
     async function fetchPreviousCycleEarnings() {
-      // Wait for session to load
       if (sessionStatus === "loading") {
         return;
       }
 
-      // Only fetch if it's a new cycle day and user is a professional
       if (!isNewCycleDay) {
         setIsLoading(false);
         return;
       }
 
-      // Check if user is authenticated and is a professional
       if (!session?.user?.id) {
         setIsLoading(false);
         return;
@@ -97,13 +92,11 @@ export function useCycleEndBanner(): CycleEndBannerData {
       try {
         setIsLoading(true);
 
-        // Fetch earnings for the previous cycle
         const response = await fetch(
           `/api/payments/earnings?view=previous-cycle`
         );
 
         if (response.status === 403) {
-          // User is not a professional, this is expected
           setIsLoading(false);
           return;
         }

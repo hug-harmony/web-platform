@@ -13,12 +13,17 @@ import {
   createEarningFromAppointment,
   getEarningByAppointmentId,
   confirmEarning,
-  cancelEarning,
+  markEarningNotOccurred,
   disputeEarning,
+  getPlatformFeePercent,
 } from "./earnings.service";
 import { createAppointmentNotification } from "@/lib/notifications";
 import { buildDisplayName } from "@/lib/utils";
 import { castConfirmationStatus, castDisputeResolution } from "./helpers";
+import {
+  sendSessionCompletedEmail,
+  sendConfirmationNeededEmail,
+} from "@/lib/services/email";
 
 // ============================================
 // CONFIRMATION CREATION
@@ -26,7 +31,6 @@ import { castConfirmationStatus, castDisputeResolution } from "./helpers";
 
 /**
  * Create a confirmation record when an appointment is completed
- * This should be called when appointment status changes to "completed"
  */
 export async function createConfirmation(
   appointmentId: string
@@ -39,8 +43,27 @@ export async function createConfirmation(
         include: {
           applications: {
             where: { status: "APPROVED" },
-            select: { userId: true },
+            select: {
+              userId: true,
+              user: {
+                select: {
+                  email: true,
+                  name: true,
+                  firstName: true,
+                  lastName: true,
+                },
+              },
+            },
           },
+        },
+      },
+      user: {
+        select: {
+          id: true,
+          email: true,
+          name: true,
+          firstName: true,
+          lastName: true,
         },
       },
     },
@@ -50,7 +73,7 @@ export async function createConfirmation(
     throw new Error("Appointment not found");
   }
 
-  if (!appointment.userId) {
+  if (!appointment.userId || !appointment.user) {
     throw new Error("Appointment has no client");
   }
 
@@ -58,10 +81,13 @@ export async function createConfirmation(
     throw new Error("Appointment has no professional");
   }
 
-  const professionalUserId = appointment.professional.applications[0]?.userId;
-  if (!professionalUserId) {
+  const professionalApplication = appointment.professional.applications[0];
+  if (!professionalApplication?.userId) {
     throw new Error("Could not find professional user ID");
   }
+
+  const professionalUserId = professionalApplication.userId;
+  const professionalUser = professionalApplication.user;
 
   // Check if confirmation already exists
   const existing = await prisma.appointmentConfirmation.findUnique({
@@ -87,13 +113,30 @@ export async function createConfirmation(
     },
   });
 
-  // Create pending earning (will be confirmed/cancelled based on confirmation)
-  try {
-    await createEarningFromAppointment(appointmentId);
-  } catch (error) {
-    console.error("Failed to create earning for appointment:", error);
-    // Don't throw - confirmation is still valid
-  }
+  // Calculate amounts for email
+  const hourlyRate =
+    appointment.adjustedRate ??
+    appointment.rate ??
+    appointment.professional.rate ??
+    0;
+  const durationMs =
+    appointment.endTime.getTime() - appointment.startTime.getTime();
+  const hours = durationMs / (1000 * 60 * 60);
+  const grossAmount = Math.round(hourlyRate * hours * 100) / 100;
+  const platformFeePercent = await getPlatformFeePercent(
+    appointment.professionalId
+  );
+  const platformFee =
+    Math.round(grossAmount * (platformFeePercent / 100) * 100) / 100;
+
+  const clientName = buildDisplayName(appointment.user);
+  const professionalName = buildDisplayName(professionalUser);
+  const sessionDate = appointment.endTime.toLocaleDateString("en-US", {
+    weekday: "long",
+    month: "long",
+    day: "numeric",
+    year: "numeric",
+  });
 
   // Send notifications to both parties
   await Promise.all([
@@ -104,10 +147,48 @@ export async function createConfirmation(
     ),
     createAppointmentNotification(
       professionalUserId,
-      "Your appointment has ended. Awaiting client confirmation.",
+      "Your appointment has ended. Please confirm if it occurred.",
       appointmentId
     ),
   ]);
+
+  // Send email to professional about session completion
+  if (professionalUser.email) {
+    try {
+      await sendSessionCompletedEmail(
+        professionalUser.email,
+        professionalName,
+        clientName,
+        sessionDate,
+        grossAmount.toFixed(2),
+        platformFee.toFixed(2),
+        appointmentId
+      );
+    } catch (emailError) {
+      console.error("Failed to send session completed email:", emailError);
+      // Don't throw - confirmation is still valid
+    }
+  }
+
+  // Send email to client asking for confirmation
+  if (appointment.user.email) {
+    try {
+      await sendConfirmationNeededEmail(
+        appointment.user.email,
+        clientName,
+        professionalName,
+        sessionDate,
+        14, // Days remaining in cycle (approximate)
+        appointmentId,
+        false // isRecipientProfessional
+      );
+    } catch (emailError) {
+      console.error(
+        "Failed to send confirmation needed email to client:",
+        emailError
+      );
+    }
+  }
 
   return {
     ...confirmation,
@@ -166,14 +247,25 @@ export async function confirmAppointment(
                 select: {
                   userId: true,
                   user: {
-                    select: { name: true, firstName: true, lastName: true },
+                    select: {
+                      email: true,
+                      name: true,
+                      firstName: true,
+                      lastName: true,
+                    },
                   },
                 },
               },
             },
           },
           user: {
-            select: { id: true, name: true, firstName: true, lastName: true },
+            select: {
+              id: true,
+              email: true,
+              name: true,
+              firstName: true,
+              lastName: true,
+            },
           },
         },
       },
@@ -251,7 +343,7 @@ export async function confirmAppointment(
   if (otherPartyConfirmed !== null) {
     // Both parties have responded
     if (confirmed && otherPartyConfirmed) {
-      // Both confirm it occurred
+      // Both confirm it occurred - create earning
       finalStatus = "confirmed";
       earningCreated = true;
     } else if (!confirmed && !otherPartyConfirmed) {
@@ -274,18 +366,27 @@ export async function confirmAppointment(
     data: updateData,
   });
 
-  // Handle earning status based on final status
-  const earning = await getEarningByAppointmentId(appointmentId);
-
-  if (earning) {
-    if (finalStatus === "confirmed") {
-      await confirmEarning(earning.id);
-    } else if (finalStatus === "not_occurred") {
-      await cancelEarning(earning.id);
-    } else if (finalStatus === "disputed") {
-      await disputeEarning(earning.id);
+  // Handle earning based on final status
+  if (finalStatus === "confirmed") {
+    // Both confirmed - create earning record
+    try {
+      await createEarningFromAppointment(appointmentId);
+      earningCreated = true;
+    } catch (error) {
+      console.error("Failed to create earning:", error);
+      // Don't throw - confirmation is still valid
     }
   }
+
+  // Get names for notifications
+  const clientName = confirmation.appointment.user
+    ? buildDisplayName(confirmation.appointment.user)
+    : "Client";
+  const professionalUser =
+    confirmation.appointment.professional.applications[0]?.user;
+  const professionalName = professionalUser
+    ? buildDisplayName(professionalUser)
+    : confirmation.appointment.professional.name;
 
   // Send notifications
   const otherPartyId =
@@ -293,19 +394,36 @@ export async function confirmAppointment(
       ? confirmation.professionalUserId
       : confirmation.clientId;
 
+  const otherPartyEmail =
+    userRole === "client"
+      ? professionalUser?.email
+      : confirmation.appointment.user?.email;
+
+  const otherPartyDisplayName =
+    userRole === "client" ? professionalName : clientName;
+
+  const currentUserDisplayName =
+    userRole === "client" ? clientName : professionalName;
+
+  const sessionDate = confirmation.appointment.endTime.toLocaleDateString(
+    "en-US",
+    {
+      weekday: "long",
+      month: "long",
+      day: "numeric",
+    }
+  );
+
   if (finalStatus === "disputed") {
-    await Promise.all([
-      createAppointmentNotification(
-        otherPartyId,
-        `There's a disagreement about your appointment. An admin will review this.`,
-        appointmentId
-      ),
-      // TODO: Notify admin about the dispute
-    ]);
+    await createAppointmentNotification(
+      otherPartyId,
+      "There's a disagreement about your appointment. An admin will review this.",
+      appointmentId
+    );
   } else if (finalStatus === "confirmed") {
     await createAppointmentNotification(
       otherPartyId,
-      "Appointment confirmed by both parties. Earning recorded.",
+      "Appointment confirmed by both parties!",
       appointmentId
     );
   } else if (finalStatus === "not_occurred") {
@@ -315,13 +433,45 @@ export async function confirmAppointment(
       appointmentId
     );
   } else if (otherPartyConfirmed === null) {
-    // Still waiting for other party
+    // Still waiting for other party - send reminder email
     const responseText = confirmed ? "occurred" : "did not occur";
     await createAppointmentNotification(
       otherPartyId,
       `The other party marked the appointment as "${responseText}". Please confirm.`,
       appointmentId
     );
+
+    // Send email reminder to other party
+    if (otherPartyEmail) {
+      try {
+        // Calculate days remaining (approximate based on cycle)
+        const cycleEnd = new Date();
+        const day = cycleEnd.getDate();
+        if (day <= 15) {
+          cycleEnd.setDate(15);
+        } else {
+          cycleEnd.setMonth(cycleEnd.getMonth() + 1, 0); // Last day of month
+        }
+        const daysRemaining = Math.ceil(
+          (cycleEnd.getTime() - now.getTime()) / (1000 * 60 * 60 * 24)
+        );
+
+        await sendConfirmationNeededEmail(
+          otherPartyEmail,
+          otherPartyDisplayName,
+          currentUserDisplayName,
+          sessionDate,
+          daysRemaining,
+          appointmentId,
+          userRole === "client" // If current user is client, other party is professional
+        );
+      } catch (emailError) {
+        console.error(
+          "Failed to send confirmation reminder email:",
+          emailError
+        );
+      }
+    }
   }
 
   return {
@@ -370,9 +520,9 @@ function getConfirmationMessage(
 ): string {
   switch (status) {
     case "confirmed":
-      return "Appointment confirmed! Earning has been recorded.";
+      return "Appointment confirmed! The session has been recorded.";
     case "not_occurred":
-      return "Appointment marked as not occurred. No payment will be processed.";
+      return "Appointment marked as not occurred.";
     case "disputed":
       return "There's a disagreement about this appointment. An admin will review and resolve this.";
     case "pending":
@@ -380,6 +530,134 @@ function getConfirmationMessage(
     default:
       return "Confirmation recorded.";
   }
+}
+
+// ============================================
+// AUTO-CONFIRMATION (for cycle end)
+// ============================================
+
+/**
+ * Auto-resolve pending confirmations at cycle end
+ * Marks them as "not_occurred" if neither/one party confirmed
+ */
+export async function autoResolveExpiredConfirmations(
+  cycleId: string
+): Promise<{
+  resolved: number;
+  errors: string[];
+}> {
+  const errors: string[] = [];
+  let resolved = 0;
+
+  // Get the cycle to check its dates
+  const cycle = await prisma.payoutCycle.findUnique({
+    where: { id: cycleId },
+  });
+
+  if (!cycle) {
+    throw new Error("Cycle not found");
+  }
+
+  // Get all pending confirmations for appointments that ended within this cycle
+  const pendingConfirmations = await prisma.appointmentConfirmation.findMany({
+    where: {
+      finalStatus: "pending",
+      appointment: {
+        endTime: {
+          gte: cycle.startDate,
+          lte: cycle.endDate,
+        },
+      },
+    },
+    include: {
+      appointment: {
+        select: {
+          id: true,
+          endTime: true,
+        },
+      },
+      client: {
+        select: {
+          email: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      professionalUser: {
+        select: {
+          email: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+    },
+  });
+
+  for (const confirmation of pendingConfirmations) {
+    try {
+      // Determine the auto-resolve reason
+      let autoResolveReason = "deadline_passed";
+
+      if (
+        confirmation.clientConfirmed === null &&
+        confirmation.professionalConfirmed === null
+      ) {
+        autoResolveReason = "both_no_response";
+      } else if (confirmation.clientConfirmed === null) {
+        autoResolveReason = "client_no_response";
+      } else if (confirmation.professionalConfirmed === null) {
+        autoResolveReason = "professional_no_response";
+      }
+
+      // Update confirmation to auto_not_occurred
+      await prisma.appointmentConfirmation.update({
+        where: { id: confirmation.id },
+        data: {
+          finalStatus: "auto_not_occurred",
+          autoResolvedAt: new Date(),
+          autoResolveReason,
+        },
+      });
+
+      // Check if there was a pending earning and mark it as not_occurred
+      const earning = await getEarningByAppointmentId(
+        confirmation.appointmentId
+      );
+      if (earning && earning.status === "pending") {
+        await markEarningNotOccurred(earning.id);
+      }
+
+      const clientName = buildDisplayName(confirmation.client);
+      const professionalName = buildDisplayName(confirmation.professionalUser);
+
+      // Notify both parties
+      await Promise.all([
+        createAppointmentNotification(
+          confirmation.clientId,
+          "Your appointment was automatically marked as not occurred due to missing confirmation.",
+          confirmation.appointmentId
+        ),
+        createAppointmentNotification(
+          confirmation.professionalUserId,
+          "Your appointment was automatically marked as not occurred due to missing confirmation.",
+          confirmation.appointmentId
+        ),
+      ]);
+
+      // Note: We don't send emails for auto-resolved confirmations to avoid spam
+      // The in-app notification is sufficient
+
+      resolved++;
+    } catch (error) {
+      errors.push(
+        `Confirmation ${confirmation.id}: ${error instanceof Error ? error.message : "Unknown error"}`
+      );
+    }
+  }
+
+  return { resolved, errors };
 }
 
 // ============================================
@@ -398,6 +676,22 @@ export async function resolveDispute(
     where: { id: confirmationId },
     include: {
       appointment: true,
+      client: {
+        select: {
+          email: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
+      professionalUser: {
+        select: {
+          email: true,
+          name: true,
+          firstName: true,
+          lastName: true,
+        },
+      },
     },
   });
 
@@ -423,14 +717,34 @@ export async function resolveDispute(
     },
   });
 
-  // Update earning status
-  const earning = await getEarningByAppointmentId(confirmation.appointmentId);
+  // Handle earning based on resolution
+  if (resolution === "admin_confirmed") {
+    // Admin confirmed it occurred - create earning if it doesn't exist
+    const existingEarning = await getEarningByAppointmentId(
+      confirmation.appointmentId
+    );
 
-  if (earning) {
-    if (resolution === "admin_confirmed") {
-      await confirmEarning(earning.id);
+    if (existingEarning) {
+      // Update existing earning to confirmed
+      await confirmEarning(existingEarning.id);
     } else {
-      await cancelEarning(earning.id);
+      // Create new earning
+      try {
+        await createEarningFromAppointment(confirmation.appointmentId);
+      } catch (error) {
+        console.error(
+          "Failed to create earning after dispute resolution:",
+          error
+        );
+      }
+    }
+  } else {
+    // Admin cancelled - mark earning as not occurred if exists
+    const existingEarning = await getEarningByAppointmentId(
+      confirmation.appointmentId
+    );
+    if (existingEarning) {
+      await markEarningNotOccurred(existingEarning.id);
     }
   }
 
@@ -439,7 +753,9 @@ export async function resolveDispute(
     where: { id: confirmation.appointmentId },
     data: {
       disputeStatus:
-        resolution === "admin_confirmed" ? "denied" : "confirmed_canceled",
+        resolution === "admin_confirmed"
+          ? "resolved_occurred"
+          : "resolved_not_occurred",
       adminNotes,
     },
   });
@@ -447,8 +763,8 @@ export async function resolveDispute(
   // Notify both parties
   const message =
     resolution === "admin_confirmed"
-      ? "Admin has confirmed the appointment occurred. Payment will be processed."
-      : "Admin has confirmed the appointment did not occur. No payment will be processed.";
+      ? "Admin has confirmed the appointment occurred. Platform fee will be charged at cycle end."
+      : "Admin has confirmed the appointment did not occur. No fee will be charged.";
 
   await Promise.all([
     createAppointmentNotification(
@@ -462,6 +778,9 @@ export async function resolveDispute(
       confirmation.appointmentId
     ),
   ]);
+
+  // Note: Email notifications for dispute resolution could be added here
+  // but in-app notifications are typically sufficient for admin actions
 
   return {
     ...updated,
@@ -713,4 +1032,84 @@ export async function hasPendingConfirmations(
   });
 
   return count > 0;
+}
+
+/**
+ * Get pending confirmation count for a user
+ */
+export async function getPendingConfirmationCount(
+  userId: string
+): Promise<number> {
+  return prisma.appointmentConfirmation.count({
+    where: {
+      OR: [
+        { clientId: userId, clientConfirmed: null, finalStatus: "pending" },
+        {
+          professionalUserId: userId,
+          professionalConfirmed: null,
+          finalStatus: "pending",
+        },
+      ],
+    },
+  });
+}
+
+/**
+ * Get confirmation stats for a cycle (admin)
+ */
+export async function getConfirmationStatsForCycle(cycleId: string): Promise<{
+  total: number;
+  pending: number;
+  confirmed: number;
+  notOccurred: number;
+  autoNotOccurred: number;
+  disputed: number;
+  disputedResolved: number;
+}> {
+  const cycle = await prisma.payoutCycle.findUnique({
+    where: { id: cycleId },
+  });
+
+  if (!cycle) {
+    throw new Error("Cycle not found");
+  }
+
+  const confirmations = await prisma.appointmentConfirmation.groupBy({
+    by: ["finalStatus"],
+    where: {
+      appointment: {
+        endTime: {
+          gte: cycle.startDate,
+          lte: cycle.endDate,
+        },
+      },
+    },
+    _count: true,
+  });
+
+  const disputedResolved = await prisma.appointmentConfirmation.count({
+    where: {
+      isDisputed: true,
+      disputeResolvedAt: { not: null },
+      appointment: {
+        endTime: {
+          gte: cycle.startDate,
+          lte: cycle.endDate,
+        },
+      },
+    },
+  });
+
+  const getCount = (status: string) =>
+    confirmations.find((c) => c.finalStatus === status)?._count || 0;
+
+  return {
+    total: confirmations.reduce((sum, c) => sum + c._count, 0),
+    pending: getCount("pending"),
+    confirmed: getCount("confirmed"),
+    notOccurred: getCount("not_occurred"),
+    autoNotOccurred: getCount("auto_not_occurred"),
+    disputed: getCount("disputed"),
+    disputedResolved,
+  };
 }

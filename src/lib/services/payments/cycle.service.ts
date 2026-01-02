@@ -3,19 +3,17 @@
 import prisma from "@/lib/prisma";
 import {
   PayoutCycle,
-  PayoutCycleWithStats,
+  CycleWithStats,
   CycleStatus,
   CycleInfo,
 } from "@/types/payments";
 import {
-  getCurrentCycleStart,
-  getCurrentCycleEnd,
-  getCycleCutoffDate,
   getCycleDates,
   getDaysRemainingInCycle,
-  getHoursUntilCutoff,
-  isPastCutoff,
+  getHoursUntilDeadline,
+  isPastDeadline,
   getCyclesBetweenDates,
+  getCycleStartDate,
 } from "@/lib/utils/paymentCycle";
 import { castCycleStatus } from "./helpers";
 
@@ -43,7 +41,7 @@ export async function getOrCreateCurrentCycle(): Promise<PayoutCycle> {
       data: {
         startDate: cycleDates.startDate,
         endDate: cycleDates.endDate,
-        cutoffDate: cycleDates.cutoffDate,
+        confirmationDeadline: cycleDates.confirmationDeadline,
         status: "active",
       },
     });
@@ -104,8 +102,9 @@ export async function getCurrentCycleInfo(): Promise<CycleInfo> {
   return {
     current: cycle,
     daysRemaining: getDaysRemainingInCycle(),
-    hoursUntilCutoff: getHoursUntilCutoff(),
-    isProcessing: cycle.status === "processing",
+    hoursUntilDeadline: getHoursUntilDeadline(),
+    isProcessing:
+      cycle.status === "processing" || cycle.status === "confirming",
   };
 }
 
@@ -114,18 +113,15 @@ export async function getCurrentCycleInfo(): Promise<CycleInfo> {
  */
 export async function getCycleWithStats(
   cycleId: string
-): Promise<PayoutCycleWithStats | null> {
+): Promise<CycleWithStats | null> {
   const cycle = await prisma.payoutCycle.findUnique({
     where: { id: cycleId },
     include: {
       earnings: {
-        where: {
-          status: { in: ["confirmed", "paid"] },
-        },
         select: {
           grossAmount: true,
           platformFeeAmount: true,
-          netAmount: true,
+          status: true,
           professionalId: true,
         },
       },
@@ -139,14 +135,24 @@ export async function getCycleWithStats(
     (acc, earning) => {
       acc.totalEarnings += earning.grossAmount;
       acc.totalPlatformFees += earning.platformFeeAmount;
-      acc.totalNetAmount += earning.netAmount;
       acc.professionalIds.add(earning.professionalId);
+
+      if (earning.status === "confirmed" || earning.status === "charged") {
+        acc.confirmedCount++;
+      } else if (earning.status === "pending") {
+        acc.pendingCount++;
+      } else if (earning.status === "disputed") {
+        acc.disputedCount++;
+      }
+
       return acc;
     },
     {
       totalEarnings: 0,
       totalPlatformFees: 0,
-      totalNetAmount: 0,
+      confirmedCount: 0,
+      pendingCount: 0,
+      disputedCount: 0,
       professionalIds: new Set<string>(),
     }
   );
@@ -156,8 +162,10 @@ export async function getCycleWithStats(
     status: castCycleStatus(cycle.status),
     totalEarnings: stats.totalEarnings,
     totalPlatformFees: stats.totalPlatformFees,
-    totalNetAmount: stats.totalNetAmount,
     earningsCount: cycle.earnings.length,
+    confirmedCount: stats.confirmedCount,
+    pendingCount: stats.pendingCount,
+    disputedCount: stats.disputedCount,
     professionalCount: stats.professionalIds.size,
   };
 }
@@ -172,13 +180,17 @@ export async function getCycleWithStats(
 export async function updateCycleStatus(
   cycleId: string,
   status: CycleStatus,
-  processedAt?: Date
+  additionalData?: {
+    autoConfirmRanAt?: Date;
+    feeCollectionRanAt?: Date;
+    completedAt?: Date;
+  }
 ): Promise<PayoutCycle> {
   const cycle = await prisma.payoutCycle.update({
     where: { id: cycleId },
     data: {
       status,
-      processedAt: processedAt || (status === "completed" ? new Date() : null),
+      ...additionalData,
     },
   });
 
@@ -189,23 +201,41 @@ export async function updateCycleStatus(
 }
 
 /**
- * Get cycles ready for processing (past cutoff, still active)
+ * Get cycles ready for auto-confirmation (past deadline, still active)
  */
-export async function getCyclesReadyForProcessing(): Promise<PayoutCycle[]> {
-  // Get all active cycles
+export async function getCyclesReadyForAutoConfirm(): Promise<PayoutCycle[]> {
   const activeCycles = await prisma.payoutCycle.findMany({
     where: {
       status: "active",
+      autoConfirmRanAt: null,
     },
   });
 
-  // Filter to those past cutoff and cast types
+  // Filter to those past deadline
   return activeCycles
-    .filter((cycle) => isPastCutoff(cycle.startDate))
+    .filter((cycle) => isPastDeadline(cycle.startDate))
     .map((cycle) => ({
       ...cycle,
       status: castCycleStatus(cycle.status),
     }));
+}
+
+/**
+ * Get cycles ready for fee collection (auto-confirm done, fees not collected)
+ */
+export async function getCyclesReadyForFeeCollection(): Promise<PayoutCycle[]> {
+  const cycles = await prisma.payoutCycle.findMany({
+    where: {
+      status: "confirming",
+      autoConfirmRanAt: { not: null },
+      feeCollectionRanAt: null,
+    },
+  });
+
+  return cycles.map((cycle) => ({
+    ...cycle,
+    status: castCycleStatus(cycle.status),
+  }));
 }
 
 /**
@@ -214,15 +244,14 @@ export async function getCyclesReadyForProcessing(): Promise<PayoutCycle[]> {
 export async function getCycleForAppointment(
   appointmentEndTime: Date
 ): Promise<PayoutCycle> {
-  const cycleStart = getCurrentCycleStart(appointmentEndTime);
-  const cycleEnd = getCurrentCycleEnd(appointmentEndTime);
-  const cutoffDate = getCycleCutoffDate(cycleStart);
+  const cycleStart = getCycleStartDate(appointmentEndTime);
+  const cycleDates = getCycleDates(appointmentEndTime);
 
   // Try to find existing cycle
   let cycle = await prisma.payoutCycle.findFirst({
     where: {
-      startDate: cycleStart,
-      endDate: cycleEnd,
+      startDate: cycleDates.startDate,
+      endDate: cycleDates.endDate,
     },
   });
 
@@ -230,10 +259,10 @@ export async function getCycleForAppointment(
   if (!cycle) {
     cycle = await prisma.payoutCycle.create({
       data: {
-        startDate: cycleStart,
-        endDate: cycleEnd,
-        cutoffDate,
-        status: "active",
+        startDate: cycleDates.startDate,
+        endDate: cycleDates.endDate,
+        confirmationDeadline: cycleDates.confirmationDeadline,
+        status: isPastDeadline(cycleStart) ? "confirming" : "active",
       },
     });
   }
@@ -261,7 +290,6 @@ export async function getCyclesForProfessional(
 ): Promise<PayoutCycle[]> {
   const { status, limit = 10, offset = 0 } = options || {};
 
-  // Get cycles that have earnings for this professional
   const cyclesWithEarnings = await prisma.payoutCycle.findMany({
     where: {
       earnings: {
@@ -302,16 +330,16 @@ export async function getCycleCountForProfessional(
 }
 
 /**
- * Ensure all cycles exist between two dates (for history view)
+ * Ensure all cycles exist between two dates
  */
 export async function ensureCyclesExist(
   startDate: Date,
   endDate: Date
 ): Promise<PayoutCycle[]> {
-  const cycleDates = getCyclesBetweenDates(startDate, endDate);
+  const cycleDatesList = getCyclesBetweenDates(startDate, endDate);
   const cycles: PayoutCycle[] = [];
 
-  for (const dates of cycleDates) {
+  for (const dates of cycleDatesList) {
     let cycle = await prisma.payoutCycle.findFirst({
       where: {
         startDate: dates.startDate,
@@ -324,8 +352,8 @@ export async function ensureCyclesExist(
         data: {
           startDate: dates.startDate,
           endDate: dates.endDate,
-          cutoffDate: dates.cutoffDate,
-          status: isPastCutoff(dates.startDate) ? "completed" : "active",
+          confirmationDeadline: dates.confirmationDeadline,
+          status: isPastDeadline(dates.startDate) ? "completed" : "active",
         },
       });
     }
@@ -350,7 +378,7 @@ export async function getAllCyclesWithStats(options?: {
   status?: CycleStatus;
   limit?: number;
   offset?: number;
-}): Promise<{ cycles: PayoutCycleWithStats[]; total: number }> {
+}): Promise<{ cycles: CycleWithStats[]; total: number }> {
   const { status, limit = 10, offset = 0 } = options || {};
 
   const [cycles, total] = await Promise.all([
@@ -358,19 +386,11 @@ export async function getAllCyclesWithStats(options?: {
       where: status ? { status } : undefined,
       include: {
         earnings: {
-          where: {
-            status: { in: ["confirmed", "paid"] },
-          },
           select: {
             grossAmount: true,
             platformFeeAmount: true,
-            netAmount: true,
+            status: true,
             professionalId: true,
-          },
-        },
-        _count: {
-          select: {
-            payouts: true,
           },
         },
       },
@@ -385,19 +405,29 @@ export async function getAllCyclesWithStats(options?: {
     }),
   ]);
 
-  const cyclesWithStats: PayoutCycleWithStats[] = cycles.map((cycle) => {
+  const cyclesWithStats: CycleWithStats[] = cycles.map((cycle) => {
     const stats = cycle.earnings.reduce(
       (acc, earning) => {
         acc.totalEarnings += earning.grossAmount;
         acc.totalPlatformFees += earning.platformFeeAmount;
-        acc.totalNetAmount += earning.netAmount;
         acc.professionalIds.add(earning.professionalId);
+
+        if (earning.status === "confirmed" || earning.status === "charged") {
+          acc.confirmedCount++;
+        } else if (earning.status === "pending") {
+          acc.pendingCount++;
+        } else if (earning.status === "disputed") {
+          acc.disputedCount++;
+        }
+
         return acc;
       },
       {
         totalEarnings: 0,
         totalPlatformFees: 0,
-        totalNetAmount: 0,
+        confirmedCount: 0,
+        pendingCount: 0,
+        disputedCount: 0,
         professionalIds: new Set<string>(),
       }
     );
@@ -406,15 +436,19 @@ export async function getAllCyclesWithStats(options?: {
       id: cycle.id,
       startDate: cycle.startDate,
       endDate: cycle.endDate,
-      cutoffDate: cycle.cutoffDate,
+      confirmationDeadline: cycle.confirmationDeadline,
       status: castCycleStatus(cycle.status),
-      processedAt: cycle.processedAt,
+      autoConfirmRanAt: cycle.autoConfirmRanAt,
+      feeCollectionRanAt: cycle.feeCollectionRanAt,
+      completedAt: cycle.completedAt,
       createdAt: cycle.createdAt,
       updatedAt: cycle.updatedAt,
       totalEarnings: stats.totalEarnings,
       totalPlatformFees: stats.totalPlatformFees,
-      totalNetAmount: stats.totalNetAmount,
       earningsCount: cycle.earnings.length,
+      confirmedCount: stats.confirmedCount,
+      pendingCount: stats.pendingCount,
+      disputedCount: stats.disputedCount,
       professionalCount: stats.professionalIds.size,
     };
   });

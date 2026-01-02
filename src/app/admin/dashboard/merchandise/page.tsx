@@ -7,7 +7,7 @@ import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Package, Search, Plus, ShoppingBag } from "lucide-react";
 import Link from "next/link";
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { toast } from "sonner";
 import Image from "next/image";
 
@@ -33,11 +33,7 @@ export default function MerchandisePage() {
   const [search, setSearch] = useState("");
   const [loading, setLoading] = useState(true);
 
-  useEffect(() => {
-    fetchData();
-  }, [activeTab]);
-
-  const fetchData = async () => {
+  const fetchData = useCallback(async () => {
     setLoading(true);
     const path =
       activeTab === "items"
@@ -45,9 +41,17 @@ export default function MerchandisePage() {
         : "/api/merchandise/orders";
     const res = await fetch(path);
     const data = await res.json();
-    activeTab === "items" ? setMerch(data) : setOrders(data);
+    if (activeTab === "items") {
+      setMerch(data);
+    } else {
+      setOrders(data);
+    }
     setLoading(false);
-  };
+  }, [activeTab]);
+
+  useEffect(() => {
+    fetchData();
+  }, [fetchData]);
 
   const filteredMerch = merch.filter((m) =>
     m.name.toLowerCase().includes(search.toLowerCase())

@@ -16,27 +16,6 @@ import Link from "next/link";
 import { useCycleEndBanner } from "@/hooks/payments/useCycleEndBanner";
 import { formatCycleDateRange } from "@/lib/utils/paymentCycle";
 
-// ============================================
-// 🚨 TESTING FLAGS - REMOVE FOR PRODUCTION 🚨
-// ============================================
-// Set to true to always show the banner with mock data (bypasses all checks)
-const DEBUG_SHOW_BANNER = true;
-
-// Mock data for testing - shows example earnings when DEBUG_SHOW_BANNER is true
-const MOCK_EARNINGS = {
-  summary: {
-    netTotal: 450.0,
-    grossTotal: 500.0,
-    platformFeeTotal: 50.0,
-    sessionsCount: 5,
-  },
-  cycleStartDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // 7 days ago
-  cycleEndDate: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Yesterday
-};
-// ============================================
-// 🚨 END TESTING FLAGS 🚨
-// ============================================
-
 export function CycleEarningsBanner() {
   const {
     previousCycleEarnings,
@@ -46,46 +25,27 @@ export function CycleEarningsBanner() {
     dismiss,
   } = useCycleEndBanner();
 
-  // ============================================
-  // 🚨 TESTING LOGIC - REMOVE FOR PRODUCTION 🚨
-  // ============================================
-  // Use mock data when debugging, otherwise use real data
-  const earningsData = DEBUG_SHOW_BANNER
-    ? MOCK_EARNINGS
-    : previousCycleEarnings;
-
-  // When debugging, skip all the normal checks
-  if (DEBUG_SHOW_BANNER) {
-    // Only check for dismissal during debug mode
-    if (isDismissed) {
-      return null;
-    }
-  } else {
-    // ============================================
-    // 🚨 PRODUCTION LOGIC - KEEP THIS BLOCK 🚨
-    // ============================================
-    // Don't render if:
-    // - Not a new cycle day
-    // - Still loading
-    // - Already dismissed
-    // - No earnings from previous cycle
-    if (!isNewCycleDay || isLoading || isDismissed || !previousCycleEarnings) {
-      return null;
-    }
-  }
-  // ============================================
-  // 🚨 END TESTING LOGIC 🚨
-  // ============================================
-
-  // Safety check - earningsData should always exist at this point
-  if (!earningsData) {
+  // Don't render if:
+  // - Not a new cycle day
+  // - Still loading
+  // - Already dismissed
+  // - No earnings from previous cycle
+  if (!isNewCycleDay || isLoading || isDismissed || !previousCycleEarnings) {
     return null;
   }
 
-  const { summary, cycleStartDate, cycleEndDate } = earningsData;
-  const { netTotal, sessionsCount } = summary;
+  const { summary, cycleStartDate, cycleEndDate } = previousCycleEarnings;
+  const { grossTotal, platformFeeTotal, sessionsCount } = summary;
+  const netTotal = grossTotal - platformFeeTotal;
 
   const dateRange = formatCycleDateRange(cycleStartDate, cycleEndDate);
+
+  const formatCurrency = (amount: number) => {
+    return new Intl.NumberFormat("en-US", {
+      style: "currency",
+      currency: "USD",
+    }).format(amount);
+  };
 
   return (
     <AnimatePresence>
@@ -117,11 +77,11 @@ export function CycleEarningsBanner() {
                   <div className="flex items-center gap-1.5 text-emerald-700/80 dark:text-emerald-300/80">
                     <TrendingUp className="h-4 w-4" />
                     <span>
-                      Last week:{" "}
+                      Last cycle:{" "}
                       <span className="font-semibold">
-                        ${netTotal.toFixed(2)}
+                        {formatCurrency(netTotal)}
                       </span>{" "}
-                      earned
+                      net earnings
                     </span>
                   </div>
                   <div className="hidden sm:flex items-center gap-1.5 text-emerald-700/60 dark:text-emerald-300/60">
@@ -172,22 +132,3 @@ export function CycleEarningsBanner() {
     </AnimatePresence>
   );
 }
-
-// ============================================
-// 📋 PRODUCTION CLEANUP CHECKLIST:
-// ============================================
-// When you're done testing, do the following:
-//
-// 1. Delete or set to false:
-//    const DEBUG_SHOW_BANNER = false; // or delete entirely
-//
-// 2. Delete the MOCK_EARNINGS constant entirely
-//
-// 3. Replace the entire conditional logic block with just:
-//    if (!isNewCycleDay || isLoading || isDismissed || !previousCycleEarnings) {
-//      return null;
-//    }
-//    const { summary, cycleStartDate, cycleEndDate } = previousCycleEarnings;
-//
-// 4. Delete all comments marked with 🚨
-// ============================================

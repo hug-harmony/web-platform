@@ -6,19 +6,23 @@ import { authOptions } from "@/lib/auth";
 import {
   getAllCyclesWithStats,
   getDisputedConfirmations,
-  getPayoutSummaryForAdmin,
+  getFeeChargeSummaryForAdmin,
   getCycleWithStats,
+  getBlockedProfessionals,
+  getConfirmationStatsForCycle,
 } from "@/lib/services/payments";
 import { CycleStatus } from "@/types/payments";
 import { z } from "zod";
 
 const querySchema = z.object({
   view: z
-    .enum(["overview", "cycles", "disputes"])
+    .enum(["overview", "cycles", "disputes", "blocked"])
     .optional()
     .default("overview"),
   cycleId: z.string().optional(),
-  status: z.enum(["active", "processing", "completed", "failed"]).optional(),
+  status: z
+    .enum(["active", "confirming", "processing", "completed", "failed"])
+    .optional(),
   page: z.coerce.number().min(1).optional().default(1),
   limit: z.coerce.number().min(1).max(50).optional().default(10),
 });
@@ -45,20 +49,32 @@ export async function GET(request: NextRequest) {
 
     switch (params.view) {
       case "overview": {
-        const [currentCycle, disputes, payoutSummary] = await Promise.all([
-          (async () => {
-            const { cycles } = await getAllCyclesWithStats({ limit: 1 });
-            return cycles[0] || null;
-          })(),
-          getDisputedConfirmations(),
-          getPayoutSummaryForAdmin(),
-        ]);
+        const [currentCycleResult, disputes, feeChargeSummary, blockedPros] =
+          await Promise.all([
+            getAllCyclesWithStats({ limit: 1 }),
+            getDisputedConfirmations(),
+            getFeeChargeSummaryForAdmin(),
+            getBlockedProfessionals(),
+          ]);
+
+        const currentCycle = currentCycleResult.cycles[0] || null;
+
+        // Get confirmation stats for current cycle if exists
+        let confirmationStats = null;
+        if (currentCycle) {
+          confirmationStats = await getConfirmationStatsForCycle(
+            currentCycle.id
+          );
+        }
 
         return NextResponse.json({
           currentCycle,
+          confirmationStats,
           pendingDisputes: disputes.length,
-          disputes: disputes.slice(0, 5), // First 5 disputes
-          payoutSummary,
+          disputes: disputes.slice(0, 5),
+          feeChargeSummary,
+          blockedProfessionals: blockedPros,
+          blockedCount: blockedPros.length,
         });
       }
 
@@ -72,7 +88,19 @@ export async function GET(request: NextRequest) {
               { status: 404 }
             );
           }
-          return NextResponse.json(cycle);
+
+          const confirmationStats = await getConfirmationStatsForCycle(
+            params.cycleId
+          );
+          const feeChargeSummary = await getFeeChargeSummaryForAdmin(
+            params.cycleId
+          );
+
+          return NextResponse.json({
+            cycle,
+            confirmationStats,
+            feeChargeSummary,
+          });
         }
 
         // Get all cycles
@@ -96,6 +124,14 @@ export async function GET(request: NextRequest) {
         return NextResponse.json({
           data: disputes,
           total: disputes.length,
+        });
+      }
+
+      case "blocked": {
+        const blockedPros = await getBlockedProfessionals();
+        return NextResponse.json({
+          data: blockedPros,
+          total: blockedPros.length,
         });
       }
 

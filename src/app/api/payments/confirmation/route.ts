@@ -9,6 +9,7 @@ import {
   getConfirmationByAppointmentId,
   hasPendingConfirmations,
   ensureConfirmationExists,
+  getPendingConfirmationCount,
 } from "@/lib/services/payments";
 import prisma from "@/lib/prisma";
 import { z } from "zod";
@@ -17,6 +18,7 @@ import { z } from "zod";
 const getQuerySchema = z.object({
   appointmentId: z.string().optional(),
   checkPending: z.enum(["true", "false"]).optional(),
+  countOnly: z.enum(["true", "false"]).optional(),
 });
 
 // POST body schema
@@ -43,12 +45,19 @@ export async function GET(request: NextRequest) {
     const params = getQuerySchema.parse({
       appointmentId: searchParams.get("appointmentId") || undefined,
       checkPending: searchParams.get("checkPending") || undefined,
+      countOnly: searchParams.get("countOnly") || undefined,
     });
 
     // Check if user just wants to know if they have pending confirmations
     if (params.checkPending === "true") {
       const hasPending = await hasPendingConfirmations(session.user.id);
       return NextResponse.json({ hasPending });
+    }
+
+    // Get count only
+    if (params.countOnly === "true") {
+      const count = await getPendingConfirmationCount(session.user.id);
+      return NextResponse.json({ count });
     }
 
     // Get specific confirmation by appointment ID
@@ -104,7 +113,6 @@ export async function GET(request: NextRequest) {
     }
 
     // Get all pending confirmations for this user
-    // Determine user's role(s)
     const application = await prisma.professionalApplication.findUnique({
       where: { userId: session.user.id },
       select: { professionalId: true, status: true },
@@ -234,7 +242,6 @@ export async function POST(request: NextRequest) {
     const result = await confirmAppointment(
       {
         appointmentId,
-        oderId: session.user.id,
         confirmed,
         reviewData: review,
       },
@@ -254,7 +261,6 @@ export async function POST(request: NextRequest) {
     }
 
     if (error instanceof Error) {
-      // Return specific error messages from the service
       return NextResponse.json({ error: error.message }, { status: 400 });
     }
 

@@ -12,6 +12,7 @@ import {
 } from "@/lib/services/payments";
 import { EarningStatus } from "@/types/payments";
 import { getPreviousCycleDates } from "@/lib/utils/paymentCycle";
+import prisma from "@/lib/prisma";
 import { z } from "zod";
 
 // Query params schema
@@ -21,7 +22,14 @@ const querySchema = z.object({
     .optional()
     .default("list"),
   status: z
-    .enum(["pending", "confirmed", "disputed", "cancelled", "paid"])
+    .enum([
+      "pending",
+      "confirmed",
+      "not_occurred",
+      "disputed",
+      "charged",
+      "waived",
+    ])
     .optional(),
   cycleId: z.string().optional(),
   startDate: z.string().optional(),
@@ -143,8 +151,6 @@ export async function GET(request: NextRequest) {
 async function getProfessionalIdForUser(
   userId: string
 ): Promise<string | null> {
-  const { default: prisma } = await import("@/lib/prisma");
-
   const application = await prisma.professionalApplication.findUnique({
     where: { userId },
     select: { professionalId: true, status: true },
@@ -159,15 +165,13 @@ async function getProfessionalIdForUser(
 
 // Helper function to get previous cycle earnings summary
 async function getPreviousCycleEarningsSummary(professionalId: string) {
-  const { default: prisma } = await import("@/lib/prisma");
-
-  const previousCycle = getPreviousCycleDates();
+  const previousCycle = getPreviousCycleDates(new Date());
 
   // Find the cycle in the database
   const cycle = await prisma.payoutCycle.findFirst({
     where: {
       startDate: {
-        gte: new Date(previousCycle.startDate.getTime() - 1000), // 1 second tolerance
+        gte: new Date(previousCycle.startDate.getTime() - 1000),
         lte: new Date(previousCycle.startDate.getTime() + 1000),
       },
     },
@@ -189,12 +193,11 @@ async function getPreviousCycleEarningsSummary(professionalId: string) {
     where: {
       professionalId,
       cycleId: cycle.id,
-      status: { in: ["pending", "confirmed", "paid"] },
+      status: { in: ["pending", "confirmed", "charged"] },
     },
     _sum: {
       grossAmount: true,
       platformFeeAmount: true,
-      netAmount: true,
     },
     _count: true,
   });
@@ -217,7 +220,6 @@ async function getPreviousCycleEarningsSummary(professionalId: string) {
     summary: {
       grossTotal: aggregation._sum.grossAmount || 0,
       platformFeeTotal: aggregation._sum.platformFeeAmount || 0,
-      netTotal: aggregation._sum.netAmount || 0,
       sessionsCount,
     },
     cycle: {

@@ -9,7 +9,6 @@ import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { AlertCircle, Clock, MapPin, ChevronRight } from "lucide-react";
 import { ConfirmationWithDetails } from "@/types/payments";
-import { formatDistanceToNow } from "date-fns";
 
 interface PendingConfirmationsCardProps {
   confirmations: (ConfirmationWithDetails & {

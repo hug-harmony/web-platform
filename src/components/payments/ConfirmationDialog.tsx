@@ -1,4 +1,4 @@
-// src/app/dashboard/payment/components/ConfirmationDialog.tsx
+// src/components/payments/ConfirmationDialog.tsx
 
 "use client";
 
@@ -16,7 +16,6 @@ import { Button } from "@/components/ui/button";
 import { Textarea } from "@/components/ui/textarea";
 import { Label } from "@/components/ui/label";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Badge } from "@/components/ui/badge";
 import {
   CheckCircle2,
   XCircle,
@@ -52,18 +51,9 @@ export function ConfirmationDialog({
     useConfirmation(appointmentId);
 
   const handleConfirmOccurred = async () => {
-    // If user is client, show review step
-    if (confirmation?.clientId === confirmation?.professionalUserId) {
-      // This shouldn't happen but safety check
-      await submitConfirmation(true);
-    } else {
-      // Check if current user is the client
-      const isClient = true; // We'll determine this from the confirmation data
-      if (isClient && step === "confirm") {
-        setStep("review");
-      } else {
-        await submitConfirmation(true);
-      }
+    // Show review step for clients
+    if (confirmation && step === "confirm") {
+      setStep("review");
     }
   };
 
@@ -151,7 +141,7 @@ export function ConfirmationDialog({
           )}
 
           {/* Error State */}
-          {error && (
+          {error && !isLoading && (
             <motion.div
               key="error"
               initial={{ opacity: 0 }}
@@ -186,15 +176,22 @@ export function ConfirmationDialog({
               <div className="my-6 p-4 bg-[#F3CFC6]/10 dark:bg-[#C4C4C4]/10 rounded-lg">
                 <div className="flex items-center gap-3 mb-3">
                   <Avatar className="h-12 w-12 border-2 border-[#F3CFC6]">
+                    <AvatarImage
+                      src={confirmation.client?.profileImage || undefined}
+                    />
                     <AvatarFallback className="bg-[#F3CFC6]/20 text-[#F3CFC6]">
-                      {confirmation.professional.name.charAt(0)}
+                      {confirmation.client?.name?.charAt(0) ||
+                        confirmation.professional.name.charAt(0)}
                     </AvatarFallback>
                   </Avatar>
                   <div>
                     <p className="font-semibold text-black dark:text-white">
-                      {confirmation.professional.name}
+                      {confirmation.client?.name ||
+                        confirmation.professional.name}
                     </p>
-                    <p className="text-sm text-[#C4C4C4]">Professional</p>
+                    <p className="text-sm text-[#C4C4C4]">
+                      {confirmation.client ? "Client" : "Professional"}
+                    </p>
                   </div>
                 </div>
 
@@ -327,6 +324,14 @@ export function ConfirmationDialog({
                 </div>
               </div>
 
+              {submitError && (
+                <div className="mb-4 p-3 bg-red-50 dark:bg-red-900/20 border border-red-200 dark:border-red-800 rounded-lg">
+                  <p className="text-sm text-red-600 dark:text-red-400">
+                    {submitError}
+                  </p>
+                </div>
+              )}
+
               <DialogFooter className="flex-col sm:flex-row gap-2">
                 <Button
                   variant="ghost"
@@ -334,6 +339,9 @@ export function ConfirmationDialog({
                   disabled={isSubmitting}
                   className="w-full sm:w-auto"
                 >
+                  {isSubmitting ? (
+                    <Loader2 className="w-4 h-4 mr-2 animate-spin" />
+                  ) : null}
                   Skip
                 </Button>
                 <Button

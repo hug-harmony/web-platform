@@ -57,10 +57,9 @@ export async function GET(
       (acc, earning) => ({
         grossTotal: acc.grossTotal + earning.grossAmount,
         platformFeeTotal: acc.platformFeeTotal + earning.platformFeeAmount,
-        netTotal: acc.netTotal + earning.netAmount,
         count: acc.count + 1,
       }),
-      { grossTotal: 0, platformFeeTotal: 0, netTotal: 0, count: 0 }
+      { grossTotal: 0, platformFeeTotal: 0, count: 0 }
     );
 
     return NextResponse.json({

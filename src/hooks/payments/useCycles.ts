@@ -15,7 +15,7 @@ export function useCurrentCycle(): {
   refetch: () => Promise<void>;
   // Computed
   daysRemaining: number;
-  hoursUntilCutoff: number;
+  hoursUntilDeadline: number;
   isActive: boolean;
   formattedDateRange: string;
   progressPercent: number;
@@ -56,7 +56,7 @@ export function useCurrentCycle(): {
 
   // Computed values
   const daysRemaining = cycle?.daysRemaining ?? 0;
-  const hoursUntilCutoff = cycle?.hoursUntilCutoff ?? 0;
+  const hoursUntilDeadline = cycle?.hoursUntilDeadline ?? 0;
   const isActive = cycle?.current?.status === "active";
 
   const formattedDateRange = (() => {
@@ -70,9 +70,10 @@ export function useCurrentCycle(): {
     return `${start.toLocaleDateString("en-US", options)} - ${end.toLocaleDateString("en-US", { ...options, year: "numeric" })}`;
   })();
 
+  // Cycles are ~15 days
   const progressPercent = (() => {
     if (!cycle) return 0;
-    const totalDays = 7;
+    const totalDays = 15;
     const daysElapsed = totalDays - daysRemaining;
     return Math.min(100, Math.max(0, (daysElapsed / totalDays) * 100));
   })();
@@ -83,7 +84,7 @@ export function useCurrentCycle(): {
     error,
     refetch: fetchCycle,
     daysRemaining,
-    hoursUntilCutoff,
+    hoursUntilDeadline,
     isActive,
     formattedDateRange,
     progressPercent,
@@ -195,7 +196,6 @@ interface CycleWithEarnings {
   summary: {
     grossTotal: number;
     platformFeeTotal: number;
-    netTotal: number;
     count: number;
   };
 }

@@ -1,4 +1,4 @@
-// src/app/dashboard/payment/components/EarningsTable.tsx
+// src/components/payments/EarningsTable.tsx
 
 "use client";
 
@@ -115,20 +115,25 @@ export function EarningsTable({
           "bg-green-100 text-green-800 dark:bg-green-900/30 dark:text-green-400",
         label: "Confirmed",
       },
+      not_occurred: {
+        className:
+          "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400",
+        label: "Not Occurred",
+      },
       disputed: {
         className:
           "bg-red-100 text-red-800 dark:bg-red-900/30 dark:text-red-400",
         label: "Disputed",
       },
-      cancelled: {
-        className:
-          "bg-gray-100 text-gray-800 dark:bg-gray-800 dark:text-gray-400",
-        label: "Cancelled",
-      },
-      paid: {
+      charged: {
         className:
           "bg-blue-100 text-blue-800 dark:bg-blue-900/30 dark:text-blue-400",
-        label: "Paid",
+        label: "Fee Charged",
+      },
+      waived: {
+        className:
+          "bg-purple-100 text-purple-800 dark:bg-purple-900/30 dark:text-purple-400",
+        label: "Fee Waived",
       },
     };
 
@@ -138,6 +143,11 @@ export function EarningsTable({
         {variant.label}
       </Badge>
     );
+  };
+
+  // Calculate net amount (gross - platform fee)
+  const getNetAmount = (earning: EarningWithDetails) => {
+    return earning.grossAmount - earning.platformFeeAmount;
   };
 
   if (error) {
@@ -169,16 +179,17 @@ export function EarningsTable({
                     setStatusFilter(v as EarningStatus | "all")
                   }
                 >
-                  <SelectTrigger className="w-[140px]">
+                  <SelectTrigger className="w-[150px]">
                     <SelectValue placeholder="All Status" />
                   </SelectTrigger>
                   <SelectContent>
                     <SelectItem value="all">All Status</SelectItem>
                     <SelectItem value="pending">Pending</SelectItem>
                     <SelectItem value="confirmed">Confirmed</SelectItem>
-                    <SelectItem value="paid">Paid</SelectItem>
+                    <SelectItem value="charged">Fee Charged</SelectItem>
                     <SelectItem value="disputed">Disputed</SelectItem>
-                    <SelectItem value="cancelled">Cancelled</SelectItem>
+                    <SelectItem value="not_occurred">Not Occurred</SelectItem>
+                    <SelectItem value="waived">Fee Waived</SelectItem>
                   </SelectContent>
                 </Select>
               </div>
@@ -187,7 +198,7 @@ export function EarningsTable({
 
           {/* Summary Row */}
           {!compact && summary && (
-            <div className="flex gap-6 mt-4 text-sm">
+            <div className="flex gap-6 mt-4 text-sm flex-wrap">
               <div>
                 <span className="text-[#C4C4C4]">Gross: </span>
                 <span className="font-medium text-black dark:text-white">
@@ -195,7 +206,7 @@ export function EarningsTable({
                 </span>
               </div>
               <div>
-                <span className="text-[#C4C4C4]">Fees: </span>
+                <span className="text-[#C4C4C4]">Platform Fees: </span>
                 <span className="font-medium text-black dark:text-white">
                   {formatCurrency(summary.totalPlatformFees)}
                 </span>
@@ -231,6 +242,7 @@ export function EarningsTable({
                     <TableHead>Date</TableHead>
                     <TableHead>Duration</TableHead>
                     <TableHead className="text-right">Gross</TableHead>
+                    <TableHead className="text-right">Fee</TableHead>
                     <TableHead className="text-right">Net</TableHead>
                     <TableHead>Status</TableHead>
                   </TableRow>
@@ -281,8 +293,14 @@ export function EarningsTable({
                         <TableCell className="text-right font-medium text-black dark:text-white">
                           {formatCurrency(earning.grossAmount)}
                         </TableCell>
+                        <TableCell className="text-right text-[#C4C4C4]">
+                          -{formatCurrency(earning.platformFeeAmount)}
+                          <span className="text-xs ml-1">
+                            ({earning.platformFeePercent}%)
+                          </span>
+                        </TableCell>
                         <TableCell className="text-right font-medium text-green-600 dark:text-green-400">
-                          {formatCurrency(earning.netAmount)}
+                          {formatCurrency(getNetAmount(earning))}
                         </TableCell>
                         <TableCell>{getStatusBadge(earning.status)}</TableCell>
                       </motion.tr>
@@ -331,8 +349,15 @@ export function EarningsTable({
                           {formatDuration(earning.sessionDurationMinutes)}
                         </span>
                       </div>
+                    </div>
+
+                    <div className="flex items-center justify-between mt-2 pt-2 border-t border-[#C4C4C4]/10">
+                      <div className="text-xs text-[#C4C4C4]">
+                        {formatCurrency(earning.grossAmount)} -{" "}
+                        {formatCurrency(earning.platformFeeAmount)} fee
+                      </div>
                       <span className="font-semibold text-green-600 dark:text-green-400">
-                        {formatCurrency(earning.netAmount)}
+                        {formatCurrency(getNetAmount(earning))}
                       </span>
                     </div>
                   </motion.div>

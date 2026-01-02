@@ -2,26 +2,12 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
-import {
-  DynamoDBDocumentClient,
-  PutCommand,
-  QueryCommand,
-  DeleteCommand,
-} from "@aws-sdk/lib-dynamodb";
+import { getDocClient, TABLES } from "@/lib/aws/clients";
+import { PutCommand, QueryCommand, DeleteCommand } from "@aws-sdk/lib-dynamodb";
 
-const client = new DynamoDBClient({
-  region: process.env.REGION || "us-east-2",
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
-
-const docClient = DynamoDBDocumentClient.from(client);
-const TABLE_NAME =
-  process.env.PUSH_SUBSCRIPTIONS_TABLE || "PushSubscriptions-prod";
-
+/**
+ * POST - Subscribe to push notifications
+ */
 export async function POST(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -38,9 +24,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    const docClient = getDocClient();
+
     // Store subscription in DynamoDB
     const item = {
-      odI: session.user.id,
+      userId: session.user.id, // FIXED: was "odI"
       endpoint: subscription.endpoint,
       keys: subscription.keys,
       createdAt: new Date().toISOString(),
@@ -50,7 +38,7 @@ export async function POST(request: NextRequest) {
 
     await docClient.send(
       new PutCommand({
-        TableName: TABLE_NAME,
+        TableName: TABLES.PUSH_SUBSCRIPTIONS,
         Item: item,
       })
     );
@@ -67,6 +55,9 @@ export async function POST(request: NextRequest) {
   }
 }
 
+/**
+ * DELETE - Unsubscribe from push notifications
+ */
 export async function DELETE(request: NextRequest) {
   try {
     const session = await getServerSession(authOptions);
@@ -80,15 +71,19 @@ export async function DELETE(request: NextRequest) {
       return NextResponse.json({ error: "Endpoint required" }, { status: 400 });
     }
 
+    const docClient = getDocClient();
+
     await docClient.send(
       new DeleteCommand({
-        TableName: TABLE_NAME,
+        TableName: TABLES.PUSH_SUBSCRIPTIONS,
         Key: {
-          odI: session.user.id,
+          userId: session.user.id, // FIXED: was "odI"
           endpoint: endpoint,
         },
       })
     );
+
+    console.log(`Push subscription removed for user ${session.user.id}`);
 
     return NextResponse.json({ success: true });
   } catch (error) {
@@ -100,7 +95,9 @@ export async function DELETE(request: NextRequest) {
   }
 }
 
-// Get subscription status
+/**
+ * GET - Check push subscription status
+ */
 export async function GET() {
   try {
     const session = await getServerSession(authOptions);
@@ -108,10 +105,12 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    const docClient = getDocClient();
+
     const result = await docClient.send(
       new QueryCommand({
-        TableName: TABLE_NAME,
-        KeyConditionExpression: "odI = :userId",
+        TableName: TABLES.PUSH_SUBSCRIPTIONS,
+        KeyConditionExpression: "userId = :userId", // FIXED: was "odI"
         ExpressionAttributeValues: {
           ":userId": session.user.id,
         },

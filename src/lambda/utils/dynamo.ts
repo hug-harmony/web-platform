@@ -12,12 +12,16 @@ import {
 import { randomUUID } from "crypto";
 
 const client = new DynamoDBClient({});
-export const docClient = DynamoDBDocumentClient.from(client);
+export const docClient = DynamoDBDocumentClient.from(client, {
+  marshallOptions: { removeUndefinedValues: true },
+});
 
 export const TABLE_NAME =
   process.env.CONNECTIONS_TABLE || "ChatConnections-prod";
 export const NOTIFICATIONS_TABLE =
   process.env.NOTIFICATIONS_TABLE || "Notifications-prod";
+export const PUSH_SUBSCRIPTIONS_TABLE =
+  process.env.PUSH_SUBSCRIPTIONS_TABLE || "PushSubscriptions-prod";
 
 // App URL for API calls
 const APP_URL = process.env.APP_URL || process.env.NEXT_PUBLIC_APP_URL;
@@ -241,11 +245,18 @@ export async function updateUserLastOnline(userId: string): Promise<void> {
 // Notification Types & Functions
 // ==========================================
 
+export type NotificationType =
+  | "message"
+  | "appointment"
+  | "payment"
+  | "profile_visit"
+  | "video_call";
+
 export interface NotificationRecord {
   id: string;
   userId: string;
   senderId?: string;
-  type: "message" | "appointment" | "payment" | "profile_visit";
+  type: NotificationType;
   content: string;
   timestamp: string;
   unread: string;
@@ -256,7 +267,7 @@ export interface NotificationRecord {
 
 export async function createNotification(
   userId: string,
-  type: NotificationRecord["type"],
+  type: NotificationType,
   content: string,
   senderId?: string,
   relatedId?: string
@@ -308,6 +319,56 @@ export async function getNotificationsByUser(
   return (result.Items || []) as NotificationRecord[];
 }
 
+/**
+ * Get unread notifications using UnreadIndex GSI
+ */
+export async function getUnreadNotificationsByUser(
+  userId: string,
+  limit: number = 50
+): Promise<NotificationRecord[]> {
+  const result = await docClient.send(
+    new QueryCommand({
+      TableName: NOTIFICATIONS_TABLE,
+      IndexName: "UnreadIndex",
+      KeyConditionExpression: "userId = :userId AND unread = :unread",
+      ExpressionAttributeValues: {
+        ":userId": userId,
+        ":unread": "true",
+      },
+      Limit: limit,
+    })
+  );
+
+  return (result.Items || []) as NotificationRecord[];
+}
+
+/**
+ * Get notifications by type using TypeIndex GSI
+ */
+export async function getNotificationsByType(
+  userId: string,
+  type: NotificationType,
+  limit: number = 50
+): Promise<NotificationRecord[]> {
+  const result = await docClient.send(
+    new QueryCommand({
+      TableName: NOTIFICATIONS_TABLE,
+      IndexName: "TypeIndex",
+      KeyConditionExpression: "userId = :userId AND #type = :type",
+      ExpressionAttributeNames: {
+        "#type": "type",
+      },
+      ExpressionAttributeValues: {
+        ":userId": userId,
+        ":type": type,
+      },
+      Limit: limit,
+    })
+  );
+
+  return (result.Items || []) as NotificationRecord[];
+}
+
 export async function getNotificationById(
   notificationId: string
 ): Promise<NotificationRecord | null> {
@@ -345,14 +406,19 @@ export async function markNotificationAsRead(
 export async function markAllNotificationsAsRead(
   userId: string
 ): Promise<number> {
+  // Use UnreadIndex GSI to get only unread notifications
   const result = await docClient.send(
     new QueryCommand({
       TableName: NOTIFICATIONS_TABLE,
-      KeyConditionExpression: "userId = :userId",
-      FilterExpression: "unreadBool = :unread",
+      IndexName: "UnreadIndex",
+      KeyConditionExpression: "userId = :userId AND unread = :unread",
       ExpressionAttributeValues: {
         ":userId": userId,
-        ":unread": true,
+        ":unread": "true",
+      },
+      ProjectionExpression: "userId, #ts",
+      ExpressionAttributeNames: {
+        "#ts": "timestamp",
       },
     })
   );
@@ -384,19 +450,66 @@ export async function deleteNotification(
   );
 }
 
+/**
+ * Get unread count using UnreadIndex GSI
+ */
 export async function getUnreadCount(userId: string): Promise<number> {
   const result = await docClient.send(
     new QueryCommand({
       TableName: NOTIFICATIONS_TABLE,
-      KeyConditionExpression: "userId = :userId",
-      FilterExpression: "unreadBool = :unread",
+      IndexName: "UnreadIndex",
+      KeyConditionExpression: "userId = :userId AND unread = :unread",
       ExpressionAttributeValues: {
         ":userId": userId,
-        ":unread": true,
+        ":unread": "true",
       },
       Select: "COUNT",
     })
   );
 
   return result.Count || 0;
+}
+
+// ==========================================
+// Push Subscription Functions
+// ==========================================
+
+export interface PushSubscriptionRecord {
+  userId: string;
+  endpoint: string;
+  keys: {
+    p256dh: string;
+    auth: string;
+  };
+  createdAt: string;
+  userAgent?: string;
+  ttl: number;
+}
+
+export async function getPushSubscriptionsByUser(
+  userId: string
+): Promise<PushSubscriptionRecord[]> {
+  const result = await docClient.send(
+    new QueryCommand({
+      TableName: PUSH_SUBSCRIPTIONS_TABLE,
+      KeyConditionExpression: "userId = :userId",
+      ExpressionAttributeValues: {
+        ":userId": userId,
+      },
+    })
+  );
+
+  return (result.Items || []) as PushSubscriptionRecord[];
+}
+
+export async function deletePushSubscription(
+  userId: string,
+  endpoint: string
+): Promise<void> {
+  await docClient.send(
+    new DeleteCommand({
+      TableName: PUSH_SUBSCRIPTIONS_TABLE,
+      Key: { userId, endpoint },
+    })
+  );
 }

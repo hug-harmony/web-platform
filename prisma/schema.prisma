@@ -147,6 +147,20 @@ model Professional {
   createdAt            DateTime   @default(now())
   location             String?
 
+  // NEW: Stripe payment info for fee collection
+  stripeCustomerId      String? // Stripe Customer ID
+  stripePaymentMethodId String? // Default payment method ID
+  cardLast4             String? // Last 4 digits for display
+  cardBrand             String? // visa, mastercard, etc.
+  cardExpiryMonth       Int?
+  cardExpiryYear        Int?
+  paymentMethodAddedAt  DateTime?
+
+  // NEW: Payment status flags
+  hasValidPaymentMethod Boolean   @default(false)
+  paymentBlockedAt      DateTime? // Set when charge fails
+  paymentBlockReason    String? // Why they're blocked
+
   appointments             Appointment[]             @relation("ProfessionalAppointments")
   applications             ProfessionalApplication[] @relation
   VideoSession             VideoSession[]
@@ -158,7 +172,7 @@ model Professional {
   reported                 Report[]                  @relation("ReportedProfessional")
   notesReceived            Note[]                    @relation("TargetProfessionalNotes")
   earnings                 Earning[]
-  payouts                  Payout[]
+  feeCharges               FeeCharge[] // NEW: replaces Payout
   appointmentConfirmations AppointmentConfirmation[]
 }
 
@@ -620,17 +634,26 @@ model Block {
 }
 
 model PayoutCycle {
-  id          String    @id @default(auto()) @map("_id") @db.ObjectId
-  startDate   DateTime // Monday 12:00 AM UTC
-  endDate     DateTime // Sunday 11:59:59 PM UTC
-  cutoffDate  DateTime // Next Monday 3:00 PM UTC
-  status      String    @default("active") // active | processing | completed | failed
-  processedAt DateTime?
-  createdAt   DateTime  @default(now())
-  updatedAt   DateTime  @updatedAt
+  id        String   @id @default(auto()) @map("_id") @db.ObjectId
+  startDate DateTime // 1st or 16th of month
+  endDate   DateTime // 15th or end of month
 
-  earnings Earning[]
-  payouts  Payout[]
+  // NEW: Auto-confirm deadline (last day of cycle, end of day)
+  confirmationDeadline DateTime?
+
+  status String @default("active")
+  // active | confirming | processing | completed | failed
+
+  // Processing timestamps
+  autoConfirmRanAt   DateTime? // When auto-confirm job ran
+  feeCollectionRanAt DateTime? // When fee collection started
+  completedAt        DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  earnings   Earning[]
+  feeCharges FeeCharge[]
 }
 
 model Earning {
@@ -641,19 +664,22 @@ model Earning {
   cycleId        String @db.ObjectId
 
   // Amounts (stored as Float for MongoDB compatibility)
-  grossAmount        Float // hourlyRate * hours
+  grossAmount        Float // What professional received from client
   platformFeePercent Float // % at time of earning (snapshot)
-  platformFeeAmount  Float // Calculated fee
-  netAmount          Float // grossAmount - platformFeeAmount
+  platformFeeAmount  Float // What platform will charge professional
 
   // Session details
   sessionDurationMinutes Int
   hourlyRate             Float
-  sessionStartTime       DateTime // When the appointment started
-  sessionEndTime         DateTime // When the appointment ended
+  sessionStartTime       DateTime
+  sessionEndTime         DateTime
 
+  // Status tracking
   status String @default("pending")
-  // pending | confirmed | disputed | cancelled | paid
+  // pending | confirmed | not_occurred | disputed | charged | waived
+
+  // NEW: Link to fee charge when processed
+  feeChargeId String? @db.ObjectId
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -662,32 +688,52 @@ model Earning {
   professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   appointment  Appointment  @relation(fields: [appointmentId], references: [id], onDelete: Cascade)
   cycle        PayoutCycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  feeCharge    FeeCharge?   @relation(fields: [feeChargeId], references: [id])
 
   @@index([professionalId])
   @@index([cycleId])
   @@index([status])
+  @@index([feeChargeId])
 }
 
-model Payout {
+model FeeCharge {
   id String @id @default(auto()) @map("_id") @db.ObjectId
 
   professionalId String @db.ObjectId
   cycleId        String @db.ObjectId
 
-  // Amounts
-  grossTotal       Float
-  platformFeeTotal Float
-  netTotal         Float
-  earningsCount    Int // Number of sessions included
+  // Amounts to charge
+  totalGrossEarnings Float // Sum of all confirmed earnings
+  platformFeePercent Float // Rate used (snapshot)
+  amountToCharge     Float // Platform fee total
 
-  // Payout details
+  earningsCount Int // Number of sessions included
+
+  // Charge status
   status String @default("pending")
-  // pending | processing | completed | failed
+  // pending | processing | completed | failed | partially_paid | waived
 
-  stripePayoutId   String? // For future Stripe integration
-  stripeTransferId String?
-  processedAt      DateTime?
-  failedReason     String?
+  // Stripe charge details
+  stripePaymentIntentId String?
+  stripeChargeId        String?
+
+  // Retry tracking
+  attemptCount  Int       @default(0)
+  lastAttemptAt DateTime?
+  nextRetryAt   DateTime?
+
+  // Failure info
+  failureCode    String?
+  failureMessage String?
+
+  // Success info
+  chargedAt     DateTime?
+  chargedAmount Float? // Actual amount charged (might differ if partial)
+
+  // Admin actions
+  waivedAt     DateTime?
+  waivedBy     String?   @db.ObjectId // Admin user ID
+  waivedReason String?
 
   createdAt DateTime @default(now())
   updatedAt DateTime @updatedAt
@@ -695,11 +741,13 @@ model Payout {
   // Relations
   professional Professional @relation(fields: [professionalId], references: [id], onDelete: Cascade)
   cycle        PayoutCycle  @relation(fields: [cycleId], references: [id], onDelete: Cascade)
+  earnings     Earning[]
 
-  @@unique([professionalId, cycleId]) // One payout per professional per cycle
+  @@unique([professionalId, cycleId]) // One charge per professional per cycle
   @@index([professionalId])
   @@index([cycleId])
   @@index([status])
+  @@index([nextRetryAt])
 }
 
 model AppointmentConfirmation {
@@ -709,19 +757,23 @@ model AppointmentConfirmation {
 
   // Client (user who booked)
   clientId          String    @db.ObjectId
-  clientConfirmed   Boolean? // null = pending, true = occurred, false = did not occur
+  clientConfirmed   Boolean?
   clientConfirmedAt DateTime?
-  clientReviewId    String?   @db.ObjectId // Link to Review if left
+  clientReviewId    String?   @db.ObjectId
 
   // Professional
   professionalId          String    @db.ObjectId
-  professionalUserId      String    @db.ObjectId // The User ID of the professional
-  professionalConfirmed   Boolean? // null = pending
+  professionalUserId      String    @db.ObjectId
+  professionalConfirmed   Boolean?
   professionalConfirmedAt DateTime?
 
   // Resolution
   finalStatus String @default("pending")
-  // pending | confirmed | not_occurred | disputed | auto_confirmed
+  // pending | confirmed | not_occurred | disputed | auto_not_occurred
+
+  // NEW: Auto-confirmation tracking
+  autoResolvedAt    DateTime?
+  autoResolveReason String? // "deadline_passed" | "both_no_response" etc.
 
   isDisputed        Boolean   @default(false)
   disputeReason     String?

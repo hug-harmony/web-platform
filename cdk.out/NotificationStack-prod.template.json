@@ -1,0 +1,540 @@
+{
+ "Description": "Async notification processing infrastructure",
+ "Resources": {
+  "NotificationTopicEB7A0DF1": {
+   "Type": "AWS::SNS::Topic",
+   "Properties": {
+    "DisplayName": "Hug Harmony Notifications",
+    "TopicName": "Notifications-prod"
+   },
+   "Metadata": {
+    "aws:cdk:path": "NotificationStack-prod/NotificationTopic/Resource"
+   }
+  },
+  "NotificationDLQCDA15FAF": {
+   "Type": "AWS::SQS::Queue",
+   "Properties": {
+    "MessageRetentionPeriod": 1209600,
+    "QueueName": "NotificationDLQ-prod",
+    "ReceiveMessageWaitTimeSeconds": 20
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "NotificationStack-prod/NotificationDLQ/Resource"
+   }
+  },
+  "NotificationQueue36610CC1": {
+   "Type": "AWS::SQS::Queue",
+   "Properties": {
+    "QueueName": "NotificationQueue-prod",
+    "ReceiveMessageWaitTimeSeconds": 20,
+    "RedrivePolicy": {
+     "deadLetterTargetArn": {
+      "Fn::GetAtt": [
+       "NotificationDLQCDA15FAF",
+       "Arn"
+      ]
+     },
+     "maxReceiveCount": 3
+    },
+    "VisibilityTimeout": 60
+   },
+   "UpdateReplacePolicy": "Delete",
+   "DeletionPolicy": "Delete",
+   "Metadata": {
+    "aws:cdk:path": "NotificationStack-prod/NotificationQueue/Resource"
+   }
+  },
+  "NotificationQueuePolicyCC060EA6": {
+   "Type": "AWS::SQS::QueuePolicy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sqs:SendMessage",
+       "Condition": {
+        "ArnEquals": {
+         "aws:SourceArn": {
+          "Ref": "NotificationTopicEB7A0DF1"
+         }
+        }
+       },
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "sns.amazonaws.com"
+       },
+       "Resource": {
+        "Fn::GetAtt": [
+         "NotificationQueue36610CC1",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "Queues": [
+     {
+      "Ref": "NotificationQueue36610CC1"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "NotificationStack-prod/NotificationQueue/Policy/Resource"
+   }
+  },
+  "NotificationQueueNotificationStackprodNotificationTopic77CA85483FD077E2": {
+   "Type": "AWS::SNS::Subscription",
+   "Properties": {
+    "Endpoint": {
+     "Fn::GetAtt": [
+      "NotificationQueue36610CC1",
+      "Arn"
+     ]
+    },
+    "Protocol": "sqs",
+    "RawMessageDelivery": false,
+    "TopicArn": {
+     "Ref": "NotificationTopicEB7A0DF1"
+    }
+   },
+   "DependsOn": [
+    "NotificationQueuePolicyCC060EA6"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "NotificationStack-prod/NotificationQueue/NotificationStackprodNotificationTopic77CA8548/Resource"
+   }
+  },
+  "NotificationLambdaRole8517A721": {
+   "Type": "AWS::IAM::Role",
+   "Properties": {
+    "AssumeRolePolicyDocument": {
+     "Statement": [
+      {
+       "Action": "sts:AssumeRole",
+       "Effect": "Allow",
+       "Principal": {
+        "Service": "lambda.amazonaws.com"
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "ManagedPolicyArns": [
+     {
+      "Fn::Join": [
+       "",
+       [
+        "arn:",
+        {
+         "Ref": "AWS::Partition"
+        },
+        ":iam::aws:policy/service-role/AWSLambdaBasicExecutionRole"
+       ]
+      ]
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "NotificationStack-prod/NotificationLambdaRole/Resource"
+   }
+  },
+  "NotificationLambdaRoleDefaultPolicy07D18877": {
+   "Type": "AWS::IAM::Policy",
+   "Properties": {
+    "PolicyDocument": {
+     "Statement": [
+      {
+       "Action": [
+        "secretsmanager:GetSecretValue",
+        "secretsmanager:DescribeSecret"
+       ],
+       "Effect": "Allow",
+       "Resource": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets-??????"
+      },
+      {
+       "Action": [
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:aws:dynamodb:us-east-2:232247293056:table/",
+          {
+           "Fn::ImportValue": "ChatWebSocketStack-prod:ExportsOutputRefNotifications872987081051AE19"
+          }
+         ]
+        ]
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:aws:dynamodb:us-east-2:232247293056:table/",
+          {
+           "Fn::ImportValue": "ChatWebSocketStack-prod:ExportsOutputRefChatConnectionsFC8BD7F3444AD0F2"
+          }
+         ]
+        ]
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:aws:dynamodb:us-east-2:232247293056:table/",
+          {
+           "Fn::ImportValue": "ChatWebSocketStack-prod:ExportsOutputRefChatConnectionsFC8BD7F3444AD0F2"
+          }
+         ]
+        ]
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:BatchGetItem",
+        "dynamodb:Query",
+        "dynamodb:GetItem",
+        "dynamodb:Scan",
+        "dynamodb:ConditionCheckItem",
+        "dynamodb:BatchWriteItem",
+        "dynamodb:PutItem",
+        "dynamodb:UpdateItem",
+        "dynamodb:DeleteItem",
+        "dynamodb:DescribeTable"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:aws:dynamodb:us-east-2:232247293056:table/",
+          {
+           "Fn::ImportValue": "ChatWebSocketStack-prod:ExportsOutputRefPushSubscriptions65464CC820BA4F62"
+          }
+         ]
+        ]
+       }
+      },
+      {
+       "Action": [
+        "dynamodb:GetRecords",
+        "dynamodb:GetShardIterator"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::Join": [
+         "",
+         [
+          "arn:aws:dynamodb:us-east-2:232247293056:table/",
+          {
+           "Fn::ImportValue": "ChatWebSocketStack-prod:ExportsOutputRefPushSubscriptions65464CC820BA4F62"
+          }
+         ]
+        ]
+       }
+      },
+      {
+       "Action": "execute-api:ManageConnections",
+       "Effect": "Allow",
+       "Resource": "arn:aws:execute-api:us-east-2:232247293056:*/*/@connections/*"
+      },
+      {
+       "Action": [
+        "sqs:ReceiveMessage",
+        "sqs:ChangeMessageVisibility",
+        "sqs:GetQueueUrl",
+        "sqs:DeleteMessage",
+        "sqs:GetQueueAttributes"
+       ],
+       "Effect": "Allow",
+       "Resource": {
+        "Fn::GetAtt": [
+         "NotificationQueue36610CC1",
+         "Arn"
+        ]
+       }
+      }
+     ],
+     "Version": "2012-10-17"
+    },
+    "PolicyName": "NotificationLambdaRoleDefaultPolicy07D18877",
+    "Roles": [
+     {
+      "Ref": "NotificationLambdaRole8517A721"
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "NotificationStack-prod/NotificationLambdaRole/DefaultPolicy/Resource"
+   }
+  },
+  "NotificationProcessorE91924AA": {
+   "Type": "AWS::Lambda::Function",
+   "Properties": {
+    "Code": {
+     "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
+     "S3Key": "1b40491ab1d22c6fba7782b2de951ab951a1bfa7dcbdfe3fe54ba818017d9d03.zip"
+    },
+    "Environment": {
+     "Variables": {
+      "NOTIFICATIONS_TABLE": {
+       "Fn::ImportValue": "ChatWebSocketStack-prod:ExportsOutputRefNotifications872987081051AE19"
+      },
+      "CONNECTIONS_TABLE": {
+       "Fn::ImportValue": "ChatWebSocketStack-prod:ExportsOutputRefChatConnectionsFC8BD7F3444AD0F2"
+      },
+      "PUSH_SUBSCRIPTIONS_TABLE": {
+       "Fn::ImportValue": "ChatWebSocketStack-prod:ExportsOutputRefPushSubscriptions65464CC820BA4F62"
+      },
+      "WEBSOCKET_API_ENDPOINT": {
+       "Fn::Join": [
+        "",
+        [
+         "https://",
+         {
+          "Fn::ImportValue": "ChatWebSocketStack-prod:ExportsOutputRefChatWebSocketApi67FC4780"
+         },
+         ".execute-api.us-east-2.amazonaws.com/prod"
+        ]
+       ]
+      },
+      "SECRETS_NAME": "hug-harmony/prod/secrets",
+      "NODE_OPTIONS": "--enable-source-maps"
+     }
+    },
+    "FunctionName": "NotificationProcessor-prod",
+    "Handler": "notification-processor.handler",
+    "MemorySize": 512,
+    "ReservedConcurrentExecutions": 10,
+    "Role": {
+     "Fn::GetAtt": [
+      "NotificationLambdaRole8517A721",
+      "Arn"
+     ]
+    },
+    "Runtime": "nodejs18.x",
+    "Timeout": 30
+   },
+   "DependsOn": [
+    "NotificationLambdaRoleDefaultPolicy07D18877",
+    "NotificationLambdaRole8517A721"
+   ],
+   "Metadata": {
+    "aws:cdk:path": "NotificationStack-prod/NotificationProcessor/Resource",
+    "aws:asset:path": "asset.1b40491ab1d22c6fba7782b2de951ab951a1bfa7dcbdfe3fe54ba818017d9d03",
+    "aws:asset:is-bundled": false,
+    "aws:asset:property": "Code"
+   }
+  },
+  "NotificationProcessorSqsEventSourceNotificationStackprodNotificationQueue700785FC3CF3B598": {
+   "Type": "AWS::Lambda::EventSourceMapping",
+   "Properties": {
+    "BatchSize": 10,
+    "EventSourceArn": {
+     "Fn::GetAtt": [
+      "NotificationQueue36610CC1",
+      "Arn"
+     ]
+    },
+    "FunctionName": {
+     "Ref": "NotificationProcessorE91924AA"
+    },
+    "FunctionResponseTypes": [
+     "ReportBatchItemFailures"
+    ],
+    "MaximumBatchingWindowInSeconds": 5
+   },
+   "Metadata": {
+    "aws:cdk:path": "NotificationStack-prod/NotificationProcessor/SqsEventSource:NotificationStackprodNotificationQueue700785FC/Resource"
+   }
+  },
+  "DLQAlarm77626DBA": {
+   "Type": "AWS::CloudWatch::Alarm",
+   "Properties": {
+    "AlarmDescription": "Alert when there are messages in the notification DLQ",
+    "AlarmName": "NotificationDLQ-Messages-prod",
+    "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+    "Dimensions": [
+     {
+      "Name": "QueueName",
+      "Value": {
+       "Fn::GetAtt": [
+        "NotificationDLQCDA15FAF",
+        "QueueName"
+       ]
+      }
+     }
+    ],
+    "EvaluationPeriods": 1,
+    "MetricName": "ApproximateNumberOfMessagesVisible",
+    "Namespace": "AWS/SQS",
+    "Period": 300,
+    "Statistic": "Maximum",
+    "Threshold": 1,
+    "TreatMissingData": "notBreaching"
+   },
+   "Metadata": {
+    "aws:cdk:path": "NotificationStack-prod/DLQAlarm/Resource"
+   }
+  },
+  "ProcessorErrorAlarm65727A1E": {
+   "Type": "AWS::CloudWatch::Alarm",
+   "Properties": {
+    "AlarmDescription": "Alert when notification processor has errors",
+    "AlarmName": "NotificationProcessor-Errors-prod",
+    "ComparisonOperator": "GreaterThanOrEqualToThreshold",
+    "Dimensions": [
+     {
+      "Name": "FunctionName",
+      "Value": {
+       "Ref": "NotificationProcessorE91924AA"
+      }
+     }
+    ],
+    "EvaluationPeriods": 1,
+    "MetricName": "Errors",
+    "Namespace": "AWS/Lambda",
+    "Period": 300,
+    "Statistic": "Sum",
+    "Threshold": 5,
+    "TreatMissingData": "notBreaching"
+   },
+   "Metadata": {
+    "aws:cdk:path": "NotificationStack-prod/ProcessorErrorAlarm/Resource"
+   }
+  },
+  "CDKMetadata": {
+   "Type": "AWS::CDK::Metadata",
+   "Properties": {
+    "Analytics": "v2:deflate64:H4sIAAAAAAAA/2VPTU/DMAz9LbunZrSHnTcENwS0u09uYkbWNOnqZNUU5b+jpmwgcfF7fn7+KqGsKlivcOJCqq4wuoXYeJSdqIldGCUJnPgQ2TLEvRu0FE+fdiFNaFmOevDa2Vn9myfBZ4b4ESjQXFtIju/OaHm9i0uahMYeYu1Mtmf8Nd486mqxd6qFPbaGdsgkDPatQogvwcrbIXf+fCHrm/zGKw6Dtse5/F9NgqsDMpNn2M4guIJdkB35vEQaF9SEXn5B3Boc+3lMJimJ3NB4PP6Mfwt+CD4J6xTBiR8uZQmPG1ivTqx1MQbrdU9QL/gN6ytOlYEBAAA="
+   },
+   "Metadata": {
+    "aws:cdk:path": "NotificationStack-prod/CDKMetadata/Default"
+   }
+  }
+ },
+ "Outputs": {
+  "NotificationTopicArn": {
+   "Description": "SNS Topic ARN for publishing notifications",
+   "Value": {
+    "Ref": "NotificationTopicEB7A0DF1"
+   },
+   "Export": {
+    "Name": "NotificationTopicArn-prod"
+   }
+  },
+  "NotificationTopicName": {
+   "Description": "SNS Topic Name",
+   "Value": {
+    "Fn::GetAtt": [
+     "NotificationTopicEB7A0DF1",
+     "TopicName"
+    ]
+   },
+   "Export": {
+    "Name": "NotificationTopicName-prod"
+   }
+  },
+  "NotificationQueueUrl": {
+   "Description": "SQS Queue URL for notification processing",
+   "Value": {
+    "Ref": "NotificationQueue36610CC1"
+   },
+   "Export": {
+    "Name": "NotificationQueueUrl-prod"
+   }
+  },
+  "NotificationQueueArn": {
+   "Description": "SQS Queue ARN",
+   "Value": {
+    "Fn::GetAtt": [
+     "NotificationQueue36610CC1",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "NotificationQueueArn-prod"
+   }
+  },
+  "NotificationDLQUrl": {
+   "Description": "Dead Letter Queue URL",
+   "Value": {
+    "Ref": "NotificationDLQCDA15FAF"
+   },
+   "Export": {
+    "Name": "NotificationDLQUrl-prod"
+   }
+  },
+  "NotificationProcessorArn": {
+   "Description": "Notification Processor Lambda ARN",
+   "Value": {
+    "Fn::GetAtt": [
+     "NotificationProcessorE91924AA",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "NotificationProcessorArn-prod"
+   }
+  }
+ },
+ "Parameters": {
+  "BootstrapVersion": {
+   "Type": "AWS::SSM::Parameter::Value<String>",
+   "Default": "/cdk-bootstrap/hnb659fds/version",
+   "Description": "Version of the CDK Bootstrap resources in this environment, automatically retrieved from SSM Parameter Store. [cdk:skip]"
+  }
+ },
+ "Rules": {
+  "CheckBootstrapVersion": {
+   "Assertions": [
+    {
+     "Assert": {
+      "Fn::Not": [
+       {
+        "Fn::Contains": [
+         [
+          "1",
+          "2",
+          "3",
+          "4",
+          "5"
+         ],
+         {
+          "Ref": "BootstrapVersion"
+         }
+        ]
+       }
+      ]
+     },
+     "AssertDescription": "CDK bootstrap stack version 6 required. Please run 'cdk bootstrap' with a recent version of the CDK CLI."
+    }
+   ]
+  }
+ }
+}

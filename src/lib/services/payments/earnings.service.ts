@@ -4,23 +4,21 @@ import prisma from "@/lib/prisma";
 import {
   Earning,
   EarningWithDetails,
-  EarningCreateInput,
   EarningStatus,
   EarningCalculation,
   EarningsHistoryFilters,
   EarningsResponse,
   WeeklyBreakdown,
   MonthlyBreakdown,
-  CycleStatus,
 } from "@/types/payments";
 import { getCycleForAppointment } from "./cycle.service";
-import {
-  canCreateEarningForAppointment,
-  getMonthName,
-  getISOWeekNumber,
-} from "@/lib/utils/paymentCycle";
 import { buildDisplayName } from "@/lib/utils";
-import { castEarningStatus, castCycleStatus } from "./helpers";
+import {
+  castEarningStatus,
+  castCycleStatus,
+  castFeeChargeStatus,
+  getMonthName,
+} from "./helpers";
 
 // ============================================
 // EARNING CALCULATIONS
@@ -43,11 +41,11 @@ export function calculateEarning(
   const hours = sessionDurationMinutes / 60;
   const grossAmount = Math.round(hourlyRate * hours * 100) / 100;
 
-  // Calculate platform fee
+  // Calculate platform fee (what we'll charge the professional)
   const platformFeeAmount =
     Math.round(grossAmount * (platformFeePercent / 100) * 100) / 100;
 
-  // Calculate net amount
+  // Calculate net amount (what professional keeps after fee)
   const netAmount = Math.round((grossAmount - platformFeeAmount) * 100) / 100;
 
   return {
@@ -90,15 +88,33 @@ export async function getPlatformFeePercent(
 }
 
 // ============================================
+// HELPER: Add netAmount to earning
+// ============================================
+
+function addNetAmount<
+  T extends { grossAmount: number; platformFeeAmount: number },
+>(earning: T): T & { netAmount: number } {
+  return {
+    ...earning,
+    netAmount: earning.grossAmount - earning.platformFeeAmount,
+  };
+}
+
+// ============================================
 // EARNING CREATION
 // ============================================
 
 /**
- * Create an earning record for a completed appointment
+ * Create an earning record for a confirmed appointment
  */
-export async function createEarning(
-  input: EarningCreateInput
-): Promise<Earning> {
+export async function createEarning(input: {
+  professionalId: string;
+  appointmentId: string;
+  sessionStartTime: Date;
+  sessionEndTime: Date;
+  hourlyRate: number;
+  platformFeePercent: number;
+}): Promise<Earning> {
   const {
     professionalId,
     appointmentId,
@@ -108,20 +124,16 @@ export async function createEarning(
     platformFeePercent,
   } = input;
 
-  // Validate appointment hasn't already ended
-  if (!canCreateEarningForAppointment(sessionEndTime)) {
-    throw new Error(
-      "Cannot create earning: appointment end time is invalid or past cutoff"
-    );
-  }
-
   // Check if earning already exists for this appointment
   const existingEarning = await prisma.earning.findUnique({
     where: { appointmentId },
   });
 
   if (existingEarning) {
-    throw new Error("Earning already exists for this appointment");
+    return addNetAmount({
+      ...existingEarning,
+      status: castEarningStatus(existingEarning.status),
+    });
   }
 
   // Get or create the appropriate cycle
@@ -144,7 +156,6 @@ export async function createEarning(
       grossAmount: calculation.grossAmount,
       platformFeePercent: calculation.platformFeePercent,
       platformFeeAmount: calculation.platformFeeAmount,
-      netAmount: calculation.netAmount,
       sessionDurationMinutes: calculation.sessionDurationMinutes,
       hourlyRate: calculation.hourlyRate,
       sessionStartTime,
@@ -153,10 +164,10 @@ export async function createEarning(
     },
   });
 
-  return {
+  return addNetAmount({
     ...earning,
     status: castEarningStatus(earning.status),
-  };
+  });
 }
 
 /**
@@ -222,17 +233,21 @@ export async function createEarningFromAppointment(
  */
 export async function updateEarningStatus(
   earningId: string,
-  status: EarningStatus
+  status: EarningStatus,
+  feeChargeId?: string
 ): Promise<Earning> {
   const earning = await prisma.earning.update({
     where: { id: earningId },
-    data: { status },
+    data: {
+      status,
+      ...(feeChargeId && { feeChargeId }),
+    },
   });
 
-  return {
+  return addNetAmount({
     ...earning,
     status: castEarningStatus(earning.status),
-  };
+  });
 }
 
 /**
@@ -243,10 +258,12 @@ export async function confirmEarning(earningId: string): Promise<Earning> {
 }
 
 /**
- * Cancel an earning (appointment did not occur)
+ * Mark earning as not occurred
  */
-export async function cancelEarning(earningId: string): Promise<Earning> {
-  return updateEarningStatus(earningId, "cancelled");
+export async function markEarningNotOccurred(
+  earningId: string
+): Promise<Earning> {
+  return updateEarningStatus(earningId, "not_occurred");
 }
 
 /**
@@ -257,24 +274,38 @@ export async function disputeEarning(earningId: string): Promise<Earning> {
 }
 
 /**
- * Mark earning as paid
+ * Mark earning as charged (fee collected)
  */
-export async function markEarningAsPaid(earningId: string): Promise<Earning> {
-  return updateEarningStatus(earningId, "paid");
+export async function markEarningCharged(
+  earningId: string,
+  feeChargeId: string
+): Promise<Earning> {
+  return updateEarningStatus(earningId, "charged", feeChargeId);
 }
 
 /**
- * Mark multiple earnings as paid
+ * Mark earning as waived
  */
-export async function markEarningsAsPaid(
-  earningIds: string[]
+export async function markEarningWaived(earningId: string): Promise<Earning> {
+  return updateEarningStatus(earningId, "waived");
+}
+
+/**
+ * Mark multiple earnings as charged
+ */
+export async function markEarningsCharged(
+  earningIds: string[],
+  feeChargeId: string
 ): Promise<number> {
   const result = await prisma.earning.updateMany({
     where: {
       id: { in: earningIds },
       status: "confirmed",
     },
-    data: { status: "paid" },
+    data: {
+      status: "charged",
+      feeChargeId,
+    },
   });
 
   return result.count;
@@ -322,7 +353,7 @@ export async function getEarningById(
 
   if (!earning) return null;
 
-  return {
+  return addNetAmount({
     ...earning,
     status: castEarningStatus(earning.status),
     appointment: {
@@ -341,7 +372,7 @@ export async function getEarningById(
       ...earning.cycle,
       status: castCycleStatus(earning.cycle.status),
     },
-  };
+  });
 }
 
 /**
@@ -356,10 +387,10 @@ export async function getEarningByAppointmentId(
 
   if (!earning) return null;
 
-  return {
+  return addNetAmount({
     ...earning,
     status: castEarningStatus(earning.status),
-  };
+  });
 }
 
 /**
@@ -386,7 +417,7 @@ export async function getEarningsForProfessional(
     ...(cycleId && { cycleId }),
   };
 
-  const [earnings, total, aggregation] = await Promise.all([
+  const [earnings, total, aggregation, statusCounts] = await Promise.all([
     prisma.earning.findMany({
       where,
       include: {
@@ -425,31 +456,46 @@ export async function getEarningsForProfessional(
       _sum: {
         grossAmount: true,
         platformFeeAmount: true,
-        netAmount: true,
       },
+    }),
+    prisma.earning.groupBy({
+      by: ["status"],
+      where: { professionalId },
+      _count: true,
     }),
   ]);
 
-  const data: EarningWithDetails[] = earnings.map((earning) => ({
-    ...earning,
-    status: castEarningStatus(earning.status),
-    appointment: {
-      id: earning.appointment.id,
-      venue: earning.appointment.venue,
-      status: earning.appointment.status,
-    },
-    client: earning.appointment.user
-      ? {
-          id: earning.appointment.user.id,
-          name: buildDisplayName(earning.appointment.user),
-          profileImage: earning.appointment.user.profileImage,
-        }
-      : null,
-    cycle: {
-      ...earning.cycle,
-      status: castCycleStatus(earning.cycle.status),
-    },
-  }));
+  const confirmedCount =
+    statusCounts.find((s) => s.status === "confirmed")?._count || 0;
+  const pendingCount =
+    statusCounts.find((s) => s.status === "pending")?._count || 0;
+
+  const totalGross = aggregation._sum.grossAmount || 0;
+  const totalPlatformFees = aggregation._sum.platformFeeAmount || 0;
+  const totalNet = totalGross - totalPlatformFees;
+
+  const data: EarningWithDetails[] = earnings.map((earning) =>
+    addNetAmount({
+      ...earning,
+      status: castEarningStatus(earning.status),
+      appointment: {
+        id: earning.appointment.id,
+        venue: earning.appointment.venue,
+        status: earning.appointment.status,
+      },
+      client: earning.appointment.user
+        ? {
+            id: earning.appointment.user.id,
+            name: buildDisplayName(earning.appointment.user),
+            profileImage: earning.appointment.user.profileImage,
+          }
+        : null,
+      cycle: {
+        ...earning.cycle,
+        status: castCycleStatus(earning.cycle.status),
+      },
+    })
+  );
 
   return {
     data,
@@ -458,11 +504,36 @@ export async function getEarningsForProfessional(
     limit,
     hasMore: page * limit < total,
     summary: {
-      totalGross: aggregation._sum.grossAmount || 0,
-      totalPlatformFees: aggregation._sum.platformFeeAmount || 0,
-      totalNet: aggregation._sum.netAmount || 0,
+      totalGross,
+      totalNet,
+      totalPlatformFees,
+      confirmedCount,
+      pendingCount,
     },
   };
+}
+
+/**
+ * Get confirmed earnings for a cycle (for fee collection)
+ */
+export async function getConfirmedEarningsForCycle(
+  cycleId: string,
+  professionalId?: string
+): Promise<Earning[]> {
+  const earnings = await prisma.earning.findMany({
+    where: {
+      cycleId,
+      status: "confirmed",
+      ...(professionalId && { professionalId }),
+    },
+  });
+
+  return earnings.map((e) =>
+    addNetAmount({
+      ...e,
+      status: castEarningStatus(e.status),
+    })
+  );
 }
 
 /**
@@ -506,26 +577,28 @@ export async function getEarningsForCycle(
     orderBy: { sessionStartTime: "desc" },
   });
 
-  return earnings.map((earning) => ({
-    ...earning,
-    status: castEarningStatus(earning.status),
-    appointment: {
-      id: earning.appointment.id,
-      venue: earning.appointment.venue,
-      status: earning.appointment.status,
-    },
-    client: earning.appointment.user
-      ? {
-          id: earning.appointment.user.id,
-          name: buildDisplayName(earning.appointment.user),
-          profileImage: earning.appointment.user.profileImage,
-        }
-      : null,
-    cycle: {
-      ...earning.cycle,
-      status: castCycleStatus(earning.cycle.status),
-    },
-  }));
+  return earnings.map((earning) =>
+    addNetAmount({
+      ...earning,
+      status: castEarningStatus(earning.status),
+      appointment: {
+        id: earning.appointment.id,
+        venue: earning.appointment.venue,
+        status: earning.appointment.status,
+      },
+      client: earning.appointment.user
+        ? {
+            id: earning.appointment.user.id,
+            name: buildDisplayName(earning.appointment.user),
+            profileImage: earning.appointment.user.profileImage,
+          }
+        : null,
+      cycle: {
+        ...earning.cycle,
+        status: castCycleStatus(earning.cycle.status),
+      },
+    })
+  );
 }
 
 // ============================================
@@ -539,8 +612,9 @@ export async function getCurrentCycleEarningsSummary(
   professionalId: string
 ): Promise<{
   gross: number;
-  platformFee: number;
   net: number;
+  platformFee: number;
+  platformFeePercent: number;
   sessionsCount: number;
   pendingCount: number;
   confirmedCount: number;
@@ -557,7 +631,6 @@ export async function getCurrentCycleEarningsSummary(
       _sum: {
         grossAmount: true,
         platformFeeAmount: true,
-        netAmount: true,
       },
       _count: true,
     }),
@@ -577,10 +650,17 @@ export async function getCurrentCycleEarningsSummary(
   const confirmedCount =
     statusCounts.find((s) => s.status === "confirmed")?._count || 0;
 
+  const platformFeePercent = await getPlatformFeePercent(professionalId);
+
+  const gross = aggregation._sum.grossAmount || 0;
+  const platformFee = aggregation._sum.platformFeeAmount || 0;
+  const net = gross - platformFee;
+
   return {
-    gross: aggregation._sum.grossAmount || 0,
-    platformFee: aggregation._sum.platformFeeAmount || 0,
-    net: aggregation._sum.netAmount || 0,
+    gross,
+    net,
+    platformFee,
+    platformFeePercent,
     sessionsCount: aggregation._count || 0,
     pendingCount,
     confirmedCount,
@@ -594,41 +674,44 @@ export async function getLifetimeEarningsSummary(
   professionalId: string
 ): Promise<{
   totalGross: number;
-  totalPlatformFees: number;
   totalNet: number;
+  totalPlatformFees: number;
   totalSessions: number;
-  totalPaidOut: number;
+  totalCharged: number;
 }> {
-  const [aggregation, paidAggregation] = await Promise.all([
+  const [aggregation, chargedAggregation] = await Promise.all([
     prisma.earning.aggregate({
       where: {
         professionalId,
-        status: { in: ["confirmed", "paid"] },
+        status: { in: ["confirmed", "charged"] },
       },
       _sum: {
         grossAmount: true,
         platformFeeAmount: true,
-        netAmount: true,
       },
       _count: true,
     }),
     prisma.earning.aggregate({
       where: {
         professionalId,
-        status: "paid",
+        status: "charged",
       },
       _sum: {
-        netAmount: true,
+        platformFeeAmount: true,
       },
     }),
   ]);
 
+  const totalGross = aggregation._sum.grossAmount || 0;
+  const totalPlatformFees = aggregation._sum.platformFeeAmount || 0;
+  const totalNet = totalGross - totalPlatformFees;
+
   return {
-    totalGross: aggregation._sum.grossAmount || 0,
-    totalPlatformFees: aggregation._sum.platformFeeAmount || 0,
-    totalNet: aggregation._sum.netAmount || 0,
+    totalGross,
+    totalNet,
+    totalPlatformFees,
     totalSessions: aggregation._count || 0,
-    totalPaidOut: paidAggregation._sum.netAmount || 0,
+    totalCharged: chargedAggregation._sum.platformFeeAmount || 0,
   };
 }
 
@@ -637,16 +720,14 @@ export async function getLifetimeEarningsSummary(
  */
 export async function getWeeklyBreakdown(
   professionalId: string,
-  options?: {
-    limit?: number;
-    offset?: number;
-  }
+  options?: { limit?: number; offset?: number }
 ): Promise<WeeklyBreakdown[]> {
   const { limit = 10, offset = 0 } = options || {};
 
   // Get cycles with earnings for this professional
   const cycles = await prisma.payoutCycle.findMany({
     where: {
+      // Only get cycles that have earnings for this professional
       earnings: {
         some: {
           professionalId,
@@ -657,15 +738,14 @@ export async function getWeeklyBreakdown(
       earnings: {
         where: {
           professionalId,
-          status: { in: ["pending", "confirmed", "paid"] },
+          status: { in: ["pending", "confirmed", "charged"] },
         },
         select: {
           grossAmount: true,
           platformFeeAmount: true,
-          netAmount: true,
         },
       },
-      payouts: {
+      feeCharges: {
         where: {
           professionalId,
         },
@@ -684,27 +764,26 @@ export async function getWeeklyBreakdown(
 
   return cycles.map((cycle) => {
     const totals = cycle.earnings.reduce(
-      (acc, e) => ({
+      (acc: { gross: number; platformFee: number }, e) => ({
         gross: acc.gross + e.grossAmount,
         platformFee: acc.platformFee + e.platformFeeAmount,
-        net: acc.net + e.netAmount,
       }),
-      { gross: 0, platformFee: 0, net: 0 }
+      { gross: 0, platformFee: 0 }
     );
 
-    const payout = cycle.payouts[0];
+    const feeCharge = cycle.feeCharges[0];
 
     return {
       cycleId: cycle.id,
-      weekNumber: getISOWeekNumber(cycle.startDate),
       startDate: cycle.startDate,
       endDate: cycle.endDate,
       grossTotal: totals.gross,
+      netTotal: totals.gross - totals.platformFee,
       platformFeeTotal: totals.platformFee,
-      netTotal: totals.net,
       sessionsCount: cycle.earnings.length,
-      status: (payout?.status || cycle.status) as CycleStatus,
-      payoutId: payout?.id || null,
+      status: castCycleStatus(cycle.status),
+      feeChargeStatus: feeCharge ? castFeeChargeStatus(feeCharge.status) : null,
+      feeChargeId: feeCharge?.id || null,
     };
   });
 }
@@ -714,18 +793,15 @@ export async function getWeeklyBreakdown(
  */
 export async function getMonthlyBreakdown(
   professionalId: string,
-  options?: {
-    year?: number;
-    limit?: number;
-  }
+  options?: { year?: number; limit?: number }
 ): Promise<MonthlyBreakdown[]> {
   const { year, limit = 12 } = options || {};
 
-  // Get all earnings grouped by month
+  // Get all confirmed/charged earnings
   const earnings = await prisma.earning.findMany({
     where: {
       professionalId,
-      status: { in: ["confirmed", "paid"] },
+      status: { in: ["confirmed", "charged"] },
       ...(year && {
         sessionStartTime: {
           gte: new Date(year, 0, 1),
@@ -736,27 +812,12 @@ export async function getMonthlyBreakdown(
     select: {
       grossAmount: true,
       platformFeeAmount: true,
-      netAmount: true,
       sessionStartTime: true,
       cycleId: true,
+      status: true,
     },
     orderBy: {
       sessionStartTime: "desc",
-    },
-  });
-
-  // Get payout counts
-  const payouts = await prisma.payout.findMany({
-    where: {
-      professionalId,
-      status: "completed",
-    },
-    select: {
-      cycle: {
-        select: {
-          startDate: true,
-        },
-      },
     },
   });
 
@@ -768,10 +829,9 @@ export async function getMonthlyBreakdown(
       month: number;
       gross: number;
       platformFee: number;
-      net: number;
       sessions: number;
       cycles: Set<string>;
-      payouts: number;
+      charged: number;
     }
   >();
 
@@ -785,28 +845,20 @@ export async function getMonthlyBreakdown(
         month: date.getMonth() + 1,
         gross: 0,
         platformFee: 0,
-        net: 0,
         sessions: 0,
         cycles: new Set(),
-        payouts: 0,
+        charged: 0,
       });
     }
 
     const month = monthlyMap.get(key)!;
     month.gross += earning.grossAmount;
     month.platformFee += earning.platformFeeAmount;
-    month.net += earning.netAmount;
     month.sessions += 1;
     month.cycles.add(earning.cycleId);
-  }
 
-  // Count payouts per month
-  for (const payout of payouts) {
-    const date = payout.cycle.startDate;
-    const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-
-    if (monthlyMap.has(key)) {
-      monthlyMap.get(key)!.payouts += 1;
+    if (earning.status === "charged") {
+      month.charged += earning.platformFeeAmount;
     }
   }
 
@@ -816,12 +868,12 @@ export async function getMonthlyBreakdown(
       year: m.year,
       month: m.month,
       monthName: getMonthName(m.month),
-      weeksCount: m.cycles.size,
+      cyclesCount: m.cycles.size,
       grossTotal: m.gross,
+      netTotal: m.gross - m.platformFee,
       platformFeeTotal: m.platformFee,
-      netTotal: m.net,
       sessionsCount: m.sessions,
-      payoutsCount: m.payouts,
+      chargedTotal: m.charged,
     }))
     .sort((a, b) => {
       if (a.year !== b.year) return b.year - a.year;

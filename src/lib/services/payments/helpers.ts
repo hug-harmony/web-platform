@@ -3,18 +3,13 @@
 import {
   CycleStatus,
   EarningStatus,
-  PayoutStatus,
+  FeeChargeStatus,
   ConfirmationFinalStatus,
   DisputeResolution,
-  PayoutCycle,
-  Earning,
-  Payout,
-  AppointmentConfirmation,
 } from "@/types/payments";
 
 /**
  * Type casting helpers for Prisma results
- * Prisma returns status as string, but we need typed status values
  */
 
 export function castCycleStatus(status: string): CycleStatus {
@@ -25,8 +20,8 @@ export function castEarningStatus(status: string): EarningStatus {
   return status as EarningStatus;
 }
 
-export function castPayoutStatus(status: string): PayoutStatus {
-  return status as PayoutStatus;
+export function castFeeChargeStatus(status: string): FeeChargeStatus {
+  return status as FeeChargeStatus;
 }
 
 export function castConfirmationStatus(
@@ -42,124 +37,89 @@ export function castDisputeResolution(
 }
 
 /**
- * Cast Prisma PayoutCycle result to typed PayoutCycle
+ * Format currency for display
  */
-export function castPayoutCycle(
-  cycle: {
-    id: string;
-    startDate: Date;
-    endDate: Date;
-    cutoffDate: Date;
-    status: string;
-    processedAt: Date | null;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null
-): PayoutCycle | null {
-  if (!cycle) return null;
-  return {
-    ...cycle,
-    status: castCycleStatus(cycle.status),
-  };
+export function formatCurrency(amount: number): string {
+  return new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(amount);
 }
 
 /**
- * Cast Prisma Earning result to typed Earning
+ * Calculate days remaining until a date
  */
-export function castEarning(
-  earning: {
-    id: string;
-    professionalId: string;
-    appointmentId: string;
-    cycleId: string;
-    grossAmount: number;
-    platformFeePercent: number;
-    platformFeeAmount: number;
-    netAmount: number;
-    sessionDurationMinutes: number;
-    hourlyRate: number;
-    sessionStartTime: Date;
-    sessionEndTime: Date;
-    status: string;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null
-): Earning | null {
-  if (!earning) return null;
-  return {
-    ...earning,
-    status: castEarningStatus(earning.status),
-  };
+export function getDaysUntil(date: Date): number {
+  const now = new Date();
+  const diff = date.getTime() - now.getTime();
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60 * 24)));
 }
 
 /**
- * Cast Prisma Payout result to typed Payout
+ * Calculate hours remaining until a date
  */
-export function castPayout(
-  payout: {
-    id: string;
-    professionalId: string;
-    cycleId: string;
-    grossTotal: number;
-    platformFeeTotal: number;
-    netTotal: number;
-    earningsCount: number;
-    status: string;
-    stripePayoutId: string | null;
-    stripeTransferId: string | null;
-    processedAt: Date | null;
-    failedReason: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null
-): Payout | null {
-  if (!payout) return null;
-  return {
-    ...payout,
-    status: castPayoutStatus(payout.status),
-  };
+export function getHoursUntil(date: Date): number {
+  const now = new Date();
+  const diff = date.getTime() - now.getTime();
+  return Math.max(0, Math.ceil(diff / (1000 * 60 * 60)));
 }
 
 /**
- * Cast Prisma AppointmentConfirmation result to typed AppointmentConfirmation
+ * Check if a date has passed
  */
-export function castConfirmation(
-  confirmation: {
-    id: string;
-    appointmentId: string;
-    clientId: string;
-    clientConfirmed: boolean | null;
-    clientConfirmedAt: Date | null;
-    clientReviewId: string | null;
-    professionalId: string;
-    professionalUserId: string;
-    professionalConfirmed: boolean | null;
-    professionalConfirmedAt: Date | null;
-    finalStatus: string;
-    isDisputed: boolean;
-    disputeReason: string | null;
-    disputeCreatedAt: Date | null;
-    disputeResolvedAt: Date | null;
-    disputeResolution: string | null;
-    createdAt: Date;
-    updatedAt: Date;
-  } | null
-): AppointmentConfirmation | null {
-  if (!confirmation) return null;
-  return {
-    ...confirmation,
-    finalStatus: castConfirmationStatus(confirmation.finalStatus),
-    disputeResolution: castDisputeResolution(confirmation.disputeResolution),
-  };
+export function isPast(date: Date): boolean {
+  return new Date() > date;
+}
+
+/**
+ * Get next retry date for failed charges (daily retry)
+ */
+export function getNextRetryDate(): Date {
+  const tomorrow = new Date();
+  tomorrow.setDate(tomorrow.getDate() + 1);
+  tomorrow.setHours(9, 0, 0, 0); // 9 AM next day
+  return tomorrow;
 }
 
 /**
  * Determine if we should show monthly view based on earnings history
- * Shows monthly view if user has earnings older than 8 weeks
  */
 export function shouldShowMonthlyView(firstEarningDate: Date): boolean {
   const eightWeeksAgo = new Date();
-  eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56); // 8 weeks = 56 days
-
+  eightWeeksAgo.setDate(eightWeeksAgo.getDate() - 56);
   return firstEarningDate < eightWeeksAgo;
+}
+
+/**
+ * Get month name from month number (1-12)
+ */
+export function getMonthName(month: number): string {
+  const months = [
+    "January",
+    "February",
+    "March",
+    "April",
+    "May",
+    "June",
+    "July",
+    "August",
+    "September",
+    "October",
+    "November",
+    "December",
+  ];
+  return months[month - 1] || "";
+}
+
+/**
+ * Get ISO week number for a date
+ */
+export function getISOWeekNumber(date: Date): number {
+  const d = new Date(
+    Date.UTC(date.getFullYear(), date.getMonth(), date.getDate())
+  );
+  const dayNum = d.getUTCDay() || 7;
+  d.setUTCDate(d.getUTCDate() + 4 - dayNum);
+  const yearStart = new Date(Date.UTC(d.getUTCFullYear(), 0, 1));
+  return Math.ceil(((d.getTime() - yearStart.getTime()) / 86400000 + 1) / 7);
 }

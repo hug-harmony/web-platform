@@ -28,6 +28,7 @@ export async function POST(req: NextRequest) {
   try {
     body = bodySchema.parse(await req.json());
   } catch (error) {
+    console.error("Invalid appointment request data:", error);
     return NextResponse.json(
       { error: "Invalid request data" },
       { status: 400 }

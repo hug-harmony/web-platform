@@ -9,6 +9,7 @@ import { Progress } from "@/components/ui/progress";
 
 interface CurrentCycleCardProps {
   daysRemaining: number;
+  hoursUntilDeadline: number;
   hoursUntilCutoff: number;
   progress: number;
   isProcessing: boolean;

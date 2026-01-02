@@ -1,11 +1,10 @@
-// src/app/dashboard/payment/components/MonthlyBreakdownTable.tsx
+// src/components/payments/MonthlyBreakdownTable.tsx
 
 "use client";
 
 import { useState } from "react";
 import { motion, AnimatePresence } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
-import { Button } from "@/components/ui/button";
 import {
   Select,
   SelectContent,
@@ -21,9 +20,8 @@ import {
   TableHeader,
   TableRow,
 } from "@/components/ui/table";
-import { CalendarDays, ChevronRight } from "lucide-react";
+import { CalendarDays } from "lucide-react";
 import { MonthlyBreakdown } from "@/types/payments";
-import { cn } from "@/lib/utils";
 
 interface MonthlyBreakdownTableProps {
   data: MonthlyBreakdown[];
@@ -51,8 +49,9 @@ export function MonthlyBreakdownTable({ data }: MonthlyBreakdownTableProps) {
       fees: acc.fees + month.platformFeeTotal,
       net: acc.net + month.netTotal,
       sessions: acc.sessions + month.sessionsCount,
+      cycles: acc.cycles + month.cyclesCount,
     }),
-    { gross: 0, fees: 0, net: 0, sessions: 0 }
+    { gross: 0, fees: 0, net: 0, sessions: 0, cycles: 0 }
   );
 
   if (data.length === 0) {
@@ -98,7 +97,7 @@ export function MonthlyBreakdownTable({ data }: MonthlyBreakdownTableProps) {
             <TableHeader>
               <TableRow>
                 <TableHead>Month</TableHead>
-                <TableHead className="text-right">Weeks</TableHead>
+                <TableHead className="text-right">Cycles</TableHead>
                 <TableHead className="text-right">Sessions</TableHead>
                 <TableHead className="text-right">Gross</TableHead>
                 <TableHead className="text-right">Fees</TableHead>
@@ -130,7 +129,7 @@ export function MonthlyBreakdownTable({ data }: MonthlyBreakdownTableProps) {
                       </div>
                     </TableCell>
                     <TableCell className="text-right text-[#C4C4C4]">
-                      {month.weeksCount}
+                      {month.cyclesCount}
                     </TableCell>
                     <TableCell className="text-right text-[#C4C4C4]">
                       {month.sessionsCount}
@@ -153,7 +152,9 @@ export function MonthlyBreakdownTable({ data }: MonthlyBreakdownTableProps) {
                 <TableCell className="text-black dark:text-white">
                   Total
                 </TableCell>
-                <TableCell className="text-right text-[#C4C4C4]">—</TableCell>
+                <TableCell className="text-right text-[#C4C4C4]">
+                  {totals.cycles}
+                </TableCell>
                 <TableCell className="text-right text-black dark:text-white">
                   {totals.sessions}
                 </TableCell>

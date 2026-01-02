@@ -1,31 +1,37 @@
 // src/lib/notifications.ts
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+/**
+ * Unified notification module
+ * - Uses SNS for async processing when available (preferred)
+ * - Falls back to direct delivery when SNS is not configured
+ */
+
 import {
-  DynamoDBDocumentClient,
-  PutCommand,
-  QueryCommand,
-} from "@aws-sdk/lib-dynamodb";
+  getDocClient,
+  getApiGatewayManagementClient,
+  TABLES,
+  isWebSocketConfigured,
+  isSNSConfigured,
+} from "@/lib/aws/clients";
+import { PutCommand, QueryCommand } from "@aws-sdk/lib-dynamodb";
+import { PostToConnectionCommand } from "@aws-sdk/client-apigatewaymanagementapi";
 import { randomUUID } from "crypto";
-import { sendPushToUser, isPushConfigured } from "@/lib/push";
-
-const client = new DynamoDBClient({
-  region: process.env.REGION || "us-east-2",
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
-
-const docClient = DynamoDBDocumentClient.from(client);
-const TABLE_NAME = process.env.NOTIFICATIONS_TABLE || "Notifications-prod";
-const CONNECTIONS_TABLE =
-  process.env.CONNECTIONS_TABLE || "ChatConnections-prod";
+import {
+  sendPushToUser,
+  isPushConfigured,
+  getPushTitle,
+  getNotificationUrl,
+} from "@/lib/push";
+import {
+  publishNotification as publishToSNS,
+  PublishResult,
+} from "@/lib/notifications-sns";
 
 export type NotificationType =
   | "message"
   | "appointment"
   | "payment"
-  | "profile_visit";
+  | "profile_visit"
+  | "video_call";
 
 export interface NotificationData {
   targetUserId: string;
@@ -48,47 +54,58 @@ export interface NotificationRecord {
   ttl: number;
 }
 
-function getPushTitle(type: NotificationType): string {
-  switch (type) {
-    case "message":
-      return "New Message";
-    case "appointment":
-      return "Appointment Update";
-    case "payment":
-      return "Payment Update";
-    case "profile_visit":
-      return "Profile Visitor";
-    default:
-      return "Hug Harmony";
-  }
-}
+/**
+ * Create a notification - uses SNS if available, otherwise direct
+ * This is the main entry point for creating notifications
+ */
+export async function createNotification(
+  data: NotificationData
+): Promise<NotificationRecord | null> {
+  // Try SNS first (preferred - async)
+  if (isSNSConfigured()) {
+    try {
+      const result: PublishResult = await publishToSNS({
+        targetUserId: data.targetUserId,
+        type: data.type,
+        content: data.content,
+        senderId: data.senderId,
+        relatedId: data.relatedId,
+      });
 
-function getNotificationUrl(
-  type: NotificationType,
-  relatedId?: string
-): string {
-  switch (type) {
-    case "message":
-      return relatedId
-        ? `/dashboard/messaging/${relatedId}`
-        : "/dashboard/messaging";
-    case "appointment":
-      return "/dashboard/appointments";
-    case "payment":
-      return "/dashboard/payment";
-    case "profile_visit":
-      return relatedId
-        ? `/dashboard/profile/${relatedId}`
-        : "/dashboard/profile-visits";
-    default:
-      return "/dashboard/notifications";
+      if (result.published) {
+        // Return a placeholder record (actual record created by Lambda)
+        console.log(
+          `Notification published to SNS for user ${data.targetUserId}`
+        );
+        return {
+          id: `sns-${result.messageId || "pending"}`,
+          userId: data.targetUserId,
+          senderId: data.senderId,
+          type: data.type,
+          content: data.content,
+          timestamp: new Date().toISOString(),
+          unread: "true",
+          unreadBool: true,
+          relatedId: data.relatedId,
+          ttl: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        };
+      }
+      // If not published, fall through to direct method
+    } catch (error) {
+      console.error("SNS publish failed, falling back to direct:", error);
+      // Fall through to direct method
+    }
   }
+
+  // Fallback to direct method
+  return createNotificationDirect(data);
 }
 
 /**
- * Create a notification and optionally send it via WebSocket
+ * Create notification directly (synchronous)
+ * Used when SNS is not available or as fallback
  */
-export async function createNotification(
+export async function createNotificationDirect(
   data: NotificationData
 ): Promise<NotificationRecord> {
   const { targetUserId, type, content, senderId, relatedId } = data;
@@ -109,11 +126,14 @@ export async function createNotification(
     ttl,
   };
 
-  console.log("Creating notification:", { targetUserId, type, content });
+  console.log("Creating notification directly:", { targetUserId, type });
 
+  const docClient = getDocClient();
+
+  // Save to DynamoDB
   await docClient.send(
     new PutCommand({
-      TableName: TABLE_NAME,
+      TableName: TABLES.NOTIFICATIONS,
       Item: notification,
     })
   );
@@ -121,6 +141,7 @@ export async function createNotification(
   // Send real-time notification via WebSocket
   await sendRealtimeNotification(targetUserId, notification);
 
+  // Send push notification
   if (isPushConfigured()) {
     sendPushToUser(targetUserId, {
       title: getPushTitle(type),
@@ -145,13 +166,14 @@ export async function hasRecentNotification(
   relatedId: string,
   withinMinutes: number = 60
 ): Promise<boolean> {
+  const docClient = getDocClient();
   const timeAgo = new Date(
     Date.now() - withinMinutes * 60 * 1000
   ).toISOString();
 
   const result = await docClient.send(
     new QueryCommand({
-      TableName: TABLE_NAME,
+      TableName: TABLES.NOTIFICATIONS,
       KeyConditionExpression: "userId = :userId AND #ts >= :timeAgo",
       FilterExpression: "#type = :type AND relatedId = :relatedId",
       ExpressionAttributeNames: {
@@ -178,23 +200,18 @@ async function sendRealtimeNotification(
   userId: string,
   notification: NotificationRecord
 ): Promise<void> {
-  try {
-    const wsEndpoint = process.env.WEBSOCKET_API_ENDPOINT;
-    if (!wsEndpoint) {
-      console.log(
-        "WebSocket endpoint not configured, skipping real-time notification"
-      );
-      return;
-    }
+  if (!isWebSocketConfigured()) {
+    console.log("WebSocket not configured, skipping real-time notification");
+    return;
+  }
 
-    // Import dynamically to avoid circular dependencies
-    const { ApiGatewayManagementApiClient, PostToConnectionCommand } =
-      await import("@aws-sdk/client-apigatewaymanagementapi");
+  try {
+    const docClient = getDocClient();
 
     // Get user's active WebSocket connections
     const connectionsResult = await docClient.send(
       new QueryCommand({
-        TableName: CONNECTIONS_TABLE,
+        TableName: TABLES.CONNECTIONS,
         IndexName: "UserIndex",
         KeyConditionExpression: "userId = :userId",
         ExpressionAttributeValues: {
@@ -212,10 +229,7 @@ async function sendRealtimeNotification(
 
     console.log(`Found ${connections.length} connections for user ${userId}`);
 
-    // Send to all active connections
-    const apiClient = new ApiGatewayManagementApiClient({
-      endpoint: wsEndpoint,
-    });
+    const apiClient = getApiGatewayManagementClient();
 
     const results = await Promise.allSettled(
       connections.map(async (conn) => {
@@ -233,7 +247,6 @@ async function sendRealtimeNotification(
           );
           return true;
         } catch (error: unknown) {
-          // Connection might be stale, ignore GoneException
           if ((error as { name?: string }).name !== "GoneException") {
             console.error(
               `Error sending to connection ${conn.connectionId}:`,
@@ -249,33 +262,34 @@ async function sendRealtimeNotification(
       (r) => r.status === "fulfilled" && r.value
     ).length;
     console.log(
-      `Sent notification to ${successful}/${connections.length} connections for user ${userId}`
+      `Sent notification to ${successful}/${connections.length} connections`
     );
   } catch (error) {
     console.error("Failed to send real-time notification:", error);
-    // Don't throw - notification was still saved to DynamoDB
   }
 }
 
+// ==========================================
+// Helper Functions
+// ==========================================
+
 /**
- * Helper to create profile visit notification with rate limiting
+ * Create profile visit notification with rate limiting
  */
 export async function createProfileVisitNotification(
   visitorId: string,
   visitorName: string,
   visitedUserId: string
 ): Promise<NotificationRecord | null> {
-  // Don't notify if user visits their own profile
   if (visitorId === visitedUserId) {
     return null;
   }
 
-  // Rate limit: Check if a notification was already sent in the last hour
   const hasRecent = await hasRecentNotification(
     visitedUserId,
     "profile_visit",
     visitorId,
-    60 // 60 minutes
+    60
   );
 
   if (hasRecent) {
@@ -293,7 +307,7 @@ export async function createProfileVisitNotification(
 }
 
 /**
- * Helper to create message notification
+ * Create message notification
  */
 export async function createMessageNotification(
   senderId: string,
@@ -301,7 +315,7 @@ export async function createMessageNotification(
   recipientId: string,
   conversationId: string,
   messagePreview?: string
-): Promise<NotificationRecord> {
+): Promise<NotificationRecord | null> {
   const preview = messagePreview
     ? messagePreview.length > 50
       ? messagePreview.substring(0, 50) + "..."
@@ -318,14 +332,14 @@ export async function createMessageNotification(
 }
 
 /**
- * Helper to create appointment notification
+ * Create appointment notification
  */
 export async function createAppointmentNotification(
   targetUserId: string,
   content: string,
   appointmentId: string,
   senderId?: string
-): Promise<NotificationRecord> {
+): Promise<NotificationRecord | null> {
   return createNotification({
     targetUserId,
     type: "appointment",
@@ -336,14 +350,14 @@ export async function createAppointmentNotification(
 }
 
 /**
- * Helper to create payment notification
+ * Create payment notification
  */
 export async function createPaymentNotification(
   targetUserId: string,
   content: string,
   paymentId: string,
   senderId?: string
-): Promise<NotificationRecord> {
+): Promise<NotificationRecord | null> {
   return createNotification({
     targetUserId,
     type: "payment",
@@ -353,12 +367,33 @@ export async function createPaymentNotification(
   });
 }
 
+/**
+ * Create video call notification
+ */
+export async function createVideoCallNotification(
+  targetUserId: string,
+  callerName: string,
+  sessionId: string,
+  senderId: string
+): Promise<NotificationRecord | null> {
+  return createNotification({
+    targetUserId,
+    type: "video_call",
+    content: `${callerName} is calling you`,
+    senderId,
+    relatedId: sessionId,
+  });
+}
+
+/**
+ * Create earning confirmed notification
+ */
 export async function createEarningConfirmedNotification(
   professionalUserId: string,
   amount: number,
   clientName: string,
   earningId: string
-): Promise<NotificationRecord> {
+): Promise<NotificationRecord | null> {
   const formattedAmount = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -373,13 +408,13 @@ export async function createEarningConfirmedNotification(
 }
 
 /**
- * Helper to create payout processed notification
+ * Create payout processed notification
  */
 export async function createPayoutProcessedNotification(
   professionalUserId: string,
   amount: number,
   payoutId: string
-): Promise<NotificationRecord> {
+): Promise<NotificationRecord | null> {
   const formattedAmount = new Intl.NumberFormat("en-US", {
     style: "currency",
     currency: "USD",
@@ -394,14 +429,14 @@ export async function createPayoutProcessedNotification(
 }
 
 /**
- * Helper to create confirmation request notification
+ * Create confirmation request notification
  */
 export async function createConfirmationRequestNotification(
   targetUserId: string,
   otherPartyName: string,
   appointmentId: string,
   isReminder: boolean = false
-): Promise<NotificationRecord> {
+): Promise<NotificationRecord | null> {
   const content = isReminder
     ? `Reminder: Please confirm your session with ${otherPartyName}`
     : `Please confirm if your session with ${otherPartyName} occurred`;
@@ -415,14 +450,14 @@ export async function createConfirmationRequestNotification(
 }
 
 /**
- * Helper to create dispute notification for admin
+ * Create dispute notification for admin
  */
 export async function createDisputeNotificationForAdmin(
   adminUserId: string,
   clientName: string,
   professionalName: string,
   confirmationId: string
-): Promise<NotificationRecord> {
+): Promise<NotificationRecord | null> {
   return createNotification({
     targetUserId: adminUserId,
     type: "payment",

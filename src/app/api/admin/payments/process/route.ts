@@ -4,19 +4,29 @@ import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
 import {
-  processAllReadyCycles,
-  createPayoutsForCycle,
-  processPayoutsForCycle,
-  getCyclesReadyForProcessing,
+  getCyclesReadyForAutoConfirm,
+  getCyclesReadyForFeeCollection,
+  createFeeChargesForCycle,
+  processFeeChargesForCycle,
+  retryFailedFeeCharges,
+  runAutoConfirmTask,
+  runFeeCollectionTask,
 } from "@/lib/services/payments";
 import { z } from "zod";
 
 const processSchema = z.object({
-  action: z.enum(["process_all", "process_cycle", "create_payouts"]),
+  action: z.enum([
+    "check_ready",
+    "auto_confirm",
+    "create_charges",
+    "process_charges",
+    "retry_failed",
+    "full_collection",
+  ]),
   cycleId: z.string().optional(),
 });
 
-export async function GET(request: NextRequest) {
+export async function GET() {
   try {
     const session = await getServerSession(authOptions);
 
@@ -27,18 +37,28 @@ export async function GET(request: NextRequest) {
       );
     }
 
-    // Get cycles ready for processing
-    const readyCycles = await getCyclesReadyForProcessing();
+    // Get cycles ready for various stages
+    const [readyForAutoConfirm, readyForFeeCollection] = await Promise.all([
+      getCyclesReadyForAutoConfirm(),
+      getCyclesReadyForFeeCollection(),
+    ]);
 
     return NextResponse.json({
-      readyCycles: readyCycles.map((cycle) => ({
+      readyForAutoConfirm: readyForAutoConfirm.map((cycle) => ({
         id: cycle.id,
         startDate: cycle.startDate,
         endDate: cycle.endDate,
-        cutoffDate: cycle.cutoffDate,
+        confirmationDeadline: cycle.confirmationDeadline,
         status: cycle.status,
       })),
-      count: readyCycles.length,
+      readyForFeeCollection: readyForFeeCollection.map((cycle) => ({
+        id: cycle.id,
+        startDate: cycle.startDate,
+        endDate: cycle.endDate,
+        status: cycle.status,
+      })),
+      autoConfirmCount: readyForAutoConfirm.length,
+      feeCollectionCount: readyForFeeCollection.length,
     });
   } catch (error) {
     console.error("GET ready cycles error:", error);
@@ -64,41 +84,72 @@ export async function POST(request: NextRequest) {
     const { action, cycleId } = processSchema.parse(body);
 
     switch (action) {
-      case "process_all": {
-        const result = await processAllReadyCycles();
+      case "check_ready": {
+        const [readyForAutoConfirm, readyForFeeCollection] = await Promise.all([
+          getCyclesReadyForAutoConfirm(),
+          getCyclesReadyForFeeCollection(),
+        ]);
+
         return NextResponse.json({
-          message: "Processed all ready cycles",
+          autoConfirmCount: readyForAutoConfirm.length,
+          feeCollectionCount: readyForFeeCollection.length,
+        });
+      }
+
+      case "auto_confirm": {
+        const result = await runAutoConfirmTask();
+        return NextResponse.json({
+          message: "Auto-confirm task completed",
           ...result,
         });
       }
 
-      case "create_payouts": {
+      case "create_charges": {
         if (!cycleId) {
           return NextResponse.json(
-            { error: "cycleId is required for create_payouts action" },
+            { error: "cycleId is required for create_charges action" },
             { status: 400 }
           );
         }
 
-        const result = await createPayoutsForCycle(cycleId);
+        const result = await createFeeChargesForCycle(cycleId);
         return NextResponse.json({
-          message: "Created payouts for cycle",
+          message: "Created fee charges for cycle",
           cycleId,
           ...result,
         });
       }
 
-      case "process_cycle": {
+      case "process_charges": {
         if (!cycleId) {
           return NextResponse.json(
-            { error: "cycleId is required for process_cycle action" },
+            { error: "cycleId is required for process_charges action" },
             { status: 400 }
           );
         }
 
-        const result = await processPayoutsForCycle(cycleId);
+        const result = await processFeeChargesForCycle(cycleId);
         return NextResponse.json({
-          message: "Processed payouts for cycle",
+          message: "Processed fee charges for cycle",
+          cycleId,
+          ...result,
+        });
+      }
+
+      case "retry_failed": {
+        const result = await retryFailedFeeCharges();
+        return NextResponse.json({
+          message: "Retried failed fee charges",
+          ...result,
+        });
+      }
+
+      case "full_collection": {
+        const result = await runFeeCollectionTask(cycleId);
+        return NextResponse.json({
+          message: cycleId
+            ? "Fee collection completed for cycle"
+            : "Fee collection completed for all ready cycles",
           cycleId,
           ...result,
         });
@@ -108,7 +159,7 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Invalid action" }, { status: 400 });
     }
   } catch (error) {
-    console.error("POST process payouts error:", error);
+    console.error("POST process payments error:", error);
 
     if (error instanceof z.ZodError) {
       return NextResponse.json(

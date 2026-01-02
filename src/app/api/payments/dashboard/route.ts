@@ -9,11 +9,13 @@ import {
   getLifetimeEarningsSummary,
   getPendingConfirmations,
   getEarningsForProfessional,
-  getUpcomingPayoutEstimate,
   getWeeklyBreakdown,
-  shouldShowMonthlyView,
   getMonthlyBreakdown,
+  getPaymentMethodStatus,
+  getPendingFeeTotal,
+  getFeeChargesForProfessional,
 } from "@/lib/services/payments";
+import { shouldShowMonthlyView } from "@/lib/services/payments/helpers";
 import prisma from "@/lib/prisma";
 
 export async function GET() {
@@ -50,7 +52,9 @@ export async function GET() {
       pendingAsClient,
       pendingAsProfessional,
       recentEarnings,
-      upcomingPayout,
+      paymentMethod,
+      pendingFees,
+      recentCharges,
       weeklyBreakdown,
     ] = await Promise.all([
       getCurrentCycleInfo(),
@@ -59,7 +63,9 @@ export async function GET() {
       getPendingConfirmations(session.user.id, "client"),
       getPendingConfirmations(session.user.id, "professional"),
       getEarningsForProfessional(professionalId, { limit: 10, page: 1 }),
-      getUpcomingPayoutEstimate(professionalId),
+      getPaymentMethodStatus(professionalId),
+      getPendingFeeTotal(professionalId),
+      getFeeChargesForProfessional(professionalId, { limit: 5 }),
       getWeeklyBreakdown(professionalId, { limit: 4 }),
     ]);
 
@@ -100,8 +106,9 @@ export async function GET() {
         id: cycleInfo.current.id,
         startDate: cycleInfo.current.startDate,
         endDate: cycleInfo.current.endDate,
+        confirmationDeadline: cycleInfo.current.confirmationDeadline,
         daysRemaining: cycleInfo.daysRemaining,
-        hoursUntilCutoff: cycleInfo.hoursUntilCutoff,
+        hoursUntilDeadline: cycleInfo.hoursUntilDeadline,
         isProcessing: cycleInfo.isProcessing,
       },
 
@@ -109,7 +116,7 @@ export async function GET() {
       currentCycleEarnings: {
         gross: currentCycleEarnings.gross,
         platformFee: currentCycleEarnings.platformFee,
-        net: currentCycleEarnings.net,
+        platformFeePercent: currentCycleEarnings.platformFeePercent,
         sessionsCount: currentCycleEarnings.sessionsCount,
         pendingConfirmations: currentCycleEarnings.pendingCount,
         confirmedCount: currentCycleEarnings.confirmedCount,
@@ -119,10 +126,18 @@ export async function GET() {
       lifetime: {
         totalGross: lifetime.totalGross,
         totalPlatformFees: lifetime.totalPlatformFees,
-        totalNet: lifetime.totalNet,
         totalSessions: lifetime.totalSessions,
-        totalPayouts: lifetime.totalPaidOut,
+        totalCharged: lifetime.totalCharged,
       },
+
+      // Payment method status
+      paymentMethod,
+
+      // Pending fees to be charged
+      pendingFees,
+
+      // Recent fee charges
+      recentCharges: recentCharges.data,
 
       // Pending confirmations
       pendingConfirmations,
@@ -130,9 +145,6 @@ export async function GET() {
 
       // Recent earnings
       recentEarnings: recentEarnings.data,
-
-      // Upcoming payout
-      upcomingPayout,
 
       // History breakdown
       weeklyBreakdown,

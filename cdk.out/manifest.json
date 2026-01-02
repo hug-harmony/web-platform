@@ -23,7 +23,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-deploy-role-232247293056-us-east-2",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-cfn-exec-role-232247293056-us-east-2",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/2464f2d5c3b70eadbcf7adab1ff415c6b3211f4368a36f8cc234a928e9fab157.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/717dca08a4920e6547dfb6a9c224a63630d768397c79af7caf190d7aad5ccd54.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -208,6 +208,18 @@
             "data": "sendMessageRoute"
           }
         ],
+        "/ChatWebSocketStack-prod/editMessageRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "editMessageRoute"
+          }
+        ],
+        "/ChatWebSocketStack-prod/deleteMessageRoute": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "deleteMessageRoute"
+          }
+        ],
         "/ChatWebSocketStack-prod/pingRoute": [
           {
             "type": "aws:cdk:logicalId",
@@ -304,6 +316,30 @@
             "data": "CDKMetadata"
           }
         ],
+        "/ChatWebSocketStack-prod/Exports/Output{\"Ref\":\"Notifications87298708\"}": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ExportsOutputRefNotifications872987081051AE19"
+          }
+        ],
+        "/ChatWebSocketStack-prod/Exports/Output{\"Ref\":\"ChatConnectionsFC8BD7F3\"}": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ExportsOutputRefChatConnectionsFC8BD7F3444AD0F2"
+          }
+        ],
+        "/ChatWebSocketStack-prod/Exports/Output{\"Ref\":\"PushSubscriptions65464CC8\"}": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ExportsOutputRefPushSubscriptions65464CC820BA4F62"
+          }
+        ],
+        "/ChatWebSocketStack-prod/Exports/Output{\"Ref\":\"ChatWebSocketApi\"}": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ExportsOutputRefChatWebSocketApi67FC4780"
+          }
+        ],
         "/ChatWebSocketStack-prod/BootstrapVersion": [
           {
             "type": "aws:cdk:logicalId",
@@ -318,6 +354,187 @@
         ]
       },
       "displayName": "ChatWebSocketStack-prod"
+    },
+    "NotificationStack-prod.assets": {
+      "type": "cdk:asset-manifest",
+      "properties": {
+        "file": "NotificationStack-prod.assets.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+      }
+    },
+    "NotificationStack-prod": {
+      "type": "aws:cloudformation:stack",
+      "environment": "aws://232247293056/us-east-2",
+      "properties": {
+        "templateFile": "NotificationStack-prod.template.json",
+        "terminationProtection": false,
+        "tags": {
+          "Environment": "prod",
+          "ManagedBy": "CDK",
+          "Project": "HugHarmony"
+        },
+        "validateOnSynth": false,
+        "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-deploy-role-232247293056-us-east-2",
+        "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-cfn-exec-role-232247293056-us-east-2",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/517aef6c32d83482569c7df7a42de2d21e80d71eaea2d7ad37048007d8c41b18.json",
+        "requiresBootstrapStackVersion": 6,
+        "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
+        "additionalDependencies": [
+          "NotificationStack-prod.assets"
+        ],
+        "lookupRole": {
+          "arn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-lookup-role-232247293056-us-east-2",
+          "requiresBootstrapStackVersion": 8,
+          "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version"
+        }
+      },
+      "dependencies": [
+        "ChatWebSocketStack-prod",
+        "NotificationStack-prod.assets"
+      ],
+      "metadata": {
+        "/NotificationStack-prod": [
+          {
+            "type": "aws:cdk:stack-tags",
+            "data": [
+              {
+                "Key": "Environment",
+                "Value": "prod"
+              },
+              {
+                "Key": "ManagedBy",
+                "Value": "CDK"
+              },
+              {
+                "Key": "Project",
+                "Value": "HugHarmony"
+              }
+            ]
+          }
+        ],
+        "/NotificationStack-prod/NotificationTopic/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationTopicEB7A0DF1"
+          }
+        ],
+        "/NotificationStack-prod/NotificationDLQ/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationDLQCDA15FAF"
+          }
+        ],
+        "/NotificationStack-prod/NotificationQueue/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationQueue36610CC1"
+          }
+        ],
+        "/NotificationStack-prod/NotificationQueue/Policy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationQueuePolicyCC060EA6"
+          }
+        ],
+        "/NotificationStack-prod/NotificationQueue/NotificationStackprodNotificationTopic77CA8548/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationQueueNotificationStackprodNotificationTopic77CA85483FD077E2"
+          }
+        ],
+        "/NotificationStack-prod/NotificationLambdaRole/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationLambdaRole8517A721"
+          }
+        ],
+        "/NotificationStack-prod/NotificationLambdaRole/DefaultPolicy/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationLambdaRoleDefaultPolicy07D18877"
+          }
+        ],
+        "/NotificationStack-prod/NotificationProcessor/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationProcessorE91924AA"
+          }
+        ],
+        "/NotificationStack-prod/NotificationProcessor/SqsEventSource:NotificationStackprodNotificationQueue700785FC/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationProcessorSqsEventSourceNotificationStackprodNotificationQueue700785FC3CF3B598"
+          }
+        ],
+        "/NotificationStack-prod/DLQAlarm/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "DLQAlarm77626DBA"
+          }
+        ],
+        "/NotificationStack-prod/ProcessorErrorAlarm/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "ProcessorErrorAlarm65727A1E"
+          }
+        ],
+        "/NotificationStack-prod/NotificationTopicArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationTopicArn"
+          }
+        ],
+        "/NotificationStack-prod/NotificationTopicName": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationTopicName"
+          }
+        ],
+        "/NotificationStack-prod/NotificationQueueUrl": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationQueueUrl"
+          }
+        ],
+        "/NotificationStack-prod/NotificationQueueArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationQueueArn"
+          }
+        ],
+        "/NotificationStack-prod/NotificationDLQUrl": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationDLQUrl"
+          }
+        ],
+        "/NotificationStack-prod/NotificationProcessorArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "NotificationProcessorArn"
+          }
+        ],
+        "/NotificationStack-prod/CDKMetadata/Default": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CDKMetadata"
+          }
+        ],
+        "/NotificationStack-prod/BootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "BootstrapVersion"
+          }
+        ],
+        "/NotificationStack-prod/CheckBootstrapVersion": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "CheckBootstrapVersion"
+          }
+        ]
+      },
+      "displayName": "NotificationStack-prod"
     },
     "ChimeStack-prod.assets": {
       "type": "cdk:asset-manifest",

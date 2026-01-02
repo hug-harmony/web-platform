@@ -85,11 +85,44 @@ export class WebSocketStack extends cdk.Stack {
       removalPolicy: cdk.RemovalPolicy.RETAIN,
     });
 
-    // GSI for querying by notification ID
+    // GSI for querying by notification ID (already exists)
     notificationsTable.addGlobalSecondaryIndex({
       indexName: "ByIdIndex",
       partitionKey: {
         name: "id",
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // ==========================================
+    // STEP 1: Add UnreadIndex GSI
+    // After this is ACTIVE, uncomment TypeIndex below and redeploy
+    // ==========================================
+    notificationsTable.addGlobalSecondaryIndex({
+      indexName: "UnreadIndex",
+      partitionKey: {
+        name: "userId",
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: "unread",
+        type: dynamodb.AttributeType.STRING,
+      },
+      projectionType: dynamodb.ProjectionType.ALL,
+    });
+
+    // ==========================================
+    // STEP 2: Add TypeIndex GSI
+    // ==========================================
+    notificationsTable.addGlobalSecondaryIndex({
+      indexName: "TypeIndex",
+      partitionKey: {
+        name: "userId",
+        type: dynamodb.AttributeType.STRING,
+      },
+      sortKey: {
+        name: "type",
         type: dynamodb.AttributeType.STRING,
       },
       projectionType: dynamodb.ProjectionType.ALL,
@@ -147,7 +180,6 @@ export class WebSocketStack extends cdk.Stack {
       SECRETS_ARN: appSecrets.secretArn,
       SECRETS_NAME: `hug-harmony/${stage}/secrets`,
       NODE_OPTIONS: "--enable-source-maps",
-      // NEW: Environment variables for online status updates
       APP_URL: process.env.APP_URL || "",
       INTERNAL_API_KEY: process.env.INTERNAL_API_KEY || "",
     };
@@ -246,11 +278,13 @@ export class WebSocketStack extends cdk.Stack {
       target: `integrations/${messageIntegration.ref}`,
     });
 
-    // Custom routes for specific actions (UPDATED: added heartbeat)
+    // Custom routes for specific actions
     const customRoutes = [
       "join",
       "typing",
       "sendMessage",
+      "editMessage",
+      "deleteMessage",
       "ping",
       "notification",
       "heartbeat",

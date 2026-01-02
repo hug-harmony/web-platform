@@ -1,20 +1,19 @@
-// src/hooks/payments/usePayouts.ts
+// src/hooks/payments/useFeeCharges.ts
 
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import {
-  PayoutHistoryItem,
-  PayoutWithDetails,
-  PayoutStatus,
-  PayoutsResponse,
+  FeeChargeWithDetails,
+  FeeChargeStatus,
+  FeeChargesResponse,
 } from "@/types/payments";
 
 // ============================================
-// PAYOUTS LIST HOOK
+// FEE CHARGES LIST HOOK
 // ============================================
 
-interface UsePayoutsOptions {
-  status?: PayoutStatus;
+interface UseFeeChargesOptions {
+  status?: FeeChargeStatus;
   startDate?: Date;
   endDate?: Date;
   page?: number;
@@ -22,11 +21,13 @@ interface UsePayoutsOptions {
   autoFetch?: boolean;
 }
 
-interface UsePayoutsReturn {
-  payouts: PayoutHistoryItem[];
+interface UseFeeChargesReturn {
+  feeCharges: FeeChargeWithDetails[];
   summary: {
-    totalPaid: number;
+    totalCharged: number;
     totalPending: number;
+    totalFailed: number;
+    totalWaived: number;
   };
   pagination: {
     total: number;
@@ -40,12 +41,16 @@ interface UsePayoutsReturn {
   loadMore: () => Promise<void>;
 }
 
-export function usePayouts(options: UsePayoutsOptions = {}): UsePayoutsReturn {
+export function useFeeCharges(
+  options: UseFeeChargesOptions = {}
+): UseFeeChargesReturn {
   const { status: authStatus } = useSession();
-  const [payouts, setPayouts] = useState<PayoutHistoryItem[]>([]);
+  const [feeCharges, setFeeCharges] = useState<FeeChargeWithDetails[]>([]);
   const [summary, setSummary] = useState({
-    totalPaid: 0,
+    totalCharged: 0,
     totalPending: 0,
+    totalFailed: 0,
+    totalWaived: 0,
   });
   const [pagination, setPagination] = useState({
     total: 0,
@@ -65,7 +70,7 @@ export function usePayouts(options: UsePayoutsOptions = {}): UsePayoutsReturn {
     autoFetch = true,
   } = options;
 
-  const fetchPayouts = useCallback(
+  const fetchFeeCharges = useCallback(
     async (pageNum: number = page, append: boolean = false) => {
       if (authStatus !== "authenticated") return;
 
@@ -82,18 +87,18 @@ export function usePayouts(options: UsePayoutsOptions = {}): UsePayoutsReturn {
         if (startDate) params.set("startDate", startDate.toISOString());
         if (endDate) params.set("endDate", endDate.toISOString());
 
-        const response = await fetch(`/api/payments/payouts?${params}`, {
+        const response = await fetch(`/api/payments/fee-charges?${params}`, {
           credentials: "include",
         });
 
         if (!response.ok) {
           const errorData = await response.json();
-          throw new Error(errorData.error || "Failed to fetch payouts");
+          throw new Error(errorData.error || "Failed to fetch fee charges");
         }
 
-        const data: PayoutsResponse = await response.json();
+        const data: FeeChargesResponse = await response.json();
 
-        setPayouts((prev) => (append ? [...prev, ...data.data] : data.data));
+        setFeeCharges((prev) => (append ? [...prev, ...data.data] : data.data));
         setSummary(data.summary);
         setPagination({
           total: data.total,
@@ -112,79 +117,71 @@ export function usePayouts(options: UsePayoutsOptions = {}): UsePayoutsReturn {
 
   useEffect(() => {
     if (autoFetch) {
-      fetchPayouts();
+      fetchFeeCharges();
     }
-  }, [fetchPayouts, autoFetch]);
+  }, [fetchFeeCharges, autoFetch]);
 
   const loadMore = async () => {
     if (pagination.hasMore && !isLoading) {
-      await fetchPayouts(pagination.page + 1, true);
+      await fetchFeeCharges(pagination.page + 1, true);
     }
   };
 
   return {
-    payouts,
+    feeCharges,
     summary,
     pagination,
     isLoading,
     error,
-    refetch: () => fetchPayouts(1, false),
+    refetch: () => fetchFeeCharges(1, false),
     loadMore,
   };
 }
 
 // ============================================
-// UPCOMING PAYOUT HOOK
+// PENDING FEES HOOK
 // ============================================
 
-interface UpcomingPayout {
-  estimatedAmount: number;
-  estimatedDate: Date;
-  sessionsCount: number;
-  pendingConfirmations: number;
+interface PendingFees {
+  amount: number;
+  cycleCount: number;
 }
 
-export function useUpcomingPayout(): {
-  payout: UpcomingPayout | null;
+export function usePendingFees(): {
+  pendingFees: PendingFees | null;
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
   // Computed
-  hasUpcoming: boolean;
+  hasPendingFees: boolean;
   formattedAmount: string;
-  formattedDate: string;
 } {
   const { status: authStatus } = useSession();
-  const [payout, setPayout] = useState<UpcomingPayout | null>(null);
+  const [pendingFees, setPendingFees] = useState<PendingFees | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchUpcoming = useCallback(async () => {
+  const fetchPendingFees = useCallback(async () => {
     if (authStatus !== "authenticated") return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch("/api/payments/payouts?upcoming=true", {
-        credentials: "include",
-      });
+      const response = await fetch(
+        "/api/payments/fee-charges?pendingOnly=true",
+        {
+          credentials: "include",
+        }
+      );
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to fetch upcoming payout");
+        throw new Error(errorData.error || "Failed to fetch pending fees");
       }
 
       const data = await response.json();
-
-      if (data.upcoming) {
-        setPayout({
-          ...data.upcoming,
-          estimatedDate: new Date(data.upcoming.estimatedDate),
-        });
-      } else {
-        setPayout(null);
-      }
+      setPendingFees(data.pendingFees);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
@@ -193,88 +190,77 @@ export function useUpcomingPayout(): {
   }, [authStatus]);
 
   useEffect(() => {
-    fetchUpcoming();
-  }, [fetchUpcoming]);
+    fetchPendingFees();
+  }, [fetchPendingFees]);
 
   // Computed values
-  const hasUpcoming = payout !== null && payout.estimatedAmount > 0;
+  const hasPendingFees = (pendingFees?.amount ?? 0) > 0;
 
-  const formattedAmount = payout
-    ? new Intl.NumberFormat("en-US", {
-        style: "currency",
-        currency: "USD",
-      }).format(payout.estimatedAmount)
-    : "$0.00";
-
-  const formattedDate = payout
-    ? payout.estimatedDate.toLocaleDateString("en-US", {
-        weekday: "long",
-        month: "short",
-        day: "numeric",
-      })
-    : "";
+  const formattedAmount = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(pendingFees?.amount ?? 0);
 
   return {
-    payout,
+    pendingFees,
     isLoading,
     error,
-    refetch: fetchUpcoming,
-    hasUpcoming,
+    refetch: fetchPendingFees,
+    hasPendingFees,
     formattedAmount,
-    formattedDate,
   };
 }
 
 // ============================================
-// SINGLE PAYOUT HOOK
+// SINGLE FEE CHARGE HOOK
 // ============================================
 
-export function usePayout(payoutId: string | null): {
-  payout: PayoutWithDetails | null;
+export function useFeeCharge(feeChargeId: string | null): {
+  feeCharge: FeeChargeWithDetails | null;
   isLoading: boolean;
   error: string | null;
   refetch: () => Promise<void>;
 } {
   const { status: authStatus } = useSession();
-  const [payout, setPayout] = useState<PayoutWithDetails | null>(null);
+  const [feeCharge, setFeeCharge] = useState<FeeChargeWithDetails | null>(null);
   const [isLoading, setIsLoading] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
-  const fetchPayout = useCallback(async () => {
-    if (authStatus !== "authenticated" || !payoutId) return;
+  const fetchFeeCharge = useCallback(async () => {
+    if (authStatus !== "authenticated" || !feeChargeId) return;
 
     setIsLoading(true);
     setError(null);
 
     try {
-      const response = await fetch(`/api/payments/payouts/${payoutId}`, {
+      const response = await fetch(`/api/payments/fee-charges/${feeChargeId}`, {
         credentials: "include",
       });
 
       if (!response.ok) {
         const errorData = await response.json();
-        throw new Error(errorData.error || "Failed to fetch payout");
+        throw new Error(errorData.error || "Failed to fetch fee charge");
       }
 
       const data = await response.json();
-      setPayout(data);
+      setFeeCharge(data);
     } catch (err) {
       setError(err instanceof Error ? err.message : "An error occurred");
     } finally {
       setIsLoading(false);
     }
-  }, [authStatus, payoutId]);
+  }, [authStatus, feeChargeId]);
 
   useEffect(() => {
-    if (payoutId) {
-      fetchPayout();
+    if (feeChargeId) {
+      fetchFeeCharge();
     }
-  }, [fetchPayout, payoutId]);
+  }, [fetchFeeCharge, feeChargeId]);
 
   return {
-    payout,
+    feeCharge,
     isLoading,
     error,
-    refetch: fetchPayout,
+    refetch: fetchFeeCharge,
   };
 }

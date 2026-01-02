@@ -3,11 +3,12 @@
 import { useState, useEffect, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import {
-  ProfessionalEarningsSummary,
   ConfirmationWithDetails,
   EarningWithDetails,
   WeeklyBreakdown,
   MonthlyBreakdown,
+  ProfessionalPaymentMethod,
+  FeeChargeWithDetails,
 } from "@/types/payments";
 
 interface PaymentDashboardData {
@@ -16,16 +17,18 @@ interface PaymentDashboardData {
     id: string;
     startDate: string;
     endDate: string;
+    confirmationDeadline: string;
     daysRemaining: number;
-    hoursUntilCutoff: number;
+    hoursUntilDeadline: number;
     isProcessing: boolean;
   } | null;
 
   // Current cycle earnings
   currentCycleEarnings: {
     gross: number;
-    platformFee: number;
     net: number;
+    platformFee: number;
+    platformFeePercent: number;
     sessionsCount: number;
     pendingConfirmations: number;
     confirmedCount: number;
@@ -34,11 +37,23 @@ interface PaymentDashboardData {
   // Lifetime stats
   lifetime: {
     totalGross: number;
-    totalPlatformFees: number;
     totalNet: number;
+    totalPlatformFees: number;
     totalSessions: number;
-    totalPayouts: number;
+    totalCharged: number;
   } | null;
+
+  // Payment method status
+  paymentMethod: ProfessionalPaymentMethod | null;
+
+  // Pending fees (amount platform will charge professional)
+  pendingFees: {
+    amount: number;
+    cycleCount: number;
+  } | null;
+
+  // Recent fee charges
+  recentCharges: FeeChargeWithDetails[];
 
   // Pending confirmations
   pendingConfirmations: (ConfirmationWithDetails & {
@@ -49,12 +64,13 @@ interface PaymentDashboardData {
   // Recent earnings
   recentEarnings: EarningWithDetails[];
 
-  // Upcoming payout
-  upcomingPayout: {
-    estimatedAmount: number;
-    estimatedDate: string;
+  // Upcoming earnings estimate
+  upcomingEarnings: {
+    estimatedNet: number;
+    estimatedPlatformFee: number;
     sessionsCount: number;
     pendingConfirmations: number;
+    estimatedDate: string | null;
   } | null;
 
   // History
@@ -72,12 +88,17 @@ interface UsePaymentDashboardReturn {
   // Computed values
   hasEarnings: boolean;
   hasPendingConfirmations: boolean;
-  currentCycleProgress: number; // 0-100
+  hasPendingFees: boolean;
+  hasPaymentMethod: boolean;
+  isPaymentBlocked: boolean;
+  currentCycleProgress: number;
   formattedCycleDateRange: string;
+  estimatedPlatformFee: string;
+  estimatedNetEarnings: string;
 }
 
 export function usePaymentDashboard(): UsePaymentDashboardReturn {
-  const { data: session, status } = useSession();
+  const { status } = useSession();
   const [data, setData] = useState<PaymentDashboardData | null>(null);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
@@ -94,6 +115,12 @@ export function usePaymentDashboard(): UsePaymentDashboardReturn {
       });
 
       if (!response.ok) {
+        if (response.status === 403) {
+          // Not a professional - set data to null but don't error
+          setData(null);
+          setIsLoading(false);
+          return;
+        }
         const errorData = await response.json();
         throw new Error(errorData.error || "Failed to fetch dashboard");
       }
@@ -114,11 +141,15 @@ export function usePaymentDashboard(): UsePaymentDashboardReturn {
   // Computed values
   const hasEarnings = (data?.lifetime?.totalSessions ?? 0) > 0;
   const hasPendingConfirmations = (data?.pendingConfirmationsCount ?? 0) > 0;
+  const hasPendingFees = (data?.pendingFees?.amount ?? 0) > 0;
+  const hasPaymentMethod = data?.paymentMethod?.hasPaymentMethod ?? false;
+  const isPaymentBlocked = data?.paymentMethod?.isBlocked ?? false;
 
   // Calculate cycle progress (0-100)
   const currentCycleProgress = (() => {
     if (!data?.currentCycle) return 0;
-    const totalDays = 7;
+    // Cycles are ~15 days (1st-15th or 16th-end of month)
+    const totalDays = 15;
     const daysElapsed = totalDays - data.currentCycle.daysRemaining;
     return Math.min(100, Math.max(0, (daysElapsed / totalDays) * 100));
   })();
@@ -135,6 +166,18 @@ export function usePaymentDashboard(): UsePaymentDashboardReturn {
     return `${start.toLocaleDateString("en-US", options)} - ${end.toLocaleDateString("en-US", { ...options, year: "numeric" })}`;
   })();
 
+  // Format estimated platform fee
+  const estimatedPlatformFee = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(data?.currentCycleEarnings?.platformFee ?? 0);
+
+  // Format estimated net earnings
+  const estimatedNetEarnings = new Intl.NumberFormat("en-US", {
+    style: "currency",
+    currency: "USD",
+  }).format(data?.currentCycleEarnings?.net ?? 0);
+
   return {
     data,
     isLoading,
@@ -142,8 +185,13 @@ export function usePaymentDashboard(): UsePaymentDashboardReturn {
     refetch: fetchDashboard,
     hasEarnings,
     hasPendingConfirmations,
+    hasPendingFees,
+    hasPaymentMethod,
+    isPaymentBlocked,
     currentCycleProgress,
     formattedCycleDateRange,
+    estimatedPlatformFee,
+    estimatedNetEarnings,
   };
 }
 
@@ -157,12 +205,15 @@ export function usePendingConfirmationsCount(): {
   const [isLoading, setIsLoading] = useState(true);
 
   useEffect(() => {
-    if (status !== "authenticated") return;
+    if (status !== "authenticated") {
+      setIsLoading(false);
+      return;
+    }
 
     const checkPending = async () => {
       try {
         const response = await fetch(
-          "/api/payments/confirmation?checkPending=true",
+          "/api/payments/confirmation?countOnly=true",
           {
             credentials: "include",
           }
@@ -170,7 +221,7 @@ export function usePendingConfirmationsCount(): {
 
         if (response.ok) {
           const data = await response.json();
-          setCount(data.hasPending ? 1 : 0); // We just need to know if there are any
+          setCount(data.count || 0);
         }
       } catch (err) {
         console.error("Failed to check pending confirmations:", err);

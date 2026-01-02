@@ -26,9 +26,18 @@ export {
 } from "./useEarnings";
 
 // ============================================
-// PAYOUTS
+// FEE CHARGES (replaces payouts)
 // ============================================
-export { usePayouts, useUpcomingPayout, usePayout } from "./usePayouts";
+export { useFeeCharges, usePendingFees, useFeeCharge } from "./useFeeCharges";
+
+// ============================================
+// PAYMENT METHOD
+// ============================================
+export {
+  usePaymentMethod,
+  useSetupPaymentMethod,
+  useRemovePaymentMethod,
+} from "./usePaymentMethod";
 
 // ============================================
 // CONFIRMATIONS

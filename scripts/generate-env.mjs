@@ -38,11 +38,23 @@ const envVars = [
   "WEBSOCKET_API_ENDPOINT",
   "CONNECTIONS_TABLE",
   "NOTIFICATIONS_TABLE",
+  "PUSH_SUBSCRIPTIONS_TABLE",
   "VIDEO_ROOMS_TABLE",
 
-  // Online Status (NEW)
+  // SNS Notifications
+  "NOTIFICATION_TOPIC_ARN",
+
+  // Push Notifications (VAPID)
+  "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+  "VAPID_PRIVATE_KEY",
+  "VAPID_EMAIL",
+
+  // Online Status
   "APP_URL",
   "INTERNAL_API_KEY",
+
+  // Cron
+  "CRON_SECRET",
 ];
 
 const envContent = envVars
@@ -67,7 +79,24 @@ wsVars.forEach((v) => {
   console.log(`   ${v}: ${process.env[v] ? "✓ Set" : "✗ Missing"}`);
 });
 
-// Log Online Status config status (NEW)
+// Log SNS config status
+console.log("\n📬 SNS Notification Configuration:");
+console.log(
+  `   NOTIFICATION_TOPIC_ARN: ${process.env.NOTIFICATION_TOPIC_ARN ? "✓ Set" : "✗ Missing"}`
+);
+
+// Log Push Notification config status
+const pushVars = [
+  "NEXT_PUBLIC_VAPID_PUBLIC_KEY",
+  "VAPID_PRIVATE_KEY",
+  "VAPID_EMAIL",
+];
+console.log("\n🔔 Push Notification Configuration:");
+pushVars.forEach((v) => {
+  console.log(`   ${v}: ${process.env[v] ? "✓ Set" : "✗ Missing"}`);
+});
+
+// Log Online Status config status
 const onlineStatusVars = ["APP_URL", "INTERNAL_API_KEY"];
 console.log("\n🟢 Online Status Configuration:");
 onlineStatusVars.forEach((v) => {

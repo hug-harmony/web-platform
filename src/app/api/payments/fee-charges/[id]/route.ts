@@ -1,9 +1,9 @@
-// src/app/api/payments/payouts/[id]/route.ts
+// src/app/api/payments/fee-charges/[id]/route.ts
 
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { getPayoutById } from "@/lib/services/payments";
+import { getFeeChargeById } from "@/lib/services/payments";
 import prisma from "@/lib/prisma";
 
 export async function GET(
@@ -19,31 +19,34 @@ export async function GET(
 
     const { id } = await params;
 
-    const payout = await getPayoutById(id);
+    const feeCharge = await getFeeChargeById(id);
 
-    if (!payout) {
-      return NextResponse.json({ error: "Payout not found" }, { status: 404 });
+    if (!feeCharge) {
+      return NextResponse.json(
+        { error: "Fee charge not found" },
+        { status: 404 }
+      );
     }
 
-    // Verify user has access to this payout
+    // Verify user has access to this fee charge
     const application = await prisma.professionalApplication.findUnique({
       where: { userId: session.user.id },
       select: { professionalId: true },
     });
 
-    const isOwner = application?.professionalId === payout.professionalId;
+    const isOwner = application?.professionalId === feeCharge.professionalId;
     const isAdmin = session.user.isAdmin;
 
     if (!isOwner && !isAdmin) {
       return NextResponse.json(
-        { error: "You don't have permission to view this payout" },
+        { error: "You don't have permission to view this fee charge" },
         { status: 403 }
       );
     }
 
-    return NextResponse.json(payout);
+    return NextResponse.json(feeCharge);
   } catch (error) {
-    console.error("GET payout by ID error:", error);
+    console.error("GET fee charge by ID error:", error);
     return NextResponse.json(
       { error: "Internal server error" },
       { status: 500 }

@@ -87,6 +87,7 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
         setProfessionalVenue(data.venue);
         if (data.venue !== "both") setSelectedVenue(data.venue);
       } catch (error) {
+        console.error(error);
         toast.error("Failed to fetch professional details");
       }
     };

@@ -1,13 +1,22 @@
 {
-  "ChimeStack-prod": {
-    "VideoRoomsTableName": "VideoRooms-prod"
-  },
   "ChatWebSocketStack-prod": {
+    "ExportsOutputRefChatWebSocketApi67FC4780": "fulvf34l4h",
     "SecretsArn": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",
     "PushSubscriptionsTableName": "PushSubscriptions-prod",
+    "ExportsOutputRefChatConnectionsFC8BD7F3444AD0F2": "ChatConnections-prod",
     "WebSocketURL": "wss://fulvf34l4h.execute-api.us-east-2.amazonaws.com/prod",
+    "ExportsOutputRefPushSubscriptions65464CC820BA4F62": "PushSubscriptions-prod",
     "ConnectionsTableName": "ChatConnections-prod",
+    "ExportsOutputRefNotifications872987081051AE19": "Notifications-prod",
     "WebSocketApiEndpoint": "https://fulvf34l4h.execute-api.us-east-2.amazonaws.com/prod",
     "NotificationsTableName": "Notifications-prod"
+  },
+  "NotificationStack-prod": {
+    "NotificationQueueUrl": "https://sqs.us-east-2.amazonaws.com/232247293056/NotificationQueue-prod",
+    "NotificationProcessorArn": "arn:aws:lambda:us-east-2:232247293056:function:NotificationProcessor-prod",
+    "NotificationQueueArn": "arn:aws:sqs:us-east-2:232247293056:NotificationQueue-prod",
+    "NotificationTopicArn": "arn:aws:sns:us-east-2:232247293056:Notifications-prod",
+    "NotificationDLQUrl": "https://sqs.us-east-2.amazonaws.com/232247293056/NotificationDLQ-prod",
+    "NotificationTopicName": "Notifications-prod"
   }
 }

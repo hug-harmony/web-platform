@@ -18,6 +18,7 @@ import {
 } from "lucide-react";
 import { motion } from "framer-motion";
 import { format } from "date-fns";
+import Image from "next/image";
 
 interface Proposal {
   id: string;
@@ -139,7 +140,9 @@ export default function ProposalCard({
           <div className="flex items-start justify-between mb-3">
             <div className="flex items-center gap-3">
               {displayImage ? (
-                <img
+                <Image
+                  width={500}
+                  height={500}
                   src={displayImage}
                   alt={displayName}
                   className="h-10 w-10 rounded-full object-cover"

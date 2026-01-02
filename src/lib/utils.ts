@@ -1,7 +1,5 @@
 import { clsx, type ClassValue } from "clsx";
 import { twMerge } from "tailwind-merge";
-import { Professional } from "@/types/professional";
-import { Filters } from "@/hooks/professionals/useFilters";
 
 export function cn(...inputs: ClassValue[]) {
   return twMerge(clsx(inputs));
@@ -36,26 +34,26 @@ export function calculateDistance(
   return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
 }
 
-const thresholds: Record<string, number> = {
-  "24hrs": 24 * 3600000,
-  "1day": 24 * 3600000,
-  "1week": 7 * 24 * 3600000,
-  "1month": 30 * 24 * 3600000,
-  "1year": 365 * 24 * 3600000,
-};
+// const thresholds: Record<string, number> = {
+//   "24hrs": 24 * 3600000,
+//   "1day": 24 * 3600000,
+//   "1week": 7 * 24 * 3600000,
+//   "1month": 30 * 24 * 3600000,
+//   "1year": 365 * 24 * 3600000,
+// };
 
 /**
  * Converts time string (e.g., "09:00 AM") to minutes since midnight
  */
-function timeToMinutes(time: string): number {
-  const trimmed = time.trim();
-  const [timePart, period] = trimmed.split(" ");
-  const [h, m] = timePart.split(":").map(Number);
-  let hours24 = h;
-  if (period === "PM" && h !== 12) hours24 += 12;
-  if (period === "AM" && h === 12) hours24 = 0;
-  return hours24 * 60 + (m ?? 0);
-}
+// function timeToMinutes(time: string): number {
+//   const trimmed = time.trim();
+//   const [timePart, period] = trimmed.split(" ");
+//   const [h, m] = timePart.split(":").map(Number);
+//   let hours24 = h;
+//   if (period === "PM" && h !== 12) hours24 += 12;
+//   if (period === "AM" && h === 12) hours24 = 0;
+//   return hours24 * 60 + (m ?? 0);
+// }
 
 /**
  * Filter and sort professionals based on applied filters and search query

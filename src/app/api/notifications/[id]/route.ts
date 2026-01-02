@@ -2,29 +2,21 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { authOptions } from "@/lib/auth";
-import { DynamoDBClient } from "@aws-sdk/client-dynamodb";
+import { getDocClient, TABLES } from "@/lib/aws/clients";
 import {
-  DynamoDBDocumentClient,
   QueryCommand,
   UpdateCommand,
   DeleteCommand,
 } from "@aws-sdk/lib-dynamodb";
 
-const client = new DynamoDBClient({
-  region: process.env.REGION || "us-east-2",
-  credentials: {
-    accessKeyId: process.env.ACCESS_KEY_ID!,
-    secretAccessKey: process.env.SECRET_ACCESS_KEY!,
-  },
-});
-
-const docClient = DynamoDBDocumentClient.from(client);
-const TABLE_NAME = process.env.NOTIFICATIONS_TABLE || "Notifications-prod";
-
-// Helper to find notification by ID
+/**
+ * Helper to find notification by ID using GSI
+ */
 async function findNotificationById(notificationId: string, userId: string) {
+  const docClient = getDocClient();
+
   const command = new QueryCommand({
-    TableName: TABLE_NAME,
+    TableName: TABLES.NOTIFICATIONS,
     IndexName: "ByIdIndex",
     KeyConditionExpression: "id = :id",
     ExpressionAttributeValues: {
@@ -43,7 +35,9 @@ async function findNotificationById(notificationId: string, userId: string) {
   return notification || null;
 }
 
-// GET - Get single notification
+/**
+ * GET - Get single notification
+ */
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -74,7 +68,9 @@ export async function GET(
   }
 }
 
-// PATCH - Update notification (mark as read)
+/**
+ * PATCH - Update notification (mark as read/unread)
+ */
 export async function PATCH(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -98,8 +94,10 @@ export async function PATCH(
       );
     }
 
+    const docClient = getDocClient();
+
     const command = new UpdateCommand({
-      TableName: TABLE_NAME,
+      TableName: TABLES.NOTIFICATIONS,
       Key: {
         userId: session.user.id,
         timestamp: notification.timestamp,
@@ -124,7 +122,9 @@ export async function PATCH(
   }
 }
 
-// DELETE - Delete notification
+/**
+ * DELETE - Delete notification
+ */
 export async function DELETE(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -145,8 +145,10 @@ export async function DELETE(
       );
     }
 
+    const docClient = getDocClient();
+
     const command = new DeleteCommand({
-      TableName: TABLE_NAME,
+      TableName: TABLES.NOTIFICATIONS,
       Key: {
         userId: session.user.id,
         timestamp: notification.timestamp,
