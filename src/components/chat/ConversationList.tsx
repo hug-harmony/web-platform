@@ -1,16 +1,14 @@
 // src/components/chat/ConversationsList.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useRef } from "react";
+import { useState, useEffect, useCallback, useMemo } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter, usePathname } from "next/navigation";
 import { Button } from "@/components/ui/button";
 import { Skeleton } from "@/components/ui/skeleton";
-import { Input } from "@/components/ui/input";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { Badge } from "@/components/ui/badge";
 import { ScrollArea } from "@/components/ui/scroll-area";
-import { Tabs, TabsList, TabsTrigger } from "@/components/ui/tabs";
 import { cn } from "@/lib/utils";
 import { toast } from "sonner";
 import {
@@ -22,8 +20,6 @@ import {
 } from "framer-motion";
 import {
   MessageSquare,
-  Search,
-  RefreshCw,
   Plus,
   Pin,
   Archive,
@@ -33,7 +29,6 @@ import {
   CheckCheck,
   Image as ImageIcon,
   Mic,
-  X,
 } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import {
@@ -43,13 +38,9 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import {
-  Tooltip,
-  TooltipContent,
-  TooltipProvider,
-  TooltipTrigger,
-} from "@/components/ui/tooltip";
+import { TooltipProvider } from "@/components/ui/tooltip";
 import ProfilePreviewDialog, { ProfileUser } from "./ProfilePreviewDialog";
+import ConversationsListHeader from "./ConversationsListHeader";
 import type { Conversation, ConversationUser, ChatMessage } from "@/types/chat";
 
 interface ConversationsListProps {
@@ -220,9 +211,10 @@ const SwipeableConversation: React.FC<SwipeableConversationProps> = ({
         whileHover={{ backgroundColor: "rgba(243, 207, 198, 0.1)" }}
         whileTap={{ scale: 0.98 }}
         className={cn(
-          "relative flex items-center gap-3 p-3 rounded-lg cursor-pointer bg-white dark:bg-gray-900",
-          isActive && "bg-[#F3CFC6]/20 dark:bg-[#F3CFC6]/10",
-          hasUnread && !isActive && "bg-[#F3CFC6]/10"
+          "relative flex items-center gap-3 p-3 rounded-lg cursor-pointer bg-white dark:bg-gray-900 border",
+          isActive && "bg-[#F3CFC6]/20 dark:bg-[#F3CFC6]/10 border-[#F3CFC6]",
+          hasUnread && !isActive && "bg-[#F3CFC6]/10 border-[#F3CFC6]/50",
+          !isActive && !hasUnread && "border-gray-200 hover:border-[#F3CFC6]/30"
         )}
         onClick={onClick}
       >
@@ -415,15 +407,14 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
   const { data: session, status } = useSession();
   const router = useRouter();
   const pathname = usePathname();
-  const searchInputRef = useRef<HTMLInputElement>(null);
 
   const [conversations, setConversations] = useState<EnrichedConversation[]>(
     []
   );
   const [searchQuery, setSearchQuery] = useState("");
-  const [activeTab, setActiveTab] = useState<"all" | "unread" | "archived">(
-    "all"
-  );
+  const [activeFilter, setActiveFilter] = useState<
+    "all" | "unread" | "archived"
+  >("all");
   const [loading, setLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [refreshing, setRefreshing] = useState(false);
@@ -505,23 +496,6 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
     }
   }, [selectedUser, isSelectedUserOnline, session, router]);
 
-  // Keyboard shortcut for search
-  useEffect(() => {
-    const handleKeyDown = (e: KeyboardEvent) => {
-      if ((e.metaKey || e.ctrlKey) && e.key === "k") {
-        e.preventDefault();
-        searchInputRef.current?.focus();
-      }
-      if (e.key === "Escape") {
-        setSearchQuery("");
-        searchInputRef.current?.blur();
-      }
-    };
-
-    window.addEventListener("keydown", handleKeyDown);
-    return () => window.removeEventListener("keydown", handleKeyDown);
-  }, []);
-
   // Handle new message from WebSocket
   const handleNewMessage = useCallback(
     (message: ChatMessage) => {
@@ -531,7 +505,6 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
             const isCurrentConversation =
               pathname === `/dashboard/messaging/${conv.id}`;
 
-            // Determine message type
             let messageType: "text" | "image" | "audio" = "text";
             if (message.isAudio) messageType = "audio";
             else if (message.imageUrl) messageType = "image";
@@ -554,7 +527,6 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
           return conv;
         });
 
-        // Sort: pinned first, then by last message time
         return updated.sort((a, b) => {
           if (a.isPinned && !b.isPinned) return -1;
           if (!a.isPinned && b.isPinned) return 1;
@@ -572,7 +544,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
   );
 
   // WebSocket for real-time updates
-  useWebSocket({
+  const { isConnected } = useWebSocket({
     enabled: status === "authenticated",
     onNewMessage: handleNewMessage,
   });
@@ -629,13 +601,13 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
     load();
   }, [fetchConversations]);
 
-  // Refresh
-  const handleRefresh = async () => {
+  // Refresh handler
+  const handleRefresh = useCallback(async () => {
     setRefreshing(true);
     await fetchConversations();
     setRefreshing(false);
-    toast.success("Updated", { duration: 1500 });
-  };
+    toast.success("Conversations refreshed", { duration: 1500 });
+  }, [fetchConversations]);
 
   // Conversation actions
   const handleConversationClick = async (convId: string) => {
@@ -704,49 +676,38 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
     }).catch(console.error);
   };
 
-  // Filter conversations
-  const filteredConversations = conversations
-    .filter((conv) => {
-      if (activeTab === "unread") return (conv.unreadCount || 0) > 0;
-      if (activeTab === "archived") return conv.isArchived;
-      return !conv.isArchived;
-    })
-    .filter((conv) => {
-      if (!searchQuery) return true;
-      const otherUser =
-        conv.user1?.id === session?.user?.id ? conv.user2 : conv.user1;
-      const name =
-        `${otherUser?.firstName || ""} ${otherUser?.lastName || ""}`.toLowerCase();
-      return name.includes(searchQuery.toLowerCase());
-    });
-
-  const totalUnread = conversations.reduce(
-    (sum, c) => sum + (c.unreadCount || 0),
-    0
+  // Computed values
+  const totalUnread = useMemo(
+    () => conversations.reduce((sum, c) => sum + (c.unreadCount || 0), 0),
+    [conversations]
   );
+
+  const archivedCount = useMemo(
+    () => conversations.filter((c) => c.isArchived).length,
+    [conversations]
+  );
+
+  // Filter conversations
+  const filteredConversations = useMemo(() => {
+    return conversations
+      .filter((conv) => {
+        if (activeFilter === "unread") return (conv.unreadCount || 0) > 0;
+        if (activeFilter === "archived") return conv.isArchived;
+        return !conv.isArchived;
+      })
+      .filter((conv) => {
+        if (!searchQuery) return true;
+        const otherUser =
+          conv.user1?.id === session?.user?.id ? conv.user2 : conv.user1;
+        const name =
+          `${otherUser?.firstName || ""} ${otherUser?.lastName || ""}`.toLowerCase();
+        return name.includes(searchQuery.toLowerCase());
+      });
+  }, [conversations, activeFilter, searchQuery, session?.user?.id]);
 
   // Loading skeleton
   if (status === "loading" || loading) {
-    return (
-      <div className="p-4 space-y-4 max-w-7xl mx-auto">
-        <div className="flex items-center justify-between">
-          <Skeleton className="h-8 w-32" />
-          <Skeleton className="h-9 w-9 rounded-full" />
-        </div>
-        <Skeleton className="h-10 w-full" />
-        <div className="space-y-2">
-          {[...Array(6)].map((_, i) => (
-            <div key={i} className="flex items-center gap-3 p-3">
-              <Skeleton className="h-12 w-12 rounded-full" />
-              <div className="flex-1 space-y-2">
-                <Skeleton className="h-4 w-24" />
-                <Skeleton className="h-3 w-48" />
-              </div>
-            </div>
-          ))}
-        </div>
-      </div>
-    );
+    return <ConversationsListSkeleton />;
   }
 
   if (status === "unauthenticated") {
@@ -762,101 +723,26 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
         initial="hidden"
         animate="visible"
       >
-        {/* Header */}
-        <div className="p-4 rounded-lg border-b bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4] shadow-lg sticky top-0 z-10">
-          <div className="flex items-center justify-between mb-4">
-            <div>
-              <h1 className="text-xl font-bold text-black dark:text-white">
-                Messages
-              </h1>
-              {totalUnread > 0 && (
-                <p className="text-sm opacity-80">
-                  {totalUnread} unread message{totalUnread !== 1 ? "s" : ""}
-                </p>
-              )}
-            </div>
-            <div className="flex items-center gap-2">
-              <Tooltip>
-                <TooltipTrigger asChild>
-                  <Button
-                    variant="outline"
-                    size="icon"
-                    onClick={handleRefresh}
-                    disabled={refreshing}
-                    className="rounded-full text-[#F3CFC6] border-[#F3CFC6]"
-                  >
-                    <RefreshCw
-                      className={cn("h-5 w-5", refreshing && "animate-spin")}
-                    />
-                  </Button>
-                </TooltipTrigger>
-                <TooltipContent>Refresh</TooltipContent>
-              </Tooltip>
-            </div>
-          </div>
-
-          {/* Search */}
-          <div className="relative mb-4">
-            <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-white" />
-            <Input
-              ref={searchInputRef}
-              type="text"
-              placeholder="Search conversations... (⌘K)"
-              value={searchQuery}
-              onChange={(e) => setSearchQuery(e.target.value)}
-              className="pl-9 pr-9 bg-white/80 dark:bg-gray-800/80 border-[#F3CFC6] text-black dark:text-white focus-visible:ring-[#F3CFC6]"
-            />
-            {searchQuery && (
-              <Button
-                variant="ghost"
-                size="icon"
-                className="absolute right-1 top-1/2 -translate-y-1/2 h-7 w-7 text-black dark:text-white"
-                onClick={() => setSearchQuery("")}
-              >
-                <X className="h-3 w-3" />
-              </Button>
-            )}
-          </div>
-
-          {/* Tabs */}
-          <Tabs
-            value={activeTab}
-            onValueChange={(v) => setActiveTab(v as typeof activeTab)}
-            className="mt-2"
-          >
-            <TabsList className="grid w-full grid-cols-3 bg-white/80 dark:bg-gray-800/80">
-              <TabsTrigger
-                value="all"
-                className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 text-black dark:text-white"
-              >
-                All
-              </TabsTrigger>
-              <TabsTrigger
-                value="unread"
-                className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 text-black dark:text-white"
-              >
-                Unread
-                {totalUnread > 0 && (
-                  <Badge variant="secondary" className="ml-1.5 h-5 px-1.5">
-                    {totalUnread}
-                  </Badge>
-                )}
-              </TabsTrigger>
-              <TabsTrigger
-                value="archived"
-                className="data-[state=active]:bg-white dark:data-[state=active]:bg-gray-700 text-black dark:text-white"
-              >
-                Archived
-              </TabsTrigger>
-            </TabsList>
-          </Tabs>
-        </div>
+        {/* Header Component */}
+        <ConversationsListHeader
+          totalConversations={conversations.filter((c) => !c.isArchived).length}
+          totalUnread={totalUnread}
+          archivedCount={archivedCount}
+          searchQuery={searchQuery}
+          onSearchChange={setSearchQuery}
+          activeFilter={activeFilter}
+          onFilterChange={setActiveFilter}
+          onRefresh={handleRefresh}
+          refreshing={refreshing}
+          isConnected={isConnected}
+        />
 
         {/* Conversations list */}
         <ScrollArea className="flex-1">
           <div className="p-2">
             {error ? (
               <div className="flex flex-col items-center justify-center py-12">
+                <MessageSquare className="h-12 w-12 mb-3 opacity-50 text-red-400" />
                 <p className="text-red-500 text-sm mb-4">{error}</p>
                 <Button
                   onClick={fetchConversations}
@@ -880,32 +766,36 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                     <h3 className="font-medium text-gray-900 dark:text-white mb-1">
                       {searchQuery
                         ? "No conversations found"
-                        : activeTab === "unread"
+                        : activeFilter === "unread"
                           ? "All caught up!"
-                          : "No conversations yet"}
+                          : activeFilter === "archived"
+                            ? "No archived conversations"
+                            : "No conversations yet"}
                     </h3>
                     <p className="text-sm text-gray-500 text-center mb-4">
                       {searchQuery
                         ? "Try a different search term"
-                        : activeTab === "unread"
+                        : activeFilter === "unread"
                           ? "You've read all your messages"
-                          : "Start a conversation with someone"}
+                          : activeFilter === "archived"
+                            ? "Archived conversations will appear here"
+                            : "Start a conversation with someone"}
                     </p>
-                    {!searchQuery && activeTab === "all" && (
+                    {!searchQuery && activeFilter === "all" && (
                       <Button
                         onClick={onNewConversation}
-                        className="bg-[#F3CFC6] hover:bg-[#F3CFC6]/80 text-white"
+                        className="bg-[#F3CFC6] hover:bg-[#e9bfb5] text-gray-800"
                       >
                         <Plus className="mr-2 h-4 w-4" />
                         New Conversation
                       </Button>
                     )}
-                    {(searchQuery || activeTab !== "all") && (
+                    {(searchQuery || activeFilter !== "all") && (
                       <Button
                         variant="link"
                         onClick={() => {
                           setSearchQuery("");
-                          setActiveTab("all");
+                          setActiveFilter("all");
                         }}
                         className="text-[#F3CFC6]"
                       >
@@ -915,7 +805,7 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
                   </motion.div>
                 ) : (
                   <motion.div
-                    className="space-y-1"
+                    className="space-y-2"
                     variants={containerVariants}
                   >
                     {filteredConversations.map((conv) => (
@@ -960,5 +850,49 @@ const ConversationsList: React.FC<ConversationsListProps> = ({
     </TooltipProvider>
   );
 };
+
+// Skeleton loader
+function ConversationsListSkeleton() {
+  return (
+    <div className="flex flex-col h-full max-w-7xl mx-auto">
+      {/* Header Skeleton */}
+      <div className="p-4 rounded-t-lg border-b bg-gradient-to-r from-[#F3CFC6] to-[#C4C4C4]">
+        <div className="flex items-center justify-between mb-4">
+          <div>
+            <Skeleton className="h-8 w-32 bg-white/50" />
+            <Skeleton className="h-4 w-48 mt-2 bg-white/50" />
+          </div>
+          <Skeleton className="h-9 w-24 rounded-full bg-white/50" />
+        </div>
+        <div className="grid grid-cols-4 gap-2 mb-4">
+          {[1, 2, 3, 4].map((i) => (
+            <Skeleton key={i} className="h-14 rounded-lg bg-white/50" />
+          ))}
+        </div>
+        <div className="flex gap-2 mb-4">
+          <Skeleton className="h-12 flex-1 bg-white/50" />
+          <Skeleton className="h-12 w-20 bg-white/50" />
+        </div>
+        <Skeleton className="h-10 w-full bg-white/50" />
+      </div>
+
+      {/* List Skeleton */}
+      <div className="p-2 space-y-2">
+        {[...Array(6)].map((_, i) => (
+          <div
+            key={i}
+            className="flex items-center gap-3 p-3 bg-white rounded-lg border"
+          >
+            <Skeleton className="h-12 w-12 rounded-full" />
+            <div className="flex-1 space-y-2">
+              <Skeleton className="h-4 w-24" />
+              <Skeleton className="h-3 w-48" />
+            </div>
+          </div>
+        ))}
+      </div>
+    </div>
+  );
+}
 
 export default ConversationsList;

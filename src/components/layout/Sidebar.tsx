@@ -117,19 +117,19 @@ export default function Sidebar() {
         icon: <Package className={iconClass} />,
       },
       {
-        href: `/dashboard/edit-profile/${user.id}/orders`,
+        href: `/dashboard/orders`,
         label: "My Orders",
         icon: <Package className={iconClass} />,
-      },
-      {
-        href: "/dashboard/profile-visits",
-        label: "Profile Visits",
-        icon: <Eye className={iconClass} />,
       }
     );
 
     if (isProfessional) {
       items.push(
+        {
+          href: "/dashboard/profile-visits",
+          label: "Profile Visits",
+          icon: <Eye className={iconClass} />,
+        },
         {
           href: "/dashboard/payment",
           label: "Payments",
@@ -179,9 +179,9 @@ export default function Sidebar() {
           <div className="flex-1 min-w-0 text-left">
             <p className="font-semibold text-sm truncate">{user.name}</p>
             <div className="flex items-center gap-2">
-              <p className="text-xs text-muted-foreground truncate">
+              {/* <p className="text-xs text-muted-foreground truncate">
                 {isProfessional ? "Professional" : "View Profile"}
-              </p>
+              </p> */}
               {isProfessional && (
                 <span className="inline-block bg-black text-[#F3CFC6] text-[9px] font-medium px-1.5 py-0.5 rounded">
                   PRO
@@ -193,7 +193,7 @@ export default function Sidebar() {
         </button>
 
         {/* Logo */}
-        <Link
+        {/* <Link
           href="/dashboard"
           className="flex items-center justify-center h-10 w-10 rounded-lg border bg-white shadow-sm hover:bg-gray-50 transition-colors shrink-0"
         >
@@ -204,7 +204,7 @@ export default function Sidebar() {
             height={24}
             className="h-6 w-6 object-contain"
           />
-        </Link>
+        </Link> */}
       </div>
 
       <Separator className="shrink-0" />

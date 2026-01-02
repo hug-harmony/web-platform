@@ -36,7 +36,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
   ref
 ) {
   return (
-    <div className="space-y-4">
+    <div className="space-y-4 bg-white p-4 rounded-lg shadow-sm">
       <div className="relative">
         <Search
           className="absolute left-4 top-1/2 -translate-y-1/2 text-muted-foreground h-5 w-5"
@@ -48,7 +48,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
           placeholder="Search Professionals... (press / to focus)"
           value={searchQuery}
           onChange={onSearchChange}
-          className="pl-12 pr-16 py-3 rounded-full border border-[#000] focus:ring-2 focus:ring-[#F3CFC6]/50"
+          className="pl-12 pr-16 py-3 rounded-full border border-[#000] bg-white focus:ring-2 focus:ring-[#F3CFC6]/50"
           data-search-input
           aria-label="Search professionals"
         />
@@ -62,7 +62,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
       <div className="flex gap-4">
         <Button
           onClick={onApply}
-          className="bg-white text-black hover:bg-white/80 relative"
+          className="bg-black text-white hover:bg-black/80 relative"
         >
           Apply Filters
           {hasPendingChanges && (
@@ -73,7 +73,7 @@ export const SearchBar = forwardRef<HTMLInputElement, Props>(function SearchBar(
           <DropdownMenuTrigger asChild>
             <Button
               variant="outline"
-              className="border-[#F3CFC6] text-[#000] hover:bg-white/80"
+              className="border-[#F3CFC6] text-[#000] hover:bg-gray-100"
             >
               Clear
               <ChevronDown className="ml-1 h-3 w-3" aria-hidden="true" />

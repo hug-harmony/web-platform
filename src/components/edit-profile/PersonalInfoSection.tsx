@@ -1,8 +1,12 @@
 /* eslint-disable @typescript-eslint/no-explicit-any */
+"use client";
+
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Textarea } from "@/components/ui/textarea";
+import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
+import { Badge } from "@/components/ui/badge";
 import {
   Select,
   SelectTrigger,
@@ -13,6 +17,27 @@ import {
 import { ProfilePictureUpload } from "./ProfilePictureUpload";
 import { LocationAutocomplete } from "./LocationAutocomplete";
 import { Profile } from "@/types/edit-profile";
+import { motion } from "framer-motion";
+import {
+  User,
+  Phone,
+  MapPin,
+  FileText,
+  Heart,
+  Compass,
+  Ruler,
+  Users,
+  Star,
+  Palette,
+  Film,
+  PawPrint,
+  Pencil,
+  X,
+  Save,
+  Loader2,
+  CheckCircle,
+  AlertCircle,
+} from "lucide-react";
 
 interface Props {
   profile: Profile;
@@ -27,6 +52,289 @@ interface Props {
   handleSubmit: (e: React.FormEvent) => Promise<void>;
 }
 
+const containerVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: { staggerChildren: 0.03 },
+  },
+};
+
+const itemVariants = {
+  hidden: { opacity: 0, y: 8 },
+  visible: { opacity: 1, y: 0, transition: { duration: 0.2 } },
+};
+
+// Field configuration for cleaner rendering
+const FIELD_CONFIG = {
+  basic: [
+    {
+      key: "firstName",
+      label: "First Name",
+      icon: User,
+      required: true,
+      maxLength: 50,
+    },
+    {
+      key: "lastName",
+      label: "Last Name",
+      icon: User,
+      required: true,
+      maxLength: 50,
+    },
+  ],
+  contact: [
+    { key: "phoneNumber", label: "Phone Number", icon: Phone, type: "tel" },
+    { key: "location", label: "Location", icon: MapPin, isLocation: true },
+  ],
+  about: [
+    {
+      key: "biography",
+      label: "Bio",
+      icon: FileText,
+      isTextarea: true,
+      maxLength: 500,
+    },
+  ],
+  personal: [
+    {
+      key: "relationshipStatus",
+      label: "Relationship Status",
+      icon: Heart,
+      isSelect: true,
+      options: [
+        "Single",
+        "In a relationship",
+        "Married",
+        "Divorced",
+        "Widowed",
+        "Prefer not to say",
+      ],
+    },
+    {
+      key: "orientation",
+      label: "Orientation",
+      icon: Compass,
+      isSelect: true,
+      options: [
+        "Heterosexual",
+        "Homosexual",
+        "Bisexual",
+        "Asexual",
+        "Other",
+        "Prefer not to say",
+      ],
+    },
+    {
+      key: "height",
+      label: "Height",
+      icon: Ruler,
+      placeholder: "e.g., 5'10 or 178 cm",
+      maxLength: 20,
+    },
+    { key: "ethnicity", label: "Ethnicity", icon: Users, maxLength: 50 },
+  ],
+  preferences: [
+    {
+      key: "zodiacSign",
+      label: "Zodiac Sign",
+      icon: Star,
+      isSelect: true,
+      options: [
+        "Aries",
+        "Taurus",
+        "Gemini",
+        "Cancer",
+        "Leo",
+        "Virgo",
+        "Libra",
+        "Scorpio",
+        "Sagittarius",
+        "Capricorn",
+        "Aquarius",
+        "Pisces",
+      ],
+    },
+    {
+      key: "favoriteColor",
+      label: "Favorite Color",
+      icon: Palette,
+      maxLength: 30,
+    },
+    {
+      key: "favoriteMedia",
+      label: "Favorite Movie/TV Show",
+      icon: Film,
+      maxLength: 100,
+    },
+    {
+      key: "petOwnership",
+      label: "Pet Ownership",
+      icon: PawPrint,
+      isSelect: true,
+      options: ["Dog", "Cat", "Other", "None"],
+    },
+  ],
+};
+
+// Reusable Field Display Component (View Mode)
+function FieldDisplay({
+  label,
+  value,
+  icon: Icon,
+}: {
+  label: string;
+  value: string | null | undefined;
+  icon: React.ElementType;
+}) {
+  const hasValue = value && value.trim() !== "";
+
+  return (
+    <div className="flex items-start gap-3 p-3 rounded-lg bg-gray-50 hover:bg-gray-100 transition-colors">
+      <div className="h-9 w-9 rounded-full bg-[#F3CFC6]/20 flex items-center justify-center flex-shrink-0">
+        <Icon className="h-4 w-4 text-[#F3CFC6]" />
+      </div>
+      <div className="flex-1 min-w-0">
+        <p className="text-xs text-gray-500 font-medium uppercase tracking-wide">
+          {label}
+        </p>
+        <p
+          className={`text-sm mt-0.5 break-words ${
+            hasValue ? "text-black" : "text-gray-400 italic"
+          }`}
+        >
+          {hasValue ? value : "Not provided"}
+        </p>
+      </div>
+      {hasValue && (
+        <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0 mt-1" />
+      )}
+    </div>
+  );
+}
+
+// Reusable Field Input Component (Edit Mode)
+function FieldInput({
+  field,
+  profile,
+  setProfile,
+  updating,
+  error,
+  locationProps,
+}: {
+  field: any;
+  profile: Profile;
+  setProfile: (p: Profile) => void;
+  updating: boolean;
+  error?: string;
+  locationProps?: any;
+}) {
+  const Icon = field.icon;
+  const value = (profile[field.key as keyof Profile] as string) || "";
+
+  const handleChange = (newValue: string) => {
+    setProfile({ ...profile, [field.key]: newValue });
+  };
+
+  return (
+    <div className="space-y-2">
+      <Label
+        htmlFor={field.key}
+        className="text-sm font-medium text-gray-700 flex items-center gap-2"
+      >
+        <Icon className="h-4 w-4 text-[#F3CFC6]" />
+        {field.label}
+        {field.required && <span className="text-red-500">*</span>}
+      </Label>
+
+      {field.isLocation ? (
+        <LocationAutocomplete
+          value={value}
+          onChange={handleChange}
+          disabled={updating}
+          {...locationProps}
+        />
+      ) : field.isTextarea ? (
+        <div className="space-y-1">
+          <Textarea
+            id={field.key}
+            name={field.key}
+            value={value}
+            onChange={(e) => handleChange(e.target.value)}
+            disabled={updating}
+            maxLength={field.maxLength}
+            placeholder={field.placeholder}
+            className="border-gray-200 focus:border-[#F3CFC6] focus:ring-[#F3CFC6]/20 min-h-[100px] resize-none"
+          />
+          {field.maxLength && (
+            <p className="text-xs text-gray-400 text-right">
+              {value.length}/{field.maxLength}
+            </p>
+          )}
+        </div>
+      ) : field.isSelect ? (
+        <Select
+          name={field.key}
+          value={value}
+          onValueChange={handleChange}
+          disabled={updating}
+        >
+          <SelectTrigger className="border-gray-200 focus:border-[#F3CFC6] focus:ring-[#F3CFC6]/20">
+            <SelectValue placeholder="Select..." />
+          </SelectTrigger>
+          <SelectContent>
+            {field.options.map((option: string) => (
+              <SelectItem key={option} value={option}>
+                {option}
+              </SelectItem>
+            ))}
+          </SelectContent>
+        </Select>
+      ) : (
+        <Input
+          id={field.key}
+          name={field.key}
+          type={field.type || "text"}
+          value={value}
+          onChange={(e) => handleChange(e.target.value)}
+          disabled={updating}
+          required={field.required}
+          maxLength={field.maxLength}
+          placeholder={field.placeholder}
+          className="border-gray-200 focus:border-[#F3CFC6] focus:ring-[#F3CFC6]/20"
+        />
+      )}
+
+      {error && (
+        <p className="text-red-500 text-xs flex items-center gap-1">
+          <AlertCircle className="h-3 w-3" />
+          {error}
+        </p>
+      )}
+    </div>
+  );
+}
+
+// Section Card Component
+function SectionCard({
+  title,
+  children,
+}: {
+  title: string;
+  children: React.ReactNode;
+}) {
+  return (
+    <Card className="border-gray-200 shadow-sm">
+      <CardHeader className="pb-3">
+        <CardTitle className="text-base font-semibold text-gray-800">
+          {title}
+        </CardTitle>
+      </CardHeader>
+      <CardContent className="space-y-3">{children}</CardContent>
+    </Card>
+  );
+}
+
 export function PersonalInfoSection({
   profile,
   setProfile,
@@ -39,338 +347,181 @@ export function PersonalInfoSection({
   locationProps,
   handleSubmit,
 }: Props) {
+  // Calculate profile completion
+  const allFields = [
+    ...FIELD_CONFIG.basic,
+    ...FIELD_CONFIG.contact,
+    ...FIELD_CONFIG.about,
+    ...FIELD_CONFIG.personal,
+    ...FIELD_CONFIG.preferences,
+  ];
+  const filledFields = allFields.filter((field) => {
+    const value = profile[field.key as keyof Profile];
+    return value && String(value).trim() !== "";
+  }).length;
+  const completionPercent = Math.round((filledFields / allFields.length) * 100);
+
   return (
-    <div className="space-y-4">
-      <h2 className="text-xl text-black dark:text-white">Personal Details</h2>
+    <div className="space-y-6">
+      {/* Section Header */}
+      <div className="flex items-center justify-between">
+        <div>
+          <h2 className="text-xl font-bold text-black flex items-center gap-2">
+            <User className="h-5 w-5 text-[#F3CFC6]" />
+            Personal Details
+          </h2>
+          <p className="text-sm text-gray-500 mt-1">
+            Manage your personal information
+          </p>
+        </div>
+
+        <div className="flex items-center gap-3">
+          {/* Completion Badge */}
+          <Badge
+            variant="secondary"
+            className={`${
+              completionPercent === 100
+                ? "bg-green-100 text-green-700"
+                : completionPercent >= 50
+                  ? "bg-yellow-100 text-yellow-700"
+                  : "bg-gray-100 text-gray-700"
+            }`}
+          >
+            {completionPercent}% Complete
+          </Badge>
+
+          {/* Edit Button (View Mode) */}
+          {!isEditing && (
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setIsEditing(true)}
+              className="rounded-full border-[#F3CFC6] text-gray-700 hover:bg-[#F3CFC6]/10"
+            >
+              <Pencil className="h-4 w-4 mr-2" />
+              Edit Profile
+            </Button>
+          )}
+        </div>
+      </div>
 
       {isEditing ? (
-        <form onSubmit={handleSubmit} className="space-y-6">
-          <ProfilePictureUpload
-            profileImage={profile.profileImage}
-            selectedFile={selectedFile}
-            setSelectedFile={setSelectedFile}
-            isEditing={isEditing}
-            updating={updating}
-            error={formErrors.profileImage}
-          />
-
-          {/* Name fields */}
-          <div className="grid grid-cols-2 gap-4">
-            <div className="space-y-2">
-              <Label>First Name</Label>
-              <Input
-                name="firstName"
-                value={profile.firstName || ""}
-                onChange={(e) =>
-                  setProfile({ ...profile, firstName: e.target.value })
-                }
-                required
-                maxLength={50}
-                disabled={updating}
-                className="border-[#F3CFC6]"
+        /* ==================== EDIT MODE ==================== */
+        <motion.form
+          onSubmit={handleSubmit}
+          className="space-y-6"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {/* Profile Picture */}
+          <motion.div variants={itemVariants}>
+            <SectionCard title="Profile Picture">
+              <ProfilePictureUpload
+                profileImage={profile.profileImage}
+                selectedFile={selectedFile}
+                setSelectedFile={setSelectedFile}
+                isEditing={isEditing}
+                updating={updating}
+                error={formErrors.profileImage}
               />
-              {formErrors.firstName && (
-                <p className="text-red-500 text-sm">{formErrors.firstName}</p>
-              )}
-            </div>
-            <div className="space-y-2">
-              <Label>Last Name</Label>
-              <Input
-                name="lastName"
-                value={profile.lastName || ""}
-                onChange={(e) =>
-                  setProfile({ ...profile, lastName: e.target.value })
-                }
-                required
-                maxLength={50}
-                disabled={updating}
-                className="border-[#F3CFC6]"
-              />
-              {formErrors.lastName && (
-                <p className="text-red-500 text-sm">{formErrors.lastName}</p>
-              )}
-            </div>
-          </div>
+            </SectionCard>
+          </motion.div>
 
-          {/* Phone */}
-          <div className="space-y-2">
-            <Label>Phone Number</Label>
-            <Input
-              name="phoneNumber"
-              value={profile.phoneNumber || ""}
-              onChange={(e) =>
-                setProfile({ ...profile, phoneNumber: e.target.value })
-              }
-              disabled={updating}
-              className="border-[#F3CFC6]"
-            />
-            {formErrors.phoneNumber && (
-              <p className="text-red-500 text-sm">{formErrors.phoneNumber}</p>
-            )}
-          </div>
+          {/* Basic Info */}
+          <motion.div variants={itemVariants}>
+            <SectionCard title="Basic Information">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {FIELD_CONFIG.basic.map((field) => (
+                  <FieldInput
+                    key={field.key}
+                    field={field}
+                    profile={profile}
+                    setProfile={setProfile}
+                    updating={updating}
+                    error={formErrors[field.key]}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          </motion.div>
 
-          {/* Location */}
-          <div className="space-y-2">
-            <Label>Location</Label>
-            <LocationAutocomplete
-              value={profile.location || ""}
-              onChange={(v) => setProfile({ ...profile, location: v })}
-              disabled={updating}
-              {...locationProps}
-            />
-          </div>
+          {/* Contact Info */}
+          <motion.div variants={itemVariants}>
+            <SectionCard title="Contact & Location">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {FIELD_CONFIG.contact.map((field) => (
+                  <FieldInput
+                    key={field.key}
+                    field={field}
+                    profile={profile}
+                    setProfile={setProfile}
+                    updating={updating}
+                    error={formErrors[field.key]}
+                    locationProps={field.isLocation ? locationProps : undefined}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          </motion.div>
 
-          {/* Biography */}
-          <div className="space-y-2">
-            <Label htmlFor="biography" className="text-black dark:text-white">
-              Bio
-            </Label>
-            <Textarea
-              id="biography"
-              name="biography"
-              value={profile.biography || ""}
-              onChange={(e) =>
-                setProfile({ ...profile, biography: e.target.value })
-              }
-              disabled={!isEditing || updating}
-              className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-              maxLength={500}
-            />
-            {formErrors.biography && (
-              <p className="text-red-500 text-sm">{formErrors.biography}</p>
-            )}
-          </div>
+          {/* About */}
+          <motion.div variants={itemVariants}>
+            <SectionCard title="About You">
+              {FIELD_CONFIG.about.map((field) => (
+                <FieldInput
+                  key={field.key}
+                  field={field}
+                  profile={profile}
+                  setProfile={setProfile}
+                  updating={updating}
+                  error={formErrors[field.key]}
+                />
+              ))}
+            </SectionCard>
+          </motion.div>
 
-          {/* Relationship Status */}
-          <div className="space-y-2">
-            <Label
-              htmlFor="relationshipStatus"
-              className="text-black dark:text-white"
-            >
-              Relationship Status
-            </Label>
-            <Select
-              name="relationshipStatus"
-              value={profile.relationshipStatus || ""}
-              onValueChange={(v) =>
-                setProfile({ ...profile, relationshipStatus: v })
-              }
-              disabled={!isEditing || updating}
-            >
-              <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
-                <SelectValue placeholder="Select…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Single">Single</SelectItem>
-                <SelectItem value="In a relationship">
-                  In a relationship
-                </SelectItem>
-                <SelectItem value="Married">Married</SelectItem>
-                <SelectItem value="Divorced">Divorced</SelectItem>
-                <SelectItem value="Widowed">Widowed</SelectItem>
-                <SelectItem value="Prefer not to say">
-                  Prefer not to say
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            {formErrors.relationshipStatus && (
-              <p className="text-red-500 text-sm">
-                {formErrors.relationshipStatus}
-              </p>
-            )}
-          </div>
+          {/* Personal Details */}
+          <motion.div variants={itemVariants}>
+            <SectionCard title="Personal Details">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {FIELD_CONFIG.personal.map((field) => (
+                  <FieldInput
+                    key={field.key}
+                    field={field}
+                    profile={profile}
+                    setProfile={setProfile}
+                    updating={updating}
+                    error={formErrors[field.key]}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          </motion.div>
 
-          {/* Orientation */}
-          <div className="space-y-2">
-            <Label htmlFor="orientation" className="text-black dark:text-white">
-              Orientation
-            </Label>
-            <Select
-              name="orientation"
-              value={profile.orientation || ""}
-              onValueChange={(v) => setProfile({ ...profile, orientation: v })}
-              disabled={!isEditing || updating}
-            >
-              <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
-                <SelectValue placeholder="Select…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Heterosexual">Heterosexual</SelectItem>
-                <SelectItem value="Homosexual">Homosexual</SelectItem>
-                <SelectItem value="Bisexual">Bisexual</SelectItem>
-                <SelectItem value="Asexual">Asexual</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
-                <SelectItem value="Prefer not to say">
-                  Prefer not to say
-                </SelectItem>
-              </SelectContent>
-            </Select>
-            {formErrors.orientation && (
-              <p className="text-red-500 text-sm">{formErrors.orientation}</p>
-            )}
-          </div>
+          {/* Preferences */}
+          <motion.div variants={itemVariants}>
+            <SectionCard title="Preferences & Interests">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                {FIELD_CONFIG.preferences.map((field) => (
+                  <FieldInput
+                    key={field.key}
+                    field={field}
+                    profile={profile}
+                    setProfile={setProfile}
+                    updating={updating}
+                    error={formErrors[field.key]}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          </motion.div>
 
-          {/* Height */}
-          <div className="space-y-2">
-            <Label htmlFor="height" className="text-black dark:text-white">
-              Height
-            </Label>
-            <Input
-              id="height"
-              name="height"
-              value={profile.height || ""}
-              onChange={(e) =>
-                setProfile({ ...profile, height: e.target.value })
-              }
-              disabled={!isEditing || updating}
-              className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-              placeholder="e.g., 5'10 or 178 cm"
-              maxLength={20}
-            />
-            {formErrors.height && (
-              <p className="text-red-500 text-sm">{formErrors.height}</p>
-            )}
-          </div>
-
-          {/* Ethnicity */}
-          <div className="space-y-2">
-            <Label htmlFor="ethnicity" className="text-black dark:text-white">
-              Ethnicity
-            </Label>
-            <Input
-              id="ethnicity"
-              name="ethnicity"
-              value={profile.ethnicity || ""}
-              onChange={(e) =>
-                setProfile({ ...profile, ethnicity: e.target.value })
-              }
-              disabled={!isEditing || updating}
-              className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-              maxLength={50}
-            />
-            {formErrors.ethnicity && (
-              <p className="text-red-500 text-sm">{formErrors.ethnicity}</p>
-            )}
-          </div>
-
-          {/* Zodiac Sign */}
-          <div className="space-y-2">
-            <Label htmlFor="zodiacSign" className="text-black dark:text-white">
-              Zodiac Sign
-            </Label>
-            <Select
-              name="zodiacSign"
-              value={profile.zodiacSign || ""}
-              onValueChange={(v) => setProfile({ ...profile, zodiacSign: v })}
-              disabled={!isEditing || updating}
-            >
-              <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
-                <SelectValue placeholder="Select…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Aries">Aries</SelectItem>
-                <SelectItem value="Taurus">Taurus</SelectItem>
-                <SelectItem value="Gemini">Gemini</SelectItem>
-                <SelectItem value="Cancer">Cancer</SelectItem>
-                <SelectItem value="Leo">Leo</SelectItem>
-                <SelectItem value="Virgo">Virgo</SelectItem>
-                <SelectItem value="Libra">Libra</SelectItem>
-                <SelectItem value="Scorpio">Scorpio</SelectItem>
-                <SelectItem value="Sagittarius">Sagittarius</SelectItem>
-                <SelectItem value="Capricorn">Capricorn</SelectItem>
-                <SelectItem value="Aquarius">Aquarius</SelectItem>
-                <SelectItem value="Pisces">Pisces</SelectItem>
-              </SelectContent>
-            </Select>
-            {formErrors.zodiacSign && (
-              <p className="text-red-500 text-sm">{formErrors.zodiacSign}</p>
-            )}
-          </div>
-
-          {/* Favorite Color */}
-          <div className="space-y-2">
-            <Label
-              htmlFor="favoriteColor"
-              className="text-black dark:text-white"
-            >
-              Favorite Color
-            </Label>
-            <Input
-              id="favoriteColor"
-              name="favoriteColor"
-              value={profile.favoriteColor || ""}
-              onChange={(e) =>
-                setProfile({
-                  ...profile,
-                  favoriteColor: e.target.value,
-                })
-              }
-              disabled={!isEditing || updating}
-              className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-              maxLength={30}
-            />
-            {formErrors.favoriteColor && (
-              <p className="text-red-500 text-sm">{formErrors.favoriteColor}</p>
-            )}
-          </div>
-
-          {/* Favorite Media */}
-          <div className="space-y-2">
-            <Label
-              htmlFor="favoriteMedia"
-              className="text-black dark:text-white"
-            >
-              Favorite Movie/TV Show
-            </Label>
-            <Input
-              id="favoriteMedia"
-              name="favoriteMedia"
-              value={profile.favoriteMedia || ""}
-              onChange={(e) =>
-                setProfile({
-                  ...profile,
-                  favoriteMedia: e.target.value,
-                })
-              }
-              disabled={!isEditing || updating}
-              className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white"
-              maxLength={100}
-            />
-            {formErrors.favoriteMedia && (
-              <p className="text-red-500 text-sm">{formErrors.favoriteMedia}</p>
-            )}
-          </div>
-
-          {/* Pet Ownership */}
-          <div className="space-y-2">
-            <Label
-              htmlFor="petOwnership"
-              className="text-black dark:text-white"
-            >
-              Pet Ownership
-            </Label>
-            <Select
-              name="petOwnership"
-              value={profile.petOwnership || ""}
-              onValueChange={(v) => setProfile({ ...profile, petOwnership: v })}
-              disabled={!isEditing || updating}
-            >
-              <SelectTrigger className="border-[#F3CFC6] focus:ring-[#F3CFC6] text-black dark:text-white">
-                <SelectValue placeholder="Select…" />
-              </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="Dog">Dog</SelectItem>
-                <SelectItem value="Cat">Cat</SelectItem>
-                <SelectItem value="Other">Other</SelectItem>
-                <SelectItem value="None">None</SelectItem>
-              </SelectContent>
-            </Select>
-            {formErrors.petOwnership && (
-              <p className="text-red-500 text-sm">{formErrors.petOwnership}</p>
-            )}
-          </div>
-
-          <div className="flex justify-end gap-3 pt-4">
+          {/* Action Buttons */}
+          <motion.div
+            variants={itemVariants}
+            className="flex justify-end gap-3 pt-4 border-t"
+          >
             <Button
               type="button"
               variant="outline"
@@ -378,108 +529,114 @@ export function PersonalInfoSection({
               disabled={updating}
               className="rounded-full"
             >
+              <X className="h-4 w-4 mr-2" />
               Cancel
             </Button>
             <Button
               type="submit"
               disabled={updating}
-              className="bg-[#F3CFC6] hover:bg-[#C4C4C4] rounded-full"
+              className="bg-[#F3CFC6] hover:bg-[#e9bfb5] text-gray-800 rounded-full min-w-[120px]"
             >
-              {updating ? "Saving..." : "Save"}
+              {updating ? (
+                <>
+                  <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                  Saving...
+                </>
+              ) : (
+                <>
+                  <Save className="h-4 w-4 mr-2" />
+                  Save Changes
+                </>
+              )}
             </Button>
-          </div>
-        </form>
+          </motion.div>
+        </motion.form>
       ) : (
-        <div className="space-y-4">
-          <div>
-            <p className="text-sm text-[#C4C4C4]">First Name</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.firstName || "Not provided"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[#C4C4C4]">Last Name</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.lastName || "Not provided"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[#C4C4C4]">Phone Number</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.phoneNumber || "Not provided"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[#C4C4C4]">Location</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.location || "Not provided"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[#C4C4C4]">Bio</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.biography || "Not provided"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[#C4C4C4]">Relationship Status</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.relationshipStatus || "Not provided"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[#C4C4C4]">Orientation</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.orientation || "Not provided"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[#C4C4C4]">Height</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.height || "Not provided"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[#C4C4C4]">Ethnicity</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.ethnicity || "Not provided"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[#C4C4C4]">Zodiac Sign</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.zodiacSign || "Not provided"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[#C4C4C4]">Favorite Color</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.favoriteColor || "Not provided"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[#C4C4C4]">Favorite Movie/TV Show</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.favoriteMedia || "Not provided"}
-            </p>
-          </div>
-          <div>
-            <p className="text-sm text-[#C4C4C4]">Pet Ownership</p>
-            <p className="text-black dark:text-white break-words">
-              {profile.petOwnership || "Not provided"}
-            </p>
-          </div>
+        /* ==================== VIEW MODE ==================== */
+        <motion.div
+          className="space-y-6"
+          variants={containerVariants}
+          initial="hidden"
+          animate="visible"
+        >
+          {/* Basic Info */}
+          <motion.div variants={itemVariants}>
+            <SectionCard title="Basic Information">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {FIELD_CONFIG.basic.map((field) => (
+                  <FieldDisplay
+                    key={field.key}
+                    label={field.label}
+                    value={profile[field.key as keyof Profile] as string}
+                    icon={field.icon}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          </motion.div>
 
-          {profile && (
-            <Button
-              variant="outline"
-              onClick={() => setIsEditing(true)}
-              className="text-[#F3CFC6] border-[#F3CFC6] hover:bg-[#fff]/80 dark:hover:bg-[#C4C4C4]/20 rounded-full"
-            >
-              Edit
-            </Button>
-          )}
-        </div>
+          {/* Contact Info */}
+          <motion.div variants={itemVariants}>
+            <SectionCard title="Contact & Location">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {FIELD_CONFIG.contact.map((field) => (
+                  <FieldDisplay
+                    key={field.key}
+                    label={field.label}
+                    value={profile[field.key as keyof Profile] as string}
+                    icon={field.icon}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          </motion.div>
+
+          {/* About */}
+          <motion.div variants={itemVariants}>
+            <SectionCard title="About You">
+              {FIELD_CONFIG.about.map((field) => (
+                <FieldDisplay
+                  key={field.key}
+                  label={field.label}
+                  value={profile[field.key as keyof Profile] as string}
+                  icon={field.icon}
+                />
+              ))}
+            </SectionCard>
+          </motion.div>
+
+          {/* Personal Details */}
+          <motion.div variants={itemVariants}>
+            <SectionCard title="Personal Details">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {FIELD_CONFIG.personal.map((field) => (
+                  <FieldDisplay
+                    key={field.key}
+                    label={field.label}
+                    value={profile[field.key as keyof Profile] as string}
+                    icon={field.icon}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          </motion.div>
+
+          {/* Preferences */}
+          <motion.div variants={itemVariants}>
+            <SectionCard title="Preferences & Interests">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-3">
+                {FIELD_CONFIG.preferences.map((field) => (
+                  <FieldDisplay
+                    key={field.key}
+                    label={field.label}
+                    value={profile[field.key as keyof Profile] as string}
+                    icon={field.icon}
+                  />
+                ))}
+              </div>
+            </SectionCard>
+          </motion.div>
+        </motion.div>
       )}
     </div>
   );

@@ -1,7 +1,7 @@
 // src/app/dashboard/appointments/AppointmentsPage.tsx
 "use client";
 
-import { useState, useEffect, useCallback, useMemo } from "react";
+import { useState, useEffect, useCallback, useMemo, useRef } from "react";
 import { motion } from "framer-motion";
 import { Card, CardContent, CardHeader, CardTitle } from "@/components/ui/card";
 import { useRouter } from "next/navigation";
@@ -20,6 +20,8 @@ import {
   CalendarRange,
   ChevronLeft,
   ChevronRight,
+  Keyboard,
+  X,
 } from "lucide-react";
 import {
   DropdownMenu,
@@ -132,6 +134,34 @@ export default function AppointmentsPage() {
   const [receivedProposals, setReceivedProposals] = useState<Proposal[]>([]);
   const [sentProposals, setSentProposals] = useState<Proposal[]>([]);
 
+  const searchInputRef = useRef<HTMLInputElement>(null);
+
+  // Keyboard shortcut handler (/ to focus)
+  useEffect(() => {
+    const handleKeyDown = (e: KeyboardEvent) => {
+      // Focus search on "/" key (when not typing in another input)
+      if (
+        e.key === "/" &&
+        !["INPUT", "TEXTAREA"].includes((e.target as HTMLElement).tagName)
+      ) {
+        e.preventDefault();
+        searchInputRef.current?.focus();
+      }
+
+      // Clear search on Escape
+      if (
+        e.key === "Escape" &&
+        document.activeElement === searchInputRef.current
+      ) {
+        setSearchQuery("");
+        searchInputRef.current?.blur();
+      }
+    };
+
+    document.addEventListener("keydown", handleKeyDown);
+    return () => document.removeEventListener("keydown", handleKeyDown);
+  }, []);
+
   // UI states
   const [loading, setLoading] = useState(true);
   const [refreshing, setRefreshing] = useState(false);
@@ -154,7 +184,6 @@ export default function AppointmentsPage() {
       if (showRefreshToast) setRefreshing(true);
 
       try {
-        // ✅ FIX: Correct API endpoint
         const professionalRes = await fetch(
           "/api/professionals/application?me=true",
           {
@@ -304,6 +333,15 @@ export default function AppointmentsPage() {
     },
     [router]
   );
+
+  // Handle search button click
+  const handleSearch = useCallback(() => {
+    // Search is already reactive via filteredAppointments/filteredProposals
+    // This can trigger additional actions if needed
+    if (searchQuery.trim()) {
+      toast.info(`Searching for "${searchQuery}"...`);
+    }
+  }, [searchQuery]);
 
   // Filter appointments
   const filteredAppointments = useMemo(() => {
@@ -524,20 +562,63 @@ export default function AppointmentsPage() {
 
           {/* Search & Filter */}
           <div className="flex flex-col sm:flex-row items-center gap-2">
+            {/* Search Input - Enhanced Pattern */}
             <div className="relative flex-grow w-full">
-              <Search className="absolute left-3 top-1/2 h-4 w-4 -translate-y-1/2 text-gray-400" />
+              <Search
+                className="absolute left-4 top-1/2 h-5 w-5 -translate-y-1/2 text-muted-foreground pointer-events-none"
+                aria-hidden="true"
+              />
               <Input
+                ref={searchInputRef}
                 type="text"
-                placeholder="Search by name..."
+                placeholder="Search by name... (press / to focus)"
                 value={searchQuery}
                 onChange={(e) => setSearchQuery(e.target.value)}
-                className="pl-10 bg-white"
+                className="pl-12 pr-12 py-3 rounded-lg border bg-white shadow-sm focus:ring-2 focus:ring-[#F3CFC6]/50"
+                data-search-input
+                aria-label="Search by name"
               />
+              {/* Right side container - either shows clear button OR keyboard hint */}
+              <div className="absolute right-4 top-1/2 -translate-y-1/2 flex items-center">
+                {searchQuery ? (
+                  /* Clear Button - Shows when there's input */
+                  <button
+                    type="button"
+                    onClick={() => setSearchQuery("")}
+                    className="text-muted-foreground hover:text-foreground transition-colors p-0.5 rounded-sm hover:bg-muted"
+                    aria-label="Clear search"
+                  >
+                    <X className="h-4 w-4" aria-hidden="true" />
+                  </button>
+                ) : (
+                  /* Keyboard Shortcut Hint - Shows when input is empty */
+                  <div className="hidden sm:flex items-center text-xs text-muted-foreground">
+                    <Keyboard className="h-3 w-3 mr-1" aria-hidden="true" />
+                    <kbd className="px-1.5 py-0.5 bg-muted rounded text-[10px] font-mono">
+                      /
+                    </kbd>
+                  </div>
+                )}
+              </div>
             </div>
+
+            {/* Search Button */}
+            <Button
+              onClick={handleSearch}
+              className="w-full sm:w-auto bg-white hover:bg-white/80 text-gray-800 shadow-sm"
+            >
+              <Search className="mr-2 h-4 w-4" aria-hidden="true" />
+              Search
+            </Button>
+
+            {/* Status Filter Dropdown */}
             <DropdownMenu>
               <DropdownMenuTrigger asChild>
-                <Button variant="outline" className="w-full sm:w-auto bg-white">
-                  <Filter className="mr-2 h-4 w-4" />
+                <Button
+                  variant="outline"
+                  className="w-full sm:w-auto bg-white shadow-sm"
+                >
+                  <Filter className="mr-2 h-4 w-4" aria-hidden="true" />
                   {statusFilter
                     ? statusFilter.charAt(0).toUpperCase() +
                       statusFilter.slice(1)
@@ -899,6 +980,7 @@ function AppointmentsSkeleton() {
           </div>
           <div className="flex gap-2">
             <Skeleton className="h-10 flex-1" />
+            <Skeleton className="h-10 w-24" />
             <Skeleton className="h-10 w-32" />
           </div>
         </CardContent>

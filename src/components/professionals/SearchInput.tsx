@@ -24,7 +24,7 @@ export const SearchInput = forwardRef<HTMLInputElement, Props>(
           placeholder="Search Professionals... (press / to focus)"
           value={searchQuery}
           onChange={onSearchChange}
-          className="pl-12 pr-16 py-3 rounded-full border border-[#000] focus:ring-2 focus:ring-[#F3CFC6]/50"
+          className="pl-12 pr-16 py-3 rounded-lg border bg-white shadow-sm focus:ring-2 focus:ring-[#F3CFC6]/50"
           data-search-input
           aria-label="Search professionals"
         />
