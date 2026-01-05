@@ -58,6 +58,7 @@ export function ProfileHeader({
                 <AvatarImage
                   src={profile.profileImage || "/register.jpg"}
                   alt={profile.name ?? "User"}
+                  className="object-cover"
                 />
                 <AvatarFallback className="bg-gradient-to-br from-[#F3CFC6] to-[#C4C4C4] text-white text-xl font-semibold">
                   {initials}

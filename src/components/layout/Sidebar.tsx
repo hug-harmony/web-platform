@@ -171,7 +171,11 @@ export default function Sidebar() {
           className="flex items-center gap-3 flex-1 min-w-0 p-2 -m-2 rounded-lg hover:bg-muted/50 transition-colors"
         >
           <Avatar className="h-10 w-10 shrink-0">
-            <AvatarImage src={user.avatar} alt={user.name} />
+            <AvatarImage
+              src={user.avatar}
+              alt={user.name}
+              className="object-cover"
+            />
             <AvatarFallback className="text-sm font-semibold">
               {user.name?.charAt(0)}
             </AvatarFallback>
