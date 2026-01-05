@@ -37,7 +37,7 @@ interface VideoSession {
   professional: { name: string; id: string };
   date: string;
   time: string;
-  status: "upcoming" | "completed" | "cancelled";
+  status: "upcoming" | "completed" | "cancelled" | "WAITING" | string; // Allow any string
   roomId?: string;
 }
 
@@ -65,7 +65,28 @@ const STATUS_COLORS: Record<string, { bg: string; text: string }> = {
   upcoming: { bg: "bg-blue-100", text: "text-blue-700" },
   completed: { bg: "bg-green-100", text: "text-green-700" },
   cancelled: { bg: "bg-gray-100", text: "text-gray-700" },
+  waiting: { bg: "bg-yellow-100", text: "text-yellow-700" },
+  WAITING: { bg: "bg-yellow-100", text: "text-yellow-700" },
 };
+
+// Normalize status for consistent handling
+function normalizeStatus(status: string): string {
+  const normalized = status.toLowerCase();
+  // Map backend statuses to frontend statuses
+  if (normalized === "waiting") return "upcoming";
+  return normalized;
+}
+
+// Get status colors with fallback
+function getStatusColors(status: string): { bg: string; text: string } {
+  return (
+    STATUS_COLORS[status] ||
+    STATUS_COLORS[normalizeStatus(status)] || {
+      bg: "bg-gray-100",
+      text: "text-gray-700",
+    }
+  );
+}
 
 export default function VideoSessionsPage() {
   const [activeTab, setActiveTab] = useState<"upcoming" | "past">("upcoming");
@@ -124,7 +145,27 @@ export default function VideoSessionsPage() {
         }
 
         const data = await res.json();
-        setVideoSessions(Array.isArray(data) ? data : []);
+
+        // Transform the API response to match expected format
+        const transformedData = Array.isArray(data)
+          ? data.map((item) => ({
+              ...item,
+              date: item.scheduledStart
+                ? new Date(item.scheduledStart).toLocaleDateString()
+                : new Date(item.createdAt).toLocaleDateString(),
+              time: item.scheduledStart
+                ? new Date(item.scheduledStart).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  })
+                : new Date(item.createdAt).toLocaleTimeString([], {
+                    hour: "2-digit",
+                    minute: "2-digit",
+                  }),
+            }))
+          : [];
+
+        setVideoSessions(transformedData);
 
         if (showRefreshToast) {
           toast.success("Data refreshed");
@@ -164,16 +205,22 @@ export default function VideoSessionsPage() {
           : true
       )
       .filter((session) =>
-        statusFilter ? session.status === statusFilter : true
+        statusFilter ? normalizeStatus(session.status) === statusFilter : true
       );
   }, [videoSessions, searchQuery, statusFilter]);
 
-  // Stats
+  // Stats - normalize statuses for counting
   const stats = useMemo(() => {
     return {
-      upcoming: videoSessions.filter((s) => s.status === "upcoming").length,
-      completed: videoSessions.filter((s) => s.status === "completed").length,
-      cancelled: videoSessions.filter((s) => s.status === "cancelled").length,
+      upcoming: videoSessions.filter(
+        (s) => normalizeStatus(s.status) === "upcoming"
+      ).length,
+      completed: videoSessions.filter(
+        (s) => normalizeStatus(s.status) === "completed"
+      ).length,
+      cancelled: videoSessions.filter(
+        (s) => normalizeStatus(s.status) === "cancelled"
+      ).length,
       total: videoSessions.length,
     };
   }, [videoSessions]);
@@ -321,15 +368,19 @@ export default function VideoSessionsPage() {
                   All
                 </DropdownMenuItem>
                 <DropdownMenuSeparator />
-                {["upcoming", "completed", "cancelled"].map((s) => (
-                  <DropdownMenuItem key={s} onSelect={() => setStatusFilter(s)}>
-                    <Badge
-                      className={`${STATUS_COLORS[s].bg} ${STATUS_COLORS[s].text} mr-2`}
+                {["upcoming", "completed", "cancelled"].map((s) => {
+                  const colors = getStatusColors(s);
+                  return (
+                    <DropdownMenuItem
+                      key={s}
+                      onSelect={() => setStatusFilter(s)}
                     >
-                      {s}
-                    </Badge>
-                  </DropdownMenuItem>
-                ))}
+                      <Badge className={`${colors.bg} ${colors.text} mr-2`}>
+                        {s}
+                      </Badge>
+                    </DropdownMenuItem>
+                  );
+                })}
               </DropdownMenuContent>
             </DropdownMenu>
           </div>
@@ -356,13 +407,21 @@ export default function VideoSessionsPage() {
               <TabsTrigger value="upcoming" className="flex items-center gap-2">
                 <Clock className="h-4 w-4" />
                 Upcoming (
-                {filteredSessions.filter((s) => s.status === "upcoming").length}
+                {
+                  filteredSessions.filter(
+                    (s) => normalizeStatus(s.status) === "upcoming"
+                  ).length
+                }
                 )
               </TabsTrigger>
               <TabsTrigger value="past" className="flex items-center gap-2">
                 <Video className="h-4 w-4" />
                 Past (
-                {filteredSessions.filter((s) => s.status !== "upcoming").length}
+                {
+                  filteredSessions.filter(
+                    (s) => normalizeStatus(s.status) !== "upcoming"
+                  ).length
+                }
                 )
               </TabsTrigger>
             </TabsList>
@@ -371,59 +430,64 @@ export default function VideoSessionsPage() {
               <motion.div className="space-y-3" variants={containerVariants}>
                 <AnimatePresence>
                   {filteredSessions
-                    .filter((session) => session.status === "upcoming")
-                    .map((session) => (
-                      <motion.div
-                        key={session.id}
-                        variants={cardVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="hidden"
-                        whileHover={{
-                          scale: 1.02,
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                        }}
-                        transition={{ duration: 0.2 }}
-                        className="flex items-center justify-between p-4 bg-white border rounded-lg shadow-sm hover:border-[#F3CFC6] transition-colors"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 rounded-full bg-[#F3CFC6]/20 flex items-center justify-center">
-                            <Video className="h-6 w-6 text-[#F3CFC6]" />
+                    .filter(
+                      (session) =>
+                        normalizeStatus(session.status) === "upcoming"
+                    )
+                    .map((session) => {
+                      const colors = getStatusColors(session.status);
+                      return (
+                        <motion.div
+                          key={session.id}
+                          variants={cardVariants}
+                          initial="hidden"
+                          animate="visible"
+                          exit="hidden"
+                          whileHover={{
+                            scale: 1.02,
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                          }}
+                          transition={{ duration: 0.2 }}
+                          className="flex items-center justify-between p-4 bg-white border rounded-lg shadow-sm hover:border-[#F3CFC6] transition-colors"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-full bg-[#F3CFC6]/20 flex items-center justify-center">
+                              <Video className="h-6 w-6 text-[#F3CFC6]" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-black">
+                                {session.professional.name}
+                              </p>
+                              <p className="text-sm text-gray-500 flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {session.date} at {session.time}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-semibold text-black">
-                              {session.professional.name}
-                            </p>
-                            <p className="text-sm text-gray-500 flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {session.date} at {session.time}
-                            </p>
+                          <div className="flex items-center gap-3">
+                            <Badge className={`${colors.bg} ${colors.text}`}>
+                              {session.status}
+                            </Badge>
+                            <Button
+                              size="sm"
+                              className="bg-[#F3CFC6] hover:bg-[#e9bfb5] text-gray-800"
+                              onClick={() =>
+                                router.push(
+                                  `/dashboard/video-session/${session.id}`
+                                )
+                              }
+                            >
+                              <Video className="mr-2 h-4 w-4" />
+                              Join Session
+                            </Button>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Badge
-                            className={`${STATUS_COLORS[session.status].bg} ${STATUS_COLORS[session.status].text}`}
-                          >
-                            {session.status}
-                          </Badge>
-                          <Button
-                            size="sm"
-                            className="bg-[#F3CFC6] hover:bg-[#e9bfb5] text-gray-800"
-                            onClick={() =>
-                              router.push(
-                                `/dashboard/video-session/${session.id}`
-                              )
-                            }
-                          >
-                            <Video className="mr-2 h-4 w-4" />
-                            Join Session
-                          </Button>
-                        </div>
-                      </motion.div>
-                    ))}
+                        </motion.div>
+                      );
+                    })}
                 </AnimatePresence>
-                {filteredSessions.filter((s) => s.status === "upcoming")
-                  .length === 0 && (
+                {filteredSessions.filter(
+                  (s) => normalizeStatus(s.status) === "upcoming"
+                ).length === 0 && (
                   <div className="flex flex-col items-center justify-center py-12 text-gray-500">
                     <Video className="h-12 w-12 mb-3 opacity-50" />
                     <p className="text-lg font-medium">No upcoming sessions</p>
@@ -441,57 +505,62 @@ export default function VideoSessionsPage() {
               <motion.div className="space-y-3" variants={containerVariants}>
                 <AnimatePresence>
                   {filteredSessions
-                    .filter((session) => session.status !== "upcoming")
-                    .map((session) => (
-                      <motion.div
-                        key={session.id}
-                        variants={cardVariants}
-                        initial="hidden"
-                        animate="visible"
-                        exit="hidden"
-                        whileHover={{
-                          scale: 1.02,
-                          boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
-                        }}
-                        transition={{ duration: 0.2 }}
-                        className="flex items-center justify-between p-4 bg-white border rounded-lg shadow-sm hover:border-[#F3CFC6] transition-colors"
-                      >
-                        <div className="flex items-center gap-4">
-                          <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
-                            <Video className="h-6 w-6 text-gray-400" />
+                    .filter(
+                      (session) =>
+                        normalizeStatus(session.status) !== "upcoming"
+                    )
+                    .map((session) => {
+                      const colors = getStatusColors(session.status);
+                      return (
+                        <motion.div
+                          key={session.id}
+                          variants={cardVariants}
+                          initial="hidden"
+                          animate="visible"
+                          exit="hidden"
+                          whileHover={{
+                            scale: 1.02,
+                            boxShadow: "0 4px 12px rgba(0,0,0,0.1)",
+                          }}
+                          transition={{ duration: 0.2 }}
+                          className="flex items-center justify-between p-4 bg-white border rounded-lg shadow-sm hover:border-[#F3CFC6] transition-colors"
+                        >
+                          <div className="flex items-center gap-4">
+                            <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
+                              <Video className="h-6 w-6 text-gray-400" />
+                            </div>
+                            <div>
+                              <p className="font-semibold text-black">
+                                {session.professional.name}
+                              </p>
+                              <p className="text-sm text-gray-500 flex items-center gap-1">
+                                <Calendar className="h-3 w-3" />
+                                {session.date} at {session.time}
+                              </p>
+                            </div>
                           </div>
-                          <div>
-                            <p className="font-semibold text-black">
-                              {session.professional.name}
-                            </p>
-                            <p className="text-sm text-gray-500 flex items-center gap-1">
-                              <Calendar className="h-3 w-3" />
-                              {session.date} at {session.time}
-                            </p>
+                          <div className="flex items-center gap-3">
+                            <Badge className={`${colors.bg} ${colors.text}`}>
+                              {session.status}
+                            </Badge>
+                            <Button
+                              asChild
+                              variant="outline"
+                              size="sm"
+                              className="border-[#F3CFC6] text-gray-700 hover:bg-[#F3CFC6]/10"
+                            >
+                              <Link href={`/appointments/${session.id}`}>
+                                View Details
+                              </Link>
+                            </Button>
                           </div>
-                        </div>
-                        <div className="flex items-center gap-3">
-                          <Badge
-                            className={`${STATUS_COLORS[session.status].bg} ${STATUS_COLORS[session.status].text}`}
-                          >
-                            {session.status}
-                          </Badge>
-                          <Button
-                            asChild
-                            variant="outline"
-                            size="sm"
-                            className="border-[#F3CFC6] text-gray-700 hover:bg-[#F3CFC6]/10"
-                          >
-                            <Link href={`/appointments/${session.id}`}>
-                              View Details
-                            </Link>
-                          </Button>
-                        </div>
-                      </motion.div>
-                    ))}
+                        </motion.div>
+                      );
+                    })}
                 </AnimatePresence>
-                {filteredSessions.filter((s) => s.status !== "upcoming")
-                  .length === 0 && (
+                {filteredSessions.filter(
+                  (s) => normalizeStatus(s.status) !== "upcoming"
+                ).length === 0 && (
                   <div className="flex flex-col items-center justify-center py-12 text-gray-500">
                     <Video className="h-12 w-12 mb-3 opacity-50" />
                     <p className="text-lg font-medium">No past sessions</p>
