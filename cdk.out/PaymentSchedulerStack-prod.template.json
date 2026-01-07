@@ -66,7 +66,7 @@
    "Properties": {
     "Code": {
      "S3Bucket": "cdk-hnb659fds-assets-232247293056-us-east-2",
-     "S3Key": "e61b6358bd35c2bb1c1d471189c27b06d2bd8b6a60507f318ec75ba986429cca.zip"
+     "S3Key": "a1fe287bdc2061f95bd0f0fc628de66ead3e231916802a022257d41827bedfe0.zip"
     },
     "Environment": {
      "Variables": {
@@ -94,9 +94,57 @@
    ],
    "Metadata": {
     "aws:cdk:path": "PaymentSchedulerStack-prod/PaymentProcessorHandler/Resource",
-    "aws:asset:path": "asset.e61b6358bd35c2bb1c1d471189c27b06d2bd8b6a60507f318ec75ba986429cca",
+    "aws:asset:path": "asset.a1fe287bdc2061f95bd0f0fc628de66ead3e231916802a022257d41827bedfe0",
     "aws:asset:is-bundled": false,
     "aws:asset:property": "Code"
+   }
+  },
+  "AppointmentStatusUpdateC263493A": {
+   "Type": "AWS::Events::Rule",
+   "Properties": {
+    "Description": "Updates appointment statuses (upcoming → ongoing → completed) every 5 minutes",
+    "Name": "AppointmentStatusUpdate-prod",
+    "ScheduleExpression": "rate(5 minutes)",
+    "State": "ENABLED",
+    "Targets": [
+     {
+      "Arn": {
+       "Fn::GetAtt": [
+        "PaymentProcessorHandlerBCE6CC2B",
+        "Arn"
+       ]
+      },
+      "Id": "Target0",
+      "RetryPolicy": {
+       "MaximumRetryAttempts": 2
+      }
+     }
+    ]
+   },
+   "Metadata": {
+    "aws:cdk:path": "PaymentSchedulerStack-prod/AppointmentStatusUpdate/Resource"
+   }
+  },
+  "AppointmentStatusUpdateAllowEventRulePaymentSchedulerStackprodPaymentProcessorHandlerB146C0AE3ABA1F41": {
+   "Type": "AWS::Lambda::Permission",
+   "Properties": {
+    "Action": "lambda:InvokeFunction",
+    "FunctionName": {
+     "Fn::GetAtt": [
+      "PaymentProcessorHandlerBCE6CC2B",
+      "Arn"
+     ]
+    },
+    "Principal": "events.amazonaws.com",
+    "SourceArn": {
+     "Fn::GetAtt": [
+      "AppointmentStatusUpdateC263493A",
+      "Arn"
+     ]
+    }
+   },
+   "Metadata": {
+    "aws:cdk:path": "PaymentSchedulerStack-prod/AppointmentStatusUpdate/AllowEventRulePaymentSchedulerStackprodPaymentProcessorHandlerB146C0AE"
    }
   },
   "WeeklyPaymentProcessingED011536": {
@@ -276,6 +324,18 @@
    },
    "Export": {
     "Name": "WeeklyPaymentRuleArn-prod"
+   }
+  },
+  "AppointmentUpdateRuleArn": {
+   "Description": "Appointment Status Update Rule ARN",
+   "Value": {
+    "Fn::GetAtt": [
+     "AppointmentStatusUpdateC263493A",
+     "Arn"
+    ]
+   },
+   "Export": {
+    "Name": "AppointmentUpdateRuleArn-prod"
    }
   }
  },

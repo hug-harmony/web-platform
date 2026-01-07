@@ -8,9 +8,15 @@ interface PaymentProcessingResult {
   triggerType: string;
   duration: number;
   results: {
+    // Appointment updates
+    appointmentsUpdated?: number;
+    markedOngoing?: number;
+    markedCompleted?: number;
+    // Confirmations
     confirmationsCreated: number;
     confirmationErrors: string[];
     autoConfirmed: number;
+    // Payments
     cyclesProcessed: number;
     payoutsProcessed: number;
     payoutsFailed: number;
@@ -36,6 +42,9 @@ export async function handler(
     triggerType,
     duration: 0,
     results: {
+      appointmentsUpdated: 0,
+      markedOngoing: 0,
+      markedCompleted: 0,
       confirmationsCreated: 0,
       confirmationErrors: [],
       autoConfirmed: 0,
@@ -56,7 +65,79 @@ export async function handler(
       throw new Error("APP_URL environment variable is not set");
     }
 
-    // Call the Next.js API endpoint
+    // ==========================================
+    // Step 1: Update Appointment Statuses (for appointment-update trigger)
+    // This runs every 5 minutes to keep statuses current
+    // ==========================================
+    if (
+      triggerType === "appointment-update" ||
+      triggerType === "daily-confirmation"
+    ) {
+      console.log(`[PAYMENT-PROCESSOR] Updating appointment statuses...`);
+
+      try {
+        const appointmentResponse = await fetch(
+          `${appUrl}/api/cron/update-appointments`,
+          {
+            method: "GET",
+            headers: {
+              "Content-Type": "application/json",
+              Authorization: `Bearer ${cronSecret}`,
+            },
+          }
+        );
+
+        if (appointmentResponse.ok) {
+          const appointmentResult = await appointmentResponse.json();
+          result.results.appointmentsUpdated =
+            appointmentResult.totalUpdated || 0;
+          result.results.markedOngoing = appointmentResult.markedOngoing || 0;
+          result.results.markedCompleted =
+            appointmentResult.markedCompleted || 0;
+          result.results.confirmationsCreated +=
+            appointmentResult.confirmationsCreated || 0;
+
+          if (appointmentResult.confirmationErrors?.length > 0) {
+            result.results.confirmationErrors.push(
+              ...appointmentResult.confirmationErrors
+            );
+          }
+
+          console.log(
+            `[PAYMENT-PROCESSOR] Appointment update result:`,
+            appointmentResult
+          );
+        } else {
+          const errorText = await appointmentResponse.text();
+          console.error(
+            `[PAYMENT-PROCESSOR] Appointment update failed: ${errorText}`
+          );
+          result.results.confirmationErrors.push(
+            `Appointment update failed: ${errorText}`
+          );
+        }
+      } catch (error) {
+        console.error(`[PAYMENT-PROCESSOR] Appointment update error:`, error);
+        result.results.confirmationErrors.push(
+          `Appointment update error: ${error instanceof Error ? error.message : "Unknown"}`
+        );
+      }
+
+      // If this is just an appointment update trigger, we can return early
+      if (triggerType === "appointment-update") {
+        result.duration = Date.now() - startTime;
+        console.log(
+          `[PAYMENT-PROCESSOR] Appointment update completed in ${result.duration}ms`
+        );
+        return result;
+      }
+    }
+
+    // ==========================================
+    // Step 2: Process Payments (for other triggers)
+    // ==========================================
+    console.log(`[PAYMENT-PROCESSOR] Processing payments...`);
+
     const response = await fetch(`${appUrl}/api/cron/process-payouts`, {
       method: "POST",
       headers: {
@@ -77,17 +158,18 @@ export async function handler(
 
     const apiResult = await response.json();
 
-    result.results = {
-      confirmationsCreated: apiResult.confirmationsCreated || 0,
-      confirmationErrors: apiResult.confirmationErrors || [],
-      autoConfirmed: apiResult.autoConfirmed || 0,
-      cyclesProcessed: apiResult.cyclesProcessed || 0,
-      payoutsProcessed: apiResult.payoutsProcessed || 0,
-      payoutsFailed: apiResult.payoutsFailed || 0,
-      payoutErrors: apiResult.payoutErrors || [],
-      emailsSent: apiResult.emailsSent || 0,
-      emailErrors: apiResult.emailErrors || [],
-    };
+    // Merge results (don't overwrite appointment results)
+    result.results.confirmationsCreated += apiResult.confirmationsCreated || 0;
+    result.results.confirmationErrors.push(
+      ...(apiResult.confirmationErrors || [])
+    );
+    result.results.autoConfirmed = apiResult.autoConfirmed || 0;
+    result.results.cyclesProcessed = apiResult.cyclesProcessed || 0;
+    result.results.payoutsProcessed = apiResult.payoutsProcessed || 0;
+    result.results.payoutsFailed = apiResult.payoutsFailed || 0;
+    result.results.payoutErrors = apiResult.payoutErrors || [];
+    result.results.emailsSent = apiResult.emailsSent || 0;
+    result.results.emailErrors = apiResult.emailErrors || [];
 
     result.success = apiResult.success;
 
@@ -112,7 +194,9 @@ export async function handler(
 function detectTriggerType(event: EventBridgeEvent<string, unknown>): string {
   const ruleName = event.resources?.[0] || "";
 
-  if (ruleName.includes("Weekly")) {
+  if (ruleName.includes("Appointment")) {
+    return "appointment-update";
+  } else if (ruleName.includes("Weekly")) {
     return "weekly-payout";
   } else if (ruleName.includes("Daily")) {
     return "daily-confirmation";

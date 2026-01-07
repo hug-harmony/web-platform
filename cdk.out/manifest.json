@@ -23,7 +23,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-deploy-role-232247293056-us-east-2",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-cfn-exec-role-232247293056-us-east-2",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/717dca08a4920e6547dfb6a9c224a63630d768397c79af7caf190d7aad5ccd54.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/87b64a71f14e3fc682c33132f35b277ef2593279dcb93a24af408d21609786f5.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -656,7 +656,7 @@
         "validateOnSynth": false,
         "assumeRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-deploy-role-232247293056-us-east-2",
         "cloudFormationExecutionRoleArn": "arn:${AWS::Partition}:iam::232247293056:role/cdk-hnb659fds-cfn-exec-role-232247293056-us-east-2",
-        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/94b91c64a0b43fb151acdce106269f5318ab774cc0ba443bfcb9f9737220ce52.json",
+        "stackTemplateAssetObjectUrl": "s3://cdk-hnb659fds-assets-232247293056-us-east-2/328931da1e3f8885c0f0e4be6a577b95fa1d0f2ed9567653fcb6da92af9f5152.json",
         "requiresBootstrapStackVersion": 6,
         "bootstrapStackVersionSsmParameter": "/cdk-bootstrap/hnb659fds/version",
         "additionalDependencies": [
@@ -709,6 +709,18 @@
             "data": "PaymentProcessorHandlerBCE6CC2B"
           }
         ],
+        "/PaymentSchedulerStack-prod/AppointmentStatusUpdate/Resource": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AppointmentStatusUpdateC263493A"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/AppointmentStatusUpdate/AllowEventRulePaymentSchedulerStackprodPaymentProcessorHandlerB146C0AE": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AppointmentStatusUpdateAllowEventRulePaymentSchedulerStackprodPaymentProcessorHandlerB146C0AE3ABA1F41"
+          }
+        ],
         "/PaymentSchedulerStack-prod/WeeklyPaymentProcessing/Resource": [
           {
             "type": "aws:cdk:logicalId",
@@ -755,6 +767,12 @@
           {
             "type": "aws:cdk:logicalId",
             "data": "WeeklyPaymentRuleArn"
+          }
+        ],
+        "/PaymentSchedulerStack-prod/AppointmentUpdateRuleArn": [
+          {
+            "type": "aws:cdk:logicalId",
+            "data": "AppointmentUpdateRuleArn"
           }
         ],
         "/PaymentSchedulerStack-prod/CDKMetadata/Default": [

@@ -1,4 +1,5 @@
-// src/app/api/cron/update-appointments.ts
+// src/app/api/cron/update-appointments/route.ts
+// (Move and rename the file to this path)
 
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
@@ -149,6 +150,7 @@ export async function GET(request: NextRequest) {
     }
 
     const summary = {
+      success: true,
       timestamp: now.toISOString(),
       totalProcessed: upcomingAppointments.length + ongoingAppointments.length,
       totalUpdated: updatedCount,
@@ -167,14 +169,13 @@ export async function GET(request: NextRequest) {
 
     return NextResponse.json(
       {
+        success: false,
         error: "Failed to update appointment statuses",
         details: error instanceof Error ? error.message : "Unknown error",
         timestamp: new Date().toISOString(),
       },
       { status: 500 }
     );
-  } finally {
-    await prisma.$disconnect();
   }
 }
 

@@ -1,4 +1,12 @@
 {
+  "ChimeStack-prod": {
+    "VideoRoomsTableName": "VideoRooms-prod"
+  },
+  "PaymentSchedulerStack-prod": {
+    "PaymentProcessorLambdaArn": "arn:aws:lambda:us-east-2:232247293056:function:PaymentSchedulerStack-pro-PaymentProcessorHandlerB-LCjBpeDY35TX",
+    "WeeklyPaymentRuleArn": "arn:aws:events:us-east-2:232247293056:rule/PaymentProcessing-Weekly-prod",
+    "AppointmentUpdateRuleArn": "arn:aws:events:us-east-2:232247293056:rule/AppointmentStatusUpdate-prod"
+  },
   "ChatWebSocketStack-prod": {
     "ExportsOutputRefChatWebSocketApi67FC4780": "fulvf34l4h",
     "SecretsArn": "arn:aws:secretsmanager:us-east-2:232247293056:secret:hug-harmony/prod/secrets",

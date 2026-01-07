@@ -67,9 +67,31 @@ export class PaymentSchedulerStack extends cdk.Stack {
           SECRETS_NAME: `hug-harmony/${stage}/secrets`,
           NODE_OPTIONS: "--enable-source-maps",
         },
-        timeout: cdk.Duration.minutes(5), // Payment processing might take time
+        timeout: cdk.Duration.minutes(5),
         memorySize: 512,
       }
+    );
+
+    // ==========================================
+    // NEW: EventBridge Rule - Appointment Status Updates
+    // Runs every 5 minutes to update upcoming → ongoing → completed
+    // ==========================================
+    const appointmentUpdateRule = new events.Rule(
+      this,
+      "AppointmentStatusUpdate",
+      {
+        ruleName: `AppointmentStatusUpdate-${stage}`,
+        description:
+          "Updates appointment statuses (upcoming → ongoing → completed) every 5 minutes",
+        schedule: events.Schedule.rate(cdk.Duration.minutes(5)),
+        enabled: true,
+      }
+    );
+
+    appointmentUpdateRule.addTarget(
+      new targets.LambdaFunction(paymentProcessorLambda, {
+        retryAttempts: 2,
+      })
     );
 
     // ==========================================
@@ -96,6 +118,7 @@ export class PaymentSchedulerStack extends cdk.Stack {
     // ==========================================
     // EventBridge Rule - Daily Confirmation Check
     // Runs every day at 9:00 AM UTC
+    // Also updates appointment statuses before checking confirmations
     // ==========================================
     const dailyConfirmationRule = new events.Rule(
       this,
@@ -148,6 +171,12 @@ export class PaymentSchedulerStack extends cdk.Stack {
       value: weeklyPaymentRule.ruleArn,
       description: "Weekly Payment Processing Rule ARN",
       exportName: `WeeklyPaymentRuleArn-${stage}`,
+    });
+
+    new cdk.CfnOutput(this, "AppointmentUpdateRuleArn", {
+      value: appointmentUpdateRule.ruleArn,
+      description: "Appointment Status Update Rule ARN",
+      exportName: `AppointmentUpdateRuleArn-${stage}`,
     });
   }
 }
