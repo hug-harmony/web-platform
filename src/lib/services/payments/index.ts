@@ -7,3 +7,4 @@ export * from "./fee-charge.service";
 export * from "./payment-method.service";
 export * from "./scheduled.service";
 export * from "./helpers";
+export * from "./historicalStats";

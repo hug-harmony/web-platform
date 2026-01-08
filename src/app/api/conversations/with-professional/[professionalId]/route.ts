@@ -1,3 +1,4 @@
+// src\app\api\conversations\with-professional\[professionalId]\route.ts
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma"; // Adjust path
