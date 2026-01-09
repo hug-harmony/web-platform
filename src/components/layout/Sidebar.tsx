@@ -120,6 +120,11 @@ export default function Sidebar() {
         href: `/dashboard/orders`,
         label: "My Orders",
         icon: <Package className={iconClass} />,
+      },
+      {
+        href: "/dashboard/feedback",
+        label: "Feedback",
+        icon: <MessageSquare className={iconClass} />,
       }
     );
 

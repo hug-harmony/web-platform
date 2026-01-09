@@ -84,6 +84,9 @@ model User {
   blockedBy                 Block[]                   @relation("UserBlocked")
   clientConfirmations       AppointmentConfirmation[] @relation("ClientConfirmations")
   professionalConfirmations AppointmentConfirmation[] @relation("ProfessionalUserConfirmations")
+  feedbacks                 Feedback[]                @relation("UserFeedback")
+  adminFeedbackResponses    Feedback[]                @relation("AdminFeedbackResponses")
+  adminReportResponses      Report[]                  @relation("AdminReportResponses")
 }
 
 model PasswordResetToken {
@@ -459,17 +462,33 @@ model SecurityLog {
 }
 
 model Report {
-  id                     String        @id @default(auto()) @map("_id") @db.ObjectId
-  reporterId             String        @db.ObjectId
-  reportedUserId         String?       @db.ObjectId
-  reportedProfessionalId String?       @db.ObjectId
+  id                     String  @id @default(auto()) @map("_id") @db.ObjectId
+  reporterId             String  @db.ObjectId
+  reportedUserId         String? @db.ObjectId
+  reportedProfessionalId String? @db.ObjectId
   reason                 String
   details                String?
-  status                 String        @default("pending")
-  createdAt              DateTime      @default(now())
-  reporter               User          @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
-  reportedUser           User?         @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
-  reportedProfessional   Professional? @relation("ReportedProfessional", fields: [reportedProfessionalId], references: [id], onDelete: SetNull)
+  status                 String  @default("pending") // Keep existing
+
+  // NEW: Add these fields
+  priority         String    @default("normal") // "low" | "normal" | "high" | "urgent"
+  adminResponse    String?
+  adminRespondedBy String?   @db.ObjectId
+  adminRespondedAt DateTime?
+
+  createdAt DateTime  @default(now())
+  updatedAt DateTime?
+
+  // Existing relations
+  reporter             User          @relation("Reporter", fields: [reporterId], references: [id], onDelete: Cascade)
+  reportedUser         User?         @relation("ReportedUser", fields: [reportedUserId], references: [id], onDelete: SetNull)
+  reportedProfessional Professional? @relation("ReportedProfessional", fields: [reportedProfessionalId], references: [id], onDelete: SetNull)
+
+  // NEW: Add this relation
+  adminUser User? @relation("AdminReportResponses", fields: [adminRespondedBy], references: [id], onDelete: SetNull)
+
+  @@index([status]) // NEW
+  @@index([createdAt]) // NEW
 }
 
 model Note {
@@ -796,4 +815,35 @@ model AppointmentConfirmation {
   @@index([professionalId])
   @@index([professionalUserId])
   @@index([finalStatus])
+}
+
+model Feedback {
+  id     String @id @default(auto()) @map("_id") @db.ObjectId
+  userId String @db.ObjectId
+
+  // Feedback content
+  category String // "general" | "bug" | "feature" | "complaint" | "suggestion" | "other"
+  subject  String
+  message  String
+
+  // Status tracking
+  status   String @default("pending") // "pending" | "in_progress" | "resolved" | "closed"
+  priority String @default("normal") // "low" | "normal" | "high" | "urgent"
+
+  // Admin response
+  adminResponse    String?
+  adminRespondedBy String?   @db.ObjectId
+  adminRespondedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  // Relations
+  user      User  @relation("UserFeedback", fields: [userId], references: [id], onDelete: Cascade)
+  adminUser User? @relation("AdminFeedbackResponses", fields: [adminRespondedBy], references: [id], onDelete: SetNull)
+
+  @@index([userId])
+  @@index([status])
+  @@index([category])
+  @@index([createdAt])
 }

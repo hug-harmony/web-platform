@@ -34,6 +34,7 @@ import {
   Package,
   Video,
   DollarSign,
+  AlertTriangle,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
@@ -183,24 +184,10 @@ export default function AdminDashboardLayout({
                         ),
                       },
                       {
-                        href: "/admin/dashboard/reports",
-                        label: "Reports",
+                        href: "/admin/dashboard/operations",
+                        label: "Operations",
                         icon: (
-                          <Flag className="h-5 w-5 text-black dark:text-white" />
-                        ),
-                      },
-                      {
-                        href: "/admin/dashboard/dispute-handling",
-                        label: "Dispute Handling",
-                        icon: (
-                          <FileWarning className="h-5 w-5 text-black dark:text-white" />
-                        ),
-                      },
-                      {
-                        href: "/admin/dashboard/bookings-payments",
-                        label: "Bookings & Payments",
-                        icon: (
-                          <Calendar className="h-5 w-5 text-black dark:text-white" />
+                          <AlertTriangle className="h-5 w-5 text-black dark:text-white" />
                         ),
                       },
                       {
