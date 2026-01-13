@@ -12,6 +12,7 @@ import {
   Calendar,
   Package,
   Video,
+  HeartPulse,
 } from "lucide-react";
 import Link from "next/link";
 
@@ -80,6 +81,12 @@ export default function AdminDashboardPage() {
       label: "Training Videos",
       icon: <Video className="h-8 w-8 text-[#F3CFC6]" />,
       description: "Manage training videos.",
+    },
+    {
+      href: "/admin/dashboard/application-health",
+      label: "Application Health",
+      icon: <HeartPulse className="h-8 w-8 text-[#F3CFC6]" />,
+      description: "Monitor system performance and vendor status.",
     },
   ];
 

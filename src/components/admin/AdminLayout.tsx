@@ -35,6 +35,7 @@ import {
   Video,
   DollarSign,
   AlertTriangle,
+  HeartPulse,
 } from "lucide-react";
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
@@ -216,6 +217,13 @@ export default function AdminDashboardLayout({
                         label: "Training Videos",
                         icon: (
                           <Video className="h-5 w-5 text-black dark:text-white" />
+                        ),
+                      },
+                      {
+                        href: "/admin/dashboard/application-health",
+                        label: "Application Health",
+                        icon: (
+                          <HeartPulse className="h-5 w-5 text-black dark:text-white" />
                         ),
                       },
                     ].map((item) => (
