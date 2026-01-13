@@ -145,6 +145,8 @@ export async function getProfessionalProfile(
 
     // Professional-specific
     rate: professional.rate || undefined,
+    offersVideo: professional.offersVideo,
+    videoRate: professional.videoRate || undefined,
     rating: professional.rating || undefined,
     reviewCount: professional.reviewCount || undefined,
     venue: professional.venue || undefined,
@@ -260,9 +262,9 @@ export async function getUserProfile(id: string): Promise<UserProfile | null> {
     lastName: user.lastName || undefined,
     professionalApplication: user.professionalApplication
       ? {
-          status: user.professionalApplication.status,
-          professionalId: user.professionalApplication.professionalId,
-        }
+        status: user.professionalApplication.status,
+        professionalId: user.professionalApplication.professionalId,
+      }
       : null,
   };
 }

@@ -1,6 +1,7 @@
 // app/api/professionals/application/route.ts
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
 import prisma from "@/lib/prisma";
@@ -13,6 +14,13 @@ const submitSchema = z.object({
     .transform((v) => parseFloat(v))
     .refine((v) => !isNaN(v) && v > 0, "Rate must be greater than 0")
     .refine((v) => v <= 10000, "Rate cannot exceed $10,000/hour"),
+  offersVideo: z.boolean().default(false),
+  videoRate: z
+    .string()
+    .optional()
+    .transform((v) => (v ? parseFloat(v) : undefined))
+    .refine((v) => v === undefined || (!isNaN(v) && v > 0), "Video rate must be greater than 0")
+    .refine((v) => v === undefined || v <= 10000, "Video rate cannot exceed $10,000/hour"),
   venue: z.enum(["host", "visit", "both"] as const, {
     required_error: "Venue is required",
   }),
@@ -45,6 +53,8 @@ export async function GET(req: NextRequest) {
           status: true,
           professionalId: true,
           rate: true,
+          offersVideo: true,
+          videoRate: true,
           venue: true,
           submittedAt: true,
           videoWatchedAt: true,
@@ -68,6 +78,8 @@ export async function GET(req: NextRequest) {
         applications: {
           id: application.id,
           rate: application.rate,
+          offersVideo: application.offersVideo,
+          videoRate: application.videoRate,
           venue: application.venue,
           submittedAt: application.submittedAt,
           videoWatchedAt: application.videoWatchedAt,
@@ -114,10 +126,10 @@ export async function GET(req: NextRequest) {
 
       const video = watch
         ? {
-            watchedSec: watch.watchedSec,
-            durationSec: watch.video.durationSec ?? 0,
-            isCompleted: watch.isCompleted,
-          }
+          watchedSec: watch.watchedSec,
+          durationSec: watch.video.durationSec ?? 0,
+          isCompleted: watch.isCompleted,
+        }
         : null;
 
       return NextResponse.json({
@@ -126,6 +138,8 @@ export async function GET(req: NextRequest) {
         avatarUrl: app.user.profileImage ?? null,
         biography: app.user.biography ?? "",
         rate: app.rate,
+        offersVideo: app.offersVideo,
+        videoRate: app.videoRate,
         venue: app.venue,
         status: app.status,
         createdAt: app.createdAt,
@@ -138,7 +152,7 @@ export async function GET(req: NextRequest) {
     }
 
     /* ---------- LIST VIEW (ADMIN) ---------- */
-    const where: any = {};
+    const where: Prisma.ProfessionalApplicationWhereInput = {};
     if (statusParam !== "all") {
       where.status = statusParam;
     }
@@ -172,6 +186,8 @@ export async function GET(req: NextRequest) {
           name: a.user?.name ?? "Unknown",
           avatarUrl: a.user?.profileImage ?? null,
           rate: a.rate,
+          offersVideo: a.offersVideo,
+          videoRate: a.videoRate,
           venue: a.venue,
           status: a.status,
           createdAt: a.createdAt,
@@ -180,10 +196,10 @@ export async function GET(req: NextRequest) {
           quizPassedAt: a.quizPassedAt,
           video: watch
             ? {
-                watchedSec: watch.watchedSec,
-                durationSec: watch.video.durationSec ?? 0,
-                isCompleted: watch.isCompleted,
-              }
+              watchedSec: watch.watchedSec,
+              durationSec: watch.video.durationSec ?? 0,
+              isCompleted: watch.isCompleted,
+            }
             : null,
           latestQuiz: a.quizAttempts[0] ?? null,
           professionalId: a.professionalId,
@@ -236,7 +252,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    const { rate, venue } = parseResult.data;
+    const { rate, offersVideo, videoRate, venue } = parseResult.data;
 
     // Get active onboarding video
     const video = await prisma.trainingVideo.findFirst({
@@ -287,7 +303,7 @@ export async function POST(req: NextRequest) {
             .delete({
               where: { id: existing.professionalId },
             })
-            .catch(() => {});
+            .catch(() => { });
         }
 
         await tx.professionalApplication.delete({
@@ -300,6 +316,8 @@ export async function POST(req: NextRequest) {
         data: {
           userId: session.user.id,
           rate,
+          offersVideo,
+          videoRate: offersVideo ? videoRate : null,
           venue: venue as VenueType,
           status: "VIDEO_PENDING",
           submittedAt: new Date(),
@@ -345,6 +363,8 @@ export async function POST(req: NextRequest) {
           id: application.id,
           status: application.status,
           rate: application.rate,
+          offersVideo: application.offersVideo,
+          videoRate: application.videoRate,
           venue: application.venue,
         },
         nextStep: "/dashboard/edit-profile/professional-application/video",
@@ -479,6 +499,8 @@ export async function PATCH(req: NextRequest) {
             name: app.user.name || app.user.firstName || "Professional",
             biography: app.user.biography ?? "",
             rate: app.rate,
+            offersVideo: app.offersVideo,
+            videoRate: app.videoRate,
             venue: app.venue,
             image: app.user.profileImage ?? null,
             location: app.user.location ?? null,

@@ -49,6 +49,8 @@ interface Professional {
   _id: string;
   name: string;
   rate: number;
+  offersVideo?: boolean;
+  videoRate?: number;
   venue: "host" | "visit" | "both";
   image?: string;
 }
@@ -425,7 +427,9 @@ export default function BookingPage() {
     : 0;
   const durationHours = durationMinutes / 60;
   const totalRate =
-    professional && durationHours > 0 ? professional.rate * durationHours : 0;
+    professional && durationHours > 0
+      ? (isVideoBooking ? (professional.videoRate ?? professional.rate) : professional.rate) * durationHours
+      : 0;
 
   // Determine if venue selection is needed
   const needsVenueSelection = useMemo(() => {

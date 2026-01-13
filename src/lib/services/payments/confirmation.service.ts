@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 // src/lib/services/payments/confirmation.service.ts
 
 import prisma from "@/lib/prisma";
@@ -14,7 +14,7 @@ import {
   getEarningByAppointmentId,
   confirmEarning,
   markEarningNotOccurred,
-  disputeEarning,
+  // disputeEarning,
   getPlatformFeePercent,
 } from "./earnings.service";
 import { createAppointmentNotification } from "@/lib/notifications";
@@ -484,7 +484,7 @@ export async function confirmAppointment(
     },
     earningCreated,
     disputeCreated,
-    message: getConfirmationMessage(finalStatus, userRole),
+    message: getConfirmationMessage(finalStatus),
   };
 }
 
@@ -516,7 +516,7 @@ async function updateProfessionalRating(professionalId: string): Promise<void> {
  */
 function getConfirmationMessage(
   status: ConfirmationFinalStatus,
-  _role: "client" | "professional"
+  // _role: "client" | "professional"
 ): string {
   switch (status) {
     case "confirmed":
@@ -629,8 +629,8 @@ export async function autoResolveExpiredConfirmations(
         await markEarningNotOccurred(earning.id);
       }
 
-      const clientName = buildDisplayName(confirmation.client);
-      const professionalName = buildDisplayName(confirmation.professionalUser);
+      // const clientName = buildDisplayName(confirmation.client);
+      // const professionalName = buildDisplayName(confirmation.professionalUser);
 
       // Notify both parties
       await Promise.all([
@@ -903,15 +903,15 @@ export async function getPendingConfirmations(
   const where =
     role === "client"
       ? {
-          clientId: userId,
-          clientConfirmed: null,
-          finalStatus: "pending",
-        }
+        clientId: userId,
+        clientConfirmed: null,
+        finalStatus: "pending",
+      }
       : {
-          professionalUserId: userId,
-          professionalConfirmed: null,
-          finalStatus: "pending",
-        };
+        professionalUserId: userId,
+        professionalConfirmed: null,
+        finalStatus: "pending",
+      };
 
   const confirmations = await prisma.appointmentConfirmation.findMany({
     where,

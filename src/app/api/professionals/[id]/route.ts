@@ -1,9 +1,10 @@
 // src/app/api/professionals/[id]/route.ts
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
+import { VenueType } from "@prisma/client";
 import { authOptions } from "@/lib/auth";
 
 /* --------------------------------------------------------------
@@ -100,6 +101,8 @@ export async function GET(
       location: professional.location || "",
       biography: professional.biography || "",
       rate: professional.rate,
+      offersVideo: professional.offersVideo,
+      videoRate: professional.videoRate,
       venue: professional.venue || "both",
       rating: professional.rating || 0,
       reviewCount: professional.reviewCount || 0,
@@ -127,7 +130,7 @@ export async function GET(
         createdAt: r.createdAt.toISOString(),
       })),
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("Error fetching professional:", error);
     return NextResponse.json({ error: "Server error" }, { status: 500 });
   }
@@ -171,14 +174,21 @@ export async function PATCH(
   }
 
   // ---- parse body ----
-  let body: any;
+  let body: {
+    biography?: string;
+    rate?: number;
+    offersVideo?: boolean;
+    videoRate?: number;
+    venue?: string;
+    paymentAcceptanceMethods?: string[];
+  };
   try {
     body = await request.json();
   } catch {
     return NextResponse.json({ error: "Invalid JSON" }, { status: 400 });
   }
 
-  const { biography, rate, venue, paymentAcceptanceMethods } = body;
+  const { biography, rate, offersVideo, videoRate, venue, paymentAcceptanceMethods } = body;
 
   // ---- validation ----
   if (
@@ -193,6 +203,18 @@ export async function PATCH(
   if (rate !== undefined && (isNaN(rate) || rate <= 0 || rate > 10000)) {
     return NextResponse.json(
       { error: "Rate must be 0.01–10,000" },
+      { status: 400 }
+    );
+  }
+  if (offersVideo !== undefined && typeof offersVideo !== "boolean") {
+    return NextResponse.json(
+      { error: "offersVideo must be a boolean" },
+      { status: 400 }
+    );
+  }
+  if (videoRate !== undefined && videoRate !== null && (isNaN(videoRate) || videoRate <= 0 || videoRate > 10000)) {
+    return NextResponse.json(
+      { error: "Video rate must be 0.01–10,000" },
       { status: 400 }
     );
   }
@@ -241,20 +263,24 @@ export async function PATCH(
       data: {
         biography: biography ?? undefined,
         rate: rate ?? undefined,
-        venue: venue ?? undefined,
+        offersVideo: offersVideo ?? undefined,
+        videoRate: videoRate ?? undefined,
+        venue: venue ? (venue as VenueType) : undefined,
         paymentAcceptanceMethods: paymentAcceptanceMethods ?? undefined,
       },
       select: {
         id: true,
         biography: true,
         rate: true,
+        offersVideo: true,
+        videoRate: true,
         venue: true,
         paymentAcceptanceMethods: true,
       },
     });
 
     return NextResponse.json(updated);
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("Error updating professional:", err);
     return NextResponse.json(
       { error: "Failed to update professional" },

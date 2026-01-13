@@ -13,6 +13,8 @@ interface ProfessionalCardProps {
   rating: number;
   reviewCount: number;
   rate: number;
+  offersVideo?: boolean;
+  videoRate?: number;
   onMessage?: () => void;
   className?: string;
 }
@@ -24,6 +26,8 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
   rating,
   reviewCount,
   rate,
+  offersVideo,
+  videoRate,
   onMessage,
   className,
 }) => {
@@ -50,7 +54,10 @@ const ProfessionalCard: React.FC<ProfessionalCardProps> = ({
               {location}
             </div>
           )}
-          <div className="text-sm text-[#C4C4C4] mt-0.5">${rate}/hr</div>
+          <div className="text-sm text-[#C4C4C4] mt-0.5">
+            ${rate}/hr
+            {offersVideo && ` • $${videoRate ?? rate}/video`}
+          </div>
           <div className="flex items-center justify-center text-xs text-[#C4C4C4] mt-0.5">
             <Star className="h-4 w-4 text-[#F3CFC6] mr-1" />
             {rating.toFixed(1)} ({reviewCount} reviews)

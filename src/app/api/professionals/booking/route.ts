@@ -20,7 +20,7 @@ export async function POST(request: Request) {
     startTime?: string;
     endTime?: string;
     userId?: string;
-    venue?: "host" | "visit";
+    venue?: "host" | "visit" | "video";
   };
 
   if (!professionalId || !startTime || !endTime || !userId) {
@@ -54,6 +54,8 @@ export async function POST(request: Request) {
       select: {
         venue: true,
         rate: true,
+        offersVideo: true,
+        videoRate: true,
         name: true,
         applications: {
           where: { status: "APPROVED" },
@@ -90,14 +92,20 @@ export async function POST(request: Request) {
     }
 
     // Venue validation
-    let finalVenue: "host" | "visit";
-    if (professional.venue === "host" || professional.venue === "visit") {
+    let finalVenue: "host" | "visit" | "video";
+
+    if (venue === "video") {
+      if (!professional.offersVideo) {
+        return NextResponse.json({ error: "VIDEO_NOT_OFFERED" }, { status: 400 });
+      }
+      finalVenue = "video";
+    } else if (professional.venue === "host" || professional.venue === "visit") {
       finalVenue = professional.venue;
     } else if (professional.venue === "both") {
       if (!venue) {
         return NextResponse.json({ error: "VENUE_REQUIRED" }, { status: 400 });
       }
-      finalVenue = venue;
+      finalVenue = venue as "host" | "visit";
     } else {
       return NextResponse.json(
         { error: "Invalid professional venue configuration" },
@@ -177,7 +185,7 @@ export async function POST(request: Request) {
         endTime: end,
         status: "upcoming",
         venue: finalVenue,
-        rate: professional.rate,
+        rate: finalVenue === "video" ? (professional.videoRate ?? professional.rate) : professional.rate,
       },
     });
 
@@ -186,10 +194,12 @@ export async function POST(request: Request) {
     if (client.email && professionalUser?.email) {
       const durationMs = end.getTime() - start.getTime();
       const durationHours = durationMs / (1000 * 60 * 60);
-      const amount = `$${((professional.rate || 0) * durationHours).toFixed(2)}`;
+      const activeRate = finalVenue === "video" ? (professional.videoRate ?? professional.rate) : professional.rate;
+      const amount = `$${((activeRate || 0) * durationHours).toFixed(2)}`;
       const duration = `${durationHours.toFixed(1)} hour${durationHours !== 1 ? "s" : ""}`;
       const venueLabel =
-        finalVenue === "host" ? "Professional's Location" : "Client's Location";
+        finalVenue === "host" ? "Professional's Location" :
+          finalVenue === "visit" ? "Client's Location" : "Video Session";
 
       const clientName =
         client.name ||
@@ -206,8 +216,8 @@ export async function POST(request: Request) {
         format(start, "h:mm a"),
         duration,
         amount,
-        venueLabel,
-        newAppointment.id
+        venueLabel
+        // newAppointment.id
       ).catch((err) => console.error("Failed to send booking emails:", err));
     }
 

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 // src/hooks/useVideoCall.ts
 "use client";
 
@@ -187,9 +187,9 @@ export function useVideoCall(options: UseVideoCallOptions): UseVideoCallReturn {
       // Start the session
       meetingSession.audioVideo.start();
       meetingSession.audioVideo.startLocalVideoTile();
-    } catch (error: any) {
+    } catch (error: unknown) {
       console.error("Failed to join video call:", error);
-      const errorMessage = error.message || "Failed to join video call";
+      const errorMessage = (error as Error).message || "Failed to join video call";
       setState((s) => ({ ...s, isConnecting: false, error: errorMessage }));
       onError?.(errorMessage);
     }
@@ -221,7 +221,7 @@ export function useVideoCall(options: UseVideoCallOptions): UseVideoCallReturn {
         remoteVideoTileId: null,
         error: null,
       });
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to leave video call:", error);
     }
   }, [sessionId]);
@@ -235,7 +235,7 @@ export function useVideoCall(options: UseVideoCallOptions): UseVideoCallReturn {
         body: JSON.stringify({ reason: "completed" }),
       });
       onSessionEnded?.();
-    } catch (error) {
+    } catch (error: unknown) {
       console.error("Failed to end session:", error);
     }
   }, [sessionId, leave, onSessionEnded]);

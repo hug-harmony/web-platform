@@ -149,7 +149,7 @@ export default function Sidebar() {
     }
 
     return items;
-  }, [user.id, isProfessional, hasStartedApplication, unreadNotifications]);
+  }, [isProfessional, hasStartedApplication, unreadNotifications]);
 
   const isActive = (href: string) => {
     if (href === "/dashboard") return pathname === "/dashboard";
@@ -232,13 +232,12 @@ export default function Sidebar() {
               key={item.href}
               href={item.href}
               onClick={() => setIsOpen(false)}
-              className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all relative ${
-                active
+              className={`flex items-center justify-between px-3 py-2.5 rounded-lg transition-all relative ${active
                   ? "bg-[#F3CFC6] text-black"
                   : item.highlight
                     ? "bg-gradient-to-r from-[#F3CFC6]/30 to-transparent text-foreground hover:from-[#F3CFC6]/50"
                     : "text-muted-foreground hover:bg-muted hover:text-foreground"
-              }`}
+                }`}
             >
               <div className="flex items-center gap-3">
                 {item.icon}

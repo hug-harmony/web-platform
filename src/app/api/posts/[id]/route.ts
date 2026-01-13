@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 
@@ -42,7 +42,28 @@ export async function GET(request: Request) {
       return NextResponse.json({ error: "Post not found" }, { status: 404 });
     }
 
-    const formatReplies = (replies: any[]): any[] =>
+    interface ReplyNode {
+      id: string;
+      content: string;
+      createdAt: Date;
+      author: { name: string | null; profileImage: string | null } | null;
+      parentReplyId: string | null;
+      childReplies?: ReplyNode[];
+    }
+
+    interface FormattedReply {
+      id: string;
+      content: string;
+      author: {
+        name: string;
+        avatar: string;
+      };
+      timestamp: string;
+      parentReplyId?: string;
+      childReplies: FormattedReply[];
+    }
+
+    const formatReplies = (replies: ReplyNode[]): FormattedReply[] =>
       replies.map((reply) => ({
         id: reply.id,
         content: reply.content,

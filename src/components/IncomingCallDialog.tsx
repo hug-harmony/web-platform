@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 // src/components/IncomingCallDialog.tsx
 "use client";
 
@@ -12,6 +12,12 @@ import { Phone, PhoneOff, Video } from "lucide-react";
 import { useWebSocket } from "@/hooks/useWebSocket";
 import { useSession } from "next-auth/react";
 import type { VideoCallSignal } from "@/lib/websocket/types";
+
+declare global {
+  interface Window {
+    __incomingCallAudio?: HTMLAudioElement;
+  }
+}
 
 interface IncomingCall {
   sessionId: string;
@@ -47,10 +53,10 @@ export default function IncomingCallDialog() {
         try {
           const audio = new Audio("/sounds/ringtone.mp3");
           audio.loop = true;
-          audio.play().catch(() => {});
+          audio.play().catch(() => { });
           // Store audio reference to stop later
-          (window as any).__incomingCallAudio = audio;
-        } catch {}
+          window.__incomingCallAudio = audio;
+        } catch { }
         break;
 
       case "video_end":
@@ -70,13 +76,13 @@ export default function IncomingCallDialog() {
 
   const stopRingtone = () => {
     try {
-      const audio = (window as any).__incomingCallAudio;
+      const audio = window.__incomingCallAudio;
       if (audio) {
         audio.pause();
         audio.currentTime = 0;
-        delete (window as any).__incomingCallAudio;
+        delete window.__incomingCallAudio;
       }
-    } catch {}
+    } catch { }
   };
 
   const handleAccept = useCallback(() => {

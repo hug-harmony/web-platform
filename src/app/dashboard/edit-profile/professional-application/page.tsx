@@ -21,11 +21,14 @@ import {
   SelectValue,
 } from "@/components/ui/select";
 import { Alert, AlertDescription, AlertTitle } from "@/components/ui/alert";
+import { Switch } from "@/components/ui/switch";
 
 type VenueType = "host" | "visit" | "both";
 
 interface ProfessionalApplication {
   rate: string;
+  offersVideo: boolean;
+  videoRate: string;
   venue: VenueType;
 }
 
@@ -123,6 +126,8 @@ const STATUS_CONFIG: Record<
 export default function ProfessionalApplicationPage() {
   const [formData, setFormData] = useState<ProfessionalApplication>({
     rate: "",
+    offersVideo: false,
+    videoRate: "",
     venue: "both",
   });
   const [existingApplication, setExistingApplication] =
@@ -227,11 +232,18 @@ export default function ProfessionalApplicationPage() {
 
     setIsSubmitting(true);
 
+    const { rate, offersVideo, videoRate, venue } = formData;
+
     try {
       const res = await fetch("/api/professionals/application", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify(formData),
+        body: JSON.stringify({
+          rate,
+          offersVideo,
+          videoRate: offersVideo ? videoRate : undefined,
+          venue,
+        }),
         credentials: "include",
       });
 
@@ -335,9 +347,8 @@ export default function ProfessionalApplicationPage() {
                     if (errors.rate) setErrors({ ...errors, rate: undefined });
                   }}
                   placeholder="50.00"
-                  className={`border-[#F3CFC6] focus:ring-[#F3CFC6] ${
-                    errors.rate ? "border-red-500" : ""
-                  }`}
+                  className={`border-[#F3CFC6] focus:ring-[#F3CFC6] ${errors.rate ? "border-red-500" : ""
+                    }`}
                   disabled={isSubmitting}
                 />
                 {errors.rate && (
@@ -346,6 +357,57 @@ export default function ProfessionalApplicationPage() {
                 <p className="text-xs text-muted-foreground">
                   This is what clients will see as your hourly rate.
                 </p>
+              </div>
+
+              {/* Video Sessions */}
+              <div className="space-y-4 pt-4 border-t border-gray-100">
+                <div className="flex items-center justify-between">
+                  <div className="space-y-0.5">
+                    <Label htmlFor="offersVideo" className="text-base font-medium">Offer Video Sessions</Label>
+                    <p className="text-sm text-muted-foreground">
+                      Do you want to offer virtual sessions to clients?
+                    </p>
+                  </div>
+                  <Switch
+                    id="offersVideo"
+                    checked={formData.offersVideo}
+                    onCheckedChange={(checked) =>
+                      setFormData(prev => ({
+                        ...prev,
+                        offersVideo: checked,
+                        videoRate: checked ? prev.videoRate : ""
+                      }))
+                    }
+                  />
+                </div>
+
+                {formData.offersVideo && (
+                  <motion.div
+                    initial={{ opacity: 0, height: 0 }}
+                    animate={{ opacity: 1, height: "auto" }}
+                    className="space-y-2 pt-2"
+                  >
+                    <Label htmlFor="videoRate">Video Hourly Rate ($)</Label>
+                    <div className="relative">
+                      <span className="absolute left-3 top-1/2 -translate-y-1/2 text-muted-foreground">
+                        $
+                      </span>
+                      <Input
+                        id="videoRate"
+                        type="number"
+                        placeholder="e.g. 80"
+                        className="pl-7"
+                        value={formData.videoRate}
+                        onChange={(e) =>
+                          setFormData({ ...formData, videoRate: e.target.value })
+                        }
+                      />
+                    </div>
+                    <p className="text-xs text-muted-foreground">
+                      Typically, video sessions are offered at a lower rate than in-person sessions.
+                    </p>
+                  </motion.div>
+                )}
               </div>
 
               <div className="space-y-2">
@@ -363,9 +425,8 @@ export default function ProfessionalApplicationPage() {
                 >
                   <SelectTrigger
                     id="venue"
-                    className={`border-[#F3CFC6] focus:ring-[#F3CFC6] ${
-                      errors.venue ? "border-red-500" : ""
-                    }`}
+                    className={`border-[#F3CFC6] focus:ring-[#F3CFC6] ${errors.venue ? "border-red-500" : ""
+                      }`}
                   >
                     <SelectValue placeholder="Select where you provide service" />
                   </SelectTrigger>

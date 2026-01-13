@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import { z } from "zod";
@@ -73,7 +73,7 @@ export async function GET(
       createdAt: discount.createdAt,
       updatedAt: discount.updatedAt,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching discount:", error);
     return NextResponse.json(
       { error: "Internal server error: Failed to fetch discount" },
@@ -143,7 +143,7 @@ export async function POST(req: Request) {
       },
       { status: 201 }
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error creating discount:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
@@ -228,12 +228,12 @@ export async function PATCH(
       createdAt: updatedDiscount.createdAt,
       updatedAt: updatedDiscount.updatedAt,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error updating discount:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
-    if (error.code === "P2025") {
+    if ((error as { code?: string }).code === "P2025") {
       return NextResponse.json(
         { error: "Discount not found" },
         { status: 404 }
@@ -299,9 +299,9 @@ export async function DELETE(
     });
 
     return NextResponse.json({ message: "Discount deleted successfully" });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error deleting discount:", error);
-    if (error.code === "P2025") {
+    if ((error as { code?: string }).code === "P2025") {
       return NextResponse.json(
         { error: "Discount not found" },
         { status: 404 }

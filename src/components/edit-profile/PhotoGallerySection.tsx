@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 // src/components/edit-profile/PhotoGallerySection.tsx
 "use client";
 
@@ -101,8 +101,8 @@ export function PhotoGallerySection({ userId, initialPhotos = [] }: Props) {
       const { photos: uploaded } = await res.json();
       setPhotos((prev) => [...prev, ...uploaded]);
       toast.success(`Uploaded ${uploaded.length} photo(s)`);
-    } catch (err: any) {
-      toast.error(err.message || "Upload failed");
+    } catch (err: unknown) {
+      toast.error((err as Error).message || "Upload failed");
     } finally {
       setIsUploading(false);
     }
@@ -167,9 +167,8 @@ export function PhotoGallerySection({ userId, initialPhotos = [] }: Props) {
 
         {photos.length === 0 ? (
           <label
-            className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-[#F3CFC6] rounded-xl cursor-pointer hover:bg-[#F3CFC6]/5 transition-colors ${
-              isUploading ? "pointer-events-none opacity-50" : ""
-            }`}
+            className={`flex flex-col items-center justify-center w-full h-64 border-2 border-dashed border-[#F3CFC6] rounded-xl cursor-pointer hover:bg-[#F3CFC6]/5 transition-colors ${isUploading ? "pointer-events-none opacity-50" : ""
+              }`}
           >
             {isUploading ? (
               <>
@@ -208,9 +207,8 @@ export function PhotoGallerySection({ userId, initialPhotos = [] }: Props) {
                 return (
                   <div
                     key={photo.id}
-                    className={`relative group aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-[#F3CFC6] transition ${
-                      isDeleting ? "opacity-50" : ""
-                    }`}
+                    className={`relative group aspect-square rounded-lg overflow-hidden border-2 border-transparent hover:border-[#F3CFC6] transition ${isDeleting ? "opacity-50" : ""
+                      }`}
                   >
                     <Image
                       src={photo.url}
@@ -236,9 +234,8 @@ export function PhotoGallerySection({ userId, initialPhotos = [] }: Props) {
 
               {canAddMore && (
                 <label
-                  className={`aspect-square border-2 border-dashed border-[#F3CFC6] rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-[#F3CFC6]/5 transition ${
-                    isUploading ? "pointer-events-none opacity-50" : ""
-                  }`}
+                  className={`aspect-square border-2 border-dashed border-[#F3CFC6] rounded-lg flex flex-col items-center justify-center cursor-pointer hover:bg-[#F3CFC6]/5 transition ${isUploading ? "pointer-events-none opacity-50" : ""
+                    }`}
                 >
                   {isUploading ? (
                     <Loader2 className="w-8 h-8 text-[#F3CFC6] animate-spin" />

@@ -8,9 +8,11 @@ export interface Professional {
   rating?: number;
   reviewCount?: number;
   rate?: number;
+  offersVideo?: boolean;
+  videoRate?: number;
   biography?: string;
   createdAt?: string;
-  venue?: "host" | "visit" | "both";
+  venue?: "host" | "visit" | "video" | "both";
   lastOnline?: string | Date | null;
   ethnicity?: string;
   userId?: string;

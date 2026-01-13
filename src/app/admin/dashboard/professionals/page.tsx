@@ -31,6 +31,7 @@ import {
   Users,
   MessageSquare,
   Eye,
+  Video,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useCallback, useEffect, useMemo } from "react";
@@ -64,6 +65,8 @@ interface Professional {
   rating: number | null;
   reviewCount: number;
   rate: number | null;
+  offersVideo: boolean;
+  videoRate: number | null;
   biography: string | null;
   companyCutPercentage: number | null;
   venue: "host" | "visit" | "both" | null;
@@ -208,8 +211,8 @@ export default function ProfessionalsPage() {
   const [rateMax, setRateMax] = useState<string>("");
 
   // Sorting
-  const [sortBy, setSortBy] = useState<string>("createdAt");
-  const [sortOrder, setSortOrder] = useState<"asc" | "desc">("desc");
+  const [sortBy] = useState<string>("createdAt");
+  const [sortOrder] = useState<"asc" | "desc">("desc");
 
   // Year options
   const yearOptions = useMemo(() => {
@@ -461,6 +464,18 @@ export default function ProfessionalsPage() {
     };
   };
 
+  const getVideoBadge = (offersVideo: boolean) => {
+    return offersVideo ? {
+      label: "Offers Video",
+      color: "bg-blue-100 dark:bg-blue-900 text-blue-800 dark:text-blue-100",
+      icon: <Video className="h-3 w-3" />
+    } : {
+      label: "No Video",
+      color: "bg-gray-100 text-gray-500",
+      icon: <Video className="h-3 w-3 opacity-50" />
+    };
+  };
+
   const getPaymentBadge = (paymentStatus: Professional["paymentStatus"]) => {
     if (paymentStatus.isBlocked) {
       return {
@@ -488,84 +503,84 @@ export default function ProfessionalsPage() {
   // Chart data transformations
   const venueChartData = statistics
     ? [
-        { name: "Host", value: statistics.venueDistribution.host },
-        { name: "Visit", value: statistics.venueDistribution.visit },
-        { name: "Both", value: statistics.venueDistribution.both },
-      ]
+      { name: "Host", value: statistics.venueDistribution.host },
+      { name: "Visit", value: statistics.venueDistribution.visit },
+      { name: "Both", value: statistics.venueDistribution.both },
+    ]
     : [];
 
   const ratingChartData = statistics
     ? [
-        {
-          name: "Excellent (4.5+)",
-          value: statistics.ratingDistribution.excellent,
-          fill: RATING_COLORS.excellent,
-        },
-        {
-          name: "Good (3.5-4.5)",
-          value: statistics.ratingDistribution.good,
-          fill: RATING_COLORS.good,
-        },
-        {
-          name: "Average (2.5-3.5)",
-          value: statistics.ratingDistribution.average,
-          fill: RATING_COLORS.average,
-        },
-        {
-          name: "Poor (<2.5)",
-          value: statistics.ratingDistribution.poor,
-          fill: RATING_COLORS.poor,
-        },
-        {
-          name: "No Rating",
-          value: statistics.ratingDistribution.noRating,
-          fill: RATING_COLORS.noRating,
-        },
-      ]
+      {
+        name: "Excellent (4.5+)",
+        value: statistics.ratingDistribution.excellent,
+        fill: RATING_COLORS.excellent,
+      },
+      {
+        name: "Good (3.5-4.5)",
+        value: statistics.ratingDistribution.good,
+        fill: RATING_COLORS.good,
+      },
+      {
+        name: "Average (2.5-3.5)",
+        value: statistics.ratingDistribution.average,
+        fill: RATING_COLORS.average,
+      },
+      {
+        name: "Poor (<2.5)",
+        value: statistics.ratingDistribution.poor,
+        fill: RATING_COLORS.poor,
+      },
+      {
+        name: "No Rating",
+        value: statistics.ratingDistribution.noRating,
+        fill: RATING_COLORS.noRating,
+      },
+    ]
     : [];
 
   const paymentChartData = statistics
     ? [
-        { name: "Valid", value: statistics.paymentStatusDistribution.valid },
-        {
-          name: "Invalid",
-          value: statistics.paymentStatusDistribution.invalid,
-        },
-        {
-          name: "Blocked",
-          value: statistics.paymentStatusDistribution.blocked,
-        },
-      ]
+      { name: "Valid", value: statistics.paymentStatusDistribution.valid },
+      {
+        name: "Invalid",
+        value: statistics.paymentStatusDistribution.invalid,
+      },
+      {
+        name: "Blocked",
+        value: statistics.paymentStatusDistribution.blocked,
+      },
+    ]
     : [];
 
   const monthlyChartData = statistics
     ? statistics.monthlyRegistrations.map((item) => ({
-        name: new Date(item.month + "-01").toLocaleDateString("en-US", {
-          month: "short",
-          year: "2-digit",
-        }),
-        professionals: item.count,
-      }))
+      name: new Date(item.month + "-01").toLocaleDateString("en-US", {
+        month: "short",
+        year: "2-digit",
+      }),
+      professionals: item.count,
+    }))
     : [];
 
   const weeklyChartData = statistics
     ? statistics.weeklyRegistrations.map((item) => ({
-        name: new Date(item.week).toLocaleDateString("en-US", {
-          month: "short",
-          day: "numeric",
-        }),
-        professionals: item.count,
-      }))
+      name: new Date(item.week).toLocaleDateString("en-US", {
+        month: "short",
+        day: "numeric",
+      }),
+      professionals: item.count,
+    }))
     : [];
 
   const reviewContributionData = statistics
     ? [
-        { name: "With Reviews", value: statistics.reviewStats.withReviews },
-        {
-          name: "Without Reviews",
-          value: statistics.reviewStats.withoutReviews,
-        },
-      ]
+      { name: "With Reviews", value: statistics.reviewStats.withReviews },
+      {
+        name: "Without Reviews",
+        value: statistics.reviewStats.withoutReviews,
+      },
+    ]
     : [];
 
   return (
@@ -1480,7 +1495,7 @@ export default function ProfessionalsPage() {
                                   <p className="text-xs text-gray-500 dark:text-gray-400 flex items-center gap-1 mt-1">
                                     <MapPin className="h-3 w-3" />
                                     {pro.parsedLocation.city &&
-                                    pro.parsedLocation.state
+                                      pro.parsedLocation.state
                                       ? `${pro.parsedLocation.city}, ${pro.parsedLocation.state}`
                                       : pro.location}
                                   </p>
@@ -1488,8 +1503,15 @@ export default function ProfessionalsPage() {
                               </div>
                               {/* Rate Badge */}
                               {pro.rate && (
-                                <div className="bg-[#F3CFC6] text-black px-2 py-1 rounded-lg text-sm font-bold">
-                                  ${pro.rate}/hr
+                                <div className="flex flex-col items-end gap-1">
+                                  <div className="bg-[#F3CFC6] text-black px-2 py-1 rounded-lg text-sm font-bold">
+                                    ${pro.rate}/hr
+                                  </div>
+                                  {pro.offersVideo && (
+                                    <div className="text-blue-600 dark:text-blue-400 text-xs font-bold">
+                                      ${pro.videoRate || pro.rate}/video
+                                    </div>
+                                  )}
                                 </div>
                               )}
                             </div>
@@ -1500,11 +1522,10 @@ export default function ProfessionalsPage() {
                                 {[...Array(5)].map((_, i) => (
                                   <Star
                                     key={i}
-                                    className={`h-4 w-4 ${
-                                      i < (pro.rating || 0)
-                                        ? "text-yellow-400 fill-yellow-400"
-                                        : "text-gray-300"
-                                    }`}
+                                    className={`h-4 w-4 ${i < (pro.rating || 0)
+                                      ? "text-yellow-400 fill-yellow-400"
+                                      : "text-gray-300"
+                                      }`}
                                   />
                                 ))}
                               </div>
@@ -1527,6 +1548,11 @@ export default function ProfessionalsPage() {
                                 className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${ratingBadge.color}`}
                               >
                                 ⭐ {ratingBadge.label}
+                              </span>
+                              <span
+                                className={`${getVideoBadge(pro.offersVideo).color} inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold`}
+                              >
+                                {getVideoBadge(pro.offersVideo).icon} {getVideoBadge(pro.offersVideo).label}
                               </span>
                               <span
                                 className={`inline-flex items-center gap-1 px-2 py-1 rounded-full text-xs font-semibold ${paymentBadge.color}`}

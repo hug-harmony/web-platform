@@ -1,5 +1,6 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
@@ -232,7 +233,7 @@ export async function GET(req: Request) {
     const averageRating =
       professional.reviews.length > 0
         ? professional.reviews.reduce((sum, r) => sum + r.rating, 0) /
-          professional.reviews.length
+        professional.reviews.length
         : null;
 
     // Get linked user info
@@ -270,48 +271,48 @@ export async function GET(req: Request) {
       // Linked User
       linkedUser: linkedUser
         ? {
-            id: linkedUser.id,
-            email: linkedUser.email,
-            name: linkedUser.name,
-            firstName: linkedUser.firstName,
-            lastName: linkedUser.lastName,
-            phoneNumber: linkedUser.phoneNumber,
-            profileImage: linkedUser.profileImage,
-            status: linkedUser.status,
-            createdAt: linkedUser.createdAt,
-            lastOnline: linkedUser.lastOnline,
-            emailVerified: linkedUser.emailVerified,
-          }
+          id: linkedUser.id,
+          email: linkedUser.email,
+          name: linkedUser.name,
+          firstName: linkedUser.firstName,
+          lastName: linkedUser.lastName,
+          phoneNumber: linkedUser.phoneNumber,
+          profileImage: linkedUser.profileImage,
+          status: linkedUser.status,
+          createdAt: linkedUser.createdAt,
+          lastOnline: linkedUser.lastOnline,
+          emailVerified: linkedUser.emailVerified,
+        }
         : null,
 
       // Application Info
       application: linkedApplication
         ? {
-            id: linkedApplication.id,
-            status: linkedApplication.status,
-            rate: linkedApplication.rate,
-            venue: linkedApplication.venue,
-            submittedAt: linkedApplication.submittedAt,
-            videoWatchedAt: linkedApplication.videoWatchedAt,
-            quizPassedAt: linkedApplication.quizPassedAt,
-            createdAt: linkedApplication.createdAt,
-            quizAttempts: linkedApplication.quizAttempts.map((qa) => ({
-              id: qa.id,
-              score: qa.score,
-              passed: qa.passed,
-              attemptedAt: qa.attemptedAt,
-              nextEligibleAt: qa.nextEligibleAt,
-            })),
-            videoWatch: linkedApplication.videoWatch
-              ? {
-                  id: linkedApplication.videoWatch.id,
-                  videoName: linkedApplication.videoWatch.video.name,
-                  watchedSec: linkedApplication.videoWatch.watchedSec,
-                  isCompleted: linkedApplication.videoWatch.isCompleted,
-                  lastWatchedAt: linkedApplication.videoWatch.lastWatchedAt,
-                }
-              : null,
-          }
+          id: linkedApplication.id,
+          status: linkedApplication.status,
+          rate: linkedApplication.rate,
+          venue: linkedApplication.venue,
+          submittedAt: linkedApplication.submittedAt,
+          videoWatchedAt: linkedApplication.videoWatchedAt,
+          quizPassedAt: linkedApplication.quizPassedAt,
+          createdAt: linkedApplication.createdAt,
+          quizAttempts: linkedApplication.quizAttempts.map((qa) => ({
+            id: qa.id,
+            score: qa.score,
+            passed: qa.passed,
+            attemptedAt: qa.attemptedAt,
+            nextEligibleAt: qa.nextEligibleAt,
+          })),
+          videoWatch: linkedApplication.videoWatch
+            ? {
+              id: linkedApplication.videoWatch.id,
+              videoName: linkedApplication.videoWatch.video.name,
+              watchedSec: linkedApplication.videoWatch.watchedSec,
+              isCompleted: linkedApplication.videoWatch.isCompleted,
+              lastWatchedAt: linkedApplication.videoWatch.lastWatchedAt,
+            }
+            : null,
+        }
         : null,
 
       // Stats
@@ -360,11 +361,11 @@ export async function GET(req: Request) {
         paymentAmount: apt.payment?.amount,
         confirmation: apt.confirmation
           ? {
-              clientConfirmed: apt.confirmation.clientConfirmed,
-              professionalConfirmed: apt.confirmation.professionalConfirmed,
-              finalStatus: apt.confirmation.finalStatus,
-              isDisputed: apt.confirmation.isDisputed,
-            }
+            clientConfirmed: apt.confirmation.clientConfirmed,
+            professionalConfirmed: apt.confirmation.professionalConfirmed,
+            finalStatus: apt.confirmation.finalStatus,
+            isDisputed: apt.confirmation.isDisputed,
+          }
           : null,
         createdAt: apt.createdAt,
       })),
@@ -539,7 +540,7 @@ export async function PATCH(req: Request) {
     }
 
     // Build update data
-    const updateData: any = {};
+    const updateData: Prisma.ProfessionalUpdateInput = {};
 
     if (validatedData.name !== undefined) updateData.name = validatedData.name;
     if (validatedData.image !== undefined)
@@ -579,7 +580,7 @@ export async function PATCH(req: Request) {
     // Sync relevant fields back to linked user if exists
     const linkedUser = professional.applications[0]?.user;
     if (linkedUser) {
-      const userUpdateData: any = {};
+      const userUpdateData: Prisma.UserUpdateInput = {};
       if (validatedData.name !== undefined)
         userUpdateData.name = validatedData.name;
       if (validatedData.image !== undefined)
@@ -598,13 +599,13 @@ export async function PATCH(req: Request) {
     }
 
     return NextResponse.json(updatedProfessional);
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PATCH /api/admin/professionals/[id] error:", error);
     if (error instanceof z.ZodError) {
       return NextResponse.json({ error: error.errors }, { status: 400 });
     }
     return NextResponse.json(
-      { error: error.message || "Update failed" },
+      { error: (error as Error).message || "Update failed" },
       { status: 500 }
     );
   }

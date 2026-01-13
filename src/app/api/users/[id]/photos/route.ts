@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { uploadToS3 } from "@/lib/s3";
@@ -146,10 +146,10 @@ export async function POST(req: Request) {
     );
 
     return NextResponse.json({ photos: uploaded });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("POST /users/[id]/photos error:", error);
     return NextResponse.json(
-      { error: error.message || "Upload failed" },
+      { error: (error as Error).message || "Upload failed" },
       { status: 500 }
     );
   }

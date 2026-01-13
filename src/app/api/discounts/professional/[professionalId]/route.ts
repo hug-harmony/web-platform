@@ -1,5 +1,5 @@
 // src\app\api\discounts\professional\[professionalId]\route.ts
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth/next";
 import prisma from "@/lib/prisma";
@@ -58,7 +58,7 @@ export async function GET(
         updatedAt: discount.updatedAt,
       }))
     );
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("Error fetching discounts:", error);
     return NextResponse.json(
       { error: "Internal server error: Failed to fetch discounts" },

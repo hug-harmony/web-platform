@@ -110,8 +110,7 @@ export default function VideoSession({
     return () => {
       leave();
     };
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [join, leave]);
 
   // Auto-hide controls
   const handleMouseMove = useCallback(() => {

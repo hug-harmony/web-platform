@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
 
 import { Button } from "@/components/ui/button";
@@ -37,7 +37,22 @@ import {
   Loader2,
   CheckCircle,
   AlertCircle,
+  LucideIcon,
 } from "lucide-react";
+
+interface FieldConfig {
+  key: string;
+  label: string;
+  icon: LucideIcon;
+  required?: boolean;
+  maxLength?: number;
+  type?: string;
+  isLocation?: boolean;
+  isTextarea?: boolean;
+  isSelect?: boolean;
+  options?: string[];
+  placeholder?: string;
+}
 
 interface Props {
   profile: Profile;
@@ -48,7 +63,8 @@ interface Props {
   selectedFile: File | null;
   setSelectedFile: (f: File | null) => void;
   formErrors: Record<string, string>;
-  locationProps: any;
+
+  locationProps: any; // eslint-disable-line @typescript-eslint/no-explicit-any
   handleSubmit: (e: React.FormEvent) => Promise<void>;
 }
 
@@ -199,9 +215,8 @@ function FieldDisplay({
           {label}
         </p>
         <p
-          className={`text-sm mt-0.5 break-words ${
-            hasValue ? "text-black" : "text-gray-400 italic"
-          }`}
+          className={`text-sm mt-0.5 break-words ${hasValue ? "text-black" : "text-gray-400 italic"
+            }`}
         >
           {hasValue ? value : "Not provided"}
         </p>
@@ -222,12 +237,12 @@ function FieldInput({
   error,
   locationProps,
 }: {
-  field: any;
+  field: FieldConfig;
   profile: Profile;
   setProfile: (p: Profile) => void;
   updating: boolean;
   error?: string;
-  locationProps?: any;
+  locationProps?: any; // eslint-disable-line @typescript-eslint/no-explicit-any
 }) {
   const Icon = field.icon;
   const value = (profile[field.key as keyof Profile] as string) || "";
@@ -283,7 +298,7 @@ function FieldInput({
             <SelectValue placeholder="Select..." />
           </SelectTrigger>
           <SelectContent>
-            {field.options.map((option: string) => (
+            {field.options?.map((option: string) => (
               <SelectItem key={option} value={option}>
                 {option}
               </SelectItem>
@@ -379,13 +394,12 @@ export function PersonalInfoSection({
           {/* Completion Badge */}
           <Badge
             variant="secondary"
-            className={`${
-              completionPercent === 100
-                ? "bg-green-100 text-green-700"
-                : completionPercent >= 50
-                  ? "bg-yellow-100 text-yellow-700"
-                  : "bg-gray-100 text-gray-700"
-            }`}
+            className={`${completionPercent === 100
+              ? "bg-green-100 text-green-700"
+              : completionPercent >= 50
+                ? "bg-yellow-100 text-yellow-700"
+                : "bg-gray-100 text-gray-700"
+              }`}
           >
             {completionPercent}% Complete
           </Badge>

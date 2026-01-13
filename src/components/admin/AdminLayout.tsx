@@ -1,5 +1,5 @@
 // src\components\admin\AdminLayout.tsx
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 "use client";
 
 import { motion, easeInOut } from "framer-motion";
@@ -19,18 +19,13 @@ import { Button } from "@/components/ui/button";
 import {
   LogOut,
   Menu,
-  Moon,
-  Sun,
   LayoutDashboard,
   Users,
   UserCheck,
   BarChart,
-  Flag,
-  Calendar,
   Settings,
   MessageCircle,
   Bell,
-  FileWarning,
   Package,
   Video,
   DollarSign,
@@ -40,7 +35,6 @@ import {
 import { signOut, useSession } from "next-auth/react";
 import Link from "next/link";
 import { useState, useEffect } from "react";
-import { useTheme } from "next-themes";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
 import { useRouter } from "next/navigation";
 import { Badge } from "@/components/ui/badge";
@@ -49,7 +43,7 @@ import {
   PopoverContent,
   PopoverTrigger,
 } from "@/components/ui/popover";
-import Image from "next/image";
+
 
 export default function AdminDashboardLayout({
   children,
@@ -57,12 +51,11 @@ export default function AdminDashboardLayout({
   children: React.ReactNode;
 }) {
   const { data: session, status } = useSession();
-  const { theme, setTheme } = useTheme();
   const [isSidebarOpen, setIsSidebarOpen] = useState(true);
   const router = useRouter();
 
   // Dummy notification data (replace with real data in production)
-  const [notifications, setNotifications] = useState([
+  const [notifications] = useState([
     {
       id: 1,
       type: "report",

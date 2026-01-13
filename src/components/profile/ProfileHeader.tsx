@@ -191,14 +191,19 @@ export default function ProfileHeader({
                   </Link>
                 </Button>
                 <Button
-                  asChild
-                  className="bg-[#F3CFC6] hover:bg-[#C4C4C4] text-black dark:text-white px-6 py-2 rounded-full w-full sm:w-auto"
+                  className="bg-white hover:bg-gray-50 text-black border border-gray-200 px-6 py-2 rounded-full w-full sm:w-auto h-11"
+                  disabled={!profile.offersVideo}
+                  asChild={!!profile.offersVideo}
                 >
-                  <Link
-                    href={`/dashboard/appointments/book/${profile.id}?type=video`}
-                  >
-                    <Video className="mr-2 h-4 w-4" /> Book Virtual
-                  </Link>
+                  {profile.offersVideo ? (
+                    <Link href={`/dashboard/appointments/book/${profile.id}?venue=video`}>
+                      <Video className="mr-2 h-4 w-4" /> Book Virtual
+                    </Link>
+                  ) : (
+                    <div className="flex items-center justify-center opacity-50 cursor-not-allowed w-full h-full">
+                      <Video className="mr-2 h-4 w-4" /> Book Virtual
+                    </div>
+                  )}
                 </Button>
               </>
             )}
@@ -245,6 +250,6 @@ export default function ProfileHeader({
           </div>
         </div>
       </CardContent>
-    </Card>
+    </Card >
   );
 }

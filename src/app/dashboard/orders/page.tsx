@@ -24,6 +24,7 @@ import {
   ShoppingBag,
 } from "lucide-react";
 import Link from "next/link";
+import Image from "next/image";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
 import { toast } from "sonner";
@@ -35,7 +36,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
-import OrderCard from "@/components/merchandise/OrderCard";
+// import OrderCard from "@/components/merchandise/OrderCard";
 
 interface OrderItem {
   id: string;
@@ -516,10 +517,11 @@ export default function OrdersPage() {
                               >
                                 <div className="h-12 w-12 rounded-lg bg-gray-100 flex items-center justify-center overflow-hidden">
                                   {item.merchandise.image ? (
-                                    <img
+                                    <Image
                                       src={item.merchandise.image}
                                       alt={item.merchandise.name}
-                                      className="h-full w-full object-cover"
+                                      fill
+                                      className="object-cover"
                                     />
                                   ) : (
                                     <Package className="h-6 w-6 text-gray-400" />

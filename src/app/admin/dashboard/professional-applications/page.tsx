@@ -28,6 +28,7 @@ import {
   ArrowUpDown,
   Eye,
   DollarSign,
+  Video,
 } from "lucide-react";
 import Link from "next/link";
 import Image from "next/image";
@@ -35,6 +36,7 @@ import {
   STATUS_CONFIG,
   VENUE_ICONS,
   type ProOnboardingStatus,
+  type VenueType,
 } from "@/lib/constants/application-status";
 
 interface Application {
@@ -47,7 +49,9 @@ interface Application {
   videoWatchedAt?: string | null;
   quizPassedAt?: string | null;
   rate: number;
-  venue: "host" | "visit" | "both";
+  offersVideo: boolean;
+  videoRate: number | null;
+  venue: VenueType;
   video?: {
     watchedSec: number;
     durationSec: number;
@@ -426,6 +430,12 @@ function ApplicationCard({
               <span className="text-muted-foreground">
                 {VENUE_ICONS[app.venue]} {app.venue}
               </span>
+              {app.offersVideo && (
+                <span className="flex items-center gap-1 text-blue-600 dark:text-blue-400">
+                  <Video className="h-3.5 w-3.5" />
+                  ${(app.videoRate || app.rate).toFixed(2)}/video
+                </span>
+              )}
             </div>
 
             {app.video && (

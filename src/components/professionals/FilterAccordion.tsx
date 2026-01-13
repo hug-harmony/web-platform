@@ -1,6 +1,6 @@
 // components/professionals/FilterAccordion.tsx
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
 
 import {
@@ -33,7 +33,7 @@ import { cn } from "@/lib/utils";
 interface Props {
   filters: Filters;
   locations: string[];
-  onFilterChange: (key: string, value: any) => void;
+  onFilterChange: (key: string, value: string | number | undefined) => void;
   onCustomLocation: () => void;
   // Date/Time props
   onDateTimeClick: () => void;
@@ -165,7 +165,7 @@ export function FilterAccordion({
                       >
                         {filters.gender
                           ? filters.gender.charAt(0).toUpperCase() +
-                            filters.gender.slice(1)
+                          filters.gender.slice(1)
                           : "All"}
                       </Button>
                     </DropdownMenuTrigger>
@@ -349,7 +349,7 @@ export function FilterAccordion({
                       >
                         {filters.type
                           ? filters.type.charAt(0).toUpperCase() +
-                            filters.type.slice(1)
+                          filters.type.slice(1)
                           : "All"}
                       </Button>
                     </DropdownMenuTrigger>

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import React, { useState, useEffect, useCallback } from "react";
 import { Button } from "@/components/ui/button";
 import { Label } from "@/components/ui/label";
@@ -55,6 +55,20 @@ const cardVariants = {
   visible: { opacity: 1, scale: 1, transition: { duration: 0.2 } },
 };
 
+interface CalendarEvent {
+  title: string;
+  start: Date;
+  end: Date;
+  allDay?: boolean;
+  resource?: unknown;
+}
+
+interface WorkingHour {
+  dayOfWeek: number;
+  startTime: string;
+  endTime: string;
+}
+
 const ProposalDialog: React.FC<ProposalDialogProps> = ({
   isOpen,
   setIsOpen,
@@ -63,8 +77,8 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
   professionalId,
 }) => {
   const [currentDate, setCurrentDate] = useState(new Date());
-  const [bookedEvents, setBookedEvents] = useState<any[]>([]);
-  const [workingHours, setWorkingHours] = useState<any[]>([]);
+  const [bookedEvents, setBookedEvents] = useState<CalendarEvent[]>([]);
+  const [workingHours, setWorkingHours] = useState<WorkingHour[]>([]);
   const [newProposalSlot, setNewProposalSlot] = useState<{
     start: Date;
     end: Date;
@@ -106,7 +120,7 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
         if (!res.ok) throw new Error("Failed to load schedule");
         const { events, workingHours: fetchedWorkingHours } = await res.json();
         setBookedEvents(
-          events.map((e: any) => ({
+          events.map((e: { title: string; start: string; end: string }) => ({
             ...e,
             start: new Date(e.start),
             end: new Date(e.end),
@@ -181,7 +195,7 @@ const ProposalDialog: React.FC<ProposalDialogProps> = ({
     [workingHours]
   );
 
-  const eventPropGetter = useCallback((event: any) => {
+  const eventPropGetter = useCallback((event: CalendarEvent) => {
     if (event.title === "Blocked (Buffer)") {
       return {
         className: "border",

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 // lib/services/email.ts
 
 import nodemailer from "nodemailer";
@@ -381,16 +381,15 @@ The Hug Harmony Team`,
   
   <p>After careful review, we regret to inform you that your application has not been approved at this time.</p>
   
-  ${
-    reason
-      ? `
+  ${reason
+        ? `
   <div style="background-color: #fef2f2; border: 1px solid #fecaca; padding: 15px; border-radius: 8px; margin: 20px 0;">
     <p style="margin: 0; color: #991b1b;"><strong>Feedback:</strong></p>
     <p style="margin: 10px 0 0 0; color: #991b1b;">${reason}</p>
   </div>
   `
-      : ""
-  }
+        : ""
+      }
   
   <p>This decision doesn't reflect on you personally. Our requirements change over time, and we encourage you to reapply in the future.</p>
   
@@ -880,11 +879,10 @@ function getAppointmentCancelledEmailTemplate(
 
 The appointment on ${date} at ${time} with ${otherPartyName} has been cancelled by ${cancelledBy}.
 
-${
-  isRecipientProfessional
-    ? "The time slot is now available for other bookings."
-    : "You can book a new appointment at your convenience."
-}
+${isRecipientProfessional
+        ? "The time slot is now available for other bookings."
+        : "You can book a new appointment at your convenience."
+      }
 
 Warm hugs,
 The Hug Harmony Team`,
@@ -912,11 +910,10 @@ The Hug Harmony Team`,
     <p style="margin: 10px 0 0 0; color: #991b1b;"><strong>Time:</strong> ${time}</p>
   </div>
   
-  <p>${
-    isRecipientProfessional
-      ? "The time slot is now available for other bookings."
-      : "You can book a new appointment at your convenience."
-  }</p>
+  <p>${isRecipientProfessional
+        ? "The time slot is now available for other bookings."
+        : "You can book a new appointment at your convenience."
+      }</p>
   
   <hr style="border: none; border-top: 1px solid #eee; margin: 30px 0;">
   
@@ -936,7 +933,7 @@ function getAppointmentReminderEmailTemplate(
   appointmentUrl: string,
   isRecipientProfessional: boolean
 ): EmailTemplate {
-  const roleLabel = isRecipientProfessional ? "client" : "professional";
+  // const roleLabel = isRecipientProfessional ? "client" : "professional";
 
   return {
     subject: `⏰ Reminder: Appointment tomorrow with ${otherPartyName}`,
@@ -1960,7 +1957,7 @@ export async function sendAppointmentBookedEmails(
   duration: string,
   amount: string,
   venue: string,
-  appointmentId: string
+  // _appointmentId: string
 ): Promise<void> {
   const appointmentUrl = `${process.env.NEXT_PUBLIC_APP_URL}/dashboard/appointments`;
 
@@ -2481,13 +2478,13 @@ export async function sendEarningCreatedEmail(
  * @deprecated Use sendFeeChargedEmail instead
  */
 export async function sendPayoutProcessedEmail(
-  professionalEmail: string,
-  professionalName: string,
-  amount: string,
-  sessionsCount: number,
-  cycleStartDate: string,
-  cycleEndDate: string,
-  _paymentMethod: string = "Bank Transfer"
+  // professionalEmail: string,
+  // professionalName: string,
+  // amount: string,
+  // sessionsCount: number,
+  // cycleStartDate: string,
+  // cycleEndDate: string,
+  // _paymentMethod: string = "Bank Transfer"
 ): Promise<void> {
   // This function is deprecated - payouts are now fee charges
   console.warn(
@@ -2522,8 +2519,8 @@ export async function sendWeeklyEarningsSummaryEmail(
   weekEnd: string,
   totalEarnings: string,
   sessionsCount: number,
-  pendingConfirmations: number,
-  upcomingPayoutDate: string
+  // pendingConfirmations: number,
+  // upcomingPayoutDate: string
 ): Promise<void> {
   // Redirect to new cycle summary email
   // Note: We don't have platformFee info here, so we'll estimate at 20%

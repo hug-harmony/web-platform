@@ -33,9 +33,9 @@ function calculateDistance(
   const a =
     Math.sin(dLat / 2) * Math.sin(dLat / 2) +
     Math.cos((lat1 * Math.PI) / 180) *
-      Math.cos((lat2 * Math.PI) / 180) *
-      Math.sin(dLon / 2) *
-      Math.sin(dLon / 2);
+    Math.cos((lat2 * Math.PI) / 180) *
+    Math.sin(dLon / 2) *
+    Math.sin(dLon / 2);
   const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
   return R * c; // Distance in km
 }
@@ -150,6 +150,8 @@ export async function getProfessionals(
       rating: true,
       reviewCount: true,
       rate: true,
+      offersVideo: true,
+      videoRate: true,
       biography: true,
       createdAt: true,
       venue: true,
@@ -180,6 +182,8 @@ export async function getProfessionals(
     rating: p.rating || undefined,
     reviewCount: p.reviewCount || undefined,
     rate: p.rate || undefined,
+    offersVideo: p.offersVideo,
+    videoRate: p.videoRate || undefined,
     biography: p.biography || undefined,
     createdAt: p.createdAt?.toISOString(),
     venue: p.venue || undefined,
@@ -320,6 +324,8 @@ export async function getProfessionalById(
       rating: true,
       reviewCount: true,
       rate: true,
+      offersVideo: true,
+      videoRate: true,
       biography: true,
       createdAt: true,
       venue: true,
@@ -378,6 +384,8 @@ export async function getProfessionalById(
     rating: professional.rating || undefined,
     reviewCount: professional.reviewCount || undefined,
     rate: professional.rate || undefined,
+    offersVideo: professional.offersVideo,
+    videoRate: professional.videoRate || undefined,
     biography: professional.biography || undefined,
     createdAt: professional.createdAt?.toISOString(),
     venue: professional.venue || undefined,

@@ -6,7 +6,6 @@ import {
   Gem,
   CalendarCog,
   Percent,
-  Settings,
   ChevronRight,
 } from "lucide-react";
 import { useRouter } from "next/navigation";

@@ -1,10 +1,8 @@
-// src/app/api/admin/professionals/route.ts
 import { NextRequest, NextResponse } from "next/server";
-import { PrismaClient, Prisma } from "@prisma/client";
+import prisma from "@/lib/prisma";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
-
-const prisma = new PrismaClient();
 
 export async function GET(req: NextRequest) {
   try {
@@ -235,6 +233,8 @@ export async function GET(req: NextRequest) {
         paymentBlockReason: true,
         cardLast4: true,
         cardBrand: true,
+        offersVideo: true,
+        videoRate: true,
         paymentAcceptanceMethods: true,
         applications: {
           select: {
@@ -292,7 +292,7 @@ export async function GET(req: NextRequest) {
 
         // Parse location
         const locationParts =
-          pro.location?.split(",").map((s) => s.trim()) || [];
+          pro.location?.split(",").map((s: string) => s.trim()) || [];
         const parsedLocation = {
           city: locationParts[0] || "",
           state: locationParts[1] || "",
@@ -312,6 +312,8 @@ export async function GET(req: NextRequest) {
           biography: pro.biography,
           companyCutPercentage: pro.companyCutPercentage,
           venue: pro.venue,
+          offersVideo: pro.offersVideo,
+          videoRate: pro.videoRate,
           createdAt: pro.createdAt,
           location: pro.location,
           parsedLocation,
@@ -325,12 +327,12 @@ export async function GET(req: NextRequest) {
           },
           linkedUser: linkedUser
             ? {
-                id: linkedUser.id,
-                email: linkedUser.email,
-                name: linkedUser.name,
-                lastOnline: linkedUser.lastOnline,
-                profileImage: linkedUser.profileImage,
-              }
+              id: linkedUser.id,
+              email: linkedUser.email,
+              name: linkedUser.name,
+              lastOnline: linkedUser.lastOnline,
+              profileImage: linkedUser.profileImage,
+            }
             : null,
           applicationStatus: pro.applications[0]?.status || null,
           stats: {
@@ -413,6 +415,7 @@ export async function GET(req: NextRequest) {
       const venueDistribution = {
         host: 0,
         visit: 0,
+        video: 0,
         both: 0,
       };
 

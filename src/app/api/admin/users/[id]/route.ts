@@ -1,6 +1,7 @@
 // src\app\api\admin\users\[id]\route.ts
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
@@ -187,7 +188,7 @@ export async function GET(req: Request) {
         surveyResponses: user._count.surveyResponses,
       },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("GET /api/admin/users/[id] error:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },
@@ -226,7 +227,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     // Build update data
-    const userUpdateData: any = {};
+    const userUpdateData: Prisma.UserUpdateInput = {};
 
     if (validatedData.name) userUpdateData.name = validatedData.name;
     if (validatedData.firstName)
@@ -297,7 +298,7 @@ export async function PATCH(req: Request) {
       validatedData.location;
 
     if (user.professionalApplication?.professional && hasProfessionalUpdates) {
-      const professionalUpdate: any = {};
+      const professionalUpdate: Prisma.ProfessionalUpdateInput = {};
       if (validatedData.name) professionalUpdate.name = validatedData.name;
       if (validatedData.profileImage !== undefined)
         professionalUpdate.image = validatedData.profileImage;
@@ -339,12 +340,12 @@ export async function PATCH(req: Request) {
       lastOnline: updatedUser.lastOnline,
       emailVerified: updatedUser.emailVerified,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PATCH /api/admin/users/[id] error:", error);
     if (error instanceof z.ZodError)
       return NextResponse.json({ error: error.errors }, { status: 400 });
     return NextResponse.json(
-      { error: error.message || "Update failed" },
+      { error: (error as Error).message || "Update failed" },
       { status: 500 }
     );
   }
@@ -379,7 +380,7 @@ export async function DELETE(req: Request) {
       message: "User suspended",
       user: { id: deletedUser.id, status: deletedUser.status },
     });
-  } catch (error) {
+  } catch (error: unknown) {
     console.error("DELETE /api/admin/users/[id] error:", error);
     return NextResponse.json(
       { error: "Internal Server Error" },

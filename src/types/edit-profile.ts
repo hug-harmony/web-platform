@@ -42,6 +42,8 @@ export interface Profile {
   rating?: number | null;
   reviewCount?: number | null;
   rate?: number | null;
+  offersVideo?: boolean | null;
+  videoRate?: number | null;
   venue?: "host" | "visit" | "both" | null;
   relationshipStatus?: string | null;
   orientation?: string | null;

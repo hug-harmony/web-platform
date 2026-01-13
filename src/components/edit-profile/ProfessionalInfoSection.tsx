@@ -28,7 +28,9 @@ import {
   CheckCircle,
   AlertCircle,
   Star,
+  Video,
 } from "lucide-react";
+import { Switch } from "@/components/ui/switch";
 import { validateProfessionalProfileForm } from "@/lib/validate-edit-profile";
 import { Profile } from "@/types/edit-profile";
 import { PaymentMethodStatus } from "./PaymentMethodStatus";
@@ -73,6 +75,20 @@ const PROFESSIONAL_FIELDS = [
     prefix: "$",
   },
   {
+    key: "offersVideo",
+    label: "Offers Video Sessions",
+    icon: Video,
+    type: "boolean",
+  },
+  {
+    key: "videoRate",
+    label: "Video Session Rate",
+    icon: DollarSign,
+    type: "number",
+    prefix: "$",
+    dependsOn: "offersVideo",
+  },
+  {
     key: "venue",
     label: "Venue Preference",
     icon: MapPin,
@@ -94,7 +110,7 @@ function FieldDisplay({
   prefix,
 }: {
   label: string;
-  value: string | number | null | undefined;
+  value: string | number | boolean | null | undefined;
   icon: React.ElementType;
   prefix?: string;
 }) {
@@ -117,14 +133,15 @@ function FieldDisplay({
           {label}
         </p>
         <p
-          className={`text-sm mt-1 break-words ${
-            hasValue ? "text-black" : "text-gray-400 italic"
-          }`}
+          className={`text-sm mt-1 break-words ${hasValue ? "text-black" : "text-gray-400 italic"
+            }`}
         >
-          {displayValue || "Not provided"}
+          {typeof value === "boolean"
+            ? (value ? "Yes" : "No")
+            : (displayValue || "Not provided")}
         </p>
       </div>
-      {hasValue && (
+      {hasValue && value !== false && (
         <CheckCircle className="h-4 w-4 text-green-500 flex-shrink-0 mt-1" />
       )}
     </div>
@@ -140,8 +157,8 @@ function FieldInput({
   error,
 }: {
   field: (typeof PROFESSIONAL_FIELDS)[0];
-  value: string | number | null | undefined;
-  onChange: (value: string | number | null) => void;
+  value: string | number | boolean | null | undefined;
+  onChange: (value: string | number | boolean | null) => void;
   updating: boolean;
   error?: string;
 }) {
@@ -155,7 +172,19 @@ function FieldInput({
         {field.required && <span className="text-red-500">*</span>}
       </Label>
 
-      {field.isTextarea ? (
+      {field.type === "boolean" ? (
+        <div className="flex items-center space-x-2 py-2">
+          <Switch
+            id={field.key}
+            checked={!!value}
+            onCheckedChange={(checked) => onChange(checked)}
+            disabled={updating}
+          />
+          <span className="text-sm text-gray-600">
+            {value ? "Enabled" : "Disabled"}
+          </span>
+        </div>
+      ) : field.isTextarea ? (
         <div className="space-y-1">
           <Textarea
             name={field.key}
@@ -201,7 +230,7 @@ function FieldInput({
           <Input
             name={field.key}
             type={field.type || "text"}
-            value={value ?? ""}
+            value={typeof value === "boolean" ? "" : (value ?? "")}
             onChange={(e) =>
               onChange(
                 field.type === "number"
@@ -212,9 +241,8 @@ function FieldInput({
             disabled={updating}
             step={field.type === "number" ? "0.01" : undefined}
             min={field.type === "number" ? "0" : undefined}
-            className={`border-gray-200 focus:border-[#F3CFC6] focus:ring-[#F3CFC6]/20 ${
-              field.prefix ? "pl-7" : ""
-            }`}
+            className={`border-gray-200 focus:border-[#F3CFC6] focus:ring-[#F3CFC6]/20 ${field.prefix ? "pl-7" : ""
+              }`}
             required={field.required}
           />
         </div>
@@ -256,7 +284,7 @@ export function ProfessionalInfoSection({
     const form = new FormData(e.currentTarget);
     const errors = validateProfessionalProfileForm(form);
 
-    if (Object.keys(errors).length) {
+    if (!profile || Object.keys(errors).length) {
       setFormErrors(errors);
       toast.error("Please fix the errors");
       setUpdating(false);
@@ -267,6 +295,8 @@ export function ProfessionalInfoSection({
       const payload = {
         biography: form.get("biography")?.toString().trim() ?? null,
         rate: parseFloat(form.get("rate")?.toString() ?? "0") || null,
+        offersVideo: profile.offersVideo,
+        videoRate: profile.offersVideo ? profile.videoRate : null,
         venue: form.get("venue") as "host" | "visit" | "both" | null,
       };
 
@@ -287,11 +317,13 @@ export function ProfessionalInfoSection({
       setProfile((prev) =>
         prev
           ? {
-              ...prev,
-              biography: updated.biography ?? prev.biography,
-              rate: updated.rate ?? prev.rate,
-              venue: updated.venue ?? prev.venue,
-            }
+            ...prev,
+            biography: updated.biography ?? prev.biography,
+            rate: updated.rate ?? prev.rate,
+            offersVideo: updated.offersVideo ?? prev.offersVideo,
+            videoRate: updated.videoRate ?? prev.videoRate,
+            venue: updated.venue ?? prev.venue,
+          }
           : prev
       );
 
@@ -308,9 +340,9 @@ export function ProfessionalInfoSection({
     setProfile((prev) =>
       prev
         ? {
-            ...prev,
-            paymentAcceptanceMethods: methods,
-          }
+          ...prev,
+          paymentAcceptanceMethods: methods,
+        }
         : prev
     );
   };
@@ -344,13 +376,12 @@ export function ProfessionalInfoSection({
           {/* Completion Badge */}
           <Badge
             variant="secondary"
-            className={`${
-              completionPercent === 100
-                ? "bg-green-100 text-green-700"
-                : completionPercent >= 50
-                  ? "bg-yellow-100 text-yellow-700"
-                  : "bg-gray-100 text-gray-700"
-            }`}
+            className={`${completionPercent === 100
+              ? "bg-green-100 text-green-700"
+              : completionPercent >= 50
+                ? "bg-yellow-100 text-yellow-700"
+                : "bg-gray-100 text-gray-700"
+              }`}
           >
             <Star className="h-3 w-3 mr-1" />
             {completionPercent}% Complete
@@ -388,23 +419,29 @@ export function ProfessionalInfoSection({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-4">
-                {PROFESSIONAL_FIELDS.map((field) => (
-                  <FieldInput
-                    key={field.key}
-                    field={field}
-                    value={
-                      profile[field.key as keyof Profile] as
+                {PROFESSIONAL_FIELDS.map((field) => {
+                  if (field.dependsOn && !profile[field.dependsOn as keyof Profile]) {
+                    return null;
+                  }
+                  return (
+                    <FieldInput
+                      key={field.key}
+                      field={field}
+                      value={
+                        profile[field.key as keyof Profile] as
                         | string
                         | number
+                        | boolean
                         | null
-                    }
-                    onChange={(value) =>
-                      setProfile({ ...profile, [field.key]: value })
-                    }
-                    updating={updating}
-                    error={formErrors[field.key]}
-                  />
-                ))}
+                      }
+                      onChange={(value) =>
+                        setProfile((prev) => prev ? { ...prev, [field.key]: value } : prev)
+                      }
+                      updating={updating}
+                      error={formErrors[field.key]}
+                    />
+                  );
+                })}
               </CardContent>
             </Card>
           </motion.div>
@@ -462,20 +499,26 @@ export function ProfessionalInfoSection({
                 </CardTitle>
               </CardHeader>
               <CardContent className="space-y-3">
-                {PROFESSIONAL_FIELDS.map((field) => (
-                  <FieldDisplay
-                    key={field.key}
-                    label={field.label}
-                    value={
-                      profile[field.key as keyof Profile] as
+                {PROFESSIONAL_FIELDS.map((field) => {
+                  if (field.dependsOn && !profile[field.dependsOn as keyof Profile]) {
+                    return null;
+                  }
+                  return (
+                    <FieldDisplay
+                      key={field.key}
+                      label={field.label}
+                      value={
+                        profile[field.key as keyof Profile] as
                         | string
                         | number
+                        | boolean
                         | null
-                    }
-                    icon={field.icon}
-                    prefix={field.prefix}
-                  />
-                ))}
+                      }
+                      icon={field.icon}
+                      prefix={field.prefix}
+                    />
+                  );
+                })}
               </CardContent>
             </Card>
           </motion.div>

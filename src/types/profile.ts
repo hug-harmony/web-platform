@@ -44,9 +44,11 @@ export interface ProfessionalProfile extends BaseProfile {
 
   // Professional-specific fields
   rate?: number;
+  offersVideo?: boolean;
+  videoRate?: number;
   rating?: number;
   reviewCount?: number;
-  venue?: "host" | "visit" | "both";
+  venue?: "host" | "visit" | "video" | "both";
   userId?: string; // The linked user's ID for messaging
 
   // NEW: Payment acceptance methods

@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 // src/lib/services/chime.ts
 import {
   ChimeSDKMeetingsClient,
@@ -99,7 +99,7 @@ export async function createChimeMeeting(
 export async function addAttendeeToMeeting(
   meetingId: string,
   userId: string,
-  _displayName: string
+  // _displayName: string
 ): Promise<NonNullable<CreateAttendeeCommandOutput["Attendee"]>> {
   console.log("Adding attendee to meeting:", { meetingId, userId });
 

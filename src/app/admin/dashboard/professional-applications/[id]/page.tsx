@@ -49,6 +49,8 @@ interface Application {
   avatarUrl?: string | null;
   biography: string;
   rate: number;
+  offersVideo: boolean;
+  videoRate: number | null;
   venue: VenueType;
   status: ProOnboardingStatus;
   createdAt: string;
@@ -264,6 +266,13 @@ export default function ApplicationDetailPage() {
               label="Hourly Rate"
               value={`$${app.rate?.toFixed(2) ?? "0.00"}`}
             />
+            {app.offersVideo && (
+              <DetailRow
+                icon={<DollarSign className="h-4 w-4" />}
+                label="Video Rate"
+                value={`$${app.videoRate?.toFixed(2) ?? app.rate?.toFixed(2) ?? "0.00"}`}
+              />
+            )}
             <DetailRow
               icon={<MapPin className="h-4 w-4" />}
               label="Service Location"
@@ -332,9 +341,8 @@ export default function ApplicationDetailPage() {
                 </div>
                 <div className="w-full bg-gray-200 rounded-full h-2">
                   <div
-                    className={`h-2 rounded-full transition-all ${
-                      app.video.isCompleted ? "bg-green-500" : "bg-[#F3CFC6]"
-                    }`}
+                    className={`h-2 rounded-full transition-all ${app.video.isCompleted ? "bg-green-500" : "bg-[#F3CFC6]"
+                      }`}
                     style={{
                       width: `${Math.min(100, (app.video.watchedSec / app.video.durationSec) * 100)}%`,
                     }}
@@ -370,11 +378,10 @@ export default function ApplicationDetailPage() {
                 {app.quizAttempts.map((attempt, i) => (
                   <div
                     key={i}
-                    className={`p-3 rounded-lg border ${
-                      attempt.passed
+                    className={`p-3 rounded-lg border ${attempt.passed
                         ? "bg-green-50 border-green-200"
                         : "bg-red-50 border-red-200"
-                    }`}
+                      }`}
                   >
                     <div className="flex items-center justify-between">
                       <span className="font-medium">

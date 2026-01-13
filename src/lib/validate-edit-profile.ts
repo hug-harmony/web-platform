@@ -78,5 +78,12 @@ export function validateProfessionalProfileForm(form: FormData) {
   else if (!["host", "visit", "both"].includes(venue))
     errors.venue = "Invalid selection";
 
+  const videoRateStr = form.get("videoRate")?.toString() ?? "";
+  if (videoRateStr) {
+    const videoRate = parseFloat(videoRateStr);
+    if (isNaN(videoRate) || videoRate <= 0) errors.videoRate = "Must be positive";
+    else if (videoRate > 10000) errors.videoRate = "Max 10,000";
+  }
+
   return errors;
 }

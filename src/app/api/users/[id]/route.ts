@@ -1,7 +1,8 @@
 // src\app\api\users\[id]\route.ts
 
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import { z } from "zod";
 import prisma from "@/lib/prisma";
@@ -172,7 +173,7 @@ export async function PATCH(req: Request) {
       return NextResponse.json({ error: "User not found" }, { status: 404 });
 
     // === USER UPDATE DATA ===
-    const userUpdateData: any = {};
+    const userUpdateData: Prisma.UserUpdateInput = {};
     if (validatedData.name) userUpdateData.name = validatedData.name;
     if (validatedData.firstName)
       userUpdateData.firstName = validatedData.firstName;
@@ -238,7 +239,7 @@ export async function PATCH(req: Request) {
       validatedData.location;
 
     if (user.professionalApplication?.professional && hasProfessionalUpdates) {
-      const professionalUpdate: any = {};
+      const professionalUpdate: Prisma.ProfessionalUpdateInput = {};
       if (validatedData.name) professionalUpdate.name = validatedData.name;
       if (validatedData.profileImage !== undefined)
         professionalUpdate.image = validatedData.profileImage;
@@ -277,12 +278,12 @@ export async function PATCH(req: Request) {
       petOwnership: updatedUser.petOwnership || "",
       status: updatedUser.status,
     });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("PATCH /users/[id] error:", error);
     if (error instanceof z.ZodError)
       return NextResponse.json({ error: error.errors }, { status: 400 });
     return NextResponse.json(
-      { error: error.message || "Update failed" },
+      { error: (error as Error).message || "Update failed" },
       { status: 500 }
     );
   }

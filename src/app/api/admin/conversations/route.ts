@@ -1,5 +1,6 @@
 // src/app/api/admin/conversations/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -53,8 +54,7 @@ export async function GET(request: NextRequest) {
     }
 
     // Build where clause
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const whereClause: any = {};
+    const whereClause: Prisma.ConversationWhereInput = {};
 
     if (Object.keys(dateFilter).length > 0) {
       whereClause.updatedAt = dateFilter;
@@ -154,10 +154,10 @@ export async function GET(request: NextRequest) {
       },
       lastMessage: conv.messages[0]
         ? {
-            text: conv.messages[0].text,
-            createdAt: conv.messages[0].createdAt.toISOString(),
-            senderId: conv.messages[0].senderId,
-          }
+          text: conv.messages[0].text,
+          createdAt: conv.messages[0].createdAt.toISOString(),
+          senderId: conv.messages[0].senderId,
+        }
         : null,
       messageCount: conv._count.messages,
       updatedAt: conv.updatedAt.toISOString(),

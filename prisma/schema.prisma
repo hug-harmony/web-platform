@@ -144,6 +144,8 @@ model Professional {
   rating               Float?
   reviewCount          Int?
   rate                 Float?
+  offersVideo          Boolean    @default(false)
+  videoRate            Float?
   biography            String?
   companyCutPercentage Float?
   venue                VenueType? @default(both)
@@ -210,8 +212,10 @@ model Reply {
 model ProfessionalApplication {
   id     String    @id @default(auto()) @map("_id") @db.ObjectId
   userId String    @unique @db.ObjectId
-  rate   Float
-  venue  VenueType
+  rate       Float
+  offersVideo Boolean   @default(false)
+  videoRate   Float?
+  venue      VenueType
 
   status         ProOnboardingStatus @default(FORM_PENDING)
   submittedAt    DateTime?
@@ -507,6 +511,7 @@ model Note {
 enum VenueType {
   host
   visit
+  video
   both
 }
 
@@ -514,6 +519,7 @@ enum VenueType {
 enum AppointmentVenue {
   host
   visit
+  video
 }
 
 model Merchandise {

@@ -1,5 +1,5 @@
 // src/hooks/edit-profile/useProfile.ts
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useEffect, useState, useCallback } from "react";
 import { useSession } from "next-auth/react";
 import { useRouter } from "next/navigation";
@@ -68,7 +68,7 @@ export function useProfile(id: string) {
         rate: null,
         paymentAcceptanceMethods: [], // NEW: Initialize empty
         photos:
-          user.photos?.map((p: any) => ({
+          user.photos?.map((p: { id: string; url: string }) => ({
             id: p.id,
             url: p.url,
           })) || [],
@@ -103,15 +103,17 @@ export function useProfile(id: string) {
               setProfile((p) =>
                 p
                   ? {
-                      ...p,
-                      type: "professional",
-                      biography: spec.biography ?? p.biography,
-                      rate: spec.rate ?? null,
-                      venue: spec.venue ?? null,
-                      // NEW: Include payment acceptance methods
-                      paymentAcceptanceMethods:
-                        spec.paymentAcceptanceMethods || [],
-                    }
+                    ...p,
+                    type: "professional",
+                    biography: spec.biography ?? p.biography,
+                    rate: spec.rate ?? null,
+                    offersVideo: spec.offersVideo ?? false,
+                    videoRate: spec.videoRate ?? null,
+                    venue: spec.venue ?? null,
+                    // NEW: Include payment acceptance methods
+                    paymentAcceptanceMethods:
+                      spec.paymentAcceptanceMethods || [],
+                  }
                   : p
               );
             } else {
@@ -125,7 +127,7 @@ export function useProfile(id: string) {
           console.error("Failed to fetch onboarding status:", statusRes.status);
         }
       }
-    } catch (err) {
+    } catch (err: unknown) {
       console.error("Profile fetch error:", err);
       toast.error("Failed to load profile");
     } finally {

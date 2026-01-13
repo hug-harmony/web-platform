@@ -1,6 +1,6 @@
 // src\app\api\notes\route.ts
-/* eslint-disable @typescript-eslint/no-explicit-any */
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -56,7 +56,7 @@ export async function GET(request: NextRequest) {
   const targetId = searchParams.get("targetId");
 
   try {
-    const whereClause: any = { authorId: session.user.id };
+    const whereClause: Prisma.NoteWhereInput = { authorId: session.user.id };
     if (targetType && targetId) {
       if (targetType === "user") {
         whereClause.targetUserId = targetId;

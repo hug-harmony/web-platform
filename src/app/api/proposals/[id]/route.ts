@@ -192,8 +192,8 @@ export async function PATCH(
           format(startDate, "h:mm a"),
           duration,
           amount,
-          venueLabel,
-          appointment.id
+          venueLabel
+          // appointment.id
         ).catch((err) =>
           console.error("Failed to send confirmation emails:", err)
         );

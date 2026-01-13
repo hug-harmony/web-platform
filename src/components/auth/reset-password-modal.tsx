@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 // components/auth/reset-password-modal.tsx
 "use client";
 
@@ -60,9 +60,10 @@ export default function ResetPasswordModal({ open, onOpenChange }: Props) {
           : "Check your phone for the reset link (SMS)."
       );
       setTimeout(() => onOpenChange(false), 2000);
-    } catch (err: any) {
-      toast.error(err.message);
-      setMessage(err.message);
+    } catch (err: unknown) {
+      const message = (err as Error).message;
+      toast.error(message);
+      setMessage(message);
     } finally {
       setLoading(false);
     }

@@ -9,6 +9,9 @@ import {
   OperationsStats,
   OperationType,
   Priority,
+  Feedback,
+  Report,
+  Dispute,
 } from "@/types/operations";
 
 // GET - Fetch all operations (feedback, reports, disputes) with filters and stats
@@ -48,294 +51,294 @@ export async function GET(request: NextRequest) {
       // FEEDBACK
       type === "all" || type === "feedback"
         ? prisma.feedback.findMany({
-            where: {
-              ...(status !== "all" && { status }),
-              ...(priority !== "all" && { priority }),
-              ...(Object.keys(dateFilter).length > 0 && {
-                createdAt: dateFilter,
-              }),
-              ...(search && {
-                OR: [
-                  {
-                    subject: { contains: search, mode: "insensitive" as const },
-                  },
-                  {
-                    message: { contains: search, mode: "insensitive" as const },
-                  },
-                  {
-                    user: {
-                      email: { contains: search, mode: "insensitive" as const },
-                    },
-                  },
-                  {
-                    user: {
-                      firstName: {
-                        contains: search,
-                        mode: "insensitive" as const,
-                      },
-                    },
-                  },
-                  {
-                    user: {
-                      lastName: {
-                        contains: search,
-                        mode: "insensitive" as const,
-                      },
-                    },
-                  },
-                ],
-              }),
-            },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                  profileImage: true,
-                  phoneNumber: true,
-                  createdAt: true,
-                  lastOnline: true,
+          where: {
+            ...(status !== "all" && { status }),
+            ...(priority !== "all" && { priority }),
+            ...(Object.keys(dateFilter).length > 0 && {
+              createdAt: dateFilter,
+            }),
+            ...(search && {
+              OR: [
+                {
+                  subject: { contains: search, mode: "insensitive" as const },
                 },
-              },
-              adminUser: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                  profileImage: true,
+                {
+                  message: { contains: search, mode: "insensitive" as const },
                 },
+                {
+                  user: {
+                    email: { contains: search, mode: "insensitive" as const },
+                  },
+                },
+                {
+                  user: {
+                    firstName: {
+                      contains: search,
+                      mode: "insensitive" as const,
+                    },
+                  },
+                },
+                {
+                  user: {
+                    lastName: {
+                      contains: search,
+                      mode: "insensitive" as const,
+                    },
+                  },
+                },
+              ],
+            }),
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profileImage: true,
+                phoneNumber: true,
+                createdAt: true,
+                lastOnline: true,
               },
             },
-            orderBy: { createdAt: "desc" },
-          })
+            adminUser: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profileImage: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        })
         : [],
 
       // REPORTS
       type === "all" || type === "report"
         ? prisma.report.findMany({
-            where: {
-              ...(status !== "all" && { status }),
-              ...(priority !== "all" && { priority }),
-              ...(Object.keys(dateFilter).length > 0 && {
-                createdAt: dateFilter,
-              }),
-              ...(search && {
-                OR: [
-                  {
-                    reason: { contains: search, mode: "insensitive" as const },
+          where: {
+            ...(status !== "all" && { status }),
+            ...(priority !== "all" && { priority }),
+            ...(Object.keys(dateFilter).length > 0 && {
+              createdAt: dateFilter,
+            }),
+            ...(search && {
+              OR: [
+                {
+                  reason: { contains: search, mode: "insensitive" as const },
+                },
+                {
+                  details: { contains: search, mode: "insensitive" as const },
+                },
+                {
+                  reporter: {
+                    email: { contains: search, mode: "insensitive" as const },
                   },
-                  {
-                    details: { contains: search, mode: "insensitive" as const },
-                  },
-                  {
-                    reporter: {
-                      email: { contains: search, mode: "insensitive" as const },
+                },
+                {
+                  reporter: {
+                    firstName: {
+                      contains: search,
+                      mode: "insensitive" as const,
                     },
                   },
-                  {
-                    reporter: {
-                      firstName: {
-                        contains: search,
-                        mode: "insensitive" as const,
+                },
+                {
+                  reportedUser: {
+                    email: { contains: search, mode: "insensitive" as const },
+                  },
+                },
+                {
+                  reportedProfessional: {
+                    name: { contains: search, mode: "insensitive" as const },
+                  },
+                },
+              ],
+            }),
+          },
+          select: {
+            id: true,
+            reporterId: true,
+            reportedUserId: true,
+            reportedProfessionalId: true,
+            reason: true,
+            details: true,
+            status: true,
+            priority: true,
+            adminResponse: true,
+            adminRespondedBy: true,
+            adminRespondedAt: true,
+            createdAt: true,
+            reporter: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profileImage: true,
+                phoneNumber: true,
+                createdAt: true,
+                lastOnline: true,
+              },
+            },
+            reportedUser: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profileImage: true,
+                phoneNumber: true,
+                status: true,
+                createdAt: true,
+              },
+            },
+            reportedProfessional: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+                rating: true,
+                reviewCount: true,
+                location: true,
+                applications: {
+                  select: {
+                    userId: true,
+                    status: true,
+                    user: {
+                      select: {
+                        id: true,
+                        email: true,
+                        phoneNumber: true,
                       },
                     },
                   },
-                  {
-                    reportedUser: {
-                      email: { contains: search, mode: "insensitive" as const },
-                    },
-                  },
-                  {
-                    reportedProfessional: {
-                      name: { contains: search, mode: "insensitive" as const },
-                    },
-                  },
-                ],
-              }),
-            },
-            select: {
-              id: true,
-              reporterId: true,
-              reportedUserId: true,
-              reportedProfessionalId: true,
-              reason: true,
-              details: true,
-              status: true,
-              priority: true,
-              adminResponse: true,
-              adminRespondedBy: true,
-              adminRespondedAt: true,
-              createdAt: true,
-              reporter: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                  profileImage: true,
-                  phoneNumber: true,
-                  createdAt: true,
-                  lastOnline: true,
-                },
-              },
-              reportedUser: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                  profileImage: true,
-                  phoneNumber: true,
-                  status: true,
-                  createdAt: true,
-                },
-              },
-              reportedProfessional: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true,
-                  rating: true,
-                  reviewCount: true,
-                  location: true,
-                  applications: {
-                    select: {
-                      userId: true,
-                      status: true,
-                      user: {
-                        select: {
-                          id: true,
-                          email: true,
-                          phoneNumber: true,
-                        },
-                      },
-                    },
-                    take: 1,
-                  },
-                },
-              },
-              adminUser: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                  profileImage: true,
+                  take: 1,
                 },
               },
             },
-            orderBy: { createdAt: "desc" },
-          })
+            adminUser: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profileImage: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        })
         : [],
 
       // DISPUTES (from appointments)
       type === "all" || type === "dispute"
         ? prisma.appointment.findMany({
-            where: {
-              disputeStatus: { not: "none" },
-              ...(status !== "all" && { disputeStatus: status }),
-              ...(Object.keys(dateFilter).length > 0 && {
-                createdAt: dateFilter,
-              }),
-              ...(search && {
-                OR: [
-                  {
-                    disputeReason: {
+          where: {
+            disputeStatus: { not: "none" },
+            ...(status !== "all" && { disputeStatus: status }),
+            ...(Object.keys(dateFilter).length > 0 && {
+              createdAt: dateFilter,
+            }),
+            ...(search && {
+              OR: [
+                {
+                  disputeReason: {
+                    contains: search,
+                    mode: "insensitive" as const,
+                  },
+                },
+                {
+                  adminNotes: {
+                    contains: search,
+                    mode: "insensitive" as const,
+                  },
+                },
+                {
+                  user: {
+                    email: { contains: search, mode: "insensitive" as const },
+                  },
+                },
+                {
+                  user: {
+                    firstName: {
                       contains: search,
                       mode: "insensitive" as const,
                     },
                   },
-                  {
-                    adminNotes: {
-                      contains: search,
-                      mode: "insensitive" as const,
-                    },
+                },
+                {
+                  professional: {
+                    name: { contains: search, mode: "insensitive" as const },
                   },
-                  {
+                },
+              ],
+            }),
+          },
+          include: {
+            user: {
+              select: {
+                id: true,
+                firstName: true,
+                lastName: true,
+                email: true,
+                profileImage: true,
+                phoneNumber: true,
+                createdAt: true,
+                lastOnline: true,
+              },
+            },
+            professional: {
+              select: {
+                id: true,
+                name: true,
+                image: true,
+                rating: true,
+                reviewCount: true,
+                location: true,
+                applications: {
+                  select: {
+                    userId: true,
+                    status: true,
                     user: {
-                      email: { contains: search, mode: "insensitive" as const },
-                    },
-                  },
-                  {
-                    user: {
-                      firstName: {
-                        contains: search,
-                        mode: "insensitive" as const,
+                      select: {
+                        id: true,
+                        email: true,
+                        phoneNumber: true,
                       },
                     },
                   },
-                  {
-                    professional: {
-                      name: { contains: search, mode: "insensitive" as const },
-                    },
-                  },
-                ],
-              }),
-            },
-            include: {
-              user: {
-                select: {
-                  id: true,
-                  firstName: true,
-                  lastName: true,
-                  email: true,
-                  profileImage: true,
-                  phoneNumber: true,
-                  createdAt: true,
-                  lastOnline: true,
-                },
-              },
-              professional: {
-                select: {
-                  id: true,
-                  name: true,
-                  image: true,
-                  rating: true,
-                  reviewCount: true,
-                  location: true,
-                  applications: {
-                    select: {
-                      userId: true,
-                      status: true,
-                      user: {
-                        select: {
-                          id: true,
-                          email: true,
-                          phoneNumber: true,
-                        },
-                      },
-                    },
-                    take: 1,
-                  },
-                },
-              },
-              payment: {
-                select: {
-                  id: true,
-                  amount: true,
-                  status: true,
-                  stripeId: true,
-                },
-              },
-              confirmation: {
-                select: {
-                  id: true,
-                  clientConfirmed: true,
-                  professionalConfirmed: true,
-                  finalStatus: true,
-                  isDisputed: true,
-                  disputeReason: true,
-                  disputeCreatedAt: true,
-                  disputeResolvedAt: true,
-                  disputeResolution: true,
+                  take: 1,
                 },
               },
             },
-            orderBy: { createdAt: "desc" },
-          })
+            payment: {
+              select: {
+                id: true,
+                amount: true,
+                status: true,
+                stripeId: true,
+              },
+            },
+            confirmation: {
+              select: {
+                id: true,
+                clientConfirmed: true,
+                professionalConfirmed: true,
+                finalStatus: true,
+                isDisputed: true,
+                disputeReason: true,
+                disputeCreatedAt: true,
+                disputeResolvedAt: true,
+                disputeResolution: true,
+              },
+            },
+          },
+          orderBy: { createdAt: "desc" },
+        })
         : [],
     ]);
 
@@ -366,15 +369,15 @@ export async function GET(request: NextRequest) {
         adminResponse: fb.adminResponse,
         adminRespondedBy: fb.adminUser
           ? {
-              id: fb.adminUser.id,
-              firstName: fb.adminUser.firstName,
-              lastName: fb.adminUser.lastName,
-              email: fb.adminUser.email,
-              profileImage: fb.adminUser.profileImage,
-            }
+            id: fb.adminUser.id,
+            firstName: fb.adminUser.firstName,
+            lastName: fb.adminUser.lastName,
+            email: fb.adminUser.email,
+            profileImage: fb.adminUser.profileImage,
+          }
           : null,
         adminRespondedAt: fb.adminRespondedAt,
-        originalData: fb,
+        originalData: fb as unknown as Feedback,
       });
     }
 
@@ -398,38 +401,38 @@ export async function GET(request: NextRequest) {
         },
         targetUser: report.reportedUser
           ? {
-              id: report.reportedUser.id,
-              firstName: report.reportedUser.firstName,
-              lastName: report.reportedUser.lastName,
-              email: report.reportedUser.email,
-              profileImage: report.reportedUser.profileImage,
-            }
+            id: report.reportedUser.id,
+            firstName: report.reportedUser.firstName,
+            lastName: report.reportedUser.lastName,
+            email: report.reportedUser.email,
+            profileImage: report.reportedUser.profileImage,
+          }
           : null,
         targetProfessional: report.reportedProfessional
           ? {
-              id: report.reportedProfessional.id,
-              name: report.reportedProfessional.name,
-              image: report.reportedProfessional.image,
-              rating: report.reportedProfessional.rating,
-              reviewCount: report.reportedProfessional.reviewCount,
-              location: report.reportedProfessional.location,
-              userId: report.reportedProfessional.applications?.[0]?.user?.id,
-              userEmail:
-                report.reportedProfessional.applications?.[0]?.user?.email,
-            }
+            id: report.reportedProfessional.id,
+            name: report.reportedProfessional.name,
+            image: report.reportedProfessional.image,
+            rating: report.reportedProfessional.rating,
+            reviewCount: report.reportedProfessional.reviewCount,
+            location: report.reportedProfessional.location,
+            userId: report.reportedProfessional.applications?.[0]?.user?.id,
+            userEmail:
+              report.reportedProfessional.applications?.[0]?.user?.email,
+          }
           : null,
         adminResponse: report.adminResponse,
         adminRespondedBy: report.adminUser
           ? {
-              id: report.adminUser.id,
-              firstName: report.adminUser.firstName,
-              lastName: report.adminUser.lastName,
-              email: report.adminUser.email,
-              profileImage: report.adminUser.profileImage,
-            }
+            id: report.adminUser.id,
+            firstName: report.adminUser.firstName,
+            lastName: report.adminUser.lastName,
+            email: report.adminUser.email,
+            profileImage: report.adminUser.profileImage,
+          }
           : null,
         adminRespondedAt: report.adminRespondedAt,
-        originalData: report,
+        originalData: report as unknown as Report,
       });
     }
 
@@ -446,25 +449,25 @@ export async function GET(request: NextRequest) {
         updatedAt: dispute.createdAt,
         submittedBy: dispute.user
           ? {
-              id: dispute.user.id,
-              firstName: dispute.user.firstName,
-              lastName: dispute.user.lastName,
-              email: dispute.user.email,
-              profileImage: dispute.user.profileImage,
-            }
+            id: dispute.user.id,
+            firstName: dispute.user.firstName,
+            lastName: dispute.user.lastName,
+            email: dispute.user.email,
+            profileImage: dispute.user.profileImage,
+          }
           : null,
         targetUser: null,
         targetProfessional: dispute.professional
           ? {
-              id: dispute.professional.id,
-              name: dispute.professional.name,
-              image: dispute.professional.image,
-              rating: dispute.professional.rating,
-              reviewCount: dispute.professional.reviewCount,
-              location: dispute.professional.location,
-              userId: dispute.professional.applications?.[0]?.user?.id,
-              userEmail: dispute.professional.applications?.[0]?.user?.email,
-            }
+            id: dispute.professional.id,
+            name: dispute.professional.name,
+            image: dispute.professional.image,
+            rating: dispute.professional.rating,
+            reviewCount: dispute.professional.reviewCount,
+            location: dispute.professional.location,
+            userId: dispute.professional.applications?.[0]?.user?.id,
+            userEmail: dispute.professional.applications?.[0]?.user?.email,
+          }
           : null,
         adminResponse: dispute.adminNotes,
         adminRespondedBy: null,
@@ -476,7 +479,7 @@ export async function GET(request: NextRequest) {
           payment: dispute.payment,
           confirmation: dispute.confirmation,
         },
-        originalData: dispute,
+        originalData: dispute as unknown as Dispute,
       });
     }
 

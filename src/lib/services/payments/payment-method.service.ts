@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-unused-vars */
+
 // src/lib/services/payments/payment-method.service.ts
 
 import prisma from "@/lib/prisma";
@@ -22,8 +22,8 @@ import {
  */
 async function getOrCreateStripeCustomer(
   professionalId: string,
-  email: string,
-  name: string
+  // email: string,
+  // name: string
 ): Promise<string> {
   const professional = await prisma.professional.findUnique({
     where: { id: professionalId },
@@ -92,17 +92,17 @@ export async function createPaymentMethodSetup(
     throw new Error("No approved application found");
   }
 
-  const email = application.user.email;
-  const name =
-    application.user.name ||
-    `${application.user.firstName || ""} ${application.user.lastName || ""}`.trim() ||
-    "Professional";
+  // const email = application.user.email;
+  // const name =
+  //   application.user.name ||
+  //   `${application.user.firstName || ""} ${application.user.lastName || ""}`.trim() ||
+  //   "Professional";
 
   // Get or create Stripe customer
-  const customerId = await getOrCreateStripeCustomer(
+  await getOrCreateStripeCustomer(
     professionalId,
-    email,
-    name
+    // email,
+    // name
   );
 
   // TODO: Create actual Stripe SetupIntent

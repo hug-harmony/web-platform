@@ -1,7 +1,5 @@
-// src\app\api\disputes\route.ts
-/* eslint-disable @typescript-eslint/no-explicit-any */
-/* eslint-disable prefer-const */
 import { NextResponse, NextRequest } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -78,7 +76,7 @@ export async function PATCH(request: NextRequest) {
       );
     }
 
-    let updatedData: any = {
+    const updatedData: Prisma.AppointmentUpdateInput = {
       adminNotes: notes || null,
       disputeStatus:
         action === "confirm_cancel" ? "confirmed_canceled" : "denied",

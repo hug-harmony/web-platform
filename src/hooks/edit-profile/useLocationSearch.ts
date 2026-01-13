@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { useState, useEffect, useCallback } from "react";
 import { useDebounce } from "use-debounce";
 import { LocationResult } from "@/types/edit-profile";
@@ -25,7 +25,7 @@ export function useLocationSearch() {
       const data = await res.json();
 
       const results = (data.features || [])
-        .map((f: any) => {
+        .map((f: { properties?: { name?: string; street?: string; city?: string; country?: string }; geometry?: { coordinates?: number[] } }) => {
           const p = f.properties || {};
           const c = f.geometry?.coordinates || [];
           const name = p.name || p.street || p.city || "Location";

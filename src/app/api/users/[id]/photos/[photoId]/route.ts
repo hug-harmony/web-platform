@@ -1,4 +1,4 @@
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import { deleteFromS3ByUrl } from "@/lib/s3";
@@ -62,10 +62,10 @@ export async function DELETE(req: Request) {
     });
 
     return new NextResponse(null, { status: 204 });
-  } catch (error: any) {
+  } catch (error: unknown) {
     console.error("DELETE /users/[id]/photos/[photoId] error:", error);
     return NextResponse.json(
-      { error: error.message || "Delete failed" },
+      { error: (error as Error).message || "Delete failed" },
       { status: 500 }
     );
   }

@@ -133,6 +133,8 @@ export async function GET(request: NextRequest) {
         rating: p.rating,
         reviewCount: p.reviewCount,
         rate: p.rate,
+        offersVideo: p.offersVideo,
+        videoRate: p.videoRate,
         biography: p.biography,
         createdAt: p.createdAt,
         venue: p.venue,

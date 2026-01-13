@@ -179,8 +179,7 @@ export interface OperationItem {
   appointmentDetails?: AppointmentDetails;
 
   // Original data for detailed view
-  // eslint-disable-next-line @typescript-eslint/no-explicit-any
-  originalData: any;
+  originalData: Feedback | Report | Dispute | null;
 }
 
 // ============================================

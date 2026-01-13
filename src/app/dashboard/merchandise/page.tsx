@@ -15,7 +15,6 @@ import {
   Keyboard,
   X,
   Filter,
-  DollarSign,
   Tag,
   Box,
   TrendingUp,

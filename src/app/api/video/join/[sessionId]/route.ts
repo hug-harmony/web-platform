@@ -123,8 +123,8 @@ export async function POST(
       try {
         const chimeAttendee = await addAttendeeToMeeting(
           videoSession.meetingId,
-          session.user.id,
-          displayName
+          session.user.id
+          // displayName
         );
 
         // Save attendee record

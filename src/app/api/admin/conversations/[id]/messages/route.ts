@@ -1,5 +1,6 @@
 // src/app/api/admin/conversations/[id]/messages/route.ts
 import { NextRequest, NextResponse } from "next/server";
+import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
 import { authOptions } from "@/lib/auth";
@@ -77,8 +78,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Build where clause
-    // eslint-disable-next-line @typescript-eslint/no-explicit-any
-    const whereClause: any = {
+    const whereClause: Prisma.MessageWhereInput = {
       conversationId: id,
     };
 

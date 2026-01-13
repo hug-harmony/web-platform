@@ -1,5 +1,5 @@
 // src/app/api/blocks/route.ts
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -53,11 +53,11 @@ export async function POST(request: NextRequest) {
       { message: "User blocked successfully", block },
       { status: 201 }
     );
-  } catch (err: any) {
+  } catch (err: unknown) {
     if (err instanceof z.ZodError) {
       return NextResponse.json({ error: err.errors }, { status: 400 });
     }
-    if (err.code === "P2002") {
+    if ((err as { code?: string }).code === "P2002") {
       // Unique constraint violation (already blocked)
       return NextResponse.json({ error: "Already blocked" }, { status: 409 });
     }

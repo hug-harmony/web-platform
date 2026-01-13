@@ -46,9 +46,11 @@ interface Professional {
   rating: number | null;
   reviewCount: number | null;
   rate: number | null;
+  offersVideo: boolean;
+  videoRate: number | null;
   biography: string | null;
   location: string | null;
-  venue: "host" | "visit" | "both" | null;
+  venue: "host" | "visit" | "video" | "both" | null;
   companyCutPercentage: number | null;
   createdAt: string;
   payment: {
@@ -80,6 +82,8 @@ interface Professional {
     id: string;
     status: string;
     rate: number;
+    offersVideo: boolean;
+    videoRate: number | null;
     venue: string;
     submittedAt: string | null;
     videoWatchedAt: string | null;
@@ -333,6 +337,8 @@ export default function ProfessionalDetailPage() {
         body: JSON.stringify({
           name: editData.name,
           rate: editData.rate,
+          offersVideo: editData.offersVideo,
+          videoRate: editData.videoRate,
           biography: editData.biography,
           location: editData.location,
           venue: editData.venue,
@@ -809,7 +815,7 @@ export default function ProfessionalDetailPage() {
                       <p className="text-[#C4C4C4]">Card on File</p>
                       <p className="font-semibold">
                         {professional.payment.cardBrand &&
-                        professional.payment.cardLast4
+                          professional.payment.cardLast4
                           ? `${professional.payment.cardBrand.toUpperCase()} ****${professional.payment.cardLast4}`
                           : "No card"}
                       </p>
@@ -818,7 +824,7 @@ export default function ProfessionalDetailPage() {
                       <p className="text-[#C4C4C4]">Card Expiry</p>
                       <p className="font-semibold">
                         {professional.payment.cardExpiryMonth &&
-                        professional.payment.cardExpiryYear
+                          professional.payment.cardExpiryYear
                           ? `${professional.payment.cardExpiryMonth}/${professional.payment.cardExpiryYear}`
                           : "N/A"}
                       </p>

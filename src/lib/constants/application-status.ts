@@ -24,7 +24,7 @@ export type ProOnboardingStatus =
   | "REJECTED"
   | "SUSPENDED";
 
-export type VenueType = "host" | "visit" | "both";
+export type VenueType = "host" | "visit" | "video" | "both";
 
 export interface StatusConfig {
   label: string;
@@ -270,12 +270,14 @@ export const APPLICATION_STEPS = [
 export const VENUE_LABELS: Record<VenueType, string> = {
   host: "I host at my location",
   visit: "I visit the client",
+  video: "Video session",
   both: "Both (host and visit)",
 };
 
 export const VENUE_ICONS: Record<VenueType, string> = {
   host: "🏠",
   visit: "🚗",
+  video: "📹",
   both: "✨",
 };
 

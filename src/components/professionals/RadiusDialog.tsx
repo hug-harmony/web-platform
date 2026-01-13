@@ -1,5 +1,5 @@
 // components/professionals/RadiusDialog.tsx
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 "use client";
 
 import { useState, useEffect, useCallback, useRef } from "react";
@@ -116,7 +116,7 @@ export function RadiusDialog({
       const data = await res.json();
 
       const results: LocationResult[] = (data.features || [])
-        .map((f: any) => {
+        .map((f: { properties?: { name?: string; street?: string; city?: string; country?: string }; geometry?: { coordinates?: number[] } }) => {
           const props = f.properties || {};
           const coords = f.geometry?.coordinates || [];
           const name = props.name || props.street || props.city || "Location";
@@ -177,10 +177,11 @@ export function RadiusDialog({
       setError(null);
       setSearchTerm("");
       setPopoverOpen(false);
-    } catch (err: any) {
+    } catch (err: unknown) {
+      const error = err as GeolocationPositionError;
       setGeolocationStatus("denied");
       setError(
-        err.code === 1
+        error.code === 1
           ? "Location access denied. Please enable it in browser settings."
           : "Unable to retrieve location. Try searching manually."
       );

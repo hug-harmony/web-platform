@@ -1,5 +1,5 @@
 // src\app\api\notes\[id]\route.ts
-/* eslint-disable @typescript-eslint/no-explicit-any */
+
 import { NextRequest, NextResponse } from "next/server";
 import { getServerSession } from "next-auth";
 import prisma from "@/lib/prisma";
@@ -10,7 +10,11 @@ const schema = z.object({
   content: z.string().min(1, "Content is required"),
 });
 
-export async function PATCH(request: NextRequest, { params }: any) {
+export async function PATCH(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -32,7 +36,7 @@ export async function PATCH(request: NextRequest, { params }: any) {
     });
 
     return NextResponse.json({ message: "Note updated successfully", updated });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("Note update error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
@@ -41,7 +45,11 @@ export async function PATCH(request: NextRequest, { params }: any) {
   }
 }
 
-export async function DELETE(request: NextRequest, { params }: any) {
+export async function DELETE(
+  request: NextRequest,
+  props: { params: Promise<{ id: string }> }
+) {
+  const params = await props.params;
   const session = await getServerSession(authOptions);
   if (!session?.user?.id)
     return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
@@ -58,7 +66,7 @@ export async function DELETE(request: NextRequest, { params }: any) {
     await prisma.note.delete({ where: { id } });
 
     return NextResponse.json({ message: "Note deleted successfully" });
-  } catch (err) {
+  } catch (err: unknown) {
     console.error("Note delete error:", err);
     return NextResponse.json(
       { error: "Internal server error" },
