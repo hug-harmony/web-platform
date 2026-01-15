@@ -1,8 +1,11 @@
+// src/app/api/admin/professionals/route.ts
+
 import { NextRequest, NextResponse } from "next/server";
 import prisma from "@/lib/prisma";
 import { Prisma } from "@prisma/client";
 import { getServerSession } from "next-auth/next";
 import { authOptions } from "@/lib/auth";
+import { US_STATES, extractStateFromLocation } from "@/lib/constants/us-states";
 
 export async function GET(req: NextRequest) {
   try {
@@ -29,18 +32,21 @@ export async function GET(req: NextRequest) {
     const sortOrder = searchParams.get("sortOrder") || "desc";
 
     // Filters
-    const location = searchParams.get("location") || "";
     const state = searchParams.get("state") || "";
     const city = searchParams.get("city") || "";
     const venueType = searchParams.get("venueType") || "";
     const ratingFilter = searchParams.get("ratingFilter") || "";
-    const rateMin = searchParams.get("rateMin") || "";
-    const rateMax = searchParams.get("rateMax") || "";
     const paymentStatus = searchParams.get("paymentStatus") || "";
     const dateFilter = searchParams.get("dateFilter") || "";
     const year = searchParams.get("year") || "";
     const month = searchParams.get("month") || "";
     const includeStats = searchParams.get("includeStats") === "true";
+
+    // NEW: Session time range filter parameters
+    const sessionDateFrom = searchParams.get("sessionDateFrom") || "";
+    const sessionDateTo = searchParams.get("sessionDateTo") || "";
+    const sessionTimeStart = searchParams.get("sessionTimeStart") || "";
+    const sessionTimeEnd = searchParams.get("sessionTimeEnd") || "";
 
     const skip = (page - 1) * limit;
 
@@ -55,22 +61,27 @@ export async function GET(req: NextRequest) {
       ];
     }
 
-    // Location filters
-    if (location) {
-      whereClause.location = { contains: location, mode: "insensitive" };
+    // State filter - exact match for US states
+    if (state && state !== "all") {
+      // Find the state info
+      const stateInfo = US_STATES.find(
+        (s) => s.abbreviation === state || s.name === state
+      );
+      if (stateInfo) {
+        // Match by state name or abbreviation in location string
+        whereClause.OR = [
+          ...(whereClause.OR || []),
+          { location: { contains: stateInfo.name, mode: "insensitive" } },
+          {
+            location: { contains: stateInfo.abbreviation, mode: "insensitive" },
+          },
+        ];
+      }
     }
 
-    if (state) {
+    // City filter - only apply if state is selected
+    if (city && city !== "all" && state && state !== "all") {
       whereClause.location = {
-        ...((whereClause.location as Prisma.StringFilter) || {}),
-        contains: state,
-        mode: "insensitive",
-      };
-    }
-
-    if (city) {
-      whereClause.location = {
-        ...((whereClause.location as Prisma.StringFilter) || {}),
         contains: city,
         mode: "insensitive",
       };
@@ -86,27 +97,6 @@ export async function GET(req: NextRequest) {
       const minRating = parseFloat(ratingFilter);
       if (!isNaN(minRating)) {
         whereClause.rating = { gte: minRating };
-      }
-    }
-
-    // Rate range filter
-    if (rateMin) {
-      const min = parseFloat(rateMin);
-      if (!isNaN(min)) {
-        whereClause.rate = {
-          ...((whereClause.rate as Prisma.FloatFilter) || {}),
-          gte: min,
-        };
-      }
-    }
-
-    if (rateMax) {
-      const max = parseFloat(rateMax);
-      if (!isNaN(max)) {
-        whereClause.rate = {
-          ...((whereClause.rate as Prisma.FloatFilter) || {}),
-          lte: max,
-        };
       }
     }
 
@@ -126,7 +116,7 @@ export async function GET(req: NextRequest) {
       }
     }
 
-    // Date filters
+    // Date filters (for professional creation date)
     if (dateFilter && dateFilter !== "all") {
       const now = new Date();
       let startDate: Date | undefined;
@@ -184,6 +174,53 @@ export async function GET(req: NextRequest) {
           lte: endDate,
         };
       }
+    }
+
+    // Build appointment filter for session time range
+    let appointmentFilter: Prisma.AppointmentWhereInput | undefined;
+    if (
+      sessionDateFrom ||
+      sessionDateTo ||
+      sessionTimeStart ||
+      sessionTimeEnd
+    ) {
+      appointmentFilter = {};
+
+      if (sessionDateFrom) {
+        const fromDate = new Date(sessionDateFrom);
+        if (sessionTimeStart) {
+          const [hours, minutes] = sessionTimeStart.split(":").map(Number);
+          fromDate.setHours(hours, minutes, 0, 0);
+        } else {
+          fromDate.setHours(0, 0, 0, 0);
+        }
+        appointmentFilter.startTime = { gte: fromDate };
+      }
+
+      if (sessionDateTo) {
+        const toDate = new Date(sessionDateTo);
+        if (sessionTimeEnd) {
+          const [hours, minutes] = sessionTimeEnd.split(":").map(Number);
+          toDate.setHours(hours, minutes, 59, 999);
+        } else {
+          toDate.setHours(23, 59, 59, 999);
+        }
+        appointmentFilter.endTime = {
+          ...appointmentFilter.endTime,
+          lte: toDate,
+        };
+      }
+    }
+
+    // If we have appointment filter, we need to find professionals with matching appointments
+    if (appointmentFilter) {
+      const professionalsWithSessions = await prisma.appointment.findMany({
+        where: appointmentFilter,
+        select: { professionalId: true },
+        distinct: ["professionalId"],
+      });
+      const proIds = professionalsWithSessions.map((a) => a.professionalId);
+      whereClause.id = { in: proIds };
     }
 
     // Build sort object
@@ -278,7 +315,7 @@ export async function GET(req: NextRequest) {
           _count: true,
         });
 
-        // Get appointment stats
+        // Get appointment stats (sessions count)
         const appointmentStats = await prisma.appointment.groupBy({
           by: ["status"],
           where: { professionalId: pro.id },
@@ -286,8 +323,13 @@ export async function GET(req: NextRequest) {
         });
 
         const appointmentStatusCounts: Record<string, number> = {};
+        let totalSessions = 0;
         appointmentStats.forEach((stat) => {
           appointmentStatusCounts[stat.status] = stat._count;
+          // Count completed sessions as "contributions"
+          if (stat.status === "completed" || stat.status === "confirmed") {
+            totalSessions += stat._count;
+          }
         });
 
         // Parse location
@@ -327,17 +369,18 @@ export async function GET(req: NextRequest) {
           },
           linkedUser: linkedUser
             ? {
-              id: linkedUser.id,
-              email: linkedUser.email,
-              name: linkedUser.name,
-              lastOnline: linkedUser.lastOnline,
-              profileImage: linkedUser.profileImage,
-            }
+                id: linkedUser.id,
+                email: linkedUser.email,
+                name: linkedUser.name,
+                lastOnline: linkedUser.lastOnline,
+                profileImage: linkedUser.profileImage,
+              }
             : null,
           applicationStatus: pro.applications[0]?.status || null,
           stats: {
             totalAppointments: pro._count.appointments,
             appointmentsByStatus: appointmentStatusCounts,
+            totalSessions, // NEW: Number of completed sessions (contributions)
             totalReviews: pro._count.reviews,
             profileVisits: pro._count.profileVisits,
             totalEarnings: earningsAgg._sum.grossAmount || 0,
@@ -373,82 +416,7 @@ export async function GET(req: NextRequest) {
         },
       });
 
-      // Monthly registration stats (last 12 months)
-      const monthlyStats: { [key: string]: number } = {};
-      const now = new Date();
-      for (let i = 11; i >= 0; i--) {
-        const date = new Date(now.getFullYear(), now.getMonth() - i, 1);
-        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-        monthlyStats[key] = 0;
-      }
-
-      allFilteredProfessionals.forEach((pro) => {
-        const date = new Date(pro.createdAt);
-        const key = `${date.getFullYear()}-${String(date.getMonth() + 1).padStart(2, "0")}`;
-        if (monthlyStats[key] !== undefined) {
-          monthlyStats[key]++;
-        }
-      });
-
-      // Weekly registration stats (last 8 weeks)
-      const weeklyStats: { [key: string]: number } = {};
-      for (let i = 7; i >= 0; i--) {
-        const date = new Date(now);
-        date.setDate(date.getDate() - i * 7);
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay());
-        const key = weekStart.toISOString().split("T")[0];
-        weeklyStats[key] = 0;
-      }
-
-      allFilteredProfessionals.forEach((pro) => {
-        const date = new Date(pro.createdAt);
-        const weekStart = new Date(date);
-        weekStart.setDate(date.getDate() - date.getDay());
-        const key = weekStart.toISOString().split("T")[0];
-        if (weeklyStats[key] !== undefined) {
-          weeklyStats[key]++;
-        }
-      });
-
-      // Venue type distribution
-      const venueDistribution = {
-        host: 0,
-        visit: 0,
-        video: 0,
-        both: 0,
-      };
-
-      allFilteredProfessionals.forEach((pro) => {
-        if (pro.venue) {
-          venueDistribution[pro.venue]++;
-        }
-      });
-
-      // Rating distribution
-      const ratingDistribution = {
-        excellent: 0, // 4.5+
-        good: 0, // 3.5-4.5
-        average: 0, // 2.5-3.5
-        poor: 0, // 1-2.5
-        noRating: 0, // null
-      };
-
-      allFilteredProfessionals.forEach((pro) => {
-        if (pro.rating === null) {
-          ratingDistribution.noRating++;
-        } else if (pro.rating >= 4.5) {
-          ratingDistribution.excellent++;
-        } else if (pro.rating >= 3.5) {
-          ratingDistribution.good++;
-        } else if (pro.rating >= 2.5) {
-          ratingDistribution.average++;
-        } else {
-          ratingDistribution.poor++;
-        }
-      });
-
-      // Payment status distribution
+      // Payment status distribution (KEEP)
       const paymentStatusDistribution = {
         valid: 0,
         invalid: 0,
@@ -465,74 +433,136 @@ export async function GET(req: NextRequest) {
         }
       });
 
-      // Rate distribution
-      const rateRanges = [
-        { label: "$0-50", min: 0, max: 50, count: 0 },
-        { label: "$51-100", min: 51, max: 100, count: 0 },
-        { label: "$101-150", min: 101, max: 150, count: 0 },
-        { label: "$151-200", min: 151, max: 200, count: 0 },
-        { label: "$201+", min: 201, max: Infinity, count: 0 },
-      ];
-
-      allFilteredProfessionals.forEach((pro) => {
-        if (pro.rate) {
-          const range = rateRanges.find(
-            (r) => pro.rate! >= r.min && pro.rate! <= r.max
-          );
-          if (range) range.count++;
-        }
-      });
-
-      // Review contribution stats
-      const reviewStats = {
-        withReviews: 0,
-        withoutReviews: 0,
-        totalReviews: 0,
-        averageReviewsPerPro: 0,
+      // Contributions stats (sessions count) - REPLACES reviewStats
+      const contributionStats = {
+        totalSessions: 0,
+        withSessions: 0,
+        withoutSessions: 0,
+        averageSessionsPerPro: 0,
       };
 
+      // Get sessions count per professional
+      const sessionCounts = await prisma.appointment.groupBy({
+        by: ["professionalId"],
+        where: {
+          professionalId: {
+            in: allFilteredProfessionals.map((p) => p.id),
+          },
+          status: { in: ["completed", "confirmed"] },
+        },
+        _count: true,
+      });
+
+      const sessionCountMap = new Map(
+        sessionCounts.map((s) => [s.professionalId, s._count])
+      );
+
       allFilteredProfessionals.forEach((pro) => {
-        if (pro._count.reviews > 0) {
-          reviewStats.withReviews++;
-          reviewStats.totalReviews += pro._count.reviews;
+        const sessions = sessionCountMap.get(pro.id) || 0;
+        contributionStats.totalSessions += sessions;
+        if (sessions > 0) {
+          contributionStats.withSessions++;
         } else {
-          reviewStats.withoutReviews++;
+          contributionStats.withoutSessions++;
         }
       });
 
-      reviewStats.averageReviewsPerPro =
-        reviewStats.withReviews > 0
-          ? reviewStats.totalReviews / reviewStats.withReviews
+      contributionStats.averageSessionsPerPro =
+        contributionStats.withSessions > 0
+          ? contributionStats.totalSessions / contributionStats.withSessions
           : 0;
 
-      // Top locations
-      const locationCounts: { [key: string]: number } = {};
-      allFilteredProfessionals.forEach((pro) => {
-        if (pro.location) {
-          const parts = pro.location.split(",").map((s) => s.trim());
-          const state = parts[1] || parts[0] || "Unknown";
-          locationCounts[state] = (locationCounts[state] || 0) + 1;
-        } else {
-          locationCounts["Unknown"] = (locationCounts["Unknown"] || 0) + 1;
+      // Location data for interactive map
+      const locationMap = new Map<
+        string,
+        {
+          state: string;
+          stateAbbr: string;
+          city: string;
+          latitude: number;
+          longitude: number;
+          count: number;
+          professionals: {
+            id: string;
+            name: string;
+            image: string | null;
+            rating: number | null;
+            rate: number | null;
+            sessions: number;
+          }[];
         }
+      >();
+
+      for (const pro of allFilteredProfessionals) {
+        if (!pro.location) continue;
+
+        const parts = pro.location.split(",").map((s) => s.trim());
+        const city = parts[0] || "Unknown";
+        const stateStr = parts[1] || parts[0] || "";
+
+        // Find matching US state
+        const stateInfo = extractStateFromLocation(pro.location);
+        if (!stateInfo) continue; // Skip non-US locations
+
+        const key = `${city}-${stateInfo.abbreviation}`;
+        const sessions = sessionCountMap.get(pro.id) || 0;
+
+        if (locationMap.has(key)) {
+          const existing = locationMap.get(key)!;
+          existing.count++;
+          existing.professionals.push({
+            id: pro.id,
+            name: "", // Will be populated later
+            image: null,
+            rating: pro.rating,
+            rate: pro.rate,
+            sessions,
+          });
+        } else {
+          locationMap.set(key, {
+            state: stateInfo.name,
+            stateAbbr: stateInfo.abbreviation,
+            city,
+            latitude: stateInfo.latitude,
+            longitude: stateInfo.longitude,
+            count: 1,
+            professionals: [
+              {
+                id: pro.id,
+                name: "",
+                image: null,
+                rating: pro.rating,
+                rate: pro.rate,
+                sessions,
+              },
+            ],
+          });
+        }
+      }
+
+      // Populate professional names and images
+      const proIds = [...locationMap.values()].flatMap((l) =>
+        l.professionals.map((p) => p.id)
+      );
+      const proDetails = await prisma.professional.findMany({
+        where: { id: { in: proIds } },
+        select: { id: true, name: true, image: true },
       });
+      const proDetailMap = new Map(proDetails.map((p) => [p.id, p]));
 
-      const topLocations = Object.entries(locationCounts)
-        .sort((a, b) => b[1] - a[1])
-        .slice(0, 10)
-        .map(([location, count]) => ({ location, count }));
+      for (const location of locationMap.values()) {
+        for (const pro of location.professionals) {
+          const details = proDetailMap.get(pro.id);
+          if (details) {
+            pro.name = details.name;
+            pro.image = details.image;
+          }
+        }
+      }
 
-      // Top performers by reviews
-      const topByReviews = [...allFilteredProfessionals]
-        .sort((a, b) => (b.reviewCount || 0) - (a.reviewCount || 0))
-        .slice(0, 5)
-        .map((pro) => ({
-          id: pro.id,
-          reviewCount: pro.reviewCount || 0,
-          rating: pro.rating,
-        }));
+      const mapLocationData = [...locationMap.values()];
 
-      // Aggregate earnings stats
+      // Aggregate earnings stats (KEEP)
       const earningsStats = await prisma.earning.aggregate({
         where: {
           professionalId: {
@@ -551,28 +581,9 @@ export async function GET(req: NextRequest) {
 
       statistics = {
         totalFiltered: allFilteredProfessionals.length,
-        monthlyRegistrations: Object.entries(monthlyStats).map(
-          ([month, count]) => ({
-            month,
-            count,
-          })
-        ),
-        weeklyRegistrations: Object.entries(weeklyStats).map(
-          ([week, count]) => ({
-            week,
-            count,
-          })
-        ),
-        venueDistribution,
-        ratingDistribution,
         paymentStatusDistribution,
-        rateDistribution: rateRanges.map((r) => ({
-          range: r.label,
-          count: r.count,
-        })),
-        reviewStats,
-        topLocations,
-        topByReviews,
+        contributionStats, // NEW: Replaces reviewStats
+        mapLocationData, // NEW: For interactive map
         earningsStats: {
           totalGross: earningsStats._sum.grossAmount || 0,
           totalPlatformFees: earningsStats._sum.platformFeeAmount || 0,
@@ -582,37 +593,38 @@ export async function GET(req: NextRequest) {
       };
     }
 
-    // Get unique locations for filter options
-    const uniqueLocations = await prisma.professional.findMany({
-      where: { location: { not: null } },
-      select: { location: true },
-      distinct: ["location"],
-    });
+    // Get cities for selected state (for dependent dropdown)
+    let citiesForState: string[] = [];
+    if (state && state !== "all") {
+      const stateInfo = US_STATES.find(
+        (s) => s.abbreviation === state || s.name === state
+      );
+      if (stateInfo) {
+        const professionalsInState = await prisma.professional.findMany({
+          where: {
+            OR: [
+              { location: { contains: stateInfo.name, mode: "insensitive" } },
+              {
+                location: {
+                  contains: stateInfo.abbreviation,
+                  mode: "insensitive",
+                },
+              },
+            ],
+          },
+          select: { location: true },
+        });
 
-    const locationOptions = uniqueLocations
-      .filter((p) => p.location)
-      .map((p) => {
-        const parts = p.location!.split(",").map((s) => s.trim());
-        return {
-          full: p.location,
-          city: parts[0] || "",
-          state: parts[1] || "",
-          country: parts[2] || parts[1] || "",
-        };
-      });
-
-    const uniqueStates = [
-      ...new Set(locationOptions.map((l) => l.state).filter(Boolean)),
-    ].sort();
-    const uniqueCities = [
-      ...new Set(locationOptions.map((l) => l.city).filter(Boolean)),
-    ].sort();
-
-    // Get rate range for filter
-    const rateRange = await prisma.professional.aggregate({
-      _min: { rate: true },
-      _max: { rate: true },
-    });
+        const cities = new Set<string>();
+        professionalsInState.forEach((p) => {
+          if (p.location) {
+            const parts = p.location.split(",").map((s) => s.trim());
+            if (parts[0]) cities.add(parts[0]);
+          }
+        });
+        citiesForState = [...cities].sort();
+      }
+    }
 
     return NextResponse.json({
       data: formattedProfessionals,
@@ -624,12 +636,11 @@ export async function GET(req: NextRequest) {
         hasMore: page < Math.ceil(totalProfessionals / limit),
       },
       filterOptions: {
-        states: uniqueStates,
-        cities: uniqueCities,
-        rateRange: {
-          min: rateRange._min.rate || 0,
-          max: rateRange._max.rate || 500,
-        },
+        states: US_STATES.map((s) => ({
+          name: s.name,
+          abbreviation: s.abbreviation,
+        })),
+        cities: citiesForState,
       },
       statistics,
     });

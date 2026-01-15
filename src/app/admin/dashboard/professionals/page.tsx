@@ -32,6 +32,7 @@ import {
   MessageSquare,
   Eye,
   Video,
+  Clock,
 } from "lucide-react";
 import Link from "next/link";
 import { useState, useCallback, useEffect, useMemo } from "react";
@@ -57,6 +58,9 @@ import {
   AreaChart,
   Area,
 } from "recharts";
+import { DateTimeDialog } from "@/components/professionals/DateTimeDialog";
+import { InteractiveUSMap } from "@/components/admin/professionals/InteractiveUSMap";
+import { US_STATES } from "@/lib/constants/us-states";
 
 interface Professional {
   id: string;
@@ -107,30 +111,33 @@ interface Professional {
 
 interface Statistics {
   totalFiltered: number;
-  monthlyRegistrations: { month: string; count: number }[];
-  weeklyRegistrations: { week: string; count: number }[];
-  venueDistribution: { host: number; visit: number; both: number };
-  ratingDistribution: {
-    excellent: number;
-    good: number;
-    average: number;
-    poor: number;
-    noRating: number;
-  };
   paymentStatusDistribution: {
     valid: number;
     invalid: number;
     blocked: number;
   };
-  rateDistribution: { range: string; count: number }[];
-  reviewStats: {
-    withReviews: number;
-    withoutReviews: number;
-    totalReviews: number;
-    averageReviewsPerPro: number;
+  contributionStats: {
+    totalSessions: number;
+    withSessions: number;
+    withoutSessions: number;
+    averageSessionsPerPro: number;
   };
-  topLocations: { location: string; count: number }[];
-  topByReviews: { id: string; reviewCount: number; rating: number | null }[];
+  mapLocationData: {
+    state: string;
+    stateAbbr: string;
+    city: string;
+    latitude: number;
+    longitude: number;
+    count: number;
+    professionals: {
+      id: string;
+      name: string;
+      image: string | null;
+      rating: number | null;
+      rate: number | null;
+      sessions: number;
+    }[];
+  }[];
   earningsStats: {
     totalGross: number;
     totalPlatformFees: number;
@@ -140,12 +147,8 @@ interface Statistics {
 }
 
 interface FilterOptions {
-  states: string[];
+  states: { name: string; abbreviation: string }[];
   cities: string[];
-  rateRange: {
-    min: number;
-    max: number;
-  };
 }
 
 const containerVariants = {
@@ -191,7 +194,6 @@ export default function ProfessionalsPage() {
   const [filterOptions, setFilterOptions] = useState<FilterOptions>({
     states: [],
     cities: [],
-    rateRange: { min: 0, max: 500 },
   });
   const [loading, setLoading] = useState(true);
   const [viewMode, setViewMode] = useState<"list" | "chart">("list");
@@ -207,8 +209,11 @@ export default function ProfessionalsPage() {
   const [dateFilter, setDateFilter] = useState<string>("all");
   const [yearFilter, setYearFilter] = useState<string>("all");
   const [monthFilter, setMonthFilter] = useState<string>("all");
-  const [rateMin, setRateMin] = useState<string>("");
-  const [rateMax, setRateMax] = useState<string>("");
+  
+  // Session time filter
+  const [sessionDateFilter, setSessionDateFilter] = useState<Date | undefined>(undefined);
+  const [sessionTimeRange, setSessionTimeRange] = useState<[number, number]>([0, 1410]);
+  const [isDateTimeDialogOpen, setIsDateTimeDialogOpen] = useState(false);
 
   // Sorting
   const [sortBy] = useState<string>("createdAt");
@@ -251,8 +256,19 @@ export default function ProfessionalsPage() {
       if (venueFilter !== "all") params.set("venueType", venueFilter);
       if (ratingFilter !== "all") params.set("ratingFilter", ratingFilter);
       if (paymentFilter !== "all") params.set("paymentStatus", paymentFilter);
-      if (rateMin) params.set("rateMin", rateMin);
-      if (rateMax) params.set("rateMax", rateMax);
+      if (sessionDateFilter) {
+        params.set("sessionDateFrom", sessionDateFilter.toISOString().split("T")[0]);
+        params.set("sessionDateTo", sessionDateFilter.toISOString().split("T")[0]);
+      }
+      if (sessionTimeRange[0] !== 0 || sessionTimeRange[1] !== 1410) {
+        // Convert minutes to HH:MM format
+        const startHours = Math.floor(sessionTimeRange[0] / 60);
+        const startMinutes = sessionTimeRange[0] % 60;
+        const endHours = Math.floor(sessionTimeRange[1] / 60);
+        const endMinutes = sessionTimeRange[1] % 60;
+        params.set("sessionTimeStart", `${String(startHours).padStart(2, "0")}:${String(startMinutes).padStart(2, "0")}`);
+        params.set("sessionTimeEnd", `${String(endHours).padStart(2, "0")}:${String(endMinutes).padStart(2, "0")}`);
+      }
       if (dateFilter !== "all") {
         params.set("dateFilter", dateFilter);
         if (dateFilter === "custom") {
@@ -276,7 +292,6 @@ export default function ProfessionalsPage() {
         data.filterOptions || {
           states: [],
           cities: [],
-          rateRange: { min: 0, max: 500 },
         }
       );
     } catch (error) {
@@ -292,11 +307,11 @@ export default function ProfessionalsPage() {
     venueFilter,
     ratingFilter,
     paymentFilter,
-    rateMin,
-    rateMax,
     dateFilter,
     yearFilter,
     monthFilter,
+    sessionDateFilter,
+    sessionTimeRange,
   ]);
 
   // Apply client-side sorting
@@ -323,8 +338,8 @@ export default function ProfessionalsPage() {
           const aRate = a.rate ?? 0;
           const bRate = b.rate ?? 0;
           return (aRate - bRate) * sortMultiplier;
-        case "reviews":
-          return (a.reviewCount - b.reviewCount) * sortMultiplier;
+        case "contributions":
+          return (a.stats.totalAppointments - b.stats.totalAppointments) * sortMultiplier;
         case "earnings":
           return (
             (a.stats.totalEarnings - b.stats.totalEarnings) * sortMultiplier
@@ -341,6 +356,13 @@ export default function ProfessionalsPage() {
     fetchProfessionals();
   }, [fetchProfessionals]);
 
+  // Reset city filter when state changes
+  useEffect(() => {
+    if (stateFilter === "all") {
+      setCityFilter("all");
+    }
+  }, [stateFilter]);
+
   const clearAllFilters = () => {
     setSearchTerm("");
     setStateFilter("all");
@@ -351,8 +373,8 @@ export default function ProfessionalsPage() {
     setDateFilter("all");
     setYearFilter("all");
     setMonthFilter("all");
-    setRateMin("");
-    setRateMax("");
+    setSessionDateFilter(undefined);
+    setSessionTimeRange([0, 1410]);
   };
 
   const activeFilterCount = useMemo(() => {
@@ -364,7 +386,8 @@ export default function ProfessionalsPage() {
     if (ratingFilter !== "all") count++;
     if (paymentFilter !== "all") count++;
     if (dateFilter !== "all") count++;
-    if (rateMin || rateMax) count++;
+    if (sessionDateFilter) count++;
+    if (sessionTimeRange[0] !== 0 || sessionTimeRange[1] !== 1410) count++;
     return count;
   }, [
     searchTerm,
@@ -374,8 +397,8 @@ export default function ProfessionalsPage() {
     ratingFilter,
     paymentFilter,
     dateFilter,
-    rateMin,
-    rateMax,
+    sessionDateFilter,
+    sessionTimeRange,
   ]);
 
   const formatDate = (date: string) => {
@@ -501,44 +524,6 @@ export default function ProfessionalsPage() {
   };
 
   // Chart data transformations
-  const venueChartData = statistics
-    ? [
-      { name: "Host", value: statistics.venueDistribution.host },
-      { name: "Visit", value: statistics.venueDistribution.visit },
-      { name: "Both", value: statistics.venueDistribution.both },
-    ]
-    : [];
-
-  const ratingChartData = statistics
-    ? [
-      {
-        name: "Excellent (4.5+)",
-        value: statistics.ratingDistribution.excellent,
-        fill: RATING_COLORS.excellent,
-      },
-      {
-        name: "Good (3.5-4.5)",
-        value: statistics.ratingDistribution.good,
-        fill: RATING_COLORS.good,
-      },
-      {
-        name: "Average (2.5-3.5)",
-        value: statistics.ratingDistribution.average,
-        fill: RATING_COLORS.average,
-      },
-      {
-        name: "Poor (<2.5)",
-        value: statistics.ratingDistribution.poor,
-        fill: RATING_COLORS.poor,
-      },
-      {
-        name: "No Rating",
-        value: statistics.ratingDistribution.noRating,
-        fill: RATING_COLORS.noRating,
-      },
-    ]
-    : [];
-
   const paymentChartData = statistics
     ? [
       { name: "Valid", value: statistics.paymentStatusDistribution.valid },
@@ -553,32 +538,12 @@ export default function ProfessionalsPage() {
     ]
     : [];
 
-  const monthlyChartData = statistics
-    ? statistics.monthlyRegistrations.map((item) => ({
-      name: new Date(item.month + "-01").toLocaleDateString("en-US", {
-        month: "short",
-        year: "2-digit",
-      }),
-      professionals: item.count,
-    }))
-    : [];
-
-  const weeklyChartData = statistics
-    ? statistics.weeklyRegistrations.map((item) => ({
-      name: new Date(item.week).toLocaleDateString("en-US", {
-        month: "short",
-        day: "numeric",
-      }),
-      professionals: item.count,
-    }))
-    : [];
-
-  const reviewContributionData = statistics
+  const contributionData = statistics
     ? [
-      { name: "With Reviews", value: statistics.reviewStats.withReviews },
+      { name: "With Sessions", value: statistics.contributionStats.withSessions },
       {
-        name: "Without Reviews",
-        value: statistics.reviewStats.withoutReviews,
+        name: "Without Sessions",
+        value: statistics.contributionStats.withoutSessions,
       },
     ]
     : [];
@@ -692,15 +657,21 @@ export default function ProfessionalsPage() {
                     <MapPin className="h-4 w-4" />
                     State/Region
                   </label>
-                  <Select value={stateFilter} onValueChange={setStateFilter}>
+                  <Select 
+                    value={stateFilter} 
+                    onValueChange={(value) => {
+                      setStateFilter(value);
+                      setCityFilter("all"); // Reset city when state changes
+                    }}
+                  >
                     <SelectTrigger className="border-[#F3CFC6]">
                       <SelectValue placeholder="All States" />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All States</SelectItem>
-                      {filterOptions.states.map((state) => (
-                        <SelectItem key={state} value={state}>
-                          {state}
+                      {(filterOptions.states.length > 0 ? filterOptions.states : US_STATES.map(s => ({ name: s.name, abbreviation: s.abbreviation }))).map((state) => (
+                        <SelectItem key={state.abbreviation || state.name} value={state.abbreviation || state.name}>
+                          {state.name}
                         </SelectItem>
                       ))}
                     </SelectContent>
@@ -713,9 +684,13 @@ export default function ProfessionalsPage() {
                     <MapPin className="h-4 w-4" />
                     City
                   </label>
-                  <Select value={cityFilter} onValueChange={setCityFilter}>
+                  <Select 
+                    value={cityFilter} 
+                    onValueChange={setCityFilter}
+                    disabled={stateFilter === "all"}
+                  >
                     <SelectTrigger className="border-[#F3CFC6]">
-                      <SelectValue placeholder="All Cities" />
+                      <SelectValue placeholder={stateFilter === "all" ? "Select State First" : "All Cities"} />
                     </SelectTrigger>
                     <SelectContent>
                       <SelectItem value="all">All Cities</SelectItem>
@@ -857,29 +832,23 @@ export default function ProfessionalsPage() {
                   </div>
                 )}
 
-                {/* Rate Range */}
-                <div className="space-y-2 lg:col-span-2">
+                {/* Session Time Slots Filter */}
+                <div className="space-y-2">
                   <label className="text-sm font-medium text-gray-700 dark:text-gray-300 flex items-center gap-1">
-                    <DollarSign className="h-4 w-4" />
-                    Rate Range ($/hr)
+                    <Clock className="h-4 w-4" />
+                    Session Time Slots
                   </label>
-                  <div className="flex items-center gap-2">
-                    <Input
-                      type="number"
-                      placeholder={`Min ($${filterOptions.rateRange.min})`}
-                      value={rateMin}
-                      onChange={(e) => setRateMin(e.target.value)}
-                      className="border-[#C4C4C4]"
-                    />
-                    <span className="text-gray-500">-</span>
-                    <Input
-                      type="number"
-                      placeholder={`Max ($${filterOptions.rateRange.max})`}
-                      value={rateMax}
-                      onChange={(e) => setRateMax(e.target.value)}
-                      className="border-[#C4C4C4]"
-                    />
-                  </div>
+                  <Button
+                    type="button"
+                    variant="outline"
+                    onClick={() => setIsDateTimeDialogOpen(true)}
+                    className="w-full border-[#F3CFC6] justify-start"
+                  >
+                    <Calendar className="h-4 w-4 mr-2" />
+                    {sessionDateFilter
+                      ? `${sessionDateFilter.toLocaleDateString()}${sessionTimeRange[0] !== 0 || sessionTimeRange[1] !== 1410 ? ` • ${Math.floor(sessionTimeRange[0] / 60)}:${String(sessionTimeRange[0] % 60).padStart(2, "0")} - ${Math.floor(sessionTimeRange[1] / 60)}:${String(sessionTimeRange[1] % 60).padStart(2, "0")}` : ""}`
+                      : "Select date & time"}
+                  </Button>
                 </div>
               </div>
 
@@ -970,13 +939,16 @@ export default function ProfessionalsPage() {
                       </button>
                     </span>
                   )}
-                  {(rateMin || rateMax) && (
+                  {sessionDateFilter && (
                     <span className="inline-flex items-center gap-2 px-3 py-1 bg-[#F3CFC6]/20 dark:bg-[#C4C4C4]/20 rounded-full text-sm text-[#F3CFC6] dark:text-white">
-                      Rate: ${rateMin || "0"} - ${rateMax || "∞"}
+                      Session: {sessionDateFilter.toLocaleDateString()}
+                      {(sessionTimeRange[0] !== 0 || sessionTimeRange[1] !== 1410) && (
+                        <> • {Math.floor(sessionTimeRange[0] / 60)}:{String(sessionTimeRange[0] % 60).padStart(2, "0")} - {Math.floor(sessionTimeRange[1] / 60)}:{String(sessionTimeRange[1] % 60).padStart(2, "0")}</>
+                      )}
                       <button
                         onClick={() => {
-                          setRateMin("");
-                          setRateMax("");
+                          setSessionDateFilter(undefined);
+                          setSessionTimeRange([0, 1410]);
                         }}
                         className="hover:opacity-70"
                       >
@@ -1017,13 +989,13 @@ export default function ProfessionalsPage() {
                 <div className="flex items-center justify-between">
                   <div>
                     <p className="text-sm text-gray-600 dark:text-gray-300">
-                      Total Reviews
+                      Total Contributions
                     </p>
                     <p className="text-2xl font-bold text-blue-700 dark:text-blue-300">
-                      {statistics?.reviewStats.totalReviews || 0}
+                      {statistics?.contributionStats.totalSessions || 0}
                     </p>
                   </div>
-                  <MessageSquare className="h-8 w-8 text-blue-500 opacity-50" />
+                  <Users className="h-8 w-8 text-blue-500 opacity-50" />
                 </div>
               </CardContent>
             </Card>
@@ -1067,122 +1039,71 @@ export default function ProfessionalsPage() {
 
           {/* Charts Grid */}
           <div className="grid grid-cols-1 lg:grid-cols-2 gap-6">
-            {/* Monthly Registrations */}
+            {/* Contributions Chart */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
-                  <TrendingUp className="h-5 w-5 text-[#F3CFC6]" />
-                  Monthly Registrations (Last 12 Months)
+                  <Users className="h-5 w-5 text-[#F3CFC6]" />
+                  Contributions (Number of Sessions)
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <AreaChart data={monthlyChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" fontSize={12} />
-                    <YAxis fontSize={12} />
-                    <Tooltip />
-                    <Area
-                      type="monotone"
-                      dataKey="professionals"
-                      stroke="#F3CFC6"
-                      fill="#F3CFC6"
-                      fillOpacity={0.6}
-                    />
-                  </AreaChart>
-                </ResponsiveContainer>
+                <div className="space-y-4">
+                  <ResponsiveContainer width="100%" height={200}>
+                    <PieChart>
+                      <Pie
+                        data={contributionData}
+                        cx="50%"
+                        cy="50%"
+                        innerRadius={60}
+                        outerRadius={80}
+                        fill="#8884d8"
+                        paddingAngle={5}
+                        dataKey="value"
+                      >
+                        <Cell fill="#22c55e" />
+                        <Cell fill="#9ca3af" />
+                      </Pie>
+                      <Tooltip />
+                      <Legend />
+                    </PieChart>
+                  </ResponsiveContainer>
+                  <div className="grid grid-cols-2 gap-4 text-center">
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded p-3">
+                      <p className="text-2xl font-bold text-[#F3CFC6]">
+                        {statistics?.contributionStats.totalSessions || 0}
+                      </p>
+                      <p className="text-xs text-gray-500">Total Sessions</p>
+                    </div>
+                    <div className="bg-gray-50 dark:bg-gray-800 rounded p-3">
+                      <p className="text-2xl font-bold text-[#F3CFC6]">
+                        {statistics?.contributionStats.averageSessionsPerPro.toFixed(
+                          1
+                        ) || 0}
+                      </p>
+                      <p className="text-xs text-gray-500">Avg per Pro</p>
+                    </div>
+                  </div>
+                </div>
               </CardContent>
             </Card>
 
-            {/* Weekly Registrations */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Calendar className="h-5 w-5 text-[#F3CFC6]" />
-                  Weekly Registrations (Last 8 Weeks)
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={weeklyChartData}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="name" fontSize={12} />
-                    <YAxis fontSize={12} />
-                    <Tooltip />
-                    <Bar
-                      dataKey="professionals"
-                      fill="#C4C4C4"
-                      radius={[4, 4, 0, 0]}
-                    />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Venue Distribution */}
+            {/* Interactive Location Map */}
             <Card>
               <CardHeader>
                 <CardTitle className="text-lg flex items-center gap-2">
                   <MapPin className="h-5 w-5 text-[#F3CFC6]" />
-                  Venue Type Distribution
+                  Location Distribution
                 </CardTitle>
               </CardHeader>
               <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <PieChart>
-                    <Pie
-                      data={venueChartData}
-                      cx="50%"
-                      cy="50%"
-                      labelLine={false}
-                      label={({ name, percent }) =>
-                        `${name} ${((percent ?? 0) * 100).toFixed(0)}%`
-                      }
-                      outerRadius={100}
-                      fill="#8884d8"
-                      dataKey="value"
-                    >
-                      {venueChartData.map((entry, index) => (
-                        <Cell
-                          key={`cell-${index}`}
-                          fill={Object.values(VENUE_COLORS)[index]}
-                        />
-                      ))}
-                    </Pie>
-                    <Tooltip />
-                    <Legend />
-                  </PieChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Rating Distribution */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <Star className="h-5 w-5 text-[#F3CFC6]" />
-                  Rating Distribution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={ratingChartData} layout="vertical">
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" fontSize={12} />
-                    <YAxis
-                      dataKey="name"
-                      type="category"
-                      fontSize={12}
-                      width={100}
-                    />
-                    <Tooltip />
-                    <Bar dataKey="value" radius={[0, 4, 4, 0]}>
-                      {ratingChartData.map((entry, index) => (
-                        <Cell key={`cell-${index}`} fill={entry.fill} />
-                      ))}
-                    </Bar>
-                  </BarChart>
-                </ResponsiveContainer>
+                {statistics?.mapLocationData && statistics.mapLocationData.length > 0 ? (
+                  <InteractiveUSMap locationData={statistics.mapLocationData} />
+                ) : (
+                  <div className="h-[400px] flex items-center justify-center text-gray-500">
+                    No location data available
+                  </div>
+                )}
               </CardContent>
             </Card>
 
@@ -1222,105 +1143,6 @@ export default function ProfessionalsPage() {
                 </ResponsiveContainer>
               </CardContent>
             </Card>
-
-            {/* Review Contributions */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <MessageSquare className="h-5 w-5 text-[#F3CFC6]" />
-                  Review Contributions
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <div className="space-y-4">
-                  <ResponsiveContainer width="100%" height={200}>
-                    <PieChart>
-                      <Pie
-                        data={reviewContributionData}
-                        cx="50%"
-                        cy="50%"
-                        innerRadius={60}
-                        outerRadius={80}
-                        fill="#8884d8"
-                        paddingAngle={5}
-                        dataKey="value"
-                      >
-                        <Cell fill="#22c55e" />
-                        <Cell fill="#9ca3af" />
-                      </Pie>
-                      <Tooltip />
-                      <Legend />
-                    </PieChart>
-                  </ResponsiveContainer>
-                  <div className="grid grid-cols-2 gap-4 text-center">
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded p-3">
-                      <p className="text-2xl font-bold text-[#F3CFC6]">
-                        {statistics?.reviewStats.totalReviews || 0}
-                      </p>
-                      <p className="text-xs text-gray-500">Total Reviews</p>
-                    </div>
-                    <div className="bg-gray-50 dark:bg-gray-800 rounded p-3">
-                      <p className="text-2xl font-bold text-[#F3CFC6]">
-                        {statistics?.reviewStats.averageReviewsPerPro.toFixed(
-                          1
-                        ) || 0}
-                      </p>
-                      <p className="text-xs text-gray-500">Avg per Pro</p>
-                    </div>
-                  </div>
-                </div>
-              </CardContent>
-            </Card>
-
-            {/* Rate Distribution */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <DollarSign className="h-5 w-5 text-[#F3CFC6]" />
-                  Rate Distribution
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart data={statistics?.rateDistribution || []}>
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis dataKey="range" fontSize={12} />
-                    <YAxis fontSize={12} />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#F3CFC6" radius={[4, 4, 0, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
-
-            {/* Top Locations */}
-            <Card>
-              <CardHeader>
-                <CardTitle className="text-lg flex items-center gap-2">
-                  <MapPin className="h-5 w-5 text-[#F3CFC6]" />
-                  Top Locations
-                </CardTitle>
-              </CardHeader>
-              <CardContent>
-                <ResponsiveContainer width="100%" height={300}>
-                  <BarChart
-                    data={statistics?.topLocations || []}
-                    layout="vertical"
-                  >
-                    <CartesianGrid strokeDasharray="3 3" />
-                    <XAxis type="number" fontSize={12} />
-                    <YAxis
-                      dataKey="location"
-                      type="category"
-                      fontSize={12}
-                      width={100}
-                    />
-                    <Tooltip />
-                    <Bar dataKey="count" fill="#C4C4C4" radius={[0, 4, 4, 0]} />
-                  </BarChart>
-                </ResponsiveContainer>
-              </CardContent>
-            </Card>
           </div>
 
           {/* Professionals Table in Chart View */}
@@ -1343,7 +1165,7 @@ export default function ProfessionalsPage() {
                       </th>
                       <th className="text-left p-2 font-medium">Location</th>
                       <th className="text-left p-2 font-medium">Rating</th>
-                      <th className="text-left p-2 font-medium">Reviews</th>
+                      <th className="text-left p-2 font-medium">Contributions</th>
                       <th className="text-left p-2 font-medium">Rate</th>
                       <th className="text-left p-2 font-medium">Earnings</th>
                       <th className="text-left p-2 font-medium">Actions</th>
@@ -1393,7 +1215,7 @@ export default function ProfessionalsPage() {
                               {pro.rating?.toFixed(1) || "N/A"}
                             </span>
                           </td>
-                          <td className="p-2 text-sm">{pro.reviewCount}</td>
+                          <td className="p-2 text-sm">{pro.stats.totalAppointments}</td>
                           <td className="p-2 text-sm">
                             {pro.rate ? formatCurrency(pro.rate) : "—"}/hr
                           </td>
@@ -1535,6 +1357,9 @@ export default function ProfessionalsPage() {
                               <span className="text-sm text-gray-500">
                                 ({pro.reviewCount} reviews)
                               </span>
+                              <span className="text-sm text-gray-500">
+                                • {pro.stats.totalAppointments} sessions
+                              </span>
                             </div>
 
                             {/* Status Badges */}
@@ -1574,11 +1399,11 @@ export default function ProfessionalsPage() {
                               </div>
                               <div className="bg-[#F3CFC6]/10 dark:bg-[#C4C4C4]/10 rounded p-2 text-center">
                                 <p className="text-[#C4C4C4] flex items-center justify-center gap-1">
-                                  <MessageSquare className="h-3 w-3" />
-                                  Reviews
+                                  <Users className="h-3 w-3" />
+                                  Contributions
                                 </p>
                                 <p className="font-semibold text-black dark:text-white">
-                                  {pro.stats.totalReviews}
+                                  {pro.stats.totalAppointments}
                                 </p>
                               </div>
                               <div className="bg-[#F3CFC6]/10 dark:bg-[#C4C4C4]/10 rounded p-2 text-center">
@@ -1680,6 +1505,17 @@ export default function ProfessionalsPage() {
           </CardContent>
         </Card>
       )}
+
+      {/* DateTime Dialog for Session Time Filter */}
+      <DateTimeDialog
+        open={isDateTimeDialogOpen}
+        onOpenChange={setIsDateTimeDialogOpen}
+        selectedDate={sessionDateFilter}
+        onDateSelect={setSessionDateFilter}
+        onApply={() => setIsDateTimeDialogOpen(false)}
+        timeRange={sessionTimeRange}
+        setTimeRange={setSessionTimeRange}
+      />
     </motion.div>
   );
 }
