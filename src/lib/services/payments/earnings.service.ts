@@ -84,9 +84,7 @@ export async function getPlatformFeePercent(
     where: { key: "companyCutPercentage" },
   });
 
-  // Parse string value to number, default to 20%
-  const value = setting?.value;
-  return value ? parseFloat(value.toString()) : 20.0;
+  return setting?.value ?? 20.0; // Default 20%
 }
 
 // ============================================
