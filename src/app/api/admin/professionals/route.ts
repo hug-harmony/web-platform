@@ -206,7 +206,7 @@ export async function GET(req: NextRequest) {
           toDate.setHours(23, 59, 59, 999);
         }
         appointmentFilter.endTime = {
-          ...appointmentFilter.endTime,
+          ...((appointmentFilter.endTime as object) || {}),
           lte: toDate,
         };
       }
@@ -498,7 +498,7 @@ export async function GET(req: NextRequest) {
 
         const parts = pro.location.split(",").map((s) => s.trim());
         const city = parts[0] || "Unknown";
-        const stateStr = parts[1] || parts[0] || "";
+        // const stateStr = parts[1] || parts[0] || "";
 
         // Find matching US state
         const stateInfo = extractStateFromLocation(pro.location);

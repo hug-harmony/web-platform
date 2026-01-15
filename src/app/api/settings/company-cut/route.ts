@@ -51,10 +51,10 @@ export async function POST(req: Request) {
 
     const updatedSetting = await prisma.companySettings.upsert({
       where: { key: "companyCutPercentage" },
-      update: { value: companyCutPercentage, updatedAt: new Date() },
+      update: { value: companyCutPercentage.toString(), updatedAt: new Date() },
       create: {
         key: "companyCutPercentage",
-        value: companyCutPercentage,
+        value: companyCutPercentage.toString(),
         createdAt: new Date(),
         updatedAt: new Date(),
       },

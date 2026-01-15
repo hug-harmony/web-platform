@@ -29,7 +29,6 @@ import {
   DollarSign,
   CreditCard,
   Users,
-  MessageSquare,
   Eye,
   Video,
   Clock,
@@ -44,19 +43,12 @@ import {
   CollapsibleTrigger,
 } from "@/components/ui/collapsible";
 import {
-  BarChart,
-  Bar,
-  XAxis,
-  YAxis,
-  CartesianGrid,
   Tooltip,
   ResponsiveContainer,
   PieChart,
   Pie,
   Cell,
   Legend,
-  AreaChart,
-  Area,
 } from "recharts";
 import { DateTimeDialog } from "@/components/professionals/DateTimeDialog";
 import { InteractiveUSMap } from "@/components/admin/professionals/InteractiveUSMap";
@@ -165,19 +157,6 @@ const itemVariants = {
   visible: { opacity: 1, y: 0 },
 };
 
-const VENUE_COLORS = {
-  host: "#22c55e",
-  visit: "#3b82f6",
-  both: "#8b5cf6",
-};
-
-const RATING_COLORS = {
-  excellent: "#22c55e",
-  good: "#84cc16",
-  average: "#eab308",
-  poor: "#f97316",
-  noRating: "#9ca3af",
-};
 
 const PAYMENT_COLORS = {
   valid: "#22c55e",
