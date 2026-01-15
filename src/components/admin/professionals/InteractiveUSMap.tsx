@@ -1,9 +1,17 @@
+/* eslint-disable @typescript-eslint/no-unused-vars */
+/* eslint-disable @typescript-eslint/no-explicit-any */
 // src/components/admin/professionals/InteractiveUSMap.tsx
 
 "use client";
 
 import { useState, useMemo, useRef } from "react";
-import { MapContainer, TileLayer, CircleMarker, Popup, useMap } from "react-leaflet";
+import {
+  MapContainer,
+  TileLayer,
+  CircleMarker,
+  Popup,
+  useMap,
+} from "react-leaflet";
 import { Icon, LatLngTuple } from "leaflet";
 import "leaflet/dist/leaflet.css";
 import {
@@ -45,19 +53,24 @@ interface InteractiveUSMapProps {
 if (typeof window !== "undefined") {
   delete (Icon.Default.prototype as any)._getIconUrl;
   Icon.Default.mergeOptions({
-    iconRetinaUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
-    iconUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
-    shadowUrl: "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
+    iconRetinaUrl:
+      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon-2x.png",
+    iconUrl:
+      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-icon.png",
+    shadowUrl:
+      "https://cdnjs.cloudflare.com/ajax/libs/leaflet/1.7.1/images/marker-shadow.png",
   });
 }
 
 // Component to adjust map bounds to show all markers
 function MapBounds({ locationData }: { locationData: LocationData[] }) {
   const map = useMap();
-  
+
   useMemo(() => {
     if (locationData.length > 0) {
-      const bounds = locationData.map((loc) => [loc.latitude, loc.longitude] as LatLngTuple);
+      const bounds = locationData.map(
+        (loc) => [loc.latitude, loc.longitude] as LatLngTuple
+      );
       if (bounds.length > 0) {
         map.fitBounds(bounds, { padding: [50, 50], maxZoom: 6 });
       }
@@ -74,9 +87,13 @@ export function InteractiveUSMap({
   locationData,
   onStateClick,
 }: InteractiveUSMapProps) {
-  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(null);
+  const [selectedLocation, setSelectedLocation] = useState<LocationData | null>(
+    null
+  );
   const [dialogOpen, setDialogOpen] = useState(false);
-  const [hoveredLocation, setHoveredLocation] = useState<LocationData | null>(null);
+  const [hoveredLocation, setHoveredLocation] = useState<LocationData | null>(
+    null
+  );
 
   // Calculate bubble sizes based on count
   const maxCount = useMemo(() => {
@@ -117,14 +134,17 @@ export function InteractiveUSMap({
             attribution='&copy; <a href="https://www.openstreetmap.org/copyright">OpenStreetMap</a> contributors'
             url="https://{s}.tile.openstreetmap.org/{z}/{x}/{y}.png"
           />
-          
+
           <MapBounds locationData={locationData} />
 
           {/* Markers for each location */}
           {locationData.map((location, index) => {
             const radius = getBubbleRadius(location.count);
             const color = getBubbleColor(location.count);
-            const position: LatLngTuple = [location.latitude, location.longitude];
+            const position: LatLngTuple = [
+              location.latitude,
+              location.longitude,
+            ];
 
             return (
               <CircleMarker
@@ -158,7 +178,9 @@ export function InteractiveUSMap({
                       </span>{" "}
                       professional{location.count !== 1 ? "s" : ""}
                     </div>
-                    <div className="text-xs text-gray-400 mt-1">Click for details</div>
+                    <div className="text-xs text-gray-400 mt-1">
+                      Click for details
+                    </div>
                   </div>
                 </Popup>
               </CircleMarker>
